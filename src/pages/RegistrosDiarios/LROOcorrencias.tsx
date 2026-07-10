@@ -1,22 +1,16 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  AlertCircle, Plus, Save, Eye, Pencil, Trash2, ChevronDown, ChevronUp, FileText,
+  AlertCircle, Plus, Save, Eye, Pencil, Trash2, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { useAuth } from '../../context/AuthContext';
 import { listarBombeiros } from '../../services/bombeiroService';
 import { listarOcorrencias, criarOcorrencia, atualizarOcorrencia, excluirOcorrencia } from '../../services/ocorrenciaService';
-import { CATEGORIAS_OCORRENCIA, STATUS_OCORRENCIA, EQUIPES, TIPO_DOCUMENTO } from '../../types/ocorrencia';
-import type { Ocorrencia, TipoDocumento } from '../../types/ocorrencia';
+import { CATEGORIAS_OCORRENCIA, STATUS_OCORRENCIA, EQUIPES } from '../../types/ocorrencia';
+import type { Ocorrencia } from '../../types/ocorrencia';
 
-function gerarNumero(tipo: TipoDocumento, existentes: Ocorrencia[]): string {
-  const prefixo = tipo === 'BONA' ? 'BONA' : 'RAE';
-  const ano = new Date().getFullYear();
-  const doMesmoTipo = existentes.filter(o => o.tipoDocumento === tipo && o.numero.startsWith(prefixo));
-  const sequencia = doMesmoTipo.length + 1;
-  return `${prefixo}-${String(sequencia).padStart(3, '0')}/${ano}`;
-}
+const STORAGE = 'sescinc-lro-ocorrencias';
 
 function emptyOcorrencia(): Omit<Ocorrencia, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'> {
   return {
@@ -27,7 +21,7 @@ function emptyOcorrencia(): Omit<Ocorrencia, 'id' | 'createdAt' | 'updatedAt' | 
     equipe: '',
     turno: '',
     categoria: 'Outros',
-    titulo: TIPO_DOCUMENTO.BONA,
+    titulo: '',
     descricao: '',
     local: '',
     envolvidos: '',
@@ -61,37 +55,25 @@ function getUserEquipe(username: string): string {
 function OcorrenciaForm({
   ocorrencia,
   userEquipe,
-  todas,
   onSave,
   onCancel,
 }: {
   ocorrencia?: Ocorrencia;
   userEquipe: string;
-  todas: Ocorrencia[];
   onSave: (data: Omit<Ocorrencia, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) => void;
   onCancel: () => void;
 }) {
   const [form, setForm] = useState(ocorrencia ? {
-    tipoDocumento: ocorrencia.tipoDocumento,
-    numero: ocorrencia.numero,
+    tipoDocumento: ocorrencia.tipoDocumento, numero: ocorrencia.numero,
     data: ocorrencia.data, hora: ocorrencia.hora, equipe: ocorrencia.equipe,
     turno: ocorrencia.turno, categoria: ocorrencia.categoria, titulo: ocorrencia.titulo,
     descricao: ocorrencia.descricao, local: ocorrencia.local, envolvidos: ocorrencia.envolvidos,
     acoesTomadas: ocorrencia.acoesTomadas, status: ocorrencia.status, fotos: ocorrencia.fotos,
-  } : { ...emptyOcorrencia(), equipe: userEquipe, numero: gerarNumero('BONA', todas) });
+  } : { ...emptyOcorrencia(), equipe: userEquipe });
 
   const input = 'w-full rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50';
   const select = input;
   const label = 'block mb-1.5 text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400';
-
-  function handleTipo(tipo: TipoDocumento) {
-    setForm(f => ({
-      ...f,
-      tipoDocumento: tipo,
-      titulo: TIPO_DOCUMENTO[tipo],
-      numero: gerarNumero(tipo, todas),
-    }));
-  }
 
   function handleImage(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -101,50 +83,16 @@ function OcorrenciaForm({
     reader.readAsDataURL(file);
   }
 
-  const tipoBadge = form.tipoDocumento === 'BONA'
-    ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
-    : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400';
-
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 pt-8 sm:pt-16">
       <div className="flex max-h-[85vh] w-full max-w-3xl flex-col rounded-2xl bg-white/95 shadow-2xl shadow-black/10 backdrop-blur-sm dark:bg-graphite-800/95">
         <div className="flex items-center justify-between border-b border-graphite-200/60 px-6 py-4 dark:border-graphite-700/50">
-          <div className="flex items-center gap-3">
-            <h2 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">{ocorrencia ? 'Editar Ocorrência' : 'Nova Ocorrência'}</h2>
-            <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${tipoBadge}`}>
-              {form.tipoDocumento} · {form.numero}
-            </span>
-          </div>
+          <h2 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">{ocorrencia ? 'Editar Ocorrência' : 'Nova Ocorrência'}</h2>
           <button onClick={onCancel} className="rounded-lg p-1.5 text-graphite-400 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-700">✕</button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5">
-          {/* Tipo de documento */}
-          <div className="mb-5 rounded-xl border border-graphite-200/60 bg-graphite-50/50 p-4 dark:border-graphite-700/40 dark:bg-graphite-900/30">
-            <label className={label}>Tipo de Documento *</label>
-            <div className="mt-2 grid grid-cols-2 gap-3">
-              {(['BONA', 'RAE'] as TipoDocumento[]).map(tipo => (
-                <button key={tipo} type="button" onClick={() => handleTipo(tipo)}
-                  className={`flex items-center gap-3 rounded-xl border-2 px-4 py-3 text-left transition-all ${
-                    form.tipoDocumento === tipo
-                      ? 'border-aviation-500 bg-aviation-50/80 dark:border-aviation-400 dark:bg-aviation-900/20'
-                      : 'border-graphite-200/60 bg-white/60 hover:border-graphite-300 dark:border-graphite-700/40 dark:bg-graphite-800/40 dark:hover:border-graphite-600'
-                  }`}>
-                  <FileText className={`h-5 w-5 shrink-0 ${form.tipoDocumento === tipo ? 'text-aviation-600 dark:text-aviation-400' : 'text-graphite-400'}`} />
-                  <div>
-                    <p className="text-sm font-bold text-graphite-900 dark:text-graphite-100">{tipo}</p>
-                    <p className="text-[11px] text-graphite-500 dark:text-graphite-400">{TIPO_DOCUMENTO[tipo]}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label className={label}>Número</label>
-              <input value={form.numero} readOnly className={input + ' cursor-not-allowed bg-graphite-50/50 dark:bg-graphite-900/20'} />
-            </div>
             <div>
               <label className={label}>Data *</label>
               <input type="date" value={form.data} onChange={e => setForm(f => ({ ...f, data: e.target.value }))} className={input} />
@@ -181,8 +129,8 @@ function OcorrenciaForm({
               </select>
             </div>
             <div className="sm:col-span-2">
-              <label className={label}>Título</label>
-              <input value={form.titulo} readOnly className={input + ' cursor-not-allowed bg-graphite-50/50 font-semibold dark:bg-graphite-900/20'} />
+              <label className={label}>Título *</label>
+              <input value={form.titulo} onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))} className={input} placeholder="Resumo da ocorrência" />
             </div>
             <div className="sm:col-span-2">
               <label className={label}>Local</label>
@@ -221,7 +169,7 @@ function OcorrenciaForm({
 
         <div className="flex justify-end gap-3 border-t border-graphite-200/60 px-6 py-4 dark:border-graphite-700/50">
           <button onClick={onCancel} className="rounded-xl border border-graphite-300/60 bg-white/80 px-5 py-2.5 text-sm font-medium text-graphite-700 dark:border-graphite-700/40 dark:bg-graphite-800/80 dark:text-graphite-200">Cancelar</button>
-          <button onClick={() => onSave(form)} disabled={!form.data || !form.equipe}
+          <button onClick={() => onSave(form)} disabled={!form.titulo || !form.data || !form.equipe}
             className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl hover:from-aviation-500 hover:to-aviation-600 disabled:opacity-50 disabled:cursor-not-allowed">
             <Save className="h-4 w-4" /> Salvar
           </button>
@@ -242,20 +190,13 @@ function OcorrenciaView({ ocorrencia, onBack }: { ocorrencia: Ocorrencia; onBack
     'Em Andamento': 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400',
     'Fechada': 'bg-status-green/10 text-status-green',
   };
-  const tipoBadge = ocorrencia.tipoDocumento === 'BONA'
-    ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
-    : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400';
 
   return (
     <div className="rounded-2xl border border-graphite-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm dark:border-graphite-700/40 dark:bg-graphite-800/80">
       <div className="mb-4 flex items-start justify-between">
         <div>
-          <div className="flex items-center gap-2">
-            <h3 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">{ocorrencia.numero}</h3>
-            <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${tipoBadge}`}>{ocorrencia.tipoDocumento}</span>
-          </div>
-          <p className="mt-1 text-sm font-medium text-graphite-600 dark:text-graphite-300">{TIPO_DOCUMENTO[ocorrencia.tipoDocumento]}</p>
-          <p className="mt-0.5 text-sm text-graphite-500">{ocorrencia.data} {ocorrencia.hora && `às ${ocorrencia.hora}`}</p>
+          <h3 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">{ocorrencia.titulo}</h3>
+          <p className="mt-1 text-sm text-graphite-500">{ocorrencia.data} {ocorrencia.hora && `às ${ocorrencia.hora}`}</p>
         </div>
         <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusColor[ocorrencia.status] || ''}`}>{ocorrencia.status}</span>
       </div>
@@ -309,9 +250,6 @@ function OcorrenciaCard({
     'Em Andamento': 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400',
     'Fechada': 'bg-status-green/10 text-status-green',
   };
-  const tipoBadge = o.tipoDocumento === 'BONA'
-    ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
-    : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400';
 
   return (
     <div className="rounded-2xl border border-graphite-200/60 bg-white/80 shadow-sm backdrop-blur-sm transition-all hover:shadow-md dark:border-graphite-700/40 dark:bg-graphite-800/80">
@@ -319,8 +257,7 @@ function OcorrenciaCard({
         className="flex w-full items-center justify-between px-5 py-4 text-left">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-3">
-            <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${tipoBadge}`}>{o.tipoDocumento}</span>
-            <span className="shrink-0 text-xs font-semibold text-graphite-500 dark:text-graphite-400">{o.numero}</span>
+            <h4 className="truncate text-sm font-bold text-graphite-900 dark:text-graphite-100">{o.titulo}</h4>
             <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-medium ${statusColor[o.status] || ''}`}>{o.status}</span>
             <span className="shrink-0 rounded-full bg-aviation-50 px-2.5 py-0.5 text-[10px] font-medium text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-300">{o.categoria}</span>
           </div>
@@ -336,7 +273,6 @@ function OcorrenciaCard({
 
       {expanded && (
         <div className="border-t border-graphite-200/60 px-5 py-4 dark:border-graphite-700/40">
-          <p className="mb-2 text-sm font-semibold text-graphite-700 dark:text-graphite-300">{TIPO_DOCUMENTO[o.tipoDocumento]}</p>
           {o.descricao && <p className="mb-2 text-sm text-graphite-700 dark:text-graphite-300 whitespace-pre-wrap">{o.descricao}</p>}
           {o.envolvidos && <p className="mb-1 text-xs text-graphite-500"><strong>Envolvidos:</strong> {o.envolvidos}</p>}
           {o.acoesTomadas && <p className="mb-2 text-xs text-graphite-500 whitespace-pre-wrap"><strong>Ações:</strong> {o.acoesTomadas}</p>}
@@ -387,12 +323,11 @@ export function LROOcorrencias() {
   const [filtroAno, setFiltroAno] = useState(new Date().getFullYear().toString());
   const [filtroMes, setFiltroMes] = useState((new Date().getMonth() + 1).toString());
   const [filtroEquipe, setFiltroEquipe] = useState('');
-  const [filtroTipo, setFiltroTipo] = useState('');
   const MESES = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   const ANOS = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
   const inputClass = 'rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900';
 
-  function carregar() { setOcorrencias(listarOcorrencias()); }
+  function carregar() { setOcorrencias(listarOcorrencias(STORAGE)); }
   useEffect(() => { carregar(); }, []);
 
   const filtradas = useMemo(() => {
@@ -402,9 +337,6 @@ export function LROOcorrencias() {
     }
     if (canFilterTeam && filtroEquipe) {
       list = list.filter(o => o.equipe === filtroEquipe);
-    }
-    if (filtroTipo) {
-      list = list.filter(o => o.tipoDocumento === filtroTipo);
     }
     if (filtroAno) {
       list = list.filter(o => o.data.startsWith(filtroAno));
@@ -416,13 +348,13 @@ export function LROOcorrencias() {
       });
     }
     return list;
-  }, [ocorrencias, canFilterTeam, userEquipe, filtroEquipe, filtroTipo, filtroAno, filtroMes]);
+  }, [ocorrencias, canFilterTeam, userEquipe, filtroEquipe, filtroAno, filtroMes]);
 
   function handleSave(data: Omit<Ocorrencia, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) {
     if (editando && editando.id) {
-      atualizarOcorrencia(editando.id, data);
+      atualizarOcorrencia(editando.id, data, STORAGE);
     } else {
-      criarOcorrencia({ ...data, createdBy: username });
+      criarOcorrencia({ ...data, createdBy: username }, STORAGE);
     }
     carregar();
     setEditando(null);
@@ -430,7 +362,7 @@ export function LROOcorrencias() {
   }
 
   function handleDelete(id: string) {
-    excluirOcorrencia(id);
+    excluirOcorrencia(id, STORAGE);
     setConfirmDelete(null);
     carregar();
   }
@@ -439,7 +371,7 @@ export function LROOcorrencias() {
     return (
       <PageContainer>
         <PageTitle icon={AlertCircle} title={editando ? 'Editar Ocorrência' : 'Nova Ocorrência'} />
-        <OcorrenciaForm ocorrencia={editando || undefined} userEquipe={userEquipe} todas={ocorrencias} onSave={handleSave} onCancel={() => { setMode('list'); setEditando(null); }} />
+        <OcorrenciaForm ocorrencia={editando || undefined} userEquipe={userEquipe} onSave={handleSave} onCancel={() => { setMode('list'); setEditando(null); }} />
       </PageContainer>
     );
   }
@@ -447,7 +379,7 @@ export function LROOcorrencias() {
   if (mode === 'view' && visualizando) {
     return (
       <PageContainer>
-        <PageTitle icon={AlertCircle} title={visualizando.numero} />
+        <PageTitle icon={AlertCircle} title="Ocorrência" />
         <OcorrenciaView ocorrencia={visualizando} onBack={() => setMode('list')} />
       </PageContainer>
     );
@@ -459,11 +391,6 @@ export function LROOcorrencias() {
 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3">
-          <select value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)} className={inputClass}>
-            <option value="">Todos os tipos</option>
-            <option value="BONA">BONA</option>
-            <option value="RAE">RAE</option>
-          </select>
           <select value={filtroAno} onChange={e => setFiltroAno(e.target.value)} className={inputClass}>
             <option value="">Todos os anos</option>
             {ANOS.map(a => <option key={a} value={a}>{a}</option>)}

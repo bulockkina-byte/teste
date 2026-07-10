@@ -119,8 +119,8 @@ export const menuItems: MenuItem[] = [
   {
     label: 'Ocorrências',
     icon: AlertTriangle,
-    path: '/registros-diarios/lro-ocorrencias',
-    description: 'Registro e acompanhamento de ocorrências operacionais (BONA/RAE).',
+    path: '/ocorrencias',
+    description: 'Registro de ocorrências operacionais — BONA e RAE.',
   },
   {
     label: 'Inspeções Operacionais',
