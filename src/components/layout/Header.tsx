@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -12,8 +12,9 @@ import {
   LogOut,
 } from 'lucide-react';
 import { useTheme } from '../../hooks/useTheme';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth, ROLE_LABELS } from '../../context/AuthContext';
 import { Breadcrumb } from './Breadcrumb';
+import { listarBombeiros } from '../../services/bombeiroService';
 
 export function Header() {
   const { theme, toggleTheme } = useTheme();
@@ -21,6 +22,19 @@ export function Header() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+
+  const bombeiros = useMemo(() => listarBombeiros(), []);
+  const bombeiro = useMemo(() => {
+    if (!user) return null;
+    return bombeiros.find(b =>
+      b.nomeGuerra.toLowerCase() === user.username.toLowerCase() ||
+      b.nomeCompleto.toLowerCase().includes(user.username.toLowerCase())
+    );
+  }, [user, bombeiros]);
+
+  const displayName = bombeiro?.nomeCompleto || user?.name || 'Usuário';
+  const displayRole = ROLE_LABELS[user?.role || 'chefe'];
+  const displayPhoto = bombeiro?.foto || null;
 
   const pageTitle = getPageTitle(pathname);
 
@@ -73,14 +87,23 @@ export function Header() {
         <div className="relative">
           <button
             onClick={() => setUserMenuOpen(!userMenuOpen)}
-            className="flex items-center gap-2 rounded-xl p-1.5 transition-all duration-200 hover:bg-graphite-100 dark:hover:bg-graphite-800"
+            className="flex items-center gap-3 rounded-xl p-1.5 transition-all duration-200 hover:bg-graphite-100 dark:hover:bg-graphite-800"
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-aviation-500 to-aviation-700 text-sm font-medium text-white shadow-sm">
-              {user?.avatar ?? 'AD'}
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-aviation-500 to-aviation-700 text-sm font-bold text-white shadow-md shadow-aviation-500/20">
+              {displayPhoto ? (
+                <img src={displayPhoto} className="h-full w-full object-cover" alt={displayName} />
+              ) : (
+                displayName.charAt(0).toUpperCase()
+              )}
             </div>
-            <span className="hidden text-sm font-medium text-graphite-700 dark:text-graphite-200 lg:block">
-              {user?.name ?? 'Admin'}
-            </span>
+            <div className="hidden text-left lg:block">
+              <p className="text-sm font-bold leading-tight text-graphite-900 dark:text-graphite-100">
+                {displayName}
+              </p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400">
+                {displayRole}
+              </p>
+            </div>
             <ChevronDown className={`h-4 w-4 text-graphite-400 transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''}`} />
           </button>
 
@@ -90,10 +113,22 @@ export function Header() {
                 className="fixed inset-0 z-40"
                 onClick={() => setUserMenuOpen(false)}
               />
-              <div className="absolute right-0 top-full z-50 mt-2 w-48 overflow-hidden rounded-2xl border border-graphite-200/60 bg-white shadow-xl shadow-black/5 animate-scaleIn dark:border-graphite-700/40 dark:bg-graphite-800/95 dark:shadow-black/20">
-                <div className="px-4 py-3 border-b border-graphite-100 dark:border-graphite-700/50">
-                  <p className="text-sm font-medium text-graphite-900 dark:text-graphite-100">{user?.name}</p>
-                  <p className="text-xs text-graphite-400">@{user?.username}</p>
+              <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-graphite-200 bg-white shadow-xl shadow-black/5 animate-scaleIn dark:border-graphite-700 dark:bg-graphite-800 dark:shadow-black/20">
+                <div className="px-4 py-3 border-b border-graphite-100 dark:border-graphite-700">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-aviation-500 to-aviation-700 text-sm font-bold text-white">
+                      {displayPhoto ? (
+                        <img src={displayPhoto} className="h-full w-full object-cover" />
+                      ) : (
+                        displayName.charAt(0).toUpperCase()
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-graphite-900 dark:text-graphite-100 truncate">{displayName}</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400">{displayRole}</p>
+                      <p className="text-[10px] text-graphite-400">@{user?.username}</p>
+                    </div>
+                  </div>
                 </div>
                 <button
                   onClick={() => { setUserMenuOpen(false); navigate('/perfil'); }}
@@ -109,7 +144,7 @@ export function Header() {
                   <Settings className="h-4 w-4" />
                   Configurações
                 </button>
-                <div className="border-t border-graphite-100 dark:border-graphite-700/50" />
+                <div className="border-t border-graphite-100 dark:border-graphite-700" />
                 <button
                   onClick={handleLogout}
                   className="flex w-full items-center gap-3 px-4 py-3 text-sm text-alert-red transition-colors hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -129,9 +164,11 @@ export function Header() {
 function getPageTitle(pathname: string): string {
   const labels: Record<string, string> = {
     'cadastro/bombeiros': 'Bombeiros',
+    'cadastro/apoc': 'APOC',
     'cadastro/equipamentos': 'Equipamentos',
     'cadastro/extintores': 'Extintores',
     'cadastro/hidrantes': 'Hidrantes',
+    'cadastro/viaturas': 'Viaturas',
     'relatorios/lro': 'LRO',
     'relatorios/bona': 'BONA',
     'relatorios/ptr-ba': 'PTR-BA',
@@ -140,6 +177,12 @@ function getPageTitle(pathname: string): string {
     'relatorios/exercicios/tp-epr': 'TP/EPR',
     'relatorios/ordem-servico': 'Ordem de Serviço',
     'relatorios/trocas': 'Trocas',
+    'registros-diarios/lro': 'LRO Diário',
+    'registros-diarios/ptr-ba': 'PTR-BA Diário',
+    'registros-diarios/lro-ocorrencias': 'LRO/Ocorrências',
+    'treinamentos/tp-epr': 'TP/EPR',
+    'treinamentos/taf': 'TAF',
+    'documentos/trocas': 'Trocas',
     ocorrencias: 'Ocorrências',
     inspecoes: 'Inspeções Operacionais',
     viaturas: 'Viaturas CCI',

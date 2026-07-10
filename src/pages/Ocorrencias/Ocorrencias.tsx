@@ -6,7 +6,6 @@ import {
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { useAuth } from '../../context/AuthContext';
-import { listarBombeiros } from '../../services/bombeiroService';
 import { turnoAutoPorEquipe } from '../../types/bombeiro';
 import { listarOcorrencias, criarOcorrencia, atualizarOcorrencia, excluirOcorrencia } from '../../services/ocorrenciaService';
 import { CATEGORIAS_OCORRENCIA, STATUS_OCORRENCIA, EQUIPES, TIPO_DOCUMENTO } from '../../types/ocorrencia';
@@ -37,26 +36,6 @@ function emptyOcorrencia(): Omit<Ocorrencia, 'id' | 'createdAt' | 'updatedAt' | 
     status: 'Aberta',
     fotos: [],
   };
-}
-
-function getUserRole(username: string): 'admin' | 'gestor' | 'gerente' | 'chefe' {
-  if (username === 'admin') return 'admin';
-  const b = listarBombeiros().find(
-    x => x.nomeGuerra.toLowerCase() === username.toLowerCase() ||
-         x.nomeCompleto.toLowerCase().includes(username.toLowerCase()),
-  );
-  if (b?.cargo === 'GS' || b?.equipe === 'Gerência') return 'gerente';
-  if (b?.cargo === 'OC') return 'gestor';
-  if (b?.cargo === 'BA-CE' || b?.cargo === 'BA-LR') return 'chefe';
-  return 'chefe';
-}
-
-function getUserEquipe(username: string): string {
-  const b = listarBombeiros().find(
-    x => x.nomeGuerra.toLowerCase() === username.toLowerCase() ||
-         x.nomeCompleto.toLowerCase().includes(username.toLowerCase()),
-  );
-  return b?.equipe || '';
 }
 
 /* ───────── Formulário ───────── */

@@ -31,6 +31,7 @@ import {
   BookOpen,
   AlertCircle,
   Radio,
+  CalendarDays,
 } from 'lucide-react';
 import type { MenuItem } from '../types/navigation';
 
@@ -82,6 +83,13 @@ export const menuItems: MenuItem[] = [
         icon: Truck,
         path: '/cadastro/viaturas',
         description: 'Cadastro de viaturas operacionais.',
+        adminOnly: true,
+      },
+      {
+        label: 'Férias',
+        icon: CalendarDays,
+        path: '/cadastro/ferias',
+        description: 'Controle de férias do efetivo.',
         adminOnly: true,
       },
     ],
@@ -175,7 +183,7 @@ export const menuItems: MenuItem[] = [
     icon: GraduationCap,
     children: [
       {
-        label: 'Treinamentos',
+        label: 'Outros',
         icon: GraduationCap,
         path: '/treinamentos',
         description: 'Controle de treinamentos e capacitações.',
