@@ -554,8 +554,13 @@ export function PTRBADiario() {
   const [visualizando, setVisualizando] = useState<PTRB | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [filtroEquipe, setFiltroEquipe] = useState('');
+  const [filtroMes, setFiltroMes] = useState('');
 
-  const ptrbsFiltradas = filtroEquipe ? ptrbs.filter(e => e.equipe === filtroEquipe) : ptrbs;
+  const ptrbsFiltradas = ptrbs.filter(e => {
+    if (filtroEquipe && e.equipe !== filtroEquipe) return false;
+    if (filtroMes && !e.data.startsWith(filtroMes)) return false;
+    return true;
+  });
 
   function carregar() {
     const todas = listarPTRBs();
@@ -631,6 +636,8 @@ export function PTRBADiario() {
       <PageTitle icon={FileText} title="PTR-BA - Registro Diário" />
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
+          <input type="month" value={filtroMes} onChange={e => setFiltroMes(e.target.value)}
+            className="rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
           <select value={filtroEquipe} onChange={e => setFiltroEquipe(e.target.value)}
             className="rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900">
             <option value="">Todas as equipes</option>

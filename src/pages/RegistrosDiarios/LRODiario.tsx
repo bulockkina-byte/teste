@@ -1,12 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
-  FileSpreadsheet, Plus, Save, Eye, Pencil, Copy, Printer, Trash2, ChevronDown, ChevronUp,
+  FileSpreadsheet, Plus, Save, Eye, Pencil, Copy, Printer, Trash2, ChevronDown, ChevronUp, Truck,
 } from 'lucide-react';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { useAuth } from '../../context/AuthContext';
 import { listarLROs, criarLRO, atualizarLRO, excluirLRO } from '../../services/lroService';
+import { listarViaturas } from '../../services/viaturaService';
 import { EQUIPES, EPR_OPTIONS, CRS_SITUACOES, FUNCOES_CARGO } from '../../types/lro';
 import type { LRO, VeiculoState, VeiculoRTState, CRSState } from '../../types/lro';
 
@@ -46,6 +47,48 @@ function emptyLRO(): Omit<LRO, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'> {
     inspecoesTecnicas: '', emergenciasAeronauticas: '', outrasOcorrencias: '',
     assinatura: '',
   };
+}
+
+function ViaturasCCISection() {
+  const [expanded, setExpanded] = useState(false);
+  const viaturas = useMemo(() => listarViaturas().filter(v => v.tipo === 'CCI'), []);
+
+  if (viaturas.length === 0) return null;
+
+  return (
+    <fieldset className="rounded-xl border border-aviation-200/50 bg-aviation-50/30 p-4 dark:border-aviation-700/30 dark:bg-aviation-900/10">
+      <legend
+        onClick={() => setExpanded(!expanded)}
+        className="flex cursor-pointer items-center gap-2 text-xs font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400"
+      >
+        <Truck className="h-4 w-4" />
+        Viaturas CCI Cadastradas ({viaturas.length})
+        {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+      </legend>
+      {expanded && (
+        <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
+          {viaturas.map(v => (
+            <div key={v.id} className="flex items-center gap-3 rounded-xl border border-graphite-200/60 bg-white/70 px-3 py-2 dark:border-graphite-700/40 dark:bg-graphite-900/50">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-aviation-100 text-xs font-bold text-aviation-700 dark:bg-aviation-900/40 dark:text-aviation-300">
+                {v.prefixo.slice(-2)}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-graphite-900 dark:text-graphite-100">{v.prefixo}</p>
+                <p className="truncate text-xs text-graphite-500">{v.marca} {v.modelo} · {v.placa}</p>
+              </div>
+              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                v.situacao === 'Ativa' ? 'bg-status-green/10 text-status-green' :
+                v.situacao === 'Em Manutenção' ? 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400' :
+                'bg-red-50 text-alert-red dark:bg-red-900/20 dark:text-red-400'
+              }`}>
+                {v.situacao}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </fieldset>
+  );
 }
 
 function autoPreencher(equipe: string) {
@@ -383,6 +426,9 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
           placeholder="Instruções do dia (preenchidas automaticamente com PTR-BA)..."
           className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
       </fieldset>
+
+      {/* Viaturas CCI Cadastradas */}
+      <ViaturasCCISection />
 
       {/* 4 colunas de viaturas */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
