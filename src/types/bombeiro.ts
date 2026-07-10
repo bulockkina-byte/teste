@@ -5,7 +5,6 @@ export type Cargo =
   | 'BA-LR'
   | 'BA-RE'
   | 'GS'
-  | 'Gerente de Seção Contra Incêndio'
   | 'OC';
 
 export type Equipe = 'Alfa' | 'Bravo' | 'Charlie' | 'Delta' | 'Feirista';
@@ -38,12 +37,11 @@ export interface Bombeiro {
 
 export const CARGO_OPTIONS: { value: Cargo; label: string }[] = [
   { value: 'BA-2', label: 'BA-2 - Bombeiro de Aeródromo' },
-  { value: 'BA-MC', label: 'BA-MC - Bombeiro de Aeródromo Motorista/Operador de CCI' },
-  { value: 'BA-CE', label: 'BA-CE - Bombeiro de Aeródromo Chefe de Equipe' },
-  { value: 'BA-LR', label: 'BA-LR - Bombeiro de Aeródromo Líder de Resgate' },
-  { value: 'BA-RE', label: 'BA-RE - Bombeiro de Aeródromo Resgate' },
-  { value: 'GS', label: 'GS - Guarda de Segurança' },
-  { value: 'Gerente de Seção Contra Incêndio', label: 'Gerente de Seção Contra Incêndio' },
+  { value: 'BA-MC', label: 'BA-MC - Motorista/Operador de CCI' },
+  { value: 'BA-CE', label: 'BA-CE - Chefe de Equipe' },
+  { value: 'BA-LR', label: 'BA-LR - Líder de Resgate' },
+  { value: 'BA-RE', label: 'BA-RE - Resgate' },
+  { value: 'GS', label: 'GS - Gerente de Seção Contra Incêndio' },
   { value: 'OC', label: 'OC - Operador de Comunicações' },
 ];
 
