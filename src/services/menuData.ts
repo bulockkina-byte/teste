@@ -77,6 +77,13 @@ export const menuItems: MenuItem[] = [
         path: '/cadastro/hidrantes',
         description: 'Gestão de hidrantes e pontos de água.',
       },
+      {
+        label: 'Viaturas',
+        icon: Truck,
+        path: '/cadastro/viaturas',
+        description: 'Cadastro de viaturas operacionais.',
+        adminOnly: true,
+      },
     ],
   },
   {

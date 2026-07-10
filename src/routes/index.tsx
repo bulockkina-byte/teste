@@ -54,6 +54,7 @@ export const router = createBrowserRouter([
       { path: 'cadastro/equipamentos', element: <Equipamentos /> },
       { path: 'cadastro/extintores', element: <AgentesExtintores /> },
       { path: 'cadastro/hidrantes', element: <Hidrantes /> },
+      { path: 'cadastro/viaturas', element: <Viaturas /> },
       { path: 'ocorrencias', element: <Ocorrencias /> },
       { path: 'inspecoes', element: <Inspecoes /> },
       { path: 'viaturas', element: <Viaturas /> },
