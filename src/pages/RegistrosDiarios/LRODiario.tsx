@@ -401,7 +401,7 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
             <div>
               <label className="mb-1 block text-xs text-graphite-500">EPR's</label>
               <select value={form.faisca2.epr} onChange={e => upd('faisca2', { ...form.faisca2, epr: e.target.value })}
-                className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+                className="w-full rounded border border-graphite-300/60 bg-white/70 px-2 py-1.5 text-sm dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100">
                 <option value="">Selecione</option>
                 {EPR_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
               </select>
@@ -424,7 +424,7 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
             <div>
               <label className="mb-1 block text-xs text-graphite-500">EPR's</label>
               <select value={form.faisca3.epr} onChange={e => upd('faisca3', { ...form.faisca3, epr: e.target.value })}
-                className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+                className="w-full rounded border border-graphite-300/60 bg-white/70 px-2 py-1.5 text-sm dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100">
                 <option value="">Selecione</option>
                 {EPR_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
               </select>
@@ -450,7 +450,7 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
             <div>
               <label className="mb-1 block text-xs text-graphite-500">EPR's</label>
               <select value={form.faiscaRT.epr} onChange={e => upd('faiscaRT', { ...form.faiscaRT, epr: e.target.value })}
-                className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+                className="w-full rounded border border-graphite-300/60 bg-white/70 px-2 py-1.5 text-sm dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100">
                 <option value="">Selecione</option>
                 {EPR_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
               </select>
@@ -479,7 +479,7 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
             <div>
               <label className="mb-1 block text-xs text-graphite-500">EPR's</label>
               <select value={form.crs.epr} onChange={e => upd('crs', { ...form.crs, epr: e.target.value })}
-                className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+                className="w-full rounded border border-graphite-300/60 bg-white/70 px-2 py-1.5 text-sm dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100">
                 <option value="">Selecione</option>
                 {EPR_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
               </select>

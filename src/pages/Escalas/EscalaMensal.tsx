@@ -37,7 +37,7 @@ export function EscalaMensal() {
             </button>
           </div>
         </div>
-        <div id="print-area" className="rounded-xl border border-graphite-200 bg-white p-4 dark:border-graphite-700 dark:bg-graphite-900">
+        <div id="print-area" className="rounded-2xl border border-graphite-200/60 bg-white/80 p-4 backdrop-blur-sm dark:border-graphite-700/40 dark:bg-graphite-900/80">
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div><p className="text-xs text-graphite-400">Equipe</p><p className="text-sm font-medium">{visualizando.equipe}</p></div>
             <div><p className="text-xs text-graphite-400">Chefe de Equipe</p><p className="text-sm font-medium">{visualizando.chefeEquipe || '-'}</p></div>
@@ -109,7 +109,7 @@ export function EscalaMensal() {
 
   if (escalas.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-graphite-700 dark:bg-graphite-900">
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300/60 bg-white/50 p-12 text-center backdrop-blur-sm dark:border-graphite-700/40 dark:bg-graphite-900/30">
         <Calendar className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
         <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhuma escala encontrada</h3>
         <p className="text-sm text-graphite-500">As escalas diárias aparecerão aqui para visualização.</p>

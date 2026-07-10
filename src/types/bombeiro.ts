@@ -4,13 +4,12 @@ export type Cargo =
   | 'BA-CE'
   | 'BA-LR'
   | 'BA-RE'
-  | 'APOC'
   | 'GS'
   | 'Gerente de Seção Contra Incêndio'
   | 'OC';
 
-export type Equipe = 'Alfa' | 'Bravo' | 'Charlie' | 'Delta' | 'Feirista';
-export type Turno = 'Diurno' | 'Noturno';
+export type Equipe = 'Alfa' | 'Bravo' | 'Charlie' | 'Delta' | 'Feirista' | 'Motiva';
+export type Turno = 'Diurno' | 'Noturno' | 'Motiva';
 export type CatCNH = 'A' | 'B' | 'C' | 'D' | 'E' | 'AB' | 'AC' | 'AD' | 'AE';
 
 export interface Bombeiro {
@@ -18,6 +17,7 @@ export interface Bombeiro {
   matricula: string;
   nomeCompleto: string;
   nomeGuerra: string;
+  email: string;
   dataNascimento: string;
   idade: number;
   dataAdmissao: string;
@@ -42,12 +42,17 @@ export const CARGO_OPTIONS: { value: Cargo; label: string }[] = [
   { value: 'BA-CE', label: 'BA-CE - Bombeiro de Aeródromo Chefe de Equipe' },
   { value: 'BA-LR', label: 'BA-LR - Bombeiro de Aeródromo Líder de Resgate' },
   { value: 'BA-RE', label: 'BA-RE - Bombeiro de Aeródromo Resgate' },
-  { value: 'APOC', label: 'APOC - Apoio Operacional' },
   { value: 'GS', label: 'GS - Guarda de Segurança' },
   { value: 'Gerente de Seção Contra Incêndio', label: 'Gerente de Seção Contra Incêndio' },
   { value: 'OC', label: 'OC - Operador de Comunicações' },
 ];
 
-export const EQUIPE_OPTIONS: Equipe[] = ['Alfa', 'Bravo', 'Charlie', 'Delta', 'Feirista'];
-export const TURNO_OPTIONS: Turno[] = ['Diurno', 'Noturno'];
+export const EQUIPE_OPTIONS: Equipe[] = ['Alfa', 'Bravo', 'Charlie', 'Delta', 'Feirista', 'Motiva'];
+export const TURNO_OPTIONS: Turno[] = ['Diurno', 'Noturno', 'Motiva'];
 export const CNH_OPTIONS: CatCNH[] = ['A', 'B', 'C', 'D', 'E', 'AB', 'AC', 'AD', 'AE'];
+
+export function turnoAutoPorEquipe(equipe: Equipe): Turno {
+  if (equipe === 'Alfa' || equipe === 'Charlie') return 'Diurno';
+  if (equipe === 'Bravo' || equipe === 'Delta') return 'Noturno';
+  return 'Motiva';
+}

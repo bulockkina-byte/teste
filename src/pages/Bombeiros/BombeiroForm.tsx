@@ -6,6 +6,7 @@ import {
   EQUIPE_OPTIONS,
   TURNO_OPTIONS,
   CNH_OPTIONS,
+  turnoAutoPorEquipe,
 } from '../../types/bombeiro';
 
 interface Props {
@@ -36,6 +37,7 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
   const [matricula, setMatricula] = useState('');
   const [nomeCompleto, setNomeCompleto] = useState('');
   const [nomeGuerra, setNomeGuerra] = useState('');
+  const [email, setEmail] = useState('');
   const [dataNascimento, setDataNascimento] = useState('');
   const [dataAdmissao, setDataAdmissao] = useState('');
   const [cargo, setCargo] = useState<Cargo>('BA-2');
@@ -56,6 +58,7 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
       setMatricula(bombeiro.matricula);
       setNomeCompleto(bombeiro.nomeCompleto);
       setNomeGuerra(bombeiro.nomeGuerra);
+      setEmail(bombeiro.email || '');
       setDataNascimento(bombeiro.dataNascimento);
       setDataAdmissao(bombeiro.dataAdmissao);
       setCargo(bombeiro.cargo);
@@ -93,6 +96,7 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
       matricula,
       nomeCompleto: nomeCompleto.replace(/\b\w/g, char => char.toUpperCase()),
       nomeGuerra: nomeGuerra.replace(/\b\w/g, char => char.toUpperCase()),
+      email,
       dataNascimento,
       idade,
       dataAdmissao,
@@ -142,6 +146,11 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
               <div>
                 <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">RG</label>
                 <input value={rg} onChange={e => setRg(e.target.value)} placeholder="RG"
+                  className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">E-mail</label>
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@exemplo.com"
                   className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
               </div>
               <div>
@@ -220,7 +229,11 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Equipe *</label>
-                <select value={equipe} onChange={e => setEquipe(e.target.value as Equipe)}
+                <select value={equipe} onChange={e => {
+                  const novaEquipe = e.target.value as Equipe;
+                  setEquipe(novaEquipe);
+                  setTurno(turnoAutoPorEquipe(novaEquipe));
+                }}
                   className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900">
                   {EQUIPE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
                 </select>

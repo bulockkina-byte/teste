@@ -30,6 +30,7 @@ import {
   LogOut,
   BookOpen,
   AlertCircle,
+  Radio,
 } from 'lucide-react';
 import type { MenuItem } from '../types/navigation';
 
@@ -49,6 +50,13 @@ export const menuItems: MenuItem[] = [
         icon: Shield,
         path: '/cadastro/bombeiros',
         description: 'Cadastro de bombeiros e equipes operacionais.',
+        adminOnly: true,
+      },
+      {
+        label: 'APOC',
+        icon: Radio,
+        path: '/cadastro/apoc',
+        description: 'Centro de Operações Aeroportuárias — pessoal MOTIVA.',
         adminOnly: true,
       },
       {

@@ -30,6 +30,7 @@ import { Usuarios } from '../pages/Usuarios/Usuarios';
 import { Equipamentos } from '../pages/Equipamentos/Equipamentos';
 import { AgentesExtintores } from '../pages/AgentesExtintores/AgentesExtintores';
 import { Hidrantes } from '../pages/Hidrantes/Hidrantes';
+import { APOCs } from '../pages/APOC/APOCs';
 import { LRODiario } from '../pages/RegistrosDiarios/LRODiario';
 import { PTRBADiario } from '../pages/RegistrosDiarios/PTRBADiario';
 import { LROOcorrencias } from '../pages/RegistrosDiarios/LROOcorrencias';
@@ -49,6 +50,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Dashboard /> },
       { path: 'cadastro/bombeiros', element: <Bombeiros /> },
+      { path: 'cadastro/apoc', element: <APOCs /> },
       { path: 'cadastro/equipamentos', element: <Equipamentos /> },
       { path: 'cadastro/extintores', element: <AgentesExtintores /> },
       { path: 'cadastro/hidrantes', element: <Hidrantes /> },

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, Check } from 'lucide-react';
 import { listarAtivos } from '../../services/bombeiroService';
+import { listarAPOCs } from '../../services/apocService';
 
 interface Props {
   value: string;
@@ -18,9 +19,15 @@ export function SearchSelect({ value, onChange, placeholder, className = '', car
   const triggerRef = useRef<HTMLDivElement>(null);
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
 
-  const ativos = cargo
-    ? listarAtivos().filter(b => b.cargo === cargo)
-    : listarAtivos();
+  let ativos: { id: string; nomeGuerra: string; nomeCompleto: string }[];
+
+  if (cargo === 'APOC') {
+    ativos = listarAPOCs();
+  } else if (cargo) {
+    ativos = listarAtivos().filter(b => b.cargo === cargo);
+  } else {
+    ativos = [...listarAtivos(), ...listarAPOCs()];
+  }
 
   const filtered = ativos.filter(b =>
     b.nomeGuerra.toLowerCase().includes(search.toLowerCase()) ||

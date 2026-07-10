@@ -331,7 +331,7 @@ function PTRBCard({ ptrb, onView, onEdit, onDelete, onClone, isAdmin }: {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="rounded-xl border border-graphite-200 bg-white p-4 shadow-sm dark:border-graphite-700 dark:bg-graphite-900">
+    <div className="rounded-2xl border border-graphite-200/60 bg-white/80 p-4 shadow-sm backdrop-blur-sm dark:border-graphite-700/40 dark:bg-graphite-900/80">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-aviation-50 to-aviation-100 dark:from-aviation-900/30 dark:to-aviation-800/20">
@@ -449,7 +449,7 @@ function ViewMode({ ptrb, onBack }: { ptrb: PTRB; onBack: () => void }) {
           </button>
         </div>
       </div>
-      <div id="print-area" className="rounded-xl border border-graphite-200 bg-white p-4 shadow-sm dark:border-graphite-700 dark:bg-graphite-900 print:border-none print:shadow-none">
+      <div id="print-area" className="rounded-2xl border border-graphite-200/60 bg-white/80 p-4 shadow-sm backdrop-blur-sm dark:border-graphite-700/40 dark:bg-graphite-900/80 print:border-none print:shadow-none">
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div>
             <p className="text-xs text-graphite-400">Data</p>
@@ -647,10 +647,10 @@ export function PTRBADiario() {
       </div>
 
       {ptrbsFiltradas.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-graphite-700 dark:bg-graphite-900">
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300/60 bg-white/50 p-12 text-center backdrop-blur-sm dark:border-graphite-700/40 dark:bg-graphite-900/30">
           <FileText className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
           <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhum registro encontrado</h3>
-          <p className="text-sm text-graphite-500">Clique em "Novo PTR-BA" para criar o primeiro.</p>
+          <p className="text-sm text-graphite-400">Clique em "Novo PTR-BA" para criar o primeiro.</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -670,7 +670,7 @@ export function PTRBADiario() {
 
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl dark:bg-graphite-800">
+          <div className="w-full max-w-sm rounded-2xl bg-white/95 p-6 shadow-xl shadow-black/5 backdrop-blur-sm dark:bg-graphite-800/95 dark:shadow-black/20">
             <h3 className="mb-2 text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar exclusão</h3>
             <p className="mb-6 text-sm text-graphite-500">Tem certeza que deseja excluir este PTR-BA?</p>
             <div className="flex justify-end gap-3">
