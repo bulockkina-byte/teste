@@ -1,7 +1,6 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { Layout } from '../components/layout/Layout';
 import { Dashboard } from '../pages/Dashboard/Dashboard';
-import { Ocorrencias } from '../pages/Ocorrencias/Ocorrencias';
 import { Inspecoes } from '../pages/Inspecoes/Inspecoes';
 import { Viaturas } from '../pages/Viaturas/Viaturas';
 import { EPIs } from '../pages/EPIs/EPIs';
@@ -55,7 +54,6 @@ export const router = createBrowserRouter([
       { path: 'cadastro/extintores', element: <AgentesExtintores /> },
       { path: 'cadastro/hidrantes', element: <Hidrantes /> },
       { path: 'cadastro/viaturas', element: <Viaturas /> },
-      { path: 'ocorrencias', element: <Ocorrencias /> },
       { path: 'inspecoes', element: <Inspecoes /> },
       { path: 'viaturas', element: <Viaturas /> },
       { path: 'epis', element: <EPIs /> },
