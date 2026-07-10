@@ -191,6 +191,12 @@ export const menuItems: MenuItem[] = [
         path: '/cadastro/extintores',
         description: 'Controle de agentes extintores e recargas.',
       },
+      {
+        label: 'Ordens de Serviço',
+        icon: ClipboardList,
+        path: '/relatorios/ordem-servico',
+        description: 'Controle de ordens de serviço.',
+      },
     ],
   },
   {
