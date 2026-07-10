@@ -130,7 +130,7 @@ function SidebarGroup({ item, collapsed, depth = 0 }: { item: MenuItemType; coll
 export function Sidebar() {
   const { collapsed, toggleSidebar } = useSidebar();
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'admin_master';
   const visibleMenu = filterMenu(menuItems, isAdmin);
 
   return (
@@ -149,7 +149,7 @@ export function Sidebar() {
               collapsed ? 'w-0 opacity-0 overflow-hidden' : 'opacity-100'
             }`}
           >
-            SESCINC Manager
+            SCI NVT
           </span>
         </div>
         <button
@@ -174,7 +174,7 @@ export function Sidebar() {
 
       <div className="mx-3 mb-3 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
       <div className="px-3 pb-3 text-center text-[10px] font-medium uppercase tracking-widest text-aviation-400">
-        {collapsed ? 'S' : 'SESCINC v1.0'}
+        {collapsed ? 'S' : 'SCI NVT v1.0'}
       </div>
     </aside>
   );

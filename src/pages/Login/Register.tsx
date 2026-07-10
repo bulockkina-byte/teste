@@ -50,7 +50,7 @@ export function Register() {
             </div>
             <div>
               <h1 className="text-xl font-bold text-graphite-900 dark:text-graphite-100">
-                SESCINC Manager
+SCI NVT
               </h1>
               <p className="text-xs text-graphite-500">
                 Sistema de Controle Operacional
@@ -159,7 +159,7 @@ export function Register() {
           </p>
 
           <p className="mt-6 text-center text-xs text-graphite-400">
-            © 2026 SESCINC. Todos os direitos reservados.
+            © 2026 SCI NVT. Todos os direitos reservados.
           </p>
         </div>
       </div>
@@ -168,7 +168,7 @@ export function Register() {
         <div className="flex w-full flex-col items-center justify-center bg-gradient-to-br from-aviation-800 via-aviation-700 to-aviation-900 p-16">
           <Plane className="mb-6 h-20 w-20 text-aviation-300/40" />
           <h2 className="text-center text-2xl font-bold text-white">
-            Junte-se ao SESCINC Manager
+            Junte-se ao SCI NVT
           </h2>
           <p className="mt-4 max-w-md text-center text-aviation-200/80">
             Crie sua conta e tenha acesso a todas as ferramentas de gestão

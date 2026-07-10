@@ -1,10 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 
-export type UserRole = 'admin' | 'gerente' | 'chefe' | 'lider';
+export type UserRole = 'admin_master' | 'admin' | 'gerente' | 'chefe' | 'lider';
 
 export const ROLE_LABELS: Record<UserRole, string> = {
+  admin_master: 'Administrador Master',
   admin: 'Administrador',
-  gerente: 'Gerente de SESCINC',
+  gerente: 'Gerente da Seção de Combate a Incêndio',
   chefe: 'Chefe de Equipe',
   lider: 'Líder de Resgate',
 };
@@ -50,14 +51,27 @@ const AuthContext = createContext<AuthContextType>({
 
 function seedAdmin() {
   const users = getStoredUsers();
+  let changed = false;
+
+  // Seed admin_master
+  if (!users['admin_master']) {
+    users['admin_master'] = { name: 'Administrador Master', password: 'admin_master', role: 'admin_master' };
+    changed = true;
+  } else if (users['admin_master'].role !== 'admin_master') {
+    users['admin_master'].role = 'admin_master';
+    changed = true;
+  }
+
+  // Seed admin
   if (!users['admin']) {
     users['admin'] = { name: 'Administrador', password: 'admin', role: 'admin' };
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
-  } else {
-    let changed = false;
-    if (users['admin'].role !== 'admin') { users['admin'].role = 'admin'; changed = true; }
-    if (changed) localStorage.setItem(USERS_KEY, JSON.stringify(users));
+    changed = true;
+  } else if (users['admin'].role !== 'admin') {
+    users['admin'].role = 'admin';
+    changed = true;
   }
+
+  if (changed) localStorage.setItem(USERS_KEY, JSON.stringify(users));
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {

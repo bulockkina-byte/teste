@@ -40,7 +40,7 @@ export function Login() {
             </div>
             <div>
               <h1 className="text-xl font-bold bg-gradient-to-r from-graphite-900 to-graphite-600 bg-clip-text text-transparent dark:from-graphite-100 dark:to-graphite-400">
-                SESCINC Manager
+                SCI NVT
               </h1>
               <p className="text-xs text-graphite-500 dark:text-graphite-400">
                 Sistema de Controle Operacional
@@ -116,7 +116,7 @@ export function Login() {
           </div>
 
           <p className="mt-8 text-center text-xs text-graphite-400 dark:text-graphite-500 animate-fadeIn">
-            © 2026 SESCINC. Todos os direitos reservados.
+            © 2026 SCI NVT. Todos os direitos reservados.
           </p>
         </div>
       </div>

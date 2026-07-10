@@ -541,7 +541,7 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
         { key: 'situacaoComunicacao', label: 'Rádios, Hotline, Sistema de Alarme Sonoro e Ramais' },
         { key: 'situacaoTPEPR', label: 'Situação Operacional dos TP, EPR em Linha e em Estoque' },
         { key: 'situacaoAgentesExtintores', label: 'Situação Operacional dos Agentes Extintores (LGE, PQ) e Nitrogênio em Linha e em Estoque' },
-        { key: 'situacaoEquipamentos', label: 'Situação Operacional dos Equipamentos e Materiais do SESCINC' },
+        { key: 'situacaoEquipamentos', label: 'Situação Operacional dos Equipamentos e Materiais do SCI NVT' },
         { key: 'situacaoEdificacoes', label: 'Situação Operacional das Edificações/Instalações da SCI' },
       ] as const).map(({ key, label }) => (
         <fieldset key={key}>

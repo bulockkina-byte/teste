@@ -22,6 +22,7 @@ function salvarUsuarios(data: Record<string, StoredUser>) {
 }
 
 const ROLE_BADGE: Record<string, string> = {
+  admin_master: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
   admin: 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400',
   gerente: 'bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400',
   chefe: 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400',
@@ -55,6 +56,14 @@ export function Usuarios() {
 
   function handleSave(data: { username: string; name: string; password: string; role: UserRole }) {
     const all = listarUsuarios();
+    // Apenas admin_master pode criar/editar outros admins
+    if ((data.role === 'admin' || data.role === 'admin_master') && user?.role !== 'admin_master') {
+      return;
+    }
+    // Ninguém pode dar cargo de admin_master
+    if (data.role === 'admin_master') {
+      return;
+    }
     if (editando) {
       const prev = all[editando.username];
       all[data.username] = {
@@ -147,21 +156,30 @@ export function Usuarios() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => { setEditando({ username, name: data.name, role: data.role }); setFormOpen(true); }}
-                        className="rounded-xl p-1.5 text-graphite-400 transition-all hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover dark:hover:text-graphite-300"
-                        title="Editar"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                      {username !== 'admin' && (
-                        <button
-                          onClick={() => setConfirmDelete(username)}
-                          className="rounded-xl p-1.5 text-alert-red transition-all hover:bg-red-50 dark:hover:bg-red-900/20"
-                          title="Excluir"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                      {/* admin_master não pode ser editado por ninguém */}
+                      {username !== 'admin_master' && (
+                        <>
+                          {/* admin só pode ser editado por admin_master */}
+                          {!(data.role === 'admin' && user?.role !== 'admin_master') && (
+                            <button
+                              onClick={() => { setEditando({ username, name: data.name, role: data.role }); setFormOpen(true); }}
+                              className="rounded-xl p-1.5 text-graphite-400 transition-all hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover dark:hover:text-graphite-300"
+                              title="Editar"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                          )}
+                          {/* admin_master não pode ser excluído; admin só pode ser excluído por admin_master */}
+                          {username !== 'admin' && !(data.role === 'admin' && user?.role !== 'admin_master') && (
+                            <button
+                              onClick={() => setConfirmDelete(username)}
+                              className="rounded-xl p-1.5 text-alert-red transition-all hover:bg-red-50 dark:hover:bg-red-900/20"
+                              title="Excluir"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </>
                       )}
                     </div>
                   </td>
@@ -175,7 +193,8 @@ export function Usuarios() {
       {formOpen && (
         <UsuarioForm
           user={editando}
-          isProtected={editando?.username === 'admin'}
+          isProtected={editando?.username === 'admin_master' || (editando?.username === 'admin' && user?.role !== 'admin_master')}
+          currentUserRole={user?.role}
           onSave={handleSave}
           onClose={() => { setFormOpen(false); setEditando(null); }}
         />

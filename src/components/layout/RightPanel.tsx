@@ -27,7 +27,7 @@ function getNotificacoes(): Notificacao[] {
     try { return JSON.parse(stored); } catch { return []; }
   }
   return [
-    { id: '1', titulo: 'Bem-vindo ao SESCINC', descricao: 'Sistema atualizado com sucesso.', tipo: 'sucesso', lida: false, createdAt: new Date().toISOString() },
+    { id: '1', titulo: 'Bem-vindo ao SCI NVT', descricao: 'Sistema atualizado com sucesso.', tipo: 'sucesso', lida: false, createdAt: new Date().toISOString() },
     { id: '2', titulo: 'Manutenção Programada', descricao: 'Viatura 01 em manutenção prevista para amanhã.', tipo: 'info', lida: false, createdAt: new Date(Date.now() - 3600000).toISOString() },
     { id: '3', titulo: 'EPI Vencendo', descricao: '3 EPIs com CA vencendo nos próximos 30 dias.', tipo: 'alerta', lida: true, createdAt: new Date(Date.now() - 86400000).toISOString() },
   ];
