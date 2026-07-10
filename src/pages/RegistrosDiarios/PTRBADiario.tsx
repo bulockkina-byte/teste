@@ -554,6 +554,7 @@ function getUserRole(username: string): 'admin' | 'gerente' | 'chefe' {
          x.nomeCompleto.toLowerCase().includes(username.toLowerCase()),
   );
   if (b?.cargo === 'GS' || b?.equipe === 'Gerência') return 'gerente';
+  if (b?.cargo === 'BA-CE' || b?.cargo === 'BA-LR') return 'chefe';
   return 'chefe';
 }
 

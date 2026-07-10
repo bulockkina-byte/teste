@@ -780,6 +780,7 @@ export function LRODiario() {
            x.nomeCompleto.toLowerCase().includes(username.toLowerCase()),
     );
     if (b?.cargo === 'GS' || b?.equipe === 'Gerência') return 'gerente' as const;
+    if (b?.cargo === 'BA-CE' || b?.cargo === 'BA-LR') return 'chefe' as const;
     return 'chefe' as const;
   }, [username]);
   const userEquipe = useMemo(() => {

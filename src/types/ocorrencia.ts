@@ -1,3 +1,10 @@
+export type TipoDocumento = 'BONA' | 'RAE';
+
+export const TIPO_DOCUMENTO: Record<TipoDocumento, string> = {
+  BONA: 'BOLETIM DE OCORRÊNCIA NÃO AERONÁUTICO',
+  RAE: 'RELATÓRIO DE ATENDIMENTO A EMERGÊNCIA',
+};
+
 export type CategoriaOcorrencia =
   | 'Incêndio'
   | 'Resgate'
@@ -13,6 +20,8 @@ export interface Ocorrencia {
   createdBy: string;
   createdAt: string;
   updatedAt: string;
+  tipoDocumento: TipoDocumento;
+  numero: string;
   data: string;
   hora: string;
   equipe: string;
