@@ -82,13 +82,6 @@ export const menuItems: MenuItem[] = [
         description: 'Cadastro de viaturas operacionais.',
         adminOnly: true,
       },
-      {
-        label: 'Férias',
-        icon: CalendarDays,
-        path: '/cadastro/ferias',
-        description: 'Controle de férias do efetivo.',
-        adminOnly: true,
-      },
     ],
   },
   {
@@ -112,6 +105,12 @@ export const menuItems: MenuItem[] = [
         icon: Award,
         path: '/certificacoes',
         description: 'Gestão de certificações e licenças NR.',
+      },
+      {
+        label: 'Férias',
+        icon: CalendarDays,
+        path: '/cadastro/ferias',
+        description: 'Controle de férias do efetivo.',
       },
     ],
   },
