@@ -31,7 +31,7 @@ export function Register() {
     setError('');
     setLoading(true);
     try {
-      await register(name, username, password);
+      await register(name, username, password, 'lider');
       navigate('/login');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao cadastrar.');

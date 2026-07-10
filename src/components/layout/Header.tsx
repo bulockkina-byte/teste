@@ -14,6 +14,7 @@ import {
 import { useTheme } from '../../hooks/useTheme';
 import { useAuth, ROLE_LABELS } from '../../context/AuthContext';
 import { Breadcrumb } from './Breadcrumb';
+import { RightPanel } from './RightPanel';
 import { listarBombeiros } from '../../services/bombeiroService';
 
 export function Header() {
@@ -22,6 +23,8 @@ export function Header() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [rightPanelOpen, setRightPanelOpen] = useState(false);
+  const [rightPanelTab, setRightPanelTab] = useState<'notificacoes' | 'chat' | 'contatos'>('notificacoes');
 
   const bombeiros = useMemo(() => listarBombeiros(), []);
   const bombeiro = useMemo(() => {
@@ -62,12 +65,14 @@ export function Header() {
           />
         </div>
 
-        <button className="relative rounded-xl p-2 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:text-graphite-500 dark:hover:bg-surface-card dark:hover:text-graphite-300">
+        <button onClick={() => { setRightPanelTab('notificacoes'); setRightPanelOpen(true); }}
+          className="relative rounded-xl p-2 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:text-graphite-500 dark:hover:bg-surface-card dark:hover:text-graphite-300">
           <Bell className="h-5 w-5" />
           <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-alert-red ring-2 ring-white dark:ring-surface-dark" />
         </button>
 
-        <button className="rounded-xl p-2 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:text-graphite-500 dark:hover:bg-surface-card dark:hover:text-graphite-300">
+        <button onClick={() => { setRightPanelTab('chat'); setRightPanelOpen(true); }}
+          className="rounded-xl p-2 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:text-graphite-500 dark:hover:bg-surface-card dark:hover:text-graphite-300">
           <MessageSquare className="h-5 w-5" />
         </button>
 
@@ -157,6 +162,13 @@ export function Header() {
           )}
         </div>
       </div>
+
+      {rightPanelOpen && (
+        <RightPanel
+          onClose={() => setRightPanelOpen(false)}
+          openTab={rightPanelTab}
+        />
+      )}
     </header>
   );
 }

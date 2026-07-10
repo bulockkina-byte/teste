@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  Award, Plus, Search, ChevronDown, ChevronUp, Trash2, X, Eye, User,
-  Calendar, Building2, Shield, Clock,
+  Award, Plus, Search, ChevronDown, ChevronUp, X, Eye, User,
+  Calendar, Building2, Shield,
 } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
@@ -200,14 +200,12 @@ function FuncionarioCard({
   certificacoes,
   isAdmin,
   onAdd,
-  onDelete,
   onViewNR,
 }: {
   funcionario: { id: string; nomeCompleto: string; nomeGuerra: string; equipe: string; foto: string };
   certificacoes: CertificacaoNR[];
   isAdmin: boolean;
   onAdd: (funcId: string, funcNome: string) => void;
-  onDelete: (certId: string) => void;
   onViewNR: (cert: CertificacaoNR) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -369,7 +367,6 @@ export function Certificacoes() {
                   certificacoes={certs}
                   isAdmin={isAdmin}
                   onAdd={handleAdd}
-                  onDelete={(id) => setConfirmDelete(id)}
                   onViewNR={(cert) => setNrModal(cert)}
                 />
                 {formOpen === b.id && (

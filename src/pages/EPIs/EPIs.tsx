@@ -141,7 +141,7 @@ export function EPIs() {
     const t = termo.toLowerCase();
     return epis.filter(e =>
       e.nome.toLowerCase().includes(t) ||
-      e.responsavel.toLowerCase().includes(t) ||
+      e.colaborador.toLowerCase().includes(t) ||
       e.descricao.toLowerCase().includes(t) ||
       e.fornecedor.toLowerCase().includes(t)
     );
@@ -197,7 +197,7 @@ export function EPIs() {
                     <div key={e.id} className="flex items-center gap-2 text-xs">
                       <Clock className="h-3 w-3 shrink-0 text-yellow-500" />
                       <span className="font-medium text-yellow-800 dark:text-yellow-300">{e.nome}</span>
-                      <span className="text-yellow-600 dark:text-yellow-400">— {e.responsavel}</span>
+                      <span className="text-yellow-600 dark:text-yellow-400">— {e.colaborador}</span>
                       <span className="text-yellow-500 dark:text-yellow-500">
                         ({dias === 0 ? 'vence hoje' : dias === 1 ? 'vence amanhã' : `${dias} dias restantes`})
                       </span>
@@ -281,7 +281,7 @@ export function EPIs() {
                         {e.descricao && <p className="text-xs text-graphite-500 dark:text-graphite-400">{e.descricao}</p>}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{e.responsavel}</td>
+                    <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{e.colaborador}</td>
                     <td className="px-4 py-3 font-mono text-xs text-graphite-700 dark:text-graphite-300">
                       {new Date(e.dataPagamento + 'T00:00:00').toLocaleDateString('pt-BR')}
                     </td>

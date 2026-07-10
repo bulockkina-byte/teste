@@ -5,7 +5,7 @@ import { listarBombeiros } from '../../services/bombeiroService';
 import {
   mensagensGerais, conversaCom, enviarMensagem, marcarLida, contarNaoLidas,
 } from '../../services/chatService';
-import type { ChatMensagem } from '../../types/chat';
+
 
 type Tab = 'geral' | 'privado';
 
@@ -173,7 +173,6 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
           {tab === 'privado' && !conversaComUser ? (
             <div className="space-y-1">
               {usuariosDisponiveis.map(b => {
-                const unread = contarNaoLidas(username);
                 return (
                   <button key={b.id}
                     onClick={() => { setConversaComUser(b.nomeGuerra.toLowerCase()); setConversaComNome(b.nomeCompleto); setBusca(''); }}

@@ -9,7 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import { turnoAutoPorEquipe } from '../../types/bombeiro';
 import { listarBombeiros } from '../../services/bombeiroService';
 import { listarOcorrencias, criarOcorrencia, atualizarOcorrencia, excluirOcorrencia } from '../../services/ocorrenciaService';
-import { CATEGORIAS_OCORRENCIA, STATUS_OCORRENCIA, EQUIPES, TIPO_DOCUMENTO } from '../../types/ocorrencia';
+import { CATEGORIAS_OCORRENCIA, EQUIPES, TIPO_DOCUMENTO } from '../../types/ocorrencia';
 import type { Ocorrencia, TipoDocumento } from '../../types/ocorrencia';
 
 function gerarNumero(tipo: TipoDocumento, existentes: Ocorrencia[]): string {
@@ -370,9 +370,9 @@ function OcorrenciaView({ ocorrencia, onBack }: { ocorrencia: Ocorrencia; onBack
 /* ───────── Card ───────── */
 
 function OcorrenciaCard({
-  o, isAdmin, isGestor, onView, onEdit, onDelete,
+  o, isAdmin, isGerente, onView, onEdit, onDelete,
 }: {
-  o: Ocorrencia; isAdmin: boolean; isGestor: boolean;
+  o: Ocorrencia; isAdmin: boolean; isGerente: boolean;
   onView: () => void; onEdit: () => void; onDelete: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -386,7 +386,7 @@ function OcorrenciaCard({
     ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
     : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400';
 
-  const canEdit = o.status === 'Aberta' && (isAdmin || isGestor);
+  const canEdit = o.status === 'Aberta' && (isAdmin || isGerente);
   const canDelete = o.status === 'Aberta' && isAdmin;
 
   return (
@@ -469,10 +469,9 @@ export function Ocorrencias() {
   const role = useMemo(() => getUserRole(username), [username]);
   const userEquipe = useMemo(() => getUserEquipe(username), [username]);
   const isAdmin = role === 'admin';
-  const isGestor = role === 'gestor';
   const isGerente = role === 'gerente';
-  const canFilterTeam = isAdmin || isGestor || isGerente;
-  const canEdit = isAdmin || isGestor || role === 'chefe';
+  const canFilterTeam = isAdmin || isGerente;
+  const canEdit = isAdmin || isGerente || role === 'chefe';
 
   const [ocorrencias, setOcorrencias] = useState<Ocorrencia[]>([]);
   const [mode, setMode] = useState<'list' | 'form' | 'view'>('list');
@@ -631,7 +630,7 @@ export function Ocorrencias() {
       ) : (
         <div className="space-y-3">
           {filtradas.map(o => (
-            <OcorrenciaCard key={o.id} o={o} isAdmin={isAdmin} isGestor={isGestor}
+            <OcorrenciaCard key={o.id} o={o} isAdmin={isAdmin} isGerente={isGerente}
               onView={() => { setVisualizando(o); setMode('view'); }}
               onEdit={() => { setEditando(o); setSavedId(o.id); setMode('form'); }}
               onDelete={() => setConfirmDelete(o.id)}
