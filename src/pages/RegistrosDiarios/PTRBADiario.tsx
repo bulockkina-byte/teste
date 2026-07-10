@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   FileText, Plus, Trash2, Save, Eye, Pencil, Copy, Printer,
   ChevronDown, ChevronUp, Image,
@@ -8,6 +8,7 @@ import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { useAuth } from '../../context/AuthContext';
 import { listarPTRBs, criarPTRB, atualizarPTRB, excluirPTRB } from '../../services/ptrbService';
+import { listarBombeiros } from '../../services/bombeiroService';
 import { CARGO_OPTIONS } from '../../types/bombeiro';
 import type { PTRB, PTRBParticipante } from '../../types/ptrb';
 import { EQUIPES, SITUACOES, ASSUNTOS } from '../../types/ptrb';
@@ -320,13 +321,13 @@ function PTRBAForm({
 }
 
 // ─── LIST VIEW ──────────────────────────────────────────────
-function PTRBCard({ ptrb, onView, onEdit, onDelete, onClone, isAdmin }: {
+function PTRBCard({ ptrb, onView, onEdit, onDelete, onClone, canEdit }: {
   ptrb: PTRB;
   onView: () => void;
   onEdit: () => void;
   onDelete: () => void;
   onClone: () => void;
-  isAdmin: boolean;
+  canEdit: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -351,19 +352,21 @@ function PTRBCard({ ptrb, onView, onEdit, onDelete, onClone, isAdmin }: {
             className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-800 dark:hover:text-graphite-300">
             <Eye className="h-4 w-4" />
           </button>
-          <button onClick={onEdit} title="Editar"
-            className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-800 dark:hover:text-graphite-300">
-            <Pencil className="h-4 w-4" />
-          </button>
-          <button onClick={onClone} title="Clonar"
-            className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-800 dark:hover:text-graphite-300">
-            <Copy className="h-4 w-4" />
-          </button>
-          {isAdmin && (
-            <button onClick={onDelete} title="Excluir"
-              className="rounded-xl p-1.5 text-alert-red transition-all duration-200 hover:bg-red-50 dark:hover:bg-red-900/20">
-              <Trash2 className="h-4 w-4" />
-            </button>
+          {canEdit && (
+            <>
+              <button onClick={onEdit} title="Editar"
+                className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-800 dark:hover:text-graphite-300">
+                <Pencil className="h-4 w-4" />
+              </button>
+              <button onClick={onClone} title="Clonar"
+                className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-800 dark:hover:text-graphite-300">
+                <Copy className="h-4 w-4" />
+              </button>
+              <button onClick={onDelete} title="Excluir"
+                className="rounded-xl p-1.5 text-alert-red transition-all duration-200 hover:bg-red-50 dark:hover:bg-red-900/20">
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </>
           )}
           <button onClick={() => setExpanded(!expanded)}
             className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-800 dark:hover:text-graphite-300">
@@ -544,10 +547,33 @@ function ViewMode({ ptrb, onBack }: { ptrb: PTRB; onBack: () => void }) {
 }
 
 // ─── MAIN ────────────────────────────────────────────────
+function getUserRole(username: string): 'admin' | 'gerente' | 'chefe' {
+  if (username === 'admin') return 'admin';
+  const b = listarBombeiros().find(
+    x => x.nomeGuerra.toLowerCase() === username.toLowerCase() ||
+         x.nomeCompleto.toLowerCase().includes(username.toLowerCase()),
+  );
+  if (b?.cargo === 'GS' || b?.equipe === 'Gerência') return 'gerente';
+  return 'chefe';
+}
+
+function getUserEquipe(username: string): string {
+  const b = listarBombeiros().find(
+    x => x.nomeGuerra.toLowerCase() === username.toLowerCase() ||
+         x.nomeCompleto.toLowerCase().includes(username.toLowerCase()),
+  );
+  return b?.equipe || '';
+}
+
 export function PTRBADiario() {
   const { user } = useAuth();
-  const isAdmin = user?.username === 'admin';
   const username = user?.username || '';
+  const role = useMemo(() => getUserRole(username), [username]);
+  const userEquipe = useMemo(() => getUserEquipe(username), [username]);
+  const isAdmin = role === 'admin';
+  const isGerente = role === 'gerente';
+  const canFilterTeam = isAdmin || isGerente;
+  const canEdit = isAdmin || role === 'chefe';
   const [ptrbs, setPtrbs] = useState<PTRB[]>([]);
   const [mode, setMode] = useState<'list' | 'form' | 'view'>('list');
   const [editando, setEditando] = useState<PTRB | null>(null);
@@ -572,14 +598,16 @@ export function PTRBADiario() {
 
   function carregar() {
     const todas = listarPTRBs();
-    if (isAdmin) {
+    if (isAdmin || isGerente) {
       setPtrbs(todas);
+    } else if (userEquipe) {
+      setPtrbs(todas.filter(e => e.equipe === userEquipe));
     } else {
       setPtrbs(todas.filter(e => e.createdBy === username));
     }
   }
 
-  useEffect(() => { carregar(); }, [isAdmin, username]);
+  useEffect(() => { carregar(); }, [isAdmin, isGerente, username, userEquipe]);
 
   function handleSave(data: Omit<PTRB, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) {
     let saved: PTRB | null;
@@ -652,18 +680,22 @@ export function PTRBADiario() {
             <option value="">Todos os meses</option>
             {MESES.slice(1).map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
           </select>
-          <select value={filtroEquipe} onChange={e => setFiltroEquipe(e.target.value)} className={inputClass}>
-            <option value="">Todas as equipes</option>
-            {EQUIPES.map(eq => <option key={eq} value={eq}>{eq}</option>)}
-          </select>
+          {canFilterTeam && (
+            <select value={filtroEquipe} onChange={e => setFiltroEquipe(e.target.value)} className={inputClass}>
+              <option value="">Todas as equipes</option>
+              {EQUIPES.map(eq => <option key={eq} value={eq}>{eq}</option>)}
+            </select>
+          )}
           <p className="text-sm text-graphite-500 dark:text-graphite-400">
             {ptrbsFiltradas.length} registro(s)
           </p>
         </div>
-        <button onClick={() => { setEditando(null); setMode('form'); }}
-          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
-          <Plus className="h-4 w-4" /> Novo PTR-BA
-        </button>
+        {canEdit && (
+          <button onClick={() => { setEditando(null); setMode('form'); }}
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
+            <Plus className="h-4 w-4" /> Novo PTR-BA
+          </button>
+        )}
       </div>
 
       {ptrbsFiltradas.length === 0 ? (
@@ -678,7 +710,7 @@ export function PTRBADiario() {
             <PTRBCard
               key={e.id}
               ptrb={e}
-              isAdmin={isAdmin}
+              canEdit={canEdit}
               onView={() => { setVisualizando(e); setMode('view'); }}
               onEdit={() => { setEditando(e); setMode('form'); }}
               onClone={() => handleClone(e)}

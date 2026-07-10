@@ -7,6 +7,7 @@ import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { useAuth } from '../../context/AuthContext';
 import { listarLROs, criarLRO, atualizarLRO, excluirLRO } from '../../services/lroService';
+import { listarBombeiros } from '../../services/bombeiroService';
 import { listarViaturas } from '../../services/viaturaService';
 import { EQUIPES, EPR_OPTIONS, CRS_SITUACOES, FUNCOES_CARGO } from '../../types/lro';
 import type { LRO, VeiculoState, VeiculoRTState, CRSState } from '../../types/lro';
@@ -581,8 +582,8 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
 }
 
 // ─── LIST VIEW ───────────────────────────
-function LROCard({ lro, onView, onEdit, onClone, onDelete, isAdmin }: {
-  lro: LRO; onView: () => void; onEdit: () => void; onClone: () => void; onDelete: () => void; isAdmin: boolean;
+function LROCard({ lro, onView, onEdit, onClone, onDelete, canEdit }: {
+  lro: LRO; onView: () => void; onEdit: () => void; onClone: () => void; onDelete: () => void; canEdit: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   return (
@@ -599,10 +600,12 @@ function LROCard({ lro, onView, onEdit, onClone, onDelete, isAdmin }: {
         </div>
         <div className="flex items-center gap-1">
           <button onClick={onView} title="Visualizar" className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-800 dark:hover:text-graphite-300"><Eye className="h-4 w-4" /></button>
-          <button onClick={onEdit} title="Editar" className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-800 dark:hover:text-graphite-300"><Pencil className="h-4 w-4" /></button>
-          <button onClick={onClone} title="Copiar" className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-800 dark:hover:text-graphite-300"><Copy className="h-4 w-4" /></button>
-          {isAdmin && (
-            <button onClick={onDelete} title="Excluir" className="rounded-xl p-1.5 text-alert-red transition-all duration-200 hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="h-4 w-4" /></button>
+          {canEdit && (
+            <>
+              <button onClick={onEdit} title="Editar" className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-800 dark:hover:text-graphite-300"><Pencil className="h-4 w-4" /></button>
+              <button onClick={onClone} title="Copiar" className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-800 dark:hover:text-graphite-300"><Copy className="h-4 w-4" /></button>
+              <button onClick={onDelete} title="Excluir" className="rounded-xl p-1.5 text-alert-red transition-all duration-200 hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="h-4 w-4" /></button>
+            </>
           )}
           <button onClick={() => setExpanded(!expanded)} className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-800 dark:hover:text-graphite-300">
             {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -769,8 +772,27 @@ function ViewModeLRO({ lro, onBack }: { lro: LRO; onBack: () => void }) {
 // ─── MAIN ───────────────────────────
 export function LRODiario() {
   const { user } = useAuth();
-  const isAdmin = user?.username === 'admin';
   const username = user?.username || '';
+  const role = useMemo(() => {
+    if (username === 'admin') return 'admin' as const;
+    const b = listarBombeiros().find(
+      x => x.nomeGuerra.toLowerCase() === username.toLowerCase() ||
+           x.nomeCompleto.toLowerCase().includes(username.toLowerCase()),
+    );
+    if (b?.cargo === 'GS' || b?.equipe === 'Gerência') return 'gerente' as const;
+    return 'chefe' as const;
+  }, [username]);
+  const userEquipe = useMemo(() => {
+    const b = listarBombeiros().find(
+      x => x.nomeGuerra.toLowerCase() === username.toLowerCase() ||
+           x.nomeCompleto.toLowerCase().includes(username.toLowerCase()),
+    );
+    return b?.equipe || '';
+  }, [username]);
+  const isAdmin = role === 'admin';
+  const isGerente = role === 'gerente';
+  const canFilterTeam = isAdmin || isGerente;
+  const canEdit = isAdmin || role === 'chefe';
 
   const [lros, setLros] = useState<LRO[]>([]);
   const [mode, setMode] = useState<'list' | 'form' | 'view'>('list');
@@ -780,21 +802,22 @@ export function LRODiario() {
   const [filtroEquipe, setFiltroEquipe] = useState('');
   const [filtroMes, setFiltroMes] = useState('');
   const [filtroAno, setFiltroAno] = useState(new Date().getFullYear().toString());
-  const [filtroChefe, setFiltroChefe] = useState('');
   const MESES = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   const ANOS = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
   const inputClass = 'rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900';
 
   function carregar() {
     const atuais = listarLROs();
-    setLros(isAdmin ? atuais : atuais.filter(e => e.createdBy === username));
+    if (isAdmin || isGerente) {
+      setLros(atuais);
+    } else if (userEquipe) {
+      setLros(atuais.filter(e => e.equipe === userEquipe));
+    } else {
+      setLros(atuais.filter(e => e.createdBy === username));
+    }
   }
 
-  useEffect(() => { carregar(); }, [isAdmin, username]);
-
-  function getChefes(list: LRO[]): string[] {
-    return [...new Set(list.map(e => e.chefeEquipe).filter(Boolean))].sort();
-  }
+  useEffect(() => { carregar(); }, [isAdmin, isGerente, username, userEquipe]);
 
   let filtradas = lros;
   if (filtroMes) {
@@ -806,10 +829,7 @@ export function LRODiario() {
   if (filtroAno) {
     filtradas = filtradas.filter(e => e.dataEntrada.startsWith(filtroAno));
   }
-  if (!isAdmin && filtroChefe) {
-    filtradas = filtradas.filter(e => e.chefeEquipe === filtroChefe);
-  }
-  if (isAdmin && filtroEquipe) {
+  if (canFilterTeam && filtroEquipe) {
     filtradas = filtradas.filter(e => e.equipe === filtroEquipe);
   }
 
@@ -884,36 +904,31 @@ export function LRODiario() {
             <option value="">Todos os meses</option>
             {MESES.slice(1).map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
           </select>
-          {/* Equipe — só admin */}
-          {isAdmin && (
+          {canFilterTeam && (
             <select value={filtroEquipe} onChange={e => setFiltroEquipe(e.target.value)}
-              className="rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900">
+              className={inputClass}>
               <option value="">Todas as equipes</option>
               {EQUIPES.map(eq => <option key={eq} value={eq}>{eq}</option>)}
-            </select>
-          )}
-          {/* Chefe — só não-admin */}
-          {!isAdmin && (
-            <select value={filtroChefe} onChange={e => setFiltroChefe(e.target.value)}
-              className="rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900">
-              <option value="">Todos os chefes</option>
-              {getChefes(lros).map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           )}
           <p className="text-sm text-graphite-500">{filtradas.length} LRO(s)</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => {
-            const sorted = [...lros].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-            if (sorted.length > 0) handleClone(sorted[0]);
-            else { setEditando(null); setMode('form'); }
-          }} className="flex items-center gap-1.5 rounded-xl border border-graphite-300/60 bg-white/80 px-3.5 py-2.5 text-sm font-medium text-graphite-700 shadow-sm backdrop-blur-sm transition-all duration-200 hover:bg-graphite-50 hover:border-graphite-300 dark:border-graphite-700/40 dark:bg-graphite-800/80 dark:text-graphite-200 dark:hover:bg-graphite-700/50">
-            <Copy className="h-4 w-4" /> Copiar Último
-          </button>
-          <button onClick={() => { setEditando(null); setMode('form'); }}
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
-            <Plus className="h-4 w-4" /> Criar LRO
-          </button>
+          {canEdit && (
+            <>
+              <button onClick={() => {
+                const sorted = [...lros].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+                if (sorted.length > 0) handleClone(sorted[0]);
+                else { setEditando(null); setMode('form'); }
+              }} className="flex items-center gap-1.5 rounded-xl border border-graphite-300/60 bg-white/80 px-3.5 py-2.5 text-sm font-medium text-graphite-700 shadow-sm backdrop-blur-sm transition-all duration-200 hover:bg-graphite-50 hover:border-graphite-300 dark:border-graphite-700/40 dark:bg-graphite-800/80 dark:text-graphite-200 dark:hover:bg-graphite-700/50">
+                <Copy className="h-4 w-4" /> Copiar Último
+              </button>
+              <button onClick={() => { setEditando(null); setMode('form'); }}
+                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
+                <Plus className="h-4 w-4" /> Criar LRO
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -926,7 +941,7 @@ export function LRODiario() {
       ) : (
         <div className="space-y-3">
           {filtradas.map(lro => (
-            <LROCard key={lro.id} lro={lro} isAdmin={isAdmin}
+            <LROCard key={lro.id} lro={lro} canEdit={canEdit}
               onView={() => { setVisualizando(lro); setMode('view'); }}
               onEdit={() => { setEditando(lro); setMode('form'); }}
               onClone={() => handleClone(lro)}
