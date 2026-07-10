@@ -555,10 +555,18 @@ export function PTRBADiario() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [filtroEquipe, setFiltroEquipe] = useState('');
   const [filtroMes, setFiltroMes] = useState('');
+  const [filtroAno, setFiltroAno] = useState(new Date().getFullYear().toString());
+  const MESES = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const ANOS = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
+  const inputClass = 'rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900';
 
   const ptrbsFiltradas = ptrbs.filter(e => {
     if (filtroEquipe && e.equipe !== filtroEquipe) return false;
-    if (filtroMes && !e.data.startsWith(filtroMes)) return false;
+    if (filtroMes) {
+      const d = new Date(e.data);
+      if ((d.getMonth() + 1).toString() !== filtroMes) return false;
+    }
+    if (filtroAno && !e.data.startsWith(filtroAno)) return false;
     return true;
   });
 
@@ -636,10 +644,15 @@ export function PTRBADiario() {
       <PageTitle icon={FileText} title="PTR-BA - Registro Diário" />
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <input type="month" value={filtroMes} onChange={e => setFiltroMes(e.target.value)}
-            className="rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
-          <select value={filtroEquipe} onChange={e => setFiltroEquipe(e.target.value)}
-            className="rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900">
+          <select value={filtroAno} onChange={e => setFiltroAno(e.target.value)} className={inputClass}>
+            <option value="">Todos os anos</option>
+            {ANOS.map(a => <option key={a} value={a}>{a}</option>)}
+          </select>
+          <select value={filtroMes} onChange={e => setFiltroMes(e.target.value)} className={inputClass}>
+            <option value="">Todos os meses</option>
+            {MESES.slice(1).map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
+          </select>
+          <select value={filtroEquipe} onChange={e => setFiltroEquipe(e.target.value)} className={inputClass}>
             <option value="">Todas as equipes</option>
             {EQUIPES.map(eq => <option key={eq} value={eq}>{eq}</option>)}
           </select>

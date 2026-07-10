@@ -779,7 +779,11 @@ export function LRODiario() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [filtroEquipe, setFiltroEquipe] = useState('');
   const [filtroMes, setFiltroMes] = useState('');
+  const [filtroAno, setFiltroAno] = useState(new Date().getFullYear().toString());
   const [filtroChefe, setFiltroChefe] = useState('');
+  const MESES = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const ANOS = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
+  const inputClass = 'rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900';
 
   function carregar() {
     const atuais = listarLROs();
@@ -794,7 +798,13 @@ export function LRODiario() {
 
   let filtradas = lros;
   if (filtroMes) {
-    filtradas = filtradas.filter(e => e.dataEntrada.startsWith(filtroMes));
+    filtradas = filtradas.filter(e => {
+      const d = new Date(e.dataEntrada);
+      return (d.getMonth() + 1).toString() === filtroMes;
+    });
+  }
+  if (filtroAno) {
+    filtradas = filtradas.filter(e => e.dataEntrada.startsWith(filtroAno));
   }
   if (!isAdmin && filtroChefe) {
     filtradas = filtradas.filter(e => e.chefeEquipe === filtroChefe);
@@ -866,9 +876,14 @@ export function LRODiario() {
 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3">
-          {/* Mês */}
-          <input type="month" value={filtroMes} onChange={e => setFiltroMes(e.target.value)}
-            className="rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
+          <select value={filtroAno} onChange={e => setFiltroAno(e.target.value)} className={inputClass}>
+            <option value="">Todos os anos</option>
+            {ANOS.map(a => <option key={a} value={a}>{a}</option>)}
+          </select>
+          <select value={filtroMes} onChange={e => setFiltroMes(e.target.value)} className={inputClass}>
+            <option value="">Todos os meses</option>
+            {MESES.slice(1).map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
+          </select>
           {/* Equipe — só admin */}
           {isAdmin && (
             <select value={filtroEquipe} onChange={e => setFiltroEquipe(e.target.value)}
