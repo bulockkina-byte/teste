@@ -24,10 +24,7 @@ import {
   ScrollText,
   ClipboardList,
   RefreshCw,
-  Settings,
-  UserCircle,
   UserCog,
-  LogOut,
   BookOpen,
   AlertCircle,
   Radio,
@@ -97,8 +94,26 @@ export const menuItems: MenuItem[] = [
   {
     label: 'Funcionários',
     icon: Users,
-    path: '/funcionarios',
-    description: 'Visualização de todos os funcionários cadastrados.',
+    children: [
+      {
+        label: 'Todos',
+        icon: Users,
+        path: '/funcionarios',
+        description: 'Visualização de todos os funcionários cadastrados.',
+      },
+      {
+        label: 'EPIs',
+        icon: HardHat,
+        path: '/epis',
+        description: 'Controle de Equipamentos de Proteção Individual.',
+      },
+      {
+        label: 'Certificações',
+        icon: Award,
+        path: '/certificacoes',
+        description: 'Gestão de certificações e licenças NR.',
+      },
+    ],
   },
   {
     label: 'Registros Diários',
@@ -143,18 +158,6 @@ export const menuItems: MenuItem[] = [
     description: 'Controle e monitoramento de viaturas do CCI.',
   },
   {
-    label: 'EPIs',
-    icon: HardHat,
-    path: '/epis',
-    description: 'Controle de Equipamentos de Proteção Individual.',
-  },
-  {
-    label: 'Checklists',
-    icon: ClipboardCheck,
-    path: '/checklists',
-    description: 'Criação e aplicação de checklists operacionais.',
-  },
-  {
     label: 'Documentos',
     icon: FileText,
     children: [
@@ -170,13 +173,19 @@ export const menuItems: MenuItem[] = [
         path: '/documentos/trocas',
         description: 'Registro de trocas de plantão e equipamentos.',
       },
+      {
+        label: 'Checklists',
+        icon: ClipboardCheck,
+        path: '/checklists',
+        description: 'Criação e aplicação de checklists operacionais.',
+      },
+      {
+        label: 'Escalas',
+        icon: Calendar,
+        path: '/escalas',
+        description: 'Gestão de escalas de trabalho.',
+      },
     ],
-  },
-  {
-    label: 'Escalas',
-    icon: Calendar,
-    path: '/escalas',
-    description: 'Gestão de escalas de trabalho.',
   },
   {
     label: 'Treinamentos',
@@ -201,12 +210,6 @@ export const menuItems: MenuItem[] = [
         description: 'Teste de Aptidão Física.',
       },
     ],
-  },
-  {
-    label: 'Certificações',
-    icon: Award,
-    path: '/certificacoes',
-    description: 'Gestão de certificações e licenças.',
   },
   {
     label: 'Estatísticas',
@@ -267,12 +270,6 @@ export const menuItems: MenuItem[] = [
         description: 'Registro de trocas de plantão e equipamentos.',
       },
     ],
-  },
-  {
-    label: 'Configurações',
-    icon: Settings,
-    path: '/configuracoes',
-    description: 'Configurações do sistema.',
   },
   {
     label: 'Usuários',
