@@ -37,6 +37,7 @@ function SidebarItem({ item, collapsed, depth = 0 }: { item: MenuItemType; colla
   const link = item.path ? (
     <NavLink
       to={item.path}
+      end={item.path === '/ocorrencias'}
       className={({ isActive }) =>
         `relative flex items-center gap-3 rounded-xl text-sm font-medium transition-all duration-200 ${
           isActive
