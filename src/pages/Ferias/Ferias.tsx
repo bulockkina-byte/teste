@@ -55,7 +55,7 @@ function FeriasForm({
     observacoes: '',
   });
 
-  const input = 'w-full rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all hover:border-graphite-400 focus:border-aviation-500 focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-100 dark:hover:border-graphite-500 dark:focus:border-aviation-400 dark:focus:bg-graphite-800 dark:focus:ring-aviation-400/10 dark:placeholder:text-graphite-500';
+  const input = 'w-full rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all hover:border-graphite-400 focus:border-aviation-500 focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:hover:border-graphite-500 dark:focus:border-aviation-400 dark:focus:bg-surface-elevated dark:focus:ring-aviation-400/10 dark:placeholder:text-graphite-500';
   const label = 'block mb-1.5 text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400';
 
   useEffect(() => {
@@ -71,12 +71,12 @@ function FeriasForm({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl dark:bg-graphite-800">
+      <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl dark:bg-surface-elevated">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">
             {ferias ? 'Editar Férias' : 'Nova Férias'}
           </h2>
-          <button onClick={onCancel} className="rounded-xl p-1 text-graphite-400 hover:bg-graphite-100 dark:hover:bg-graphite-700">
+          <button onClick={onCancel} className="rounded-xl p-1 text-graphite-400 hover:bg-graphite-100 dark:hover:bg-surface-hover">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -110,7 +110,7 @@ function FeriasForm({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={label}>Dias</label>
-              <input value={form.dias || ''} readOnly className={input + ' cursor-not-allowed bg-graphite-50 font-bold dark:bg-graphite-700/50'} />
+              <input value={form.dias || ''} readOnly className={input + ' cursor-not-allowed bg-graphite-50 font-bold dark:bg-surface-hover50'} />
             </div>
             <div>
               <label className={label}>Status</label>
@@ -127,7 +127,7 @@ function FeriasForm({
 
         <div className="mt-6 flex justify-end gap-3">
           <button onClick={onCancel}
-            className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-200">
+            className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">
             Cancelar
           </button>
           <button
@@ -201,7 +201,7 @@ export function Ferias() {
       <PageTitle icon={CalendarDays} title="Férias" />
 
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-xl border border-graphite-200 bg-white p-4 dark:border-graphite-700 dark:bg-graphite-800">
+        <div className="rounded-xl border border-graphite-200 bg-white p-4 dark:border-border-dark dark:bg-surface-card">
           <p className="text-[10px] font-bold uppercase tracking-wider text-graphite-400">Total</p>
           <p className="text-2xl font-black text-graphite-900 dark:text-graphite-100">{stats.total}</p>
         </div>
@@ -225,15 +225,15 @@ export function Ferias() {
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite-400" />
             <input type="text" value={termo} onChange={e => setTermo(e.target.value)}
               placeholder="Pesquisar funcionário..."
-              className="w-full rounded-xl border border-graphite-300 bg-white py-2.5 pl-10 pr-4 text-sm text-graphite-900 placeholder-graphite-400 outline-none transition-all hover:border-graphite-400 focus:border-aviation-500 focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-100 dark:hover:border-graphite-500 dark:focus:border-aviation-400 dark:focus:bg-graphite-800 dark:focus:ring-aviation-400/10 dark:placeholder:text-graphite-500" />
+              className="w-full rounded-xl border border-graphite-300 bg-white py-2.5 pl-10 pr-4 text-sm text-graphite-900 placeholder-graphite-400 outline-none transition-all hover:border-graphite-400 focus:border-aviation-500 focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:hover:border-graphite-500 dark:focus:border-aviation-400 dark:focus:bg-surface-elevated dark:focus:ring-aviation-400/10 dark:placeholder:text-graphite-500" />
           </div>
           <select value={filtroAno} onChange={e => setFiltroAno(e.target.value)}
-            className="rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-100 dark:hover:border-graphite-500">
+            className="rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:hover:border-graphite-500">
             <option value="">Todos os anos</option>
             {getAnos().map(a => <option key={a} value={a}>{a}</option>)}
           </select>
           <select value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}
-            className="rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-100 dark:hover:border-graphite-500">
+            className="rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:hover:border-graphite-500">
             <option value="">Todos os status</option>
             {STATUS_FERIAS.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
@@ -247,7 +247,7 @@ export function Ferias() {
       </div>
 
       {filtradas.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-graphite-700 dark:bg-graphite-900/30">
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">
           <CalendarDays className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
           <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhum registro de férias</h3>
           <p className="text-sm text-graphite-400 dark:text-graphite-500">Clique em "Nova Férias" para cadastrar.</p>
@@ -255,7 +255,7 @@ export function Ferias() {
       ) : (
         <div className="space-y-2">
           {filtradas.map(f => (
-            <div key={f.id} className="rounded-2xl border border-graphite-200 bg-white shadow-sm transition-all hover:shadow-md dark:border-graphite-700 dark:bg-graphite-800">
+            <div key={f.id} className="rounded-2xl border border-graphite-200 bg-white shadow-sm transition-all hover:shadow-md dark:border-border-dark dark:bg-surface-card">
               <button onClick={() => setExpanded(expanded === f.id ? null : f.id)}
                 className="flex w-full items-center gap-4 px-5 py-4 text-left">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-aviation-500 to-aviation-700 text-sm font-bold text-white shadow-sm">
@@ -276,7 +276,7 @@ export function Ferias() {
               </button>
 
               {expanded === f.id && (
-                <div className="border-t border-graphite-200 px-5 py-4 dark:border-graphite-700">
+                <div className="border-t border-graphite-200 px-5 py-4 dark:border-border-dark">
                   <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-wider text-graphite-400">Período</p>
@@ -304,7 +304,7 @@ export function Ferias() {
                   {isAdmin && (
                     <div className="mt-4 flex items-center gap-2">
                       <button onClick={() => { setEditando(f); setFormOpen(true); }}
-                        className="flex items-center gap-1 rounded-lg bg-graphite-100 px-3 py-1.5 text-xs font-medium text-graphite-700 transition-colors hover:bg-graphite-200 dark:bg-graphite-700 dark:text-graphite-300 dark:hover:bg-graphite-600">
+                        className="flex items-center gap-1 rounded-lg bg-graphite-100 px-3 py-1.5 text-xs font-medium text-graphite-700 transition-colors hover:bg-graphite-200 dark:bg-surface-hover dark:text-graphite-300 dark:hover:bg-surface-hover">
                         <Pencil className="h-3.5 w-3.5" /> Editar
                       </button>
                       <button onClick={() => setConfirmDelete(f.id)}
@@ -327,12 +327,12 @@ export function Ferias() {
 
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl dark:bg-graphite-800">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl dark:bg-surface-elevated">
             <h3 className="mb-2 text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar exclusão</h3>
             <p className="mb-6 text-sm text-graphite-500 dark:text-graphite-400">Tem certeza que deseja excluir este registro de férias?</p>
             <div className="flex justify-end gap-3">
               <button onClick={() => setConfirmDelete(null)}
-                className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-200">Cancelar</button>
+                className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">Cancelar</button>
               <button onClick={() => handleDelete(confirmDelete)}
                 className="rounded-xl bg-gradient-to-r from-alert-red to-red-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-red-500/20 transition-all hover:shadow-xl hover:shadow-red-500/30 active:scale-[0.98]">Excluir</button>
             </div>

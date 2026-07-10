@@ -8,7 +8,7 @@ interface EmptyCardProps {
 
 export function EmptyCard({ icon: Icon, title, description }: EmptyCardProps) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300/60 bg-white/50 p-12 text-center backdrop-blur-sm dark:border-graphite-700/40 dark:bg-graphite-900/30">
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300/60 bg-white/50 p-12 text-center backdrop-blur-sm dark:border-border-dark dark:bg-surface-card">
       <div className="mb-4 rounded-2xl bg-gradient-to-br from-aviation-50 to-aviation-100 p-4 shadow-sm dark:from-aviation-900/30 dark:to-aviation-800/20">
         <Icon className="h-10 w-10 text-aviation-600 dark:text-aviation-400" />
       </div>

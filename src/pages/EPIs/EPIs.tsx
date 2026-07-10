@@ -58,7 +58,7 @@ function EPIFormInline({
     fornecedor: '', notas: '',
   });
 
-  const input = 'w-full rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2 text-sm backdrop-blur-sm transition-all duration-200 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50';
+  const input = 'w-full rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2 text-sm backdrop-blur-sm transition-all duration-200 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50';
   const label = 'block mb-1 text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400';
 
   return (
@@ -94,7 +94,7 @@ function EPIFormInline({
           </div>
           <div>
             <label className={label}>Data de Pagamento</label>
-            <input type="date" value={form.dataPagamento} readOnly className={input + ' cursor-not-allowed bg-graphite-50/80 font-medium dark:bg-graphite-900/30'} />
+            <input type="date" value={form.dataPagamento} readOnly className={input + ' cursor-not-allowed bg-graphite-50/80 font-medium dark:bg-surface-card'} />
           </div>
           <div>
             <label className={label}>Data de Validade *</label>
@@ -106,7 +106,7 @@ function EPIFormInline({
           </div>
         </div>
         <div className="mt-3 flex justify-end gap-2">
-          <button onClick={onCancel} className="rounded-lg border border-graphite-300/60 bg-white/80 px-3 py-1.5 text-xs font-medium text-graphite-700 dark:border-graphite-700/40 dark:bg-graphite-800/80 dark:text-graphite-200">Cancelar</button>
+          <button onClick={onCancel} className="rounded-lg border border-graphite-300/60 bg-white/80 px-3 py-1.5 text-xs font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card/80 dark:text-graphite-200">Cancelar</button>
           <button onClick={() => onSave(form)} disabled={!form.nome || !form.colaborador || !form.entreguePor || !form.ca || !form.dataValidade}
             className="flex items-center gap-1 rounded-lg bg-gradient-to-r from-aviation-600 to-aviation-700 px-3 py-1.5 text-xs font-medium text-white shadow-md transition-all hover:from-aviation-500 hover:to-aviation-600 disabled:opacity-50 disabled:cursor-not-allowed">
             <Save className="h-3.5 w-3.5" /> Salvar
@@ -218,7 +218,7 @@ export function EPIs() {
             value={termo}
             onChange={e => setTermo(e.target.value)}
             placeholder="Pesquisar por nome, responsável, fornecedor..."
-            className="w-full rounded-xl border border-graphite-300/60 bg-white/70 py-2.5 pl-10 pr-4 text-sm text-graphite-900 placeholder-graphite-400 outline-none transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900"
+            className="w-full rounded-xl border border-graphite-300/60 bg-white/70 py-2.5 pl-10 pr-4 text-sm text-graphite-900 placeholder-graphite-400 outline-none transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated"
           />
         </div>
         {canManage && (
@@ -233,10 +233,10 @@ export function EPIs() {
 
       {/* Formulário inline no topo */}
       {formOpen && (
-        <div className="mb-4 overflow-hidden rounded-2xl border border-aviation-200/60 bg-white/90 shadow-lg backdrop-blur-sm dark:border-aviation-700/40 dark:bg-graphite-800/90">
-          <div className="flex items-center justify-between border-b border-graphite-200/60 px-4 py-3 dark:border-graphite-700/50">
+        <div className="mb-4 overflow-hidden rounded-2xl border border-aviation-200/60 bg-white/90 shadow-lg backdrop-blur-sm dark:border-aviation-700/40 dark:bg-surface-card/90">
+          <div className="flex items-center justify-between border-b border-graphite-200/60 px-4 py-3 dark:border-border-dark">
             <h3 className="text-sm font-bold text-graphite-900 dark:text-graphite-100">{editando ? 'Editar EPI' : 'Novo EPI'}</h3>
-            <button onClick={() => { setFormOpen(false); setEditando(null); }} className="rounded-lg p-1 text-graphite-400 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-700">
+            <button onClick={() => { setFormOpen(false); setEditando(null); }} className="rounded-lg p-1 text-graphite-400 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover">
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -247,7 +247,7 @@ export function EPIs() {
       )}
 
       {filtradas.length === 0 && !formOpen ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300/60 bg-white/50 p-12 text-center backdrop-blur-sm dark:border-graphite-700/40 dark:bg-graphite-900/30">
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300/60 bg-white/50 p-12 text-center backdrop-blur-sm dark:border-border-dark dark:bg-surface-card">
           <HardHat className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
           <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhum EPI cadastrado</h3>
           <p className="text-sm text-graphite-400">
@@ -255,10 +255,10 @@ export function EPIs() {
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-graphite-200/60 bg-white/80 backdrop-blur-sm dark:border-graphite-700/40 dark:bg-graphite-900/80">
+        <div className="overflow-x-auto rounded-2xl border border-graphite-200/60 bg-white/80 backdrop-blur-sm dark:border-border-dark dark:bg-surface-card">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-graphite-200 bg-graphite-50 text-left dark:border-graphite-700 dark:bg-graphite-800">
+              <tr className="border-b border-graphite-200 bg-graphite-50 text-left dark:border-border-dark dark:bg-surface-card">
                 <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">EPI</th>
                 <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">CA</th>
                 <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Colaborador</th>
@@ -274,7 +274,7 @@ export function EPIs() {
                 const dias = getDiasParaVencer(e.dataValidade);
                 const status = getStatusEPI(e.dataValidade);
                 return (
-                  <tr key={e.id} className="border-b border-graphite-100 transition-colors hover:bg-aviation-50/50 dark:border-graphite-800 dark:hover:bg-aviation-900/20">
+                  <tr key={e.id} className="border-b border-graphite-100 transition-colors hover:bg-aviation-50/50 dark:border-border-dark dark:hover:bg-aviation-900/20">
                     <td className="px-4 py-3">
                       <div>
                         <p className="font-bold text-graphite-900 dark:text-graphite-100">{e.nome}</p>
@@ -304,7 +304,7 @@ export function EPIs() {
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => { setEditando(e); setFormOpen(true); }}
-                            className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-800 dark:hover:text-graphite-300"
+                            className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover dark:hover:text-graphite-300"
                             title="Editar"
                           >
                             <Pencil className="h-4 w-4" />
@@ -329,12 +329,12 @@ export function EPIs() {
 
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-sm rounded-2xl bg-white/95 p-6 shadow-xl shadow-black/5 backdrop-blur-sm dark:bg-graphite-800/95 dark:shadow-black/20">
+          <div className="w-full max-w-sm rounded-2xl bg-white/95 p-6 shadow-xl shadow-black/5 backdrop-blur-sm dark:bg-surface-elevated/95 dark:shadow-black/20">
             <h3 className="mb-2 text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar exclusão</h3>
             <p className="mb-6 text-sm text-graphite-500 dark:text-graphite-400">Tem certeza que deseja excluir este EPI?</p>
             <div className="flex justify-end gap-3">
               <button onClick={() => setConfirmDelete(null)}
-                className="rounded-xl border border-graphite-300/60 bg-white/80 px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-graphite-700/40 dark:bg-graphite-800/80 dark:text-graphite-200">Cancelar</button>
+                className="rounded-xl border border-graphite-300/60 bg-white/80 px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card/80 dark:text-graphite-200">Cancelar</button>
               <button onClick={() => handleDelete(confirmDelete)}
                 className="rounded-xl bg-gradient-to-r from-alert-red to-red-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-red-500/20 transition-all hover:shadow-xl hover:shadow-red-500/30 active:scale-[0.98]">Excluir</button>
             </div>

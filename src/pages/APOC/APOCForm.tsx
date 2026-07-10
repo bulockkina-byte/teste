@@ -36,12 +36,12 @@ export function APOCForm({ apoc, onSave, onClose }: Props) {
     });
   }
 
-  const inputClass = "w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900";
+  const inputClass = "w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated";
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 pt-10 pb-10">
-      <div className="relative w-full max-w-xl rounded-2xl bg-white/95 shadow-2xl backdrop-blur-sm dark:bg-graphite-800/95">
-        <div className="flex items-center justify-between border-b border-graphite-200/60 px-6 py-4 dark:border-graphite-700/40">
+      <div className="relative w-full max-w-xl rounded-2xl bg-white/95 shadow-2xl backdrop-blur-sm dark:bg-surface-elevated/95">
+        <div className="flex items-center justify-between border-b border-graphite-200/60 px-6 py-4 dark:border-border-dark">
           <div>
             <h2 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">
               {apoc ? 'Editar APOC' : 'Novo APOC'}
@@ -50,7 +50,7 @@ export function APOCForm({ apoc, onSave, onClose }: Props) {
           </div>
           <button
             onClick={onClose}
-            className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-800 dark:hover:text-graphite-300"
+            className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover dark:hover:text-graphite-300"
           >
             <X className="h-5 w-5" />
           </button>
@@ -85,9 +85,9 @@ export function APOCForm({ apoc, onSave, onClose }: Props) {
               className={inputClass} />
           </div>
 
-          <div className="flex items-center justify-end gap-3 border-t border-graphite-200/60 pt-5 dark:border-graphite-700/40">
+          <div className="flex items-center justify-end gap-3 border-t border-graphite-200/60 pt-5 dark:border-border-dark">
             <button type="button" onClick={onClose}
-              className="rounded-xl border border-graphite-300/60 bg-white/80 px-4 py-2.5 text-sm font-medium text-graphite-700 backdrop-blur-sm transition-all duration-200 hover:bg-graphite-50 hover:border-graphite-300 dark:border-graphite-700/40 dark:bg-graphite-800/80 dark:text-graphite-200 dark:hover:bg-graphite-700/50">
+              className="rounded-xl border border-graphite-300/60 bg-white/80 px-4 py-2.5 text-sm font-medium text-graphite-700 backdrop-blur-sm transition-all duration-200 hover:bg-graphite-50 hover:border-graphite-300 dark:border-border-dark dark:bg-surface-card/80 dark:text-graphite-200 dark:hover:bg-surface-hover/50">
               Cancelar
             </button>
             <button type="submit"

@@ -16,7 +16,7 @@ export function Escalas() {
         <PageTitle icon={Calendar} title="Escalas" />
       </div>
 
-      <div className="mb-6 border-b border-graphite-200 dark:border-graphite-700">
+      <div className="mb-6 border-b border-graphite-200 dark:border-border-dark">
         <div className="flex gap-6">
           <button
             onClick={() => setTab('diaria')}

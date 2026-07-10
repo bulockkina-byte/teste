@@ -58,7 +58,7 @@ function NRModal({ nr, onClose }: { nr: CertificacaoNR; onClose: () => void }) {
             <h2 className="text-3xl font-black tracking-tight">{nr.nrNumero}</h2>
             <p className="mt-1 text-sm font-medium text-white/80">{info?.nome || nr.nrNome}</p>
           </div>
-          <div className="bg-white px-8 py-6 dark:bg-graphite-800">
+          <div className="bg-white px-8 py-6 dark:bg-surface-card">
             <div className="space-y-3">
               <div className="flex items-center gap-3">
                 <User className="h-4 w-4 shrink-0 text-graphite-400" />
@@ -85,7 +85,7 @@ function NRModal({ nr, onClose }: { nr: CertificacaoNR; onClose: () => void }) {
               </div>
             </div>
             {nr.foto && (
-              <div className="mt-4 rounded-xl border border-graphite-200 dark:border-graphite-700">
+              <div className="mt-4 rounded-xl border border-graphite-200 dark:border-border-dark">
                 <img src={nr.foto} className="w-full rounded-xl object-contain max-h-64" alt={nr.nrNumero} />
               </div>
             )}
@@ -119,7 +119,7 @@ function NRFormInline({
     foto: '',
   });
 
-  const input = 'w-full rounded-xl border border-graphite-300 bg-white px-3 py-2 text-sm text-graphite-900 transition-all hover:border-graphite-400 focus:border-aviation-500 focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-100';
+  const input = 'w-full rounded-xl border border-graphite-300 bg-white px-3 py-2 text-sm text-graphite-900 transition-all hover:border-graphite-400 focus:border-aviation-500 focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100';
   const label = 'block mb-1 text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400';
 
   function handleNR(numero: string) {
@@ -161,7 +161,7 @@ function NRFormInline({
           <div className="sm:col-span-2 lg:col-span-4">
             <label className={label}>Foto do Certificado</label>
             <div className="flex items-center gap-3">
-              <label className="flex h-20 w-20 cursor-pointer items-center justify-center rounded-xl border-2 border-dashed border-graphite-300 dark:border-graphite-600/50 dark:bg-graphite-800/30 text-graphite-400 transition-colors hover:border-aviation-400 hover:text-aviation-500">
+              <label className="flex h-20 w-20 cursor-pointer items-center justify-center rounded-xl border-2 border-dashed border-graphite-300 dark:border-border-dark dark:bg-surface-card/30 text-graphite-400 transition-colors hover:border-aviation-400 hover:text-aviation-500">
                 {form.foto ? <img src={form.foto} className="h-full w-full rounded-xl object-cover" /> : <Plus className="h-6 w-6" />}
                 <input type="file" accept="image/*" className="hidden" onChange={handleImage} />
               </label>
@@ -172,7 +172,7 @@ function NRFormInline({
           </div>
         </div>
         <div className="mt-3 flex justify-end gap-2">
-          <button onClick={onCancel} className="rounded-lg border border-graphite-300 bg-white px-3 py-1.5 text-xs font-medium text-graphite-700 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-200">
+          <button onClick={onCancel} className="rounded-lg border border-graphite-300 bg-white px-3 py-1.5 text-xs font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">
             Cancelar
           </button>
           <button
@@ -213,7 +213,7 @@ function FuncionarioCard({
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="rounded-2xl border border-graphite-200 bg-white shadow-sm transition-all hover:shadow-md dark:border-graphite-700 dark:bg-graphite-800">
+    <div className="rounded-2xl border border-graphite-200 bg-white shadow-sm transition-all hover:shadow-md dark:border-border-dark dark:bg-surface-card">
       <button onClick={() => setExpanded(!expanded)}
         className="flex w-full items-center gap-4 px-5 py-4 text-left">
         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-aviation-500 to-aviation-700 text-sm font-bold text-white shadow-md shadow-aviation-500/20">
@@ -238,7 +238,7 @@ function FuncionarioCard({
       </button>
 
       {expanded && (
-        <div className="border-t border-graphite-200 px-5 py-4 dark:border-graphite-700">
+        <div className="border-t border-graphite-200 px-5 py-4 dark:border-border-dark">
           {certificacoes.length === 0 ? (
             <p className="text-center text-sm text-graphite-400 py-4">Nenhuma NR cadastrada para este funcionário.</p>
           ) : (
@@ -250,7 +250,7 @@ function FuncionarioCard({
                   <button
                     key={cert.id}
                     onClick={() => onViewNR(cert)}
-                    className="group flex items-center gap-3 rounded-xl border border-graphite-200 bg-white p-3 text-left transition-all hover:border-aviation-300 hover:shadow-md dark:border-graphite-700 dark:bg-graphite-900/50 dark:hover:border-aviation-600"
+                    className="group flex items-center gap-3 rounded-xl border border-graphite-200 bg-white p-3 text-left transition-all hover:border-aviation-300 hover:shadow-md dark:border-border-dark dark:bg-surface-card dark:hover:border-aviation-600"
                   >
                     <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${gradient} text-xs font-black text-white shadow-sm`}>
                       {cert.nrNumero.replace('NR-', '')}
@@ -344,7 +344,7 @@ export function Certificacoes() {
             value={termo}
             onChange={e => setTermo(e.target.value)}
             placeholder="Pesquisar funcionário..."
-            className="w-full rounded-xl border border-graphite-300 bg-white py-2.5 pl-10 pr-4 text-sm text-graphite-900 placeholder-graphite-400 outline-none transition-all hover:border-graphite-400 focus:border-aviation-500 focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-100"
+            className="w-full rounded-xl border border-graphite-300 bg-white py-2.5 pl-10 pr-4 text-sm text-graphite-900 placeholder-graphite-400 outline-none transition-all hover:border-graphite-400 focus:border-aviation-500 focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100"
           />
         </div>
         <p className="text-sm text-graphite-500 dark:text-graphite-400">
@@ -353,7 +353,7 @@ export function Certificacoes() {
       </div>
 
       {filtrados.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-graphite-700 dark:bg-graphite-900/30">
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">
           <Award className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
           <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhum funcionário encontrado</h3>
           <p className="text-sm text-graphite-400 dark:text-graphite-400">Cadastre bombeiros primeiro para gerenciar certificações.</p>
@@ -373,12 +373,12 @@ export function Certificacoes() {
                   onViewNR={(cert) => setNrModal(cert)}
                 />
                 {formOpen === b.id && (
-                  <div className="mt-2 overflow-hidden rounded-2xl border border-aviation-200 bg-white shadow-lg dark:border-aviation-700 dark:bg-graphite-800">
-                    <div className="flex items-center justify-between border-b border-graphite-200 px-4 py-3 dark:border-graphite-700">
+                  <div className="mt-2 overflow-hidden rounded-2xl border border-aviation-200 bg-white shadow-lg dark:border-aviation-700 dark:bg-surface-card">
+                    <div className="flex items-center justify-between border-b border-graphite-200 px-4 py-3 dark:border-border-dark">
                       <h4 className="text-sm font-bold text-graphite-900 dark:text-graphite-100">
                         Adicionar NR — {funcNome}
                       </h4>
-                      <button onClick={() => setFormOpen(null)} className="rounded-lg p-1 text-graphite-400 hover:bg-graphite-100 dark:hover:bg-graphite-700">
+                      <button onClick={() => setFormOpen(null)} className="rounded-lg p-1 text-graphite-400 hover:bg-graphite-100 dark:hover:bg-surface-hover">
                         <X className="h-4 w-4" />
                       </button>
                     </div>
@@ -402,12 +402,12 @@ export function Certificacoes() {
 
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl dark:bg-graphite-800">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl dark:bg-surface-elevated">
             <h3 className="mb-2 text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar exclusão</h3>
             <p className="mb-6 text-sm text-graphite-500 dark:text-graphite-400">Tem certeza que deseja excluir esta certificação?</p>
             <div className="flex justify-end gap-3">
               <button onClick={() => setConfirmDelete(null)}
-                className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-200">Cancelar</button>
+                className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">Cancelar</button>
               <button onClick={() => handleDeleteNR(confirmDelete)}
                 className="rounded-xl bg-gradient-to-r from-alert-red to-red-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-red-500/20 transition-all hover:shadow-xl hover:shadow-red-500/30 active:scale-[0.98]">Excluir</button>
             </div>

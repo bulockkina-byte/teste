@@ -32,12 +32,12 @@ export function EscalaMensal() {
               <Eye className="h-4 w-4" /> Imprimir
             </button>
             <button onClick={() => setVisualizando(null)}
-              className="rounded-xl border border-graphite-300/60 bg-white/80 px-3 py-1.5 text-sm font-medium text-graphite-700 shadow-sm backdrop-blur-sm transition-all duration-200 hover:bg-graphite-50 hover:border-graphite-300 dark:border-graphite-700/40 dark:bg-graphite-800/80 dark:text-graphite-200 dark:hover:bg-graphite-700/50">
+              className="rounded-xl border border-graphite-300/60 bg-white/80 px-3 py-1.5 text-sm font-medium text-graphite-700 shadow-sm backdrop-blur-sm transition-all duration-200 hover:bg-graphite-50 hover:border-graphite-300 dark:border-border-dark dark:bg-surface-card/80 dark:text-graphite-200 dark:hover:bg-surface-hover/50">
               Fechar
             </button>
           </div>
         </div>
-        <div id="print-area" className="rounded-2xl border border-graphite-200/60 bg-white/80 p-4 backdrop-blur-sm dark:border-graphite-700/40 dark:bg-graphite-900/80">
+        <div id="print-area" className="rounded-2xl border border-graphite-200/60 bg-white/80 p-4 backdrop-blur-sm dark:border-border-dark dark:bg-surface-card">
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div><p className="text-xs text-graphite-400">Equipe</p><p className="text-sm font-medium">{visualizando.equipe}</p></div>
             <div><p className="text-xs text-graphite-400">Chefe de Equipe</p><p className="text-sm font-medium">{visualizando.chefeEquipe || '-'}</p></div>
@@ -49,19 +49,19 @@ export function EscalaMensal() {
           <div className="mb-6">
             <p className="mb-2 text-xs font-semibold text-aviation-600 dark:text-aviation-400">Guarnições</p>
             <div className="grid grid-cols-3 gap-4">
-              <div className="rounded-2xl bg-white/60 p-3 backdrop-blur-sm dark:bg-graphite-800/60">
+              <div className="rounded-2xl bg-white/60 p-3 backdrop-blur-sm dark:bg-surface-card/60">
                 <p className="mb-1 text-xs font-bold text-graphite-500">CCI 02</p>
                 <p className="text-sm">BA-MC: {visualizando.guarnicoes.cci02.baMc || '-'}</p>
                 <p className="text-sm">BA-CE: {visualizando.guarnicoes.cci02.baCe || '-'}</p>
                 <p className="text-sm">BA-2: {visualizando.guarnicoes.cci02.ba2 || '-'}</p>
               </div>
-              <div className="rounded-2xl bg-white/60 p-3 backdrop-blur-sm dark:bg-graphite-800/60">
+              <div className="rounded-2xl bg-white/60 p-3 backdrop-blur-sm dark:bg-surface-card/60">
                 <p className="mb-1 text-xs font-bold text-graphite-500">CCI 03</p>
                 <p className="text-sm">BA-MC: {visualizando.guarnicoes.cci03.baMc || '-'}</p>
                 <p className="text-sm">BA-2: {visualizando.guarnicoes.cci03.ba2_1 || '-'}</p>
                 <p className="text-sm">BA-2: {visualizando.guarnicoes.cci03.ba2_2 || '-'}</p>
               </div>
-              <div className="rounded-2xl bg-white/60 p-3 backdrop-blur-sm dark:bg-graphite-800/60">
+              <div className="rounded-2xl bg-white/60 p-3 backdrop-blur-sm dark:bg-surface-card/60">
                 <p className="mb-1 text-xs font-bold text-graphite-500">CRS</p>
                 <p className="text-sm">BA-MC: {visualizando.guarnicoes.crs.baMc || '-'}</p>
                 <p className="text-sm">BA-LR: {visualizando.guarnicoes.crs.baLr || '-'}</p>
@@ -109,7 +109,7 @@ export function EscalaMensal() {
 
   if (escalas.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300/60 bg-white/50 p-12 text-center backdrop-blur-sm dark:border-graphite-700/40 dark:bg-graphite-900/30">
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300/60 bg-white/50 p-12 text-center backdrop-blur-sm dark:border-border-dark dark:bg-surface-card">
         <Calendar className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
         <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhuma escala encontrada</h3>
         <p className="text-sm text-graphite-500">As escalas diárias aparecerão aqui para visualização.</p>
@@ -126,7 +126,7 @@ export function EscalaMensal() {
         {escalas.map(e => (
           <div key={e.id}
             onClick={() => setVisualizando(e)}
-            className="flex cursor-pointer items-center justify-between rounded-2xl border border-graphite-200/60 bg-white/80 p-3 backdrop-blur-sm transition-all duration-200 hover:bg-aviation-50/50 dark:border-graphite-700/40 dark:bg-graphite-900/80 dark:hover:bg-aviation-900/20"
+            className="flex cursor-pointer items-center justify-between rounded-2xl border border-graphite-200/60 bg-white/80 p-3 backdrop-blur-sm transition-all duration-200 hover:bg-aviation-50/50 dark:border-border-dark dark:bg-surface-card dark:hover:bg-aviation-900/20"
           >
             <div className="flex items-center gap-3">
               <Calendar className="h-5 w-5 text-aviation-600 dark:text-aviation-400" />

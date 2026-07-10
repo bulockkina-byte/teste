@@ -41,8 +41,8 @@ function InfoRow({ icon: Icon, label, value }: { icon: any; label: string; value
 function BombeiroDetailModal({ bombeiro, onClose }: { bombeiro: Bombeiro; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 pt-10 pb-10" onClick={onClose}>
-      <div className="relative w-full max-w-2xl rounded-2xl bg-white/95 shadow-2xl shadow-black/5 backdrop-blur-sm dark:bg-graphite-800/95 dark:shadow-black/20" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-graphite-200 px-6 py-4 dark:border-graphite-700">
+      <div className="relative w-full max-w-2xl rounded-2xl bg-white/95 shadow-2xl shadow-black/5 backdrop-blur-sm dark:bg-surface-elevated/95 dark:shadow-black/20" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-graphite-200 px-6 py-4 dark:border-border-dark">
           <div className="flex items-center gap-3">
             {bombeiro.foto ? (
               <img src={bombeiro.foto} alt="" className="h-10 w-10 rounded-full object-cover" />
@@ -56,7 +56,7 @@ function BombeiroDetailModal({ bombeiro, onClose }: { bombeiro: Bombeiro; onClos
               <p className="text-sm text-graphite-500">{capitalize(bombeiro.nomeGuerra)} · {bombeiro.matricula}</p>
             </div>
           </div>
-          <button onClick={onClose} className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-800 dark:hover:text-graphite-300">
+          <button onClick={onClose} className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover dark:hover:text-graphite-300">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -75,7 +75,7 @@ function BombeiroDetailModal({ bombeiro, onClose }: { bombeiro: Bombeiro; onClos
             </div>
           </div>
 
-          <div className="border-t border-graphite-200 dark:border-graphite-700" />
+          <div className="border-t border-graphite-200 dark:border-border-dark" />
 
           <div>
             <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400">Dados Funcionais</h3>
@@ -94,7 +94,7 @@ function BombeiroDetailModal({ bombeiro, onClose }: { bombeiro: Bombeiro; onClos
 
           {bombeiro.dataDesligamento && (
             <>
-              <div className="border-t border-graphite-200 dark:border-graphite-700" />
+              <div className="border-t border-graphite-200 dark:border-border-dark" />
               <div>
                 <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-alert-red">Desligamento</h3>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -112,8 +112,8 @@ function BombeiroDetailModal({ bombeiro, onClose }: { bombeiro: Bombeiro; onClos
 function APOCDetailModal({ apoc, onClose }: { apoc: APOC; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 pt-10 pb-10" onClick={onClose}>
-      <div className="relative w-full max-w-xl rounded-2xl bg-white/95 shadow-2xl shadow-black/5 backdrop-blur-sm dark:bg-graphite-800/95 dark:shadow-black/20" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-graphite-200 px-6 py-4 dark:border-graphite-700">
+      <div className="relative w-full max-w-xl rounded-2xl bg-white/95 shadow-2xl shadow-black/5 backdrop-blur-sm dark:bg-surface-elevated/95 dark:shadow-black/20" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-graphite-200 px-6 py-4 dark:border-border-dark">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-aviation-500 to-aviation-700 text-sm font-bold text-white shadow-lg shadow-aviation-500/20">
               <Radio className="h-5 w-5" />
@@ -123,7 +123,7 @@ function APOCDetailModal({ apoc, onClose }: { apoc: APOC; onClose: () => void })
               <p className="text-sm text-graphite-500">{capitalize(apoc.nomeGuerra)}</p>
             </div>
           </div>
-          <button onClick={onClose} className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-800 dark:hover:text-graphite-300">
+          <button onClick={onClose} className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover dark:hover:text-graphite-300">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -198,12 +198,12 @@ export function Funcionarios() {
             value={termo}
             onChange={e => setTermo(e.target.value)}
             placeholder="Pesquisar por matrícula, nome, CPF ou equipe..."
-            className="w-full rounded-xl border border-graphite-300/60 bg-white/70 py-2.5 pl-10 pr-4 text-sm text-graphite-900 placeholder-graphite-400 outline-none transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900"
+            className="w-full rounded-xl border border-graphite-300/60 bg-white/70 py-2.5 pl-10 pr-4 text-sm text-graphite-900 placeholder-graphite-400 outline-none transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated"
           />
         </div>
       </div>
 
-      <div className="mb-6 flex items-center gap-1 rounded-xl border border-graphite-200/60 bg-graphite-50/80 p-1 dark:border-graphite-700/40 dark:bg-graphite-800/50">
+      <div className="mb-6 flex items-center gap-1 rounded-xl border border-graphite-200/60 bg-graphite-50/80 p-1 dark:border-border-dark dark:bg-surface-card/50">
         {TABS.map(t => {
           const Icon = t.icon;
           const count = t.key === 'todos' ? allBombeiros.length + allApocs.length : t.key === 'bombeiros' ? allBombeiros.length : allApocs.length;
@@ -222,7 +222,7 @@ export function Funcionarios() {
               <span className={`ml-1 rounded-full px-1.5 py-0.5 text-xs ${
                 tab === t.key
                   ? 'bg-aviation-100 text-aviation-700 dark:bg-aviation-900/40 dark:text-aviation-300'
-                  : 'bg-graphite-200/60 text-graphite-500 dark:bg-graphite-700/40 dark:text-graphite-400'
+                  : 'bg-graphite-200/60 text-graphite-500 dark:bg-surface-hover40 dark:text-graphite-400'
               }`}>
                 {count}
               </span>
@@ -232,7 +232,7 @@ export function Funcionarios() {
       </div>
 
       {totalRegistros === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300/60 bg-white/50 p-12 text-center backdrop-blur-sm dark:border-graphite-700/40 dark:bg-graphite-900/30">
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300/60 bg-white/50 p-12 text-center backdrop-blur-sm dark:border-border-dark dark:bg-surface-card">
           <Users className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
           <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">
             Nenhum funcionário encontrado
@@ -258,10 +258,10 @@ export function Funcionarios() {
                   </h3>
                 </div>
               )}
-              <div className="overflow-x-auto rounded-2xl border border-graphite-200/60 bg-white/80 backdrop-blur-sm dark:border-graphite-700/40 dark:bg-graphite-900/80">
+              <div className="overflow-x-auto rounded-2xl border border-graphite-200/60 bg-white/80 backdrop-blur-sm dark:border-border-dark dark:bg-surface-card">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-graphite-200 bg-graphite-50 text-left dark:border-graphite-700 dark:bg-graphite-800">
+                    <tr className="border-b border-graphite-200 bg-graphite-50 text-left dark:border-border-dark dark:bg-surface-card">
                       <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Matrícula</th>
                       <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Nome</th>
                       <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Nome de Guerra</th>
@@ -277,7 +277,7 @@ export function Funcionarios() {
                       <tr
                         key={b.id}
                         onClick={() => handleSelectBombeiro(b)}
-                        className="cursor-pointer border-b border-graphite-100 transition-colors hover:bg-aviation-50/50 dark:border-graphite-800 dark:hover:bg-aviation-900/20"
+                        className="cursor-pointer border-b border-graphite-100 transition-colors hover:bg-aviation-50/50 dark:border-border-dark dark:hover:bg-aviation-900/20"
                       >
                         <td className="px-4 py-3 font-medium text-graphite-900 dark:text-graphite-100">{b.matricula}</td>
                         <td className="px-4 py-3">
@@ -327,10 +327,10 @@ export function Funcionarios() {
                   </h3>
                 </div>
               )}
-              <div className="overflow-x-auto rounded-2xl border border-graphite-200/60 bg-white/80 backdrop-blur-sm dark:border-graphite-700/40 dark:bg-graphite-900/80">
+              <div className="overflow-x-auto rounded-2xl border border-graphite-200/60 bg-white/80 backdrop-blur-sm dark:border-border-dark dark:bg-surface-card">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-graphite-200 bg-graphite-50 text-left dark:border-graphite-700 dark:bg-graphite-800">
+                    <tr className="border-b border-graphite-200 bg-graphite-50 text-left dark:border-border-dark dark:bg-surface-card">
                       <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Nome de Guerra</th>
                       <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Nome Completo</th>
                       <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">E-mail</th>
@@ -342,7 +342,7 @@ export function Funcionarios() {
                       <tr
                         key={a.id}
                         onClick={() => handleSelectApoc(a)}
-                        className="cursor-pointer border-b border-graphite-100 transition-colors hover:bg-aviation-50/50 dark:border-graphite-800 dark:hover:bg-aviation-900/20"
+                        className="cursor-pointer border-b border-graphite-100 transition-colors hover:bg-aviation-50/50 dark:border-border-dark dark:hover:bg-aviation-900/20"
                       >
                         <td className="px-4 py-3 font-medium text-graphite-900 dark:text-graphite-100">{capitalize(a.nomeGuerra)}</td>
                         <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{capitalize(a.nomeCompleto)}</td>

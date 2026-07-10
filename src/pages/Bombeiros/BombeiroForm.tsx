@@ -33,9 +33,9 @@ function calcularIdade(dataNasc: string): number {
   return idade;
 }
 
-const inputClass = "w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900";
-const selectClass = "w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900";
-const disabledClass = "w-full rounded-xl border border-graphite-200/60 bg-graphite-100/50 px-3 py-2.5 text-sm text-graphite-500 cursor-not-allowed dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-500";
+const inputClass = "w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated";
+const selectClass = "w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated";
+const disabledClass = "w-full rounded-xl border border-graphite-200/60 bg-graphite-100/50 px-3 py-2.5 text-sm text-graphite-500 cursor-not-allowed dark:border-border-dark dark:bg-surface-card dark:text-graphite-500";
 const labelClass = "mb-1 block text-xs font-medium text-graphite-600 dark:text-graphite-400";
 const span2 = "md:col-span-2";
 
@@ -134,13 +134,13 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="relative flex h-full max-h-full w-full max-w-4xl flex-col rounded-2xl bg-white shadow-2xl dark:bg-graphite-800">
-        <div className="flex shrink-0 items-center justify-between border-b border-graphite-200 px-6 py-4 dark:border-graphite-700">
+      <div className="relative flex h-full max-h-full w-full max-w-4xl flex-col rounded-2xl bg-white shadow-2xl dark:bg-surface-elevated">
+        <div className="flex shrink-0 items-center justify-between border-b border-graphite-200 px-6 py-4 dark:border-border-dark">
           <h2 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">
             {bombeiro ? 'Editar Bombeiro' : 'Novo Bombeiro'}
           </h2>
           <button onClick={onClose}
-            className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-800 dark:hover:text-graphite-300">
+            className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover dark:hover:text-graphite-300">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -209,7 +209,7 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
                 <div>
                   <label className={labelClass}>Foto</label>
                   <div className="flex items-start gap-3">
-                    <label className="flex h-20 w-20 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-graphite-300/60 bg-white/50 transition-all duration-200 hover:border-aviation-500/50 hover:bg-aviation-50/30 dark:border-graphite-700/40 dark:bg-graphite-900/30 dark:hover:border-aviation-400/50">
+                    <label className="flex h-20 w-20 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-graphite-300/60 bg-white/50 transition-all duration-200 hover:border-aviation-500/50 hover:bg-aviation-50/30 dark:border-border-dark dark:bg-surface-card dark:hover:border-aviation-400/50">
                       {foto ? (
                         <img src={foto} alt="preview" className="h-full w-full object-cover" />
                       ) : (
@@ -281,7 +281,7 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
             </fieldset>
           </div>
 
-          <div className="flex shrink-0 items-center justify-between border-t border-graphite-200 px-6 py-4 dark:border-graphite-700">
+          <div className="flex shrink-0 items-center justify-between border-t border-graphite-200 px-6 py-4 dark:border-border-dark">
             <div>
               {bombeiro && !showDesligamento && (
                 <button type="button" onClick={() => setShowDesligamento(true)}
@@ -298,7 +298,7 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
             </div>
             <div className="flex items-center gap-3">
               <button type="button" onClick={onClose}
-                className="rounded-xl border border-graphite-300/60 bg-white/80 px-5 py-2.5 text-sm font-medium text-graphite-700 backdrop-blur-sm transition-all duration-200 hover:bg-graphite-50 hover:border-graphite-300 dark:border-graphite-700/40 dark:bg-graphite-800/80 dark:text-graphite-200 dark:hover:bg-graphite-700/50">
+                className="rounded-xl border border-graphite-300/60 bg-white/80 px-5 py-2.5 text-sm font-medium text-graphite-700 backdrop-blur-sm transition-all duration-200 hover:bg-graphite-50 hover:border-graphite-300 dark:border-border-dark dark:bg-surface-card/80 dark:text-graphite-200 dark:hover:bg-surface-hover/50">
                 Cancelar
               </button>
               <button type="submit"

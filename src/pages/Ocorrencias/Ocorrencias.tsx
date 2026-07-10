@@ -87,9 +87,9 @@ function OcorrenciaForm({
     }
   }, [successMsg]);
 
-  const input = 'w-full rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all duration-200 focus:border-aviation-500 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-100 dark:hover:border-graphite-500 dark:focus:border-aviation-400 dark:focus:bg-graphite-800 dark:focus:ring-aviation-400/10 dark:placeholder:text-graphite-500';
+  const input = 'w-full rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all duration-200 focus:border-aviation-500 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:hover:border-graphite-500 dark:focus:border-aviation-400 dark:focus:bg-surface-elevated dark:focus:ring-aviation-400/10 dark:placeholder:text-graphite-500';
   const select = input;
-  const inputReadOnly = input + ' cursor-not-allowed bg-graphite-50 dark:bg-graphite-700/50';
+  const inputReadOnly = input + ' cursor-not-allowed bg-graphite-50 dark:bg-surface-hover50';
   const label = 'block mb-1.5 text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400';
 
   function handleEquipe(equipe: string) {
@@ -131,8 +131,8 @@ function OcorrenciaForm({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 pt-8 sm:pt-16">
-      <div className="flex max-h-[85vh] w-full max-w-3xl flex-col rounded-2xl bg-white shadow-2xl shadow-black/10 dark:bg-graphite-800">
-        <div className="flex items-center justify-between border-b border-graphite-200 px-6 py-4 dark:border-graphite-700">
+      <div className="flex max-h-[85vh] w-full max-w-3xl flex-col rounded-2xl bg-white shadow-2xl shadow-black/10 dark:bg-surface-elevated">
+        <div className="flex items-center justify-between border-b border-graphite-200 px-6 py-4 dark:border-border-dark">
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">{ocorrencia ? 'Editar Documento' : 'Novo Documento'}</h2>
             <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${tipoBadge}`}>
@@ -144,11 +144,11 @@ function OcorrenciaForm({
               </span>
             )}
           </div>
-          <button onClick={onCancel} className="rounded-lg p-1.5 text-graphite-400 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-700">✕</button>
+          <button onClick={onCancel} className="rounded-lg p-1.5 text-graphite-400 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover">✕</button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5">
-          <div className="mb-5 rounded-xl border border-graphite-200 bg-graphite-50 p-4 dark:border-graphite-700 dark:bg-graphite-900/50">
+          <div className="mb-5 rounded-xl border border-graphite-200 bg-graphite-50 p-4 dark:border-border-dark dark:bg-surface-card">
             <label className={label}>Tipo de Documento *</label>
             <div className="mt-2 grid grid-cols-2 gap-3">
               {(['BONA', 'RAE'] as TipoDocumento[]).map(tipo => (
@@ -156,7 +156,7 @@ function OcorrenciaForm({
                   className={`flex items-center gap-3 rounded-xl border-2 px-4 py-3 text-left transition-all ${
                     form.tipoDocumento === tipo
                       ? 'border-aviation-500 bg-aviation-50 dark:border-aviation-400 dark:bg-aviation-900/20'
-                      : 'border-graphite-200 bg-white hover:border-graphite-300 dark:border-graphite-700 dark:bg-graphite-800 dark:hover:border-graphite-600'
+                      : 'border-graphite-200 bg-white hover:border-graphite-300 dark:border-border-dark dark:bg-surface-card dark:hover:border-graphite-600'
                   }`}>
                   <FileText className={`h-5 w-5 shrink-0 ${form.tipoDocumento === tipo ? 'text-aviation-600 dark:text-aviation-400' : 'text-graphite-400'}`} />
                   <div>
@@ -228,7 +228,7 @@ function OcorrenciaForm({
                       className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">✕</button>
                   </div>
                 ))}
-                <label className="flex h-16 w-16 cursor-pointer items-center justify-center rounded-xl border-2 border-dashed border-graphite-300 text-graphite-400 transition-colors hover:border-aviation-400 hover:text-aviation-500 dark:border-graphite-600/50 dark:bg-graphite-800/30 dark:hover:border-aviation-500">
+                <label className="flex h-16 w-16 cursor-pointer items-center justify-center rounded-xl border-2 border-dashed border-graphite-300 text-graphite-400 transition-colors hover:border-aviation-400 hover:text-aviation-500 dark:border-border-dark dark:bg-surface-card/30 dark:hover:border-aviation-500">
                   <Plus className="h-5 w-5" />
                   <input type="file" accept="image/*" className="hidden" onChange={handleImage} />
                 </label>
@@ -243,8 +243,8 @@ function OcorrenciaForm({
           </div>
         )}
 
-        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-graphite-200 px-6 py-4 dark:border-graphite-700">
-          <button onClick={onCancel} className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-200">
+        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-graphite-200 px-6 py-4 dark:border-border-dark">
+          <button onClick={onCancel} className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">
             Cancelar
           </button>
 
@@ -319,7 +319,7 @@ function OcorrenciaView({ ocorrencia, onBack }: { ocorrencia: Ocorrencia; onBack
     : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400';
 
   return (
-    <div className="rounded-2xl border border-graphite-200 bg-white p-6 shadow-sm dark:border-graphite-700 dark:bg-graphite-800">
+    <div className="rounded-2xl border border-graphite-200 bg-white p-6 shadow-sm dark:border-border-dark dark:bg-surface-card">
       <div className="mb-4 flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2">
@@ -361,7 +361,7 @@ function OcorrenciaView({ ocorrencia, onBack }: { ocorrencia: Ocorrencia; onBack
       )}
 
       <div className="mt-6 flex justify-end">
-        <button onClick={onBack} className="rounded-xl border border-graphite-300 bg-white px-5 py-2.5 text-sm font-medium text-graphite-700 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-200">Voltar</button>
+        <button onClick={onBack} className="rounded-xl border border-graphite-300 bg-white px-5 py-2.5 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">Voltar</button>
       </div>
     </div>
   );
@@ -390,7 +390,7 @@ function OcorrenciaCard({
   const canDelete = o.status === 'Aberta' && isAdmin;
 
   return (
-    <div className="rounded-2xl border border-graphite-200 bg-white shadow-sm transition-all hover:shadow-md dark:border-graphite-700 dark:bg-graphite-800">
+    <div className="rounded-2xl border border-graphite-200 bg-white shadow-sm transition-all hover:shadow-md dark:border-border-dark dark:bg-surface-card">
       <button onClick={() => setExpanded(!expanded)}
         className="flex w-full items-center justify-between px-5 py-4 text-left">
         <div className="min-w-0 flex-1">
@@ -411,7 +411,7 @@ function OcorrenciaCard({
       </button>
 
       {expanded && (
-        <div className="border-t border-graphite-200 px-5 py-4 dark:border-graphite-700">
+        <div className="border-t border-graphite-200 px-5 py-4 dark:border-border-dark">
           <p className="mb-2 text-sm font-semibold text-graphite-700 dark:text-graphite-300">{TIPO_DOCUMENTO[o.tipoDocumento]}</p>
           {o.descricao && <p className="mb-2 text-sm text-graphite-700 dark:text-graphite-300 whitespace-pre-wrap">{o.descricao}</p>}
           {o.envolvidos && <p className="mb-1 text-xs text-graphite-500 dark:text-graphite-400"><strong>Envolvidos:</strong> {o.envolvidos}</p>}
@@ -426,7 +426,7 @@ function OcorrenciaCard({
               <Eye className="h-3.5 w-3.5" /> Ver
             </button>
             {canEdit && (
-              <button onClick={onEdit} className="flex items-center gap-1 rounded-lg bg-graphite-100 px-3 py-1.5 text-xs font-medium text-graphite-700 transition-colors hover:bg-graphite-200 dark:bg-graphite-700 dark:text-graphite-300 dark:hover:bg-graphite-600">
+              <button onClick={onEdit} className="flex items-center gap-1 rounded-lg bg-graphite-100 px-3 py-1.5 text-xs font-medium text-graphite-700 transition-colors hover:bg-graphite-200 dark:bg-surface-hover dark:text-graphite-300 dark:hover:bg-surface-hover">
                 <Pencil className="h-3.5 w-3.5" /> Editar
               </button>
             )}
@@ -490,7 +490,7 @@ export function Ocorrencias() {
   const [filtroTipo, setFiltroTipo] = useState('');
   const MESES = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   const ANOS = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
-  const inputClass = 'rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all duration-200 hover:border-graphite-400 focus:border-aviation-500 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-100 dark:hover:border-graphite-500 dark:focus:border-aviation-400 dark:focus:bg-graphite-800 dark:focus:ring-aviation-400/10 dark:placeholder:text-graphite-500';
+  const inputClass = 'rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all duration-200 hover:border-graphite-400 focus:border-aviation-500 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:hover:border-graphite-500 dark:focus:border-aviation-400 dark:focus:bg-surface-elevated dark:focus:ring-aviation-400/10 dark:placeholder:text-graphite-500';
 
   function carregar() { setOcorrencias(listarOcorrencias()); }
   useEffect(() => { carregar(); }, []);
@@ -623,7 +623,7 @@ export function Ocorrencias() {
       </div>
 
       {filtradas.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-graphite-700 dark:bg-graphite-900/30">
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">
           <AlertTriangle className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
           <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhum documento encontrado</h3>
           <p className="text-sm text-graphite-400 dark:text-graphite-500">Clique em "Novo Documento" para criar BONA ou RAE.</p>
@@ -642,12 +642,12 @@ export function Ocorrencias() {
 
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl dark:bg-graphite-800">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl dark:bg-surface-elevated">
             <h3 className="mb-2 text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar exclusão</h3>
             <p className="mb-6 text-sm text-graphite-500 dark:text-graphite-400">Tem certeza que deseja excluir este documento?</p>
             <div className="flex justify-end gap-3">
               <button onClick={() => setConfirmDelete(null)}
-                className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-200">Cancelar</button>
+                className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">Cancelar</button>
               <button onClick={() => handleDelete(confirmDelete)}
                 className="rounded-xl bg-gradient-to-r from-alert-red to-red-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-red-500/20 transition-all hover:shadow-xl hover:shadow-red-500/30 active:scale-[0.98]">Excluir</button>
             </div>

@@ -19,9 +19,9 @@ export function Button({
     primary:
       'bg-gradient-to-r from-aviation-600 to-aviation-700 text-white shadow-lg shadow-aviation-500/20 hover:shadow-xl hover:shadow-aviation-500/30 hover:from-aviation-500 hover:to-aviation-600 dark:from-aviation-500 dark:to-aviation-600',
     secondary:
-      'bg-white/80 text-graphite-700 border border-graphite-200/60 hover:bg-graphite-50 hover:border-graphite-300 dark:bg-graphite-800/80 dark:text-graphite-200 dark:border-graphite-700/50 dark:hover:bg-graphite-700/50 dark:hover:border-graphite-600',
+      'bg-white/80 text-graphite-700 border border-graphite-200/60 hover:bg-graphite-50 hover:border-graphite-300 dark:bg-surface-card/80 dark:text-graphite-200 dark:border-border-dark dark:hover:bg-surface-hover/50 dark:hover:border-graphite-600',
     ghost:
-      'text-graphite-600 hover:bg-graphite-100 dark:text-graphite-400 dark:hover:bg-graphite-800/80',
+      'text-graphite-600 hover:bg-graphite-100 dark:text-graphite-400 dark:hover:bg-surface-hover/80',
   };
 
   const sizes = {

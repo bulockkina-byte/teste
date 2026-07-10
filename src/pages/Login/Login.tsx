@@ -68,7 +68,7 @@ export function Login() {
                     value={username}
                     onChange={e => setUsername(e.target.value)}
                     placeholder="seu.usuario"
-                    className="w-full rounded-xl border border-graphite-300/70 bg-white/50 py-2.5 pl-11 pr-4 text-sm text-graphite-900 outline-none transition-all duration-200 placeholder:text-graphite-400 hover:border-graphite-300 focus:border-aviation-500 focus:bg-white focus:ring-4 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-800/30 dark:text-graphite-100 dark:placeholder:text-graphite-500 dark:hover:border-graphite-600 dark:focus:border-aviation-400 dark:focus:bg-graphite-800"
+                    className="w-full rounded-xl border border-graphite-300/70 bg-white/50 py-2.5 pl-11 pr-4 text-sm text-graphite-900 outline-none transition-all duration-200 placeholder:text-graphite-400 hover:border-graphite-300 focus:border-aviation-500 focus:bg-white focus:ring-4 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card/30 dark:text-graphite-100 dark:placeholder:text-graphite-500 dark:hover:border-graphite-600 dark:focus:border-aviation-400 dark:focus:bg-surface-elevated"
                   />
                 </div>
               </div>
@@ -84,7 +84,7 @@ export function Login() {
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full rounded-xl border border-graphite-300/70 bg-white/50 py-2.5 pl-11 pr-11 text-sm text-graphite-900 outline-none transition-all duration-200 placeholder:text-graphite-400 hover:border-graphite-300 focus:border-aviation-500 focus:bg-white focus:ring-4 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-800/30 dark:text-graphite-100 dark:placeholder:text-graphite-500 dark:hover:border-graphite-600 dark:focus:border-aviation-400 dark:focus:bg-graphite-800"
+                    className="w-full rounded-xl border border-graphite-300/70 bg-white/50 py-2.5 pl-11 pr-11 text-sm text-graphite-900 outline-none transition-all duration-200 placeholder:text-graphite-400 hover:border-graphite-300 focus:border-aviation-500 focus:bg-white focus:ring-4 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card/30 dark:text-graphite-100 dark:placeholder:text-graphite-500 dark:hover:border-graphite-600 dark:focus:border-aviation-400 dark:focus:bg-surface-elevated"
                   />
                   <button
                     type="button"

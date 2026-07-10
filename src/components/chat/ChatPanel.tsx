@@ -89,14 +89,14 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-50 flex items-end justify-end bg-black/30 sm:items-center sm:justify-center" onClick={onClose}>
       <div
         onClick={e => e.stopPropagation()}
-        className="flex h-[70vh] w-full max-w-md flex-col rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl dark:bg-graphite-800"
+        className="flex h-[70vh] w-full max-w-md flex-col rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl dark:bg-surface-elevated"
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-graphite-200 px-4 py-3 dark:border-graphite-700">
+        <div className="flex items-center justify-between border-b border-graphite-200 px-4 py-3 dark:border-border-dark">
           {conversaComUser ? (
             <div className="flex items-center gap-2">
               <button onClick={() => { setConversaComUser(null); setConversaComNome(''); }}
-                className="rounded-lg p-1 text-graphite-400 hover:bg-graphite-100 dark:hover:bg-graphite-700">
+                className="rounded-lg p-1 text-graphite-400 hover:bg-graphite-100 dark:hover:bg-surface-hover">
                 <ArrowLeft className="h-4 w-4" />
               </button>
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-aviation-500 to-aviation-700 text-xs font-bold text-white">
@@ -120,14 +120,14 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
               )}
             </div>
           )}
-          <button onClick={onClose} className="rounded-lg p-1 text-graphite-400 hover:bg-graphite-100 dark:hover:bg-graphite-700">
+          <button onClick={onClose} className="rounded-lg p-1 text-graphite-400 hover:bg-graphite-100 dark:hover:bg-surface-hover">
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Tabs */}
         {!conversaComUser && (
-          <div className="flex border-b border-graphite-200 dark:border-graphite-700">
+          <div className="flex border-b border-graphite-200 dark:border-border-dark">
             <button onClick={() => setTab('geral')}
               className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wider transition-colors ${
                 tab === 'geral'
@@ -158,12 +158,12 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
 
         {/* Lista de pessoas (tab privado) */}
         {tab === 'privado' && !conversaComUser && (
-          <div className="border-b border-graphite-200 px-3 py-2 dark:border-graphite-700">
+          <div className="border-b border-graphite-200 px-3 py-2 dark:border-border-dark">
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-graphite-400" />
               <input type="text" value={busca} onChange={e => setBusca(e.target.value)}
                 placeholder="Buscar pessoa..."
-                className="w-full rounded-lg border border-graphite-300 bg-white py-2 pl-8 pr-3 text-xs text-graphite-900 placeholder-graphite-400 outline-none focus:border-aviation-500 dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-100 dark:placeholder:text-graphite-500 dark:focus:border-aviation-400" />
+                className="w-full rounded-lg border border-graphite-300 bg-white py-2 pl-8 pr-3 text-xs text-graphite-900 placeholder-graphite-400 outline-none focus:border-aviation-500 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:placeholder:text-graphite-500 dark:focus:border-aviation-400" />
             </div>
           </div>
         )}
@@ -177,7 +177,7 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
                 return (
                   <button key={b.id}
                     onClick={() => { setConversaComUser(b.nomeGuerra.toLowerCase()); setConversaComNome(b.nomeCompleto); setBusca(''); }}
-                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-graphite-100 dark:hover:bg-graphite-700">
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-graphite-100 dark:hover:bg-surface-hover">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-aviation-500 to-aviation-700 text-xs font-bold text-white">
                       {b.foto ? <img src={b.foto} className="h-full w-full rounded-full object-cover" /> : b.nomeGuerra.charAt(0).toUpperCase()}
                     </div>
@@ -211,7 +211,7 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
                       <div className={`max-w-[75%] rounded-2xl px-3.5 py-2 ${
                         isMe
                           ? 'bg-aviation-600 text-white rounded-br-md'
-                          : 'bg-graphite-100 text-graphite-900 rounded-bl-md dark:bg-graphite-700 dark:text-graphite-100'
+                          : 'bg-graphite-100 text-graphite-900 rounded-bl-md dark:bg-surface-hover dark:text-graphite-100'
                       }`}>
                         {!isMe && tab === 'geral' && (
                           <p className="mb-0.5 text-[10px] font-bold text-aviation-700 dark:text-aviation-300">{m.deNome}</p>
@@ -231,7 +231,7 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
 
         {/* Input */}
         {(tab === 'geral' || conversaComUser) && (
-          <div className="border-t border-graphite-200 px-3 py-3 dark:border-graphite-700">
+          <div className="border-t border-graphite-200 px-3 py-3 dark:border-border-dark">
             <div className="flex items-end gap-2">
               <textarea
                 value={msg}
@@ -239,7 +239,7 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
                 onKeyDown={handleKeyDown}
                 placeholder={tab === 'geral' ? 'Mensagem para todos...' : `Mensagem para ${conversaComNome}...`}
                 rows={1}
-                className="min-h-[38px] max-h-24 flex-1 resize-none rounded-xl border border-graphite-300 bg-white px-3 py-2 text-sm text-graphite-900 placeholder-graphite-400 outline-none focus:border-aviation-500 dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-100 dark:placeholder:text-graphite-500 dark:focus:border-aviation-400"
+                className="min-h-[38px] max-h-24 flex-1 resize-none rounded-xl border border-graphite-300 bg-white px-3 py-2 text-sm text-graphite-900 placeholder-graphite-400 outline-none focus:border-aviation-500 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:placeholder:text-graphite-500 dark:focus:border-aviation-400"
               />
               <button onClick={handleSend} disabled={!msg.trim()}
                 className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-xl bg-aviation-600 text-white shadow-md transition-all hover:bg-aviation-700 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95">

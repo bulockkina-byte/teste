@@ -135,7 +135,7 @@ export function Sidebar() {
 
   return (
     <aside
-      className={`fixed left-0 top-0 z-50 flex h-screen flex-col bg-aviation-800 border-r border-white/10 transition-all duration-500 ease-out-expo dark:bg-aviation-900 dark:border-white/5 ${
+      className={`fixed left-0 top-0 z-50 flex h-screen flex-col bg-graphite-950 border-r border-white/5 transition-all duration-500 ease-out-expo ${
         collapsed ? 'w-[70px]' : 'w-[260px]'
       }`}
     >

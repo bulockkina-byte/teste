@@ -22,8 +22,15 @@
   --color-graphite-500: #6b7280;
   --color-graphite-600: #4b5563;
   --color-graphite-700: #374151;
-  --color-graphite-800: #1f2937;
-  --color-graphite-900: #111827;
+  --color-graphite-800: #1a1f2e;
+  --color-graphite-900: #111520;
+  --color-graphite-950: #0b0e14;
+
+  --color-surface-dark: #0f1219;
+  --color-surface-card: #161b26;
+  --color-surface-elevated: #1c2233;
+  --color-surface-hover: #222838;
+  --color-border-dark: #252b3a;
 
   --color-alert-red: #dc2626;
   --color-warning-yellow: #eab308;

@@ -44,7 +44,7 @@ export function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-graphite-200/60 glass px-6 dark:glass-dark dark:border-graphite-700/30">
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-graphite-200/60 bg-white/80 backdrop-blur-xl px-6 dark:border-border-dark dark:bg-surface-dark/80">
       <div className="flex flex-col">
         <h2 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">
           {pageTitle}
@@ -58,24 +58,24 @@ export function Header() {
           <input
             type="text"
             placeholder="Pesquisar..."
-            className="w-64 rounded-xl border border-graphite-200/60 bg-graphite-100/50 py-2 pl-10 pr-4 text-sm text-graphite-900 placeholder-graphite-400 outline-none transition-all duration-200 focus:w-72 focus:border-aviation-400/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-800/50 dark:text-graphite-100 dark:placeholder-graphite-500 dark:focus:border-aviation-400/30 dark:focus:bg-graphite-800"
+            className="w-64 rounded-xl border border-graphite-200/60 bg-graphite-100/50 py-2 pl-10 pr-4 text-sm text-graphite-900 placeholder-graphite-400 outline-none transition-all duration-200 focus:w-72 focus:border-aviation-400/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:placeholder-graphite-500 dark:focus:border-aviation-400/30 dark:focus:bg-surface-elevated"
           />
         </div>
 
-        <button className="relative rounded-xl p-2 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:text-graphite-500 dark:hover:bg-graphite-800 dark:hover:text-graphite-300">
+        <button className="relative rounded-xl p-2 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:text-graphite-500 dark:hover:bg-surface-card dark:hover:text-graphite-300">
           <Bell className="h-5 w-5" />
-          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-alert-red ring-2 ring-white dark:ring-graphite-900" />
+          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-alert-red ring-2 ring-white dark:ring-surface-dark" />
         </button>
 
-        <button className="rounded-xl p-2 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:text-graphite-500 dark:hover:bg-graphite-800 dark:hover:text-graphite-300">
+        <button className="rounded-xl p-2 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:text-graphite-500 dark:hover:bg-surface-card dark:hover:text-graphite-300">
           <MessageSquare className="h-5 w-5" />
         </button>
 
-        <div className="mx-1 h-6 w-px bg-graphite-200/60 dark:bg-graphite-700/40" />
+        <div className="mx-1 h-6 w-px bg-graphite-200/60 dark:bg-border-dark" />
 
         <button
           onClick={toggleTheme}
-          className="rounded-xl p-2 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:text-graphite-500 dark:hover:bg-graphite-800 dark:hover:text-graphite-300"
+          className="rounded-xl p-2 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:text-graphite-500 dark:hover:bg-surface-card dark:hover:text-graphite-300"
         >
           {theme === 'light' ? (
             <Moon className="h-5 w-5" />
@@ -87,7 +87,7 @@ export function Header() {
         <div className="relative">
           <button
             onClick={() => setUserMenuOpen(!userMenuOpen)}
-            className="flex items-center gap-3 rounded-xl p-1.5 transition-all duration-200 hover:bg-graphite-100 dark:hover:bg-graphite-800"
+            className="flex items-center gap-3 rounded-xl p-1.5 transition-all duration-200 hover:bg-graphite-100 dark:hover:bg-surface-card"
           >
             <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-aviation-500 to-aviation-700 text-sm font-bold text-white shadow-md shadow-aviation-500/20">
               {displayPhoto ? (
@@ -113,8 +113,8 @@ export function Header() {
                 className="fixed inset-0 z-40"
                 onClick={() => setUserMenuOpen(false)}
               />
-              <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-graphite-200 bg-white shadow-xl shadow-black/5 animate-scaleIn dark:border-graphite-700 dark:bg-graphite-800 dark:shadow-black/20">
-                <div className="px-4 py-3 border-b border-graphite-100 dark:border-graphite-700">
+              <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-graphite-200 bg-white shadow-xl shadow-black/5 animate-scaleIn dark:border-border-dark dark:bg-surface-card dark:shadow-black/30">
+                <div className="px-4 py-3 border-b border-graphite-100 dark:border-border-dark">
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-aviation-500 to-aviation-700 text-sm font-bold text-white">
                       {displayPhoto ? (
@@ -144,7 +144,7 @@ export function Header() {
                   <Settings className="h-4 w-4" />
                   Configurações
                 </button>
-                <div className="border-t border-graphite-100 dark:border-graphite-700" />
+                <div className="border-t border-graphite-100 dark:border-border-dark" />
                 <button
                   onClick={handleLogout}
                   className="flex w-full items-center gap-3 px-4 py-3 text-sm text-alert-red transition-colors hover:bg-red-50 dark:hover:bg-red-900/20"
