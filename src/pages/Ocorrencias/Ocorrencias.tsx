@@ -63,12 +63,14 @@ function OcorrenciaForm({
   userEquipe,
   todas,
   onSave,
+  onSaveDraft,
   onCancel,
 }: {
   ocorrencia?: Ocorrencia;
   userEquipe: string;
   todas: Ocorrencia[];
   onSave: (data: Omit<Ocorrencia, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) => void;
+  onSaveDraft: (data: Omit<Ocorrencia, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) => void;
   onCancel: () => void;
 }) {
   const [form, setForm] = useState(ocorrencia ? {
@@ -220,6 +222,10 @@ function OcorrenciaForm({
 
         <div className="flex justify-end gap-3 border-t border-graphite-200/60 px-6 py-4 dark:border-graphite-700/50">
           <button onClick={onCancel} className="rounded-xl border border-graphite-300/60 bg-white/80 px-5 py-2.5 text-sm font-medium text-graphite-700 dark:border-graphite-700/40 dark:bg-graphite-800/80 dark:text-graphite-200">Cancelar</button>
+          <button onClick={() => onSaveDraft(form)} disabled={!form.data || !form.equipe}
+            className="flex items-center gap-2 rounded-xl border border-aviation-300/60 bg-white/80 px-5 py-2.5 text-sm font-medium text-aviation-700 transition-all hover:bg-aviation-50 dark:border-aviation-700/40 dark:bg-graphite-800/80 dark:text-aviation-300 dark:hover:bg-aviation-900/20 disabled:opacity-50 disabled:cursor-not-allowed">
+            <Save className="h-4 w-4" /> Salvar e Continuar
+          </button>
           <button onClick={() => onSave(form)} disabled={!form.data || !form.equipe}
             className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl hover:from-aviation-500 hover:to-aviation-600 disabled:opacity-50 disabled:cursor-not-allowed">
             <Save className="h-4 w-4" /> Salvar
@@ -297,9 +303,9 @@ function OcorrenciaView({ ocorrencia, onBack }: { ocorrencia: Ocorrencia; onBack
 /* ───────── Card ───────── */
 
 function OcorrenciaCard({
-  o, canEdit, onView, onEdit, onDelete,
+  o, isAdmin, onView, onEdit, onDelete,
 }: {
-  o: Ocorrencia; canEdit: boolean;
+  o: Ocorrencia; isAdmin: boolean;
   onView: () => void; onEdit: () => void; onDelete: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -348,7 +354,7 @@ function OcorrenciaCard({
             <button onClick={onView} className="flex items-center gap-1 rounded-lg bg-aviation-50 px-3 py-1.5 text-xs font-medium text-aviation-700 transition-colors hover:bg-aviation-100 dark:bg-aviation-900/30 dark:text-aviation-300 dark:hover:bg-aviation-900/50">
               <Eye className="h-3.5 w-3.5" /> Ver
             </button>
-            {canEdit && (
+            {isAdmin && (
               <>
                 <button onClick={onEdit} className="flex items-center gap-1 rounded-lg bg-graphite-100 px-3 py-1.5 text-xs font-medium text-graphite-700 transition-colors hover:bg-graphite-200 dark:bg-graphite-700 dark:text-graphite-300 dark:hover:bg-graphite-600">
                   <Pencil className="h-3.5 w-3.5" /> Editar
@@ -417,15 +423,23 @@ export function Ocorrencias() {
     return list;
   }, [ocorrencias, canFilterTeam, userEquipe, filtroEquipe, filtroTipo, filtroAno, filtroMes]);
 
-  function handleSave(data: Omit<Ocorrencia, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) {
+  function handleSave(data: Omit<Ocorrencia, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>, stayInForm = false) {
+    let saved: Ocorrencia | null;
     if (editando && editando.id) {
-      atualizarOcorrencia(editando.id, data);
+      saved = atualizarOcorrencia(editando.id, data);
     } else {
-      criarOcorrencia({ ...data, createdBy: username });
+      saved = criarOcorrencia({ ...data, createdBy: username });
     }
     carregar();
-    setEditando(null);
-    setMode('list');
+    if (saved && stayInForm) {
+      setEditando(saved);
+    } else if (saved) {
+      setEditando(null);
+      setVisualizando(saved);
+      setMode('view');
+    } else {
+      setMode('list');
+    }
   }
 
   function handleDelete(id: string) {
@@ -438,7 +452,10 @@ export function Ocorrencias() {
     return (
       <PageContainer>
         <PageTitle icon={AlertTriangle} title={editando ? 'Editar Documento' : 'Novo Documento'} />
-        <OcorrenciaForm ocorrencia={editando || undefined} userEquipe={userEquipe} todas={ocorrencias} onSave={handleSave} onCancel={() => { setMode('list'); setEditando(null); }} />
+        <OcorrenciaForm ocorrencia={editando || undefined} userEquipe={userEquipe} todas={ocorrencias}
+          onSave={(d) => handleSave(d, false)}
+          onSaveDraft={(d) => handleSave(d, true)}
+          onCancel={() => { setMode('list'); setEditando(null); }} />
       </PageContainer>
     );
   }
@@ -496,7 +513,7 @@ export function Ocorrencias() {
       ) : (
         <div className="space-y-3">
           {filtradas.map(o => (
-            <OcorrenciaCard key={o.id} o={o} canEdit={canEdit}
+            <OcorrenciaCard key={o.id} o={o} isAdmin={isAdmin}
               onView={() => { setVisualizando(o); setMode('view'); }}
               onEdit={() => { setEditando(o); setMode('form'); }}
               onDelete={() => setConfirmDelete(o.id)}
