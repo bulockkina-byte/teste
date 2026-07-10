@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+@theme {
+  --color-aviation-50: #eef2ff;
+  --color-aviation-100: #e0e7ff;
+  --color-aviation-200: #c7d2fe;
+  --color-aviation-300: #a5b4fc;
+  --color-aviation-400: #818cf8;
+  --color-aviation-500: #0a1f3f;
+  --color-aviation-600: #1e3a6e;
+  --color-aviation-700: #14294d;
+  --color-aviation-800: #0a1a33;
+  --color-aviation-900: #060f1f;
+
+  --color-graphite-50: #f8f9fa;
+  --color-graphite-100: #f0f2f5;
+  --color-graphite-200: #e5e7eb;
+  --color-graphite-300: #d1d5db;
+  --color-graphite-400: #9ca3af;
+  --color-graphite-500: #6b7280;
+  --color-graphite-600: #4b5563;
+  --color-graphite-700: #374151;
+  --color-graphite-800: #1f2937;
+  --color-graphite-900: #111827;
+
+  --color-alert-red: #dc2626;
+  --color-warning-yellow: #eab308;
+  --color-status-green: #16a34a;
+
+  --animate-fadeIn: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-hidden,
+  .print-hidden * {
+    display: none !important;
+  }
+  #print-area,
+  #print-area * {
+    visibility: visible;
+  }
+  #print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+}

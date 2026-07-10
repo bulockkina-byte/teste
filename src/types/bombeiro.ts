@@ -1,0 +1,53 @@
+export type Cargo =
+  | 'BA-2'
+  | 'BA-MC'
+  | 'BA-CE'
+  | 'BA-LR'
+  | 'BA-RE'
+  | 'APOC'
+  | 'GS'
+  | 'Gerente de Seção Contra Incêndio'
+  | 'OC';
+
+export type Equipe = 'Alfa' | 'Bravo' | 'Charlie' | 'Delta' | 'Feirista';
+export type Turno = 'Diurno' | 'Noturno';
+export type CatCNH = 'A' | 'B' | 'C' | 'D' | 'E' | 'AB' | 'AC' | 'AD' | 'AE';
+
+export interface Bombeiro {
+  id: string;
+  matricula: string;
+  nomeCompleto: string;
+  nomeGuerra: string;
+  dataNascimento: string;
+  idade: number;
+  dataAdmissao: string;
+  cargo: Cargo;
+  equipe: Equipe;
+  turno: Turno;
+  tipoSanguineo: string;
+  cpf: string;
+  rg: string;
+  cnhNumero: string;
+  cnhCategoria: CatCNH;
+  cnhValidade: string;
+  foto: string;
+  dataDesligamento: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const CARGO_OPTIONS: { value: Cargo; label: string }[] = [
+  { value: 'BA-2', label: 'BA-2 - Bombeiro de Aeródromo' },
+  { value: 'BA-MC', label: 'BA-MC - Bombeiro de Aeródromo Motorista/Operador de CCI' },
+  { value: 'BA-CE', label: 'BA-CE - Bombeiro de Aeródromo Chefe de Equipe' },
+  { value: 'BA-LR', label: 'BA-LR - Bombeiro de Aeródromo Líder de Resgate' },
+  { value: 'BA-RE', label: 'BA-RE - Bombeiro de Aeródromo Resgate' },
+  { value: 'APOC', label: 'APOC - Apoio Operacional' },
+  { value: 'GS', label: 'GS - Guarda de Segurança' },
+  { value: 'Gerente de Seção Contra Incêndio', label: 'Gerente de Seção Contra Incêndio' },
+  { value: 'OC', label: 'OC - Operador de Comunicações' },
+];
+
+export const EQUIPE_OPTIONS: Equipe[] = ['Alfa', 'Bravo', 'Charlie', 'Delta', 'Feirista'];
+export const TURNO_OPTIONS: Turno[] = ['Diurno', 'Noturno'];
+export const CNH_OPTIONS: CatCNH[] = ['A', 'B', 'C', 'D', 'E', 'AB', 'AC', 'AD', 'AE'];

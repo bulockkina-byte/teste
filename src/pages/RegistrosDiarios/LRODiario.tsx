@@ -1,0 +1,894 @@
+import { useState, useEffect } from 'react';
+import {
+  FileSpreadsheet, Plus, Save, Eye, Pencil, Copy, Printer, Trash2, ChevronDown, ChevronUp,
+} from 'lucide-react';
+import { SearchSelect } from '../../components/ui/SearchSelect';
+import { PageContainer } from '../../components/layout/PageContainer';
+import { PageTitle } from '../../components/layout/PageTitle';
+import { useAuth } from '../../context/AuthContext';
+import { listarLROs, criarLRO, atualizarLRO, excluirLRO } from '../../services/lroService';
+import { EQUIPES, EPR_OPTIONS, CRS_SITUACOES, FUNCOES_CARGO } from '../../types/lro';
+import type { LRO, VeiculoState, VeiculoRTState, CRSState } from '../../types/lro';
+
+function formatDate(d: string) {
+  if (!d) return '-';
+  return new Date(d + 'T12:00:00').toLocaleDateString('pt-BR');
+}
+
+function emptyVeiculo(): VeiculoState {
+  return { cci319: '', cci320: '', cci333: '', kmInicial: '', kmFinal: '', combustivelInicial: '', combustivelFinal: '', nitrogenio: '', epr: '' };
+}
+
+function emptyVeiculoRT(): VeiculoRTState {
+  return { cci319Reserva: '', cci320Reserva: '', cci333Reserva: '', cci319Baixado: '', cci320Baixado: '', cci333Baixado: '', kmInicial: '', kmFinal: '', combustivelInicial: '', combustivelFinal: '', nitrogenio: '', epr: '' };
+}
+
+function emptyCRS(): CRSState {
+  return { situacao: '', kmOdoInicial: '', kmOdoFinal: '', kmTacInicial: '', kmTacFinal: '', combustivelInicial: '', combustivelFinal: '', epr: '' };
+}
+
+function emptyLRO(): Omit<LRO, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'> {
+  return {
+    equipe: 'Alfa', turno: 'Diurno',
+    dataEntrada: new Date().toISOString().split('T')[0],
+    dataSaida: new Date().toISOString().split('T')[0],
+    chefeEquipe: '', apoc: '',
+    cci02Slots: [], cci03Slots: [], crsSlots: [], apoioOutrosSlots: [],
+    substituicoesAtivo: false, substituicoes: [],
+    instrucoes: '',
+    faisca2: emptyVeiculo(), faisca3: emptyVeiculo(), faiscaRT: emptyVeiculoRT(), crs: emptyCRS(),
+    situacaoCentralFaisca: 'SEM ALTERAÇÕES',
+    situacaoComunicacao: 'SEM ALTERAÇÕES',
+    situacaoTPEPR: 'SEM ALTERAÇÕES',
+    situacaoAgentesExtintores: 'SEM ALTERAÇÕES',
+    situacaoEquipamentos: 'SEM ALTERAÇÕES',
+    situacaoEdificacoes: 'SEM ALTERAÇÕES',
+    inspecoesTecnicas: '', emergenciasAeronauticas: '', outrasOcorrencias: '',
+    assinatura: '',
+  };
+}
+
+function autoPreencher(equipe: string) {
+  if (equipe === 'Alfa' || equipe === 'Charlie') return { turno: 'Diurno' };
+  return { turno: 'Noturno' };
+}
+
+function autoDataSaida(equipe: string, dataEntrada: string) {
+  if (!dataEntrada) return '';
+  const d = new Date(dataEntrada + 'T12:00:00');
+  if (equipe === 'Bravo' || equipe === 'Delta') d.setDate(d.getDate() + 1);
+  return d.toISOString().split('T')[0];
+}
+
+// ─── FORM ───────────────────────────
+function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
+  lro?: LRO;
+  onSave: (data: Omit<LRO, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) => void;
+  onSaveDraft: (data: Omit<LRO, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) => void;
+  onCancel: () => void;
+}) {
+  const [form, setForm] = useState(emptyLRO());
+
+  useEffect(() => {
+    if (lro) {
+      setForm({
+        equipe: lro.equipe, turno: lro.turno,
+        dataEntrada: lro.dataEntrada, dataSaida: lro.dataSaida,
+        chefeEquipe: lro.chefeEquipe, apoc: lro.apoc,
+        cci02Slots: lro.cci02Slots, cci03Slots: lro.cci03Slots, crsSlots: lro.crsSlots, apoioOutrosSlots: lro.apoioOutrosSlots,
+        substituicoesAtivo: lro.substituicoesAtivo, substituicoes: lro.substituicoes,
+        instrucoes: lro.instrucoes,
+        faisca2: lro.faisca2, faisca3: lro.faisca3, faiscaRT: lro.faiscaRT, crs: lro.crs,
+        situacaoCentralFaisca: lro.situacaoCentralFaisca,
+        situacaoComunicacao: lro.situacaoComunicacao,
+        situacaoTPEPR: lro.situacaoTPEPR,
+        situacaoAgentesExtintores: lro.situacaoAgentesExtintores,
+        situacaoEquipamentos: lro.situacaoEquipamentos,
+        situacaoEdificacoes: lro.situacaoEdificacoes,
+        inspecoesTecnicas: lro.inspecoesTecnicas,
+        emergenciasAeronauticas: lro.emergenciasAeronauticas,
+        outrasOcorrencias: lro.outrasOcorrencias,
+        assinatura: lro.assinatura,
+      });
+    }
+  }, [lro]);
+
+  function upd(field: string, value: any) {
+    setForm(f => ({ ...f, [field]: value }));
+  }
+
+  function handleEquipe(equipe: string) {
+    const auto = autoPreencher(equipe);
+    setForm(f => ({ ...f, equipe, ...auto, dataSaida: autoDataSaida(equipe, f.dataEntrada) }));
+  }
+
+  function handleDataEntrada(data: string) {
+    setForm(f => ({ ...f, dataEntrada: data, dataSaida: autoDataSaida(f.equipe, data) }));
+  }
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    onSave(form);
+  }
+
+  return (
+    <form onSubmit={submit} className="space-y-8">
+      {/* Cabeçalho */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        <div>
+          <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Equipe de Serviço</label>
+          <select value={form.equipe} onChange={e => handleEquipe(e.target.value)}
+            className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+            {EQUIPES.map(eq => <option key={eq} value={eq}>{eq}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Turno</label>
+          <input value={form.turno} disabled
+            className="w-full rounded-lg border border-graphite-200 bg-graphite-50 px-3 py-2 text-sm text-graphite-500 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-400" />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Data de Entrada</label>
+          <input type="date" value={form.dataEntrada} onChange={e => handleDataEntrada(e.target.value)}
+            className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Data de Saída</label>
+          <input type="date" value={form.dataSaida} onChange={e => upd('dataSaida', e.target.value)}
+            className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+        </div>
+      </div>
+
+      {/* Cabeçalho: Chefe de Equipe + APOC */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div>
+          <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Chefe de Equipe</label>
+          <SearchSelect value={form.chefeEquipe} onChange={v => upd('chefeEquipe', v)} placeholder="Chefe de Equipe" />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">APOC</label>
+          <SearchSelect value={form.apoc} onChange={v => upd('apoc', v)} placeholder="APOC" cargo="APOC" />
+        </div>
+      </div>
+
+      {/* Escala Equipes CCI's */}
+      <fieldset>
+        <legend className="mb-3 text-sm font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400">Escala Equipes CCI's</legend>
+        <div className="space-y-6">
+          {/* CCI 02 */}
+          <div>
+            <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-graphite-500">CCI 02</h4>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-graphite-200 dark:border-graphite-700">
+                    <th className="px-3 py-2 text-left text-xs font-medium text-graphite-500">Função</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-graphite-500">Nome</th>
+                    <th className="px-3 py-2 w-10" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {form.cci02Slots.map((s, i) => (
+                    <tr key={i} className="border-b border-graphite-100 dark:border-graphite-800">
+                      <td className="px-3 py-2 min-w-40">
+                        <select value={s.funcao} onChange={e => { const next = [...form.cci02Slots]; next[i] = { ...next[i], funcao: e.target.value }; upd('cci02Slots', next); }}
+                          className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+                          <option value="">Selecione</option>
+                          {FUNCOES_CARGO.map(f => <option key={f} value={f}>{f}</option>)}
+                        </select>
+                      </td>
+                      <td className="px-3 py-2 min-w-56">
+                        <SearchSelect value={s.nome} onChange={v => { const next = [...form.cci02Slots]; next[i] = { ...next[i], nome: v }; upd('cci02Slots', next); }} placeholder="Selecione o nome" cargo={s.funcao || undefined} />
+                      </td>
+                      <td className="px-3 py-2">
+                        <button type="button" onClick={() => upd('cci02Slots', form.cci02Slots.filter((_, j) => j !== i))}
+                          className="rounded-lg p-1.5 text-alert-red hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="h-4 w-4" /></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <button type="button" onClick={() => upd('cci02Slots', [...form.cci02Slots, { funcao: '', nome: '' }])}
+              className="mt-2 flex items-center gap-1 text-sm text-aviation-600 hover:text-aviation-700 dark:text-aviation-400">
+              <Plus className="h-4 w-4" /> Adicionar função no CCI 02
+            </button>
+          </div>
+          {/* CCI 03 */}
+          <div>
+            <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-graphite-500">CCI 03</h4>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-graphite-200 dark:border-graphite-700">
+                    <th className="px-3 py-2 text-left text-xs font-medium text-graphite-500">Função</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-graphite-500">Nome</th>
+                    <th className="px-3 py-2 w-10" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {form.cci03Slots.map((s, i) => (
+                    <tr key={i} className="border-b border-graphite-100 dark:border-graphite-800">
+                      <td className="px-3 py-2 min-w-40">
+                        <select value={s.funcao} onChange={e => { const next = [...form.cci03Slots]; next[i] = { ...next[i], funcao: e.target.value }; upd('cci03Slots', next); }}
+                          className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+                          <option value="">Selecione</option>
+                          {FUNCOES_CARGO.map(f => <option key={f} value={f}>{f}</option>)}
+                        </select>
+                      </td>
+                      <td className="px-3 py-2 min-w-56">
+                        <SearchSelect value={s.nome} onChange={v => { const next = [...form.cci03Slots]; next[i] = { ...next[i], nome: v }; upd('cci03Slots', next); }} placeholder="Selecione o nome" cargo={s.funcao || undefined} />
+                      </td>
+                      <td className="px-3 py-2">
+                        <button type="button" onClick={() => upd('cci03Slots', form.cci03Slots.filter((_, j) => j !== i))}
+                          className="rounded-lg p-1.5 text-alert-red hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="h-4 w-4" /></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <button type="button" onClick={() => upd('cci03Slots', [...form.cci03Slots, { funcao: '', nome: '' }])}
+              className="mt-2 flex items-center gap-1 text-sm text-aviation-600 hover:text-aviation-700 dark:text-aviation-400">
+              <Plus className="h-4 w-4" /> Adicionar função no CCI 03
+            </button>
+          </div>
+        </div>
+      </fieldset>
+
+      {/* Escala Equipes de Apoio */}
+      <fieldset>
+        <legend className="mb-3 text-sm font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400">Escala Equipes de Apoio</legend>
+        <div className="space-y-6">
+          {/* CRS */}
+          <div>
+            <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-graphite-500">CRS</h4>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-graphite-200 dark:border-graphite-700">
+                    <th className="px-3 py-2 text-left text-xs font-medium text-graphite-500">Função</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-graphite-500">Nome</th>
+                    <th className="px-3 py-2 w-10" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {form.crsSlots.map((s, i) => (
+                    <tr key={i} className="border-b border-graphite-100 dark:border-graphite-800">
+                      <td className="px-3 py-2 min-w-40">
+                        <select value={s.funcao} onChange={e => { const next = [...form.crsSlots]; next[i] = { ...next[i], funcao: e.target.value }; upd('crsSlots', next); }}
+                          className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+                          <option value="">Selecione</option>
+                          {FUNCOES_CARGO.map(f => <option key={f} value={f}>{f}</option>)}
+                        </select>
+                      </td>
+                      <td className="px-3 py-2 min-w-56">
+                        <SearchSelect value={s.nome} onChange={v => { const next = [...form.crsSlots]; next[i] = { ...next[i], nome: v }; upd('crsSlots', next); }} placeholder="Selecione o nome" cargo={s.funcao || undefined} />
+                      </td>
+                      <td className="px-3 py-2">
+                        <button type="button" onClick={() => upd('crsSlots', form.crsSlots.filter((_, j) => j !== i))}
+                          className="rounded-lg p-1.5 text-alert-red hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="h-4 w-4" /></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <button type="button" onClick={() => upd('crsSlots', [...form.crsSlots, { funcao: '', nome: '' }])}
+              className="mt-2 flex items-center gap-1 text-sm text-aviation-600 hover:text-aviation-700 dark:text-aviation-400">
+              <Plus className="h-4 w-4" /> Adicionar função no CRS
+            </button>
+          </div>
+          {/* Outros (Extras, Férias, etc.) */}
+          <div>
+            <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-graphite-500">Outros (Extras, Férias, Compondo Equipe)</h4>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-graphite-200 dark:border-graphite-700">
+                    <th className="px-3 py-2 text-left text-xs font-medium text-graphite-500">Função</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-graphite-500">Nome</th>
+                    <th className="px-3 py-2 w-10" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {form.apoioOutrosSlots.map((s, i) => (
+                    <tr key={i} className="border-b border-graphite-100 dark:border-graphite-800">
+                      <td className="px-3 py-2 min-w-40">
+                        <select value={s.funcao} onChange={e => { const next = [...form.apoioOutrosSlots]; next[i] = { ...next[i], funcao: e.target.value }; upd('apoioOutrosSlots', next); }}
+                          className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+                          <option value="">Selecione</option>
+                          {[...FUNCOES_CARGO, 'Extras', 'Férias', 'Outros'].map(f => <option key={f} value={f}>{f}</option>)}
+                        </select>
+                      </td>
+                      <td className="px-3 py-2 min-w-56">
+                        <SearchSelect value={s.nome} onChange={v => { const next = [...form.apoioOutrosSlots]; next[i] = { ...next[i], nome: v }; upd('apoioOutrosSlots', next); }} placeholder="Selecione o nome" cargo={s.funcao || undefined} />
+                      </td>
+                      <td className="px-3 py-2">
+                        <button type="button" onClick={() => upd('apoioOutrosSlots', form.apoioOutrosSlots.filter((_, j) => j !== i))}
+                          className="rounded-lg p-1.5 text-alert-red hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="h-4 w-4" /></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <button type="button" onClick={() => upd('apoioOutrosSlots', [...form.apoioOutrosSlots, { funcao: '', nome: '' }])}
+              className="mt-2 flex items-center gap-1 text-sm text-aviation-600 hover:text-aviation-700 dark:text-aviation-400">
+              <Plus className="h-4 w-4" /> Adicionar função
+            </button>
+          </div>
+        </div>
+      </fieldset>
+
+      {/* Substituições */}
+      <fieldset>
+        <legend className="mb-3 text-sm font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400">Substituições</legend>
+        <div className="mb-3 flex items-center gap-2">
+          <span className="text-sm text-graphite-700 dark:text-graphite-300">Possui substituições?</span>
+          <select value={form.substituicoesAtivo ? 'sim' : 'nao'} onChange={e => upd('substituicoesAtivo', e.target.value === 'sim')}
+            className="rounded-lg border border-graphite-300 bg-white px-3 py-1.5 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+            <option value="nao">Não</option>
+            <option value="sim">Sim</option>
+          </select>
+        </div>
+        {form.substituicoesAtivo && (
+          <div className="space-y-2">
+            {form.substituicoes.map((s, i) => (
+              <div key={i} className="flex flex-wrap items-end gap-2 rounded-lg border border-graphite-200 bg-graphite-50/50 p-3 dark:border-graphite-700 dark:bg-graphite-800/50">
+                <div className="flex-1 min-w-32">
+                  <label className="mb-1 block text-xs text-graphite-500">Função</label>
+                  <input value={s.funcao} onChange={e => {
+                    const next = [...form.substituicoes]; next[i] = { ...next[i], funcao: e.target.value };
+                    upd('substituicoes', next);
+                  }} placeholder="Função" className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+                </div>
+                <div className="flex-1 min-w-32">
+                  <label className="mb-1 block text-xs text-graphite-500">Nome</label>
+                  <SearchSelect value={s.nome} onChange={v => {
+                    const next = [...form.substituicoes]; next[i] = { ...next[i], nome: v };
+                    upd('substituicoes', next);
+                  }} placeholder="Nome" />
+                </div>
+                <div className="flex-1 min-w-32">
+                  <label className="mb-1 block text-xs text-graphite-500">Função Substituto</label>
+                  <input value={s.funcaoSubstituto} onChange={e => {
+                    const next = [...form.substituicoes]; next[i] = { ...next[i], funcaoSubstituto: e.target.value };
+                    upd('substituicoes', next);
+                  }} placeholder="Função substituto" className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+                </div>
+                <div className="flex-1 min-w-32">
+                  <label className="mb-1 block text-xs text-graphite-500">Nome Substituto</label>
+                  <SearchSelect value={s.nomeSubstituto} onChange={v => {
+                    const next = [...form.substituicoes]; next[i] = { ...next[i], nomeSubstituto: v };
+                    upd('substituicoes', next);
+                  }} placeholder="Nome substituto" />
+                </div>
+                <button type="button" onClick={() => upd('substituicoes', form.substituicoes.filter((_, j) => j !== i))}
+                  className="rounded-lg p-1.5 text-alert-red hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="h-4 w-4" /></button>
+              </div>
+            ))}
+            <button type="button" onClick={() => upd('substituicoes', [...form.substituicoes, { funcao: '', nome: '', funcaoSubstituto: '', nomeSubstituto: '' }])}
+              className="flex items-center gap-1 text-sm text-aviation-600 hover:text-aviation-700 dark:text-aviation-400">
+              <Plus className="h-4 w-4" /> Adicionar substituição
+            </button>
+          </div>
+        )}
+      </fieldset>
+
+      {/* Instruções */}
+      <fieldset>
+        <legend className="mb-3 text-sm font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400">Instruções</legend>
+        <textarea value={form.instrucoes} onChange={e => upd('instrucoes', e.target.value)} rows={3}
+          placeholder="Instruções do dia (preenchidas automaticamente com PTR-BA)..."
+          className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+      </fieldset>
+
+      {/* 4 colunas de viaturas */}
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+        {/* FAISCA 2 */}
+        <fieldset>
+          <legend className="mb-3 text-sm font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400">FAISCA 2</legend>
+          <div className="space-y-2 text-sm">
+            <div><input value={form.faisca2.cci319} onChange={e => upd('faisca2', { ...form.faisca2, cci319: e.target.value })} placeholder="CCI 319" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div><input value={form.faisca2.cci320} onChange={e => upd('faisca2', { ...form.faisca2, cci320: e.target.value })} placeholder="CCI 320" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div><input value={form.faisca2.cci333} onChange={e => upd('faisca2', { ...form.faisca2, cci333: e.target.value })} placeholder="CCI 333" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div><input value={form.faisca2.kmInicial} onChange={e => upd('faisca2', { ...form.faisca2, kmInicial: e.target.value })} placeholder="Km Inicial" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div><input value={form.faisca2.kmFinal} onChange={e => upd('faisca2', { ...form.faisca2, kmFinal: e.target.value })} placeholder="Km Final" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div><input value={form.faisca2.combustivelInicial} onChange={e => upd('faisca2', { ...form.faisca2, combustivelInicial: e.target.value })} placeholder="Combustível Inicial" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div><input value={form.faisca2.combustivelFinal} onChange={e => upd('faisca2', { ...form.faisca2, combustivelFinal: e.target.value })} placeholder="Combustível Final" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div><input value={form.faisca2.nitrogenio} onChange={e => upd('faisca2', { ...form.faisca2, nitrogenio: e.target.value })} placeholder="Nitrogênio" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div>
+              <label className="mb-1 block text-xs text-graphite-500">EPR's</label>
+              <select value={form.faisca2.epr} onChange={e => upd('faisca2', { ...form.faisca2, epr: e.target.value })}
+                className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+                <option value="">Selecione</option>
+                {EPR_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+          </div>
+        </fieldset>
+
+        {/* FAISCA 3 */}
+        <fieldset>
+          <legend className="mb-3 text-sm font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400">FAISCA 3</legend>
+          <div className="space-y-2 text-sm">
+            <div><input value={form.faisca3.cci319} onChange={e => upd('faisca3', { ...form.faisca3, cci319: e.target.value })} placeholder="CCI 319" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div><input value={form.faisca3.cci320} onChange={e => upd('faisca3', { ...form.faisca3, cci320: e.target.value })} placeholder="CCI 320" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div><input value={form.faisca3.cci333} onChange={e => upd('faisca3', { ...form.faisca3, cci333: e.target.value })} placeholder="CCI 333" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div><input value={form.faisca3.kmInicial} onChange={e => upd('faisca3', { ...form.faisca3, kmInicial: e.target.value })} placeholder="Km Inicial" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div><input value={form.faisca3.kmFinal} onChange={e => upd('faisca3', { ...form.faisca3, kmFinal: e.target.value })} placeholder="Km Final" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div><input value={form.faisca3.combustivelInicial} onChange={e => upd('faisca3', { ...form.faisca3, combustivelInicial: e.target.value })} placeholder="Combustível Inicial" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div><input value={form.faisca3.combustivelFinal} onChange={e => upd('faisca3', { ...form.faisca3, combustivelFinal: e.target.value })} placeholder="Combustível Final" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div><input value={form.faisca3.nitrogenio} onChange={e => upd('faisca3', { ...form.faisca3, nitrogenio: e.target.value })} placeholder="Nitrogênio" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div>
+              <label className="mb-1 block text-xs text-graphite-500">EPR's</label>
+              <select value={form.faisca3.epr} onChange={e => upd('faisca3', { ...form.faisca3, epr: e.target.value })}
+                className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+                <option value="">Selecione</option>
+                {EPR_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+          </div>
+        </fieldset>
+
+        {/* FAISCA RT */}
+        <fieldset>
+          <legend className="mb-3 text-sm font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400">FAISCA RT</legend>
+          <div className="space-y-2 text-sm">
+            <div><input value={form.faiscaRT.cci319Reserva} onChange={e => upd('faiscaRT', { ...form.faiscaRT, cci319Reserva: e.target.value })} placeholder="CCI 319 RESERVA" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div><input value={form.faiscaRT.cci320Reserva} onChange={e => upd('faiscaRT', { ...form.faiscaRT, cci320Reserva: e.target.value })} placeholder="CCI 320 RESERVA" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div><input value={form.faiscaRT.cci333Reserva} onChange={e => upd('faiscaRT', { ...form.faiscaRT, cci333Reserva: e.target.value })} placeholder="CCI 333 RESERVA" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div><input value={form.faiscaRT.cci319Baixado} onChange={e => upd('faiscaRT', { ...form.faiscaRT, cci319Baixado: e.target.value })} placeholder="CCI 319 BAIXADO" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div><input value={form.faiscaRT.cci320Baixado} onChange={e => upd('faiscaRT', { ...form.faiscaRT, cci320Baixado: e.target.value })} placeholder="CCI 320 BAIXADO" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div><input value={form.faiscaRT.cci333Baixado} onChange={e => upd('faiscaRT', { ...form.faiscaRT, cci333Baixado: e.target.value })} placeholder="CCI 333 BAIXADO" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div><input value={form.faiscaRT.kmInicial} onChange={e => upd('faiscaRT', { ...form.faiscaRT, kmInicial: e.target.value })} placeholder="Km Inicial" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div><input value={form.faiscaRT.kmFinal} onChange={e => upd('faiscaRT', { ...form.faiscaRT, kmFinal: e.target.value })} placeholder="Km Final" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div><input value={form.faiscaRT.combustivelInicial} onChange={e => upd('faiscaRT', { ...form.faiscaRT, combustivelInicial: e.target.value })} placeholder="Combustível Inicial" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div><input value={form.faiscaRT.combustivelFinal} onChange={e => upd('faiscaRT', { ...form.faiscaRT, combustivelFinal: e.target.value })} placeholder="Combustível Final" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div><input value={form.faiscaRT.nitrogenio} onChange={e => upd('faiscaRT', { ...form.faiscaRT, nitrogenio: e.target.value })} placeholder="Nitrogênio" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div>
+              <label className="mb-1 block text-xs text-graphite-500">EPR's</label>
+              <select value={form.faiscaRT.epr} onChange={e => upd('faiscaRT', { ...form.faiscaRT, epr: e.target.value })}
+                className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+                <option value="">Selecione</option>
+                {EPR_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+          </div>
+        </fieldset>
+
+        {/* CRS */}
+        <fieldset>
+          <legend className="mb-3 text-sm font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400">CRS</legend>
+          <div className="space-y-2 text-sm">
+            <div>
+              <label className="mb-1 block text-xs text-graphite-500">Situação</label>
+              <select value={form.crs.situacao} onChange={e => upd('crs', { ...form.crs, situacao: e.target.value })}
+                className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+                <option value="">Selecione</option>
+                {CRS_SITUACOES.map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+            <div><input value={form.crs.kmOdoInicial} onChange={e => upd('crs', { ...form.crs, kmOdoInicial: e.target.value })} placeholder="Km Odômetro Inicial" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div><input value={form.crs.kmOdoFinal} onChange={e => upd('crs', { ...form.crs, kmOdoFinal: e.target.value })} placeholder="Km Odômetro Final" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div><input value={form.crs.kmTacInicial} onChange={e => upd('crs', { ...form.crs, kmTacInicial: e.target.value })} placeholder="Km Tacógrafo Inicial" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div><input value={form.crs.kmTacFinal} onChange={e => upd('crs', { ...form.crs, kmTacFinal: e.target.value })} placeholder="Km Tacógrafo Final" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div><input value={form.crs.combustivelInicial} onChange={e => upd('crs', { ...form.crs, combustivelInicial: e.target.value })} placeholder="Combustível Inicial" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div><input value={form.crs.combustivelFinal} onChange={e => upd('crs', { ...form.crs, combustivelFinal: e.target.value })} placeholder="Combustível Final" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div>
+              <label className="mb-1 block text-xs text-graphite-500">EPR's</label>
+              <select value={form.crs.epr} onChange={e => upd('crs', { ...form.crs, epr: e.target.value })}
+                className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+                <option value="">Selecione</option>
+                {EPR_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+          </div>
+        </fieldset>
+      </div>
+
+      {/* Situações */}
+      {([
+        { key: 'situacaoCentralFaisca', label: 'Situação Operacional da Central Faisca' },
+        { key: 'situacaoComunicacao', label: 'Rádios, Hotline, Sistema de Alarme Sonoro e Ramais' },
+        { key: 'situacaoTPEPR', label: 'Situação Operacional dos TP, EPR em Linha e em Estoque' },
+        { key: 'situacaoAgentesExtintores', label: 'Situação Operacional dos Agentes Extintores (LGE, PQ) e Nitrogênio em Linha e em Estoque' },
+        { key: 'situacaoEquipamentos', label: 'Situação Operacional dos Equipamentos e Materiais do SESCINC' },
+        { key: 'situacaoEdificacoes', label: 'Situação Operacional das Edificações/Instalações da SCI' },
+      ] as const).map(({ key, label }) => (
+        <fieldset key={key}>
+          <legend className="mb-3 text-sm font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400">{label}</legend>
+          <textarea value={(form as any)[key]} onChange={e => upd(key, e.target.value)} rows={2}
+            className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+        </fieldset>
+      ))}
+
+      {/* Auto-filled sections */}
+      {([
+        { key: 'inspecoesTecnicas', label: 'Inspeções Técnicas e Vistorias' },
+        { key: 'emergenciasAeronauticas', label: 'Emergências Aeronáuticas' },
+        { key: 'outrasOcorrencias', label: 'Outras Ocorrências' },
+      ] as const).map(({ key, label }) => (
+        <fieldset key={key}>
+          <legend className="mb-3 text-sm font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400">{label}</legend>
+          <textarea value={(form as any)[key]} onChange={e => upd(key, e.target.value)} rows={2}
+            placeholder="Preenchido automaticamente..."
+            className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+        </fieldset>
+      ))}
+
+      <div className="flex items-center justify-end gap-3 border-t border-graphite-200 pt-6 dark:border-graphite-700">
+        <button type="button" onClick={onCancel}
+          className="rounded-lg border border-graphite-300 bg-white px-4 py-2 text-sm font-medium text-graphite-700 hover:bg-graphite-50 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-200">Cancelar</button>
+        <button type="button" onClick={() => onSaveDraft(form)}
+          className="flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-orange-700">
+          <Save className="h-4 w-4" /> {lro?.id ? 'Salvar e Continuar' : 'Criar e Continuar'}
+        </button>
+        <button type="submit"
+          className="flex items-center gap-2 rounded-lg bg-aviation-600 px-4 py-2 text-sm font-medium text-white hover:bg-aviation-700">
+          <Save className="h-4 w-4" /> {lro ? 'Salvar Alterações' : 'Criar LRO'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+// ─── LIST VIEW ───────────────────────────
+function LROCard({ lro, onView, onEdit, onClone, onDelete, isAdmin }: {
+  lro: LRO; onView: () => void; onEdit: () => void; onClone: () => void; onDelete: () => void; isAdmin: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div className="rounded-xl border border-graphite-200 bg-white p-4 shadow-sm dark:border-graphite-700 dark:bg-graphite-900">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-aviation-50 dark:bg-aviation-900/30">
+            <FileSpreadsheet className="h-5 w-5 text-aviation-600 dark:text-aviation-400" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-graphite-900 dark:text-graphite-100">{lro.equipe} - {formatDate(lro.dataEntrada)}</p>
+            <p className="text-xs text-graphite-500">{lro.turno} · {formatDate(lro.dataEntrada)} a {formatDate(lro.dataSaida)}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          <button onClick={onView} title="Visualizar" className="rounded-lg p-1.5 text-graphite-500 hover:bg-graphite-100 dark:hover:bg-graphite-700"><Eye className="h-4 w-4" /></button>
+          <button onClick={onEdit} title="Editar" className="rounded-lg p-1.5 text-graphite-500 hover:bg-graphite-100 dark:hover:bg-graphite-700"><Pencil className="h-4 w-4" /></button>
+          <button onClick={onClone} title="Copiar" className="rounded-lg p-1.5 text-graphite-500 hover:bg-graphite-100 dark:hover:bg-graphite-700"><Copy className="h-4 w-4" /></button>
+          {isAdmin && (
+            <button onClick={onDelete} title="Excluir" className="rounded-lg p-1.5 text-alert-red hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="h-4 w-4" /></button>
+          )}
+          <button onClick={() => setExpanded(!expanded)} className="rounded-lg p-1.5 text-graphite-500 hover:bg-graphite-100 dark:hover:bg-graphite-700">
+            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
+        </div>
+      </div>
+      {expanded && (
+        <div className="mt-4 space-y-3 border-t border-graphite-200 pt-4 dark:border-graphite-700">
+          <p className="text-xs text-graphite-500">Chefe: {lro.chefeEquipe || '-'} · APOC: {lro.apoc || '-'}</p>
+          {lro.cci02Slots.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-aviation-600 dark:text-aviation-400">CCI 02</p>
+              <div className="mt-1 space-y-1">{lro.cci02Slots.map((s, i) => <p key={i} className="text-sm">{s.funcao || '-'}: {s.nome || '-'}</p>)}</div>
+            </div>
+          )}
+          {lro.cci03Slots.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-aviation-600 dark:text-aviation-400">CCI 03</p>
+              <div className="mt-1 space-y-1">{lro.cci03Slots.map((s, i) => <p key={i} className="text-sm">{s.funcao || '-'}: {s.nome || '-'}</p>)}</div>
+            </div>
+          )}
+          {lro.crsSlots.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-aviation-600 dark:text-aviation-400">CRS</p>
+              <div className="mt-1 space-y-1">{lro.crsSlots.map((s, i) => <p key={i} className="text-sm">{s.funcao || '-'}: {s.nome || '-'}</p>)}</div>
+            </div>
+          )}
+          {lro.apoioOutrosSlots.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-aviation-600 dark:text-aviation-400">Outros</p>
+              <div className="mt-1 space-y-1">{lro.apoioOutrosSlots.map((s, i) => <p key={i} className="text-sm">{s.funcao || '-'}: {s.nome || '-'}</p>)}</div>
+            </div>
+          )}
+          <p className="text-xs text-graphite-500">Central Faisca: {lro.situacaoCentralFaisca}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── VIEW MODE ───────────────────────────
+function ViewModeLRO({ lro, onBack }: { lro: LRO; onBack: () => void }) {
+  return (
+    <div>
+      <div className="mb-6 flex items-center justify-between print-hidden">
+        <h3 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">LRO - {lro.equipe} - {formatDate(lro.dataEntrada)}</h3>
+        <div className="flex items-center gap-2">
+          <button onClick={() => window.print()} className="flex items-center gap-1 rounded-lg bg-aviation-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-aviation-700">
+            <Printer className="h-4 w-4" /> Imprimir
+          </button>
+          <button onClick={onBack} className="rounded-lg border border-graphite-300 bg-white px-3 py-1.5 text-sm text-graphite-700 hover:bg-graphite-50 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-200">Fechar</button>
+        </div>
+      </div>
+      <div id="print-area" className="rounded-xl border border-graphite-200 bg-white p-4 dark:border-graphite-700 dark:bg-graphite-900">
+        <div className="grid grid-cols-4 gap-4 mb-6">
+          <div><p className="text-xs text-graphite-400">Equipe</p><p className="text-sm font-medium">{lro.equipe}</p></div>
+          <div><p className="text-xs text-graphite-400">Turno</p><p className="text-sm font-medium">{lro.turno}</p></div>
+          <div><p className="text-xs text-graphite-400">Entrada</p><p className="text-sm font-medium">{formatDate(lro.dataEntrada)}</p></div>
+          <div><p className="text-xs text-graphite-400">Saída</p><p className="text-sm font-medium">{formatDate(lro.dataSaida)}</p></div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <div>
+            <p className="text-xs text-graphite-400">Chefe de Equipe</p>
+            <p className="text-sm font-medium">{lro.chefeEquipe || '-'}</p>
+          </div>
+          <div>
+            <p className="text-xs text-graphite-400">APOC</p>
+            <p className="text-sm font-medium">{lro.apoc || '-'}</p>
+          </div>
+        </div>
+
+        {lro.cci02Slots.length > 0 && (
+          <div className="mb-4">
+            <p className="mb-1 text-xs font-semibold text-aviation-600 dark:text-aviation-400">CCI 02</p>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-graphite-200 dark:border-graphite-700">
+                  <th className="px-3 py-1.5 text-left text-xs text-graphite-500">Função</th>
+                  <th className="px-3 py-1.5 text-left text-xs text-graphite-500">Nome</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lro.cci02Slots.map((s, i) => (
+                  <tr key={i} className="border-b border-graphite-100 dark:border-graphite-800">
+                    <td className="px-3 py-1.5">{s.funcao || '-'}</td>
+                    <td className="px-3 py-1.5">{s.nome || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {lro.cci03Slots.length > 0 && (
+          <div className="mb-4">
+            <p className="mb-1 text-xs font-semibold text-aviation-600 dark:text-aviation-400">CCI 03</p>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-graphite-200 dark:border-graphite-700">
+                  <th className="px-3 py-1.5 text-left text-xs text-graphite-500">Função</th>
+                  <th className="px-3 py-1.5 text-left text-xs text-graphite-500">Nome</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lro.cci03Slots.map((s, i) => (
+                  <tr key={i} className="border-b border-graphite-100 dark:border-graphite-800">
+                    <td className="px-3 py-1.5">{s.funcao || '-'}</td>
+                    <td className="px-3 py-1.5">{s.nome || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {lro.crsSlots.length > 0 && (
+          <div className="mb-4">
+            <p className="mb-1 text-xs font-semibold text-aviation-600 dark:text-aviation-400">CRS</p>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-graphite-200 dark:border-graphite-700">
+                  <th className="px-3 py-1.5 text-left text-xs text-graphite-500">Função</th>
+                  <th className="px-3 py-1.5 text-left text-xs text-graphite-500">Nome</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lro.crsSlots.map((s, i) => (
+                  <tr key={i} className="border-b border-graphite-100 dark:border-graphite-800">
+                    <td className="px-3 py-1.5">{s.funcao || '-'}</td>
+                    <td className="px-3 py-1.5">{s.nome || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {lro.apoioOutrosSlots.length > 0 && (
+          <div className="mb-4">
+            <p className="mb-1 text-xs font-semibold text-aviation-600 dark:text-aviation-400">Outros</p>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-graphite-200 dark:border-graphite-700">
+                  <th className="px-3 py-1.5 text-left text-xs text-graphite-500">Função</th>
+                  <th className="px-3 py-1.5 text-left text-xs text-graphite-500">Nome</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lro.apoioOutrosSlots.map((s, i) => (
+                  <tr key={i} className="border-b border-graphite-100 dark:border-graphite-800">
+                    <td className="px-3 py-1.5">{s.funcao || '-'}</td>
+                    <td className="px-3 py-1.5">{s.nome || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div className="text-xs text-graphite-500">Demais informações disponíveis na edição/visualização expandida.</div>
+      </div>
+    </div>
+  );
+}
+
+// ─── MAIN ───────────────────────────
+export function LRODiario() {
+  const { user } = useAuth();
+  const isAdmin = user?.username === 'admin';
+  const username = user?.username || '';
+
+  const [lros, setLros] = useState<LRO[]>([]);
+  const [mode, setMode] = useState<'list' | 'form' | 'view'>('list');
+  const [editando, setEditando] = useState<LRO | null>(null);
+  const [visualizando, setVisualizando] = useState<LRO | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [filtroEquipe, setFiltroEquipe] = useState('');
+  const [filtroMes, setFiltroMes] = useState('');
+  const [filtroChefe, setFiltroChefe] = useState('');
+
+  function carregar() {
+    const atuais = listarLROs();
+    setLros(isAdmin ? atuais : atuais.filter(e => e.createdBy === username));
+  }
+
+  useEffect(() => { carregar(); }, [isAdmin, username]);
+
+  function getChefes(list: LRO[]): string[] {
+    return [...new Set(list.map(e => e.chefeEquipe).filter(Boolean))].sort();
+  }
+
+  let filtradas = lros;
+  if (filtroMes) {
+    filtradas = filtradas.filter(e => e.dataEntrada.startsWith(filtroMes));
+  }
+  if (!isAdmin && filtroChefe) {
+    filtradas = filtradas.filter(e => e.chefeEquipe === filtroChefe);
+  }
+  if (isAdmin && filtroEquipe) {
+    filtradas = filtradas.filter(e => e.equipe === filtroEquipe);
+  }
+
+  function handleSave(data: Omit<LRO, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>, stayInForm = false) {
+    let saved: LRO | null;
+    if (editando && editando.id) {
+      saved = atualizarLRO(editando.id, data);
+    } else {
+      saved = criarLRO({ ...data, createdBy: username });
+    }
+    carregar();
+    if (saved && stayInForm) {
+      setEditando(saved);
+    } else if (saved) {
+      setEditando(null);
+      setVisualizando(saved);
+      setMode('view');
+    } else {
+      setMode('list');
+    }
+  }
+
+  function handleSaveAndView(data: Omit<LRO, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) {
+    handleSave(data, false);
+  }
+
+  function handleSaveAndContinue(data: Omit<LRO, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) {
+    handleSave(data, true);
+  }
+
+  function handleClone(lro: LRO) {
+    setEditando({ ...lro, id: '', createdAt: '', updatedAt: '', createdBy: '' });
+    setMode('form');
+  }
+
+  function handleDelete(id: string) {
+    excluirLRO(id);
+    setConfirmDelete(null);
+    carregar();
+  }
+
+  if (mode === 'form') {
+    return (
+      <PageContainer>
+        <PageTitle icon={FileSpreadsheet} title={editando?.id ? 'Editar LRO' : 'Novo LRO'} />
+        <LROForm lro={editando || undefined} onSave={handleSaveAndView} onSaveDraft={handleSaveAndContinue} onCancel={() => { setMode('list'); setEditando(null); }} />
+      </PageContainer>
+    );
+  }
+
+  if (mode === 'view' && visualizando) {
+    return (
+      <PageContainer>
+        <ViewModeLRO lro={visualizando} onBack={() => setMode('list')} />
+      </PageContainer>
+    );
+  }
+
+  return (
+    <PageContainer>
+      <div className="mb-6 flex items-center justify-between">
+        <PageTitle icon={FileSpreadsheet} title="LRO - Registro Diário" />
+      </div>
+
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Mês */}
+          <input type="month" value={filtroMes} onChange={e => setFiltroMes(e.target.value)}
+            className="rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+          {/* Equipe — só admin */}
+          {isAdmin && (
+            <select value={filtroEquipe} onChange={e => setFiltroEquipe(e.target.value)}
+              className="rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+              <option value="">Todas as equipes</option>
+              {EQUIPES.map(eq => <option key={eq} value={eq}>{eq}</option>)}
+            </select>
+          )}
+          {/* Chefe — só não-admin */}
+          {!isAdmin && (
+            <select value={filtroChefe} onChange={e => setFiltroChefe(e.target.value)}
+              className="rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+              <option value="">Todos os chefes</option>
+              {getChefes(lros).map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          )}
+          <p className="text-sm text-graphite-500">{filtradas.length} LRO(s)</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={() => {
+            const sorted = [...lros].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+            if (sorted.length > 0) handleClone(sorted[0]);
+            else { setEditando(null); setMode('form'); }
+          }} className="flex items-center gap-1 rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm font-medium text-graphite-700 hover:bg-graphite-50 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-200">
+            <Copy className="h-4 w-4" /> Copiar Último
+          </button>
+          <button onClick={() => { setEditando(null); setMode('form'); }}
+            className="flex items-center gap-2 rounded-lg bg-aviation-600 px-4 py-2 text-sm font-medium text-white hover:bg-aviation-700">
+            <Plus className="h-4 w-4" /> Criar LRO
+          </button>
+        </div>
+      </div>
+
+      {filtradas.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-graphite-700 dark:bg-graphite-900">
+          <FileSpreadsheet className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
+          <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhum LRO encontrado</h3>
+          <p className="text-sm text-graphite-500">Clique em "Criar LRO" para começar.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filtradas.map(lro => (
+            <LROCard key={lro.id} lro={lro} isAdmin={isAdmin}
+              onView={() => { setVisualizando(lro); setMode('view'); }}
+              onEdit={() => { setEditando(lro); setMode('form'); }}
+              onClone={() => handleClone(lro)}
+              onDelete={() => setConfirmDelete(lro.id)}
+            />
+          ))}
+        </div>
+      )}
+
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl dark:bg-graphite-800">
+            <h3 className="mb-2 text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar exclusão</h3>
+            <p className="mb-6 text-sm text-graphite-500">Tem certeza que deseja excluir este LRO?</p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setConfirmDelete(null)}
+                className="rounded-lg border border-graphite-300 bg-white px-4 py-2 text-sm font-medium text-graphite-700 hover:bg-graphite-50 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-200">Cancelar</button>
+              <button onClick={() => handleDelete(confirmDelete)}
+                className="rounded-lg bg-alert-red px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Excluir</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </PageContainer>
+  );
+}
