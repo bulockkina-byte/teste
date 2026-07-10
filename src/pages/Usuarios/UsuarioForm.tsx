@@ -12,13 +12,14 @@ interface UserData {
 
 interface Props {
   user?: { username: string; name: string; role?: UserRole } | null;
+  isProtected?: boolean;
   onSave: (data: UserData) => void;
   onClose: () => void;
 }
 
 const ROLES: UserRole[] = ['admin', 'gerente', 'chefe', 'lider'];
 
-export function UsuarioForm({ user, onSave, onClose }: Props) {
+export function UsuarioForm({ user, isProtected = false, onSave, onClose }: Props) {
   const [username, setUsername] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
@@ -83,11 +84,16 @@ export function UsuarioForm({ user, onSave, onClose }: Props) {
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Função *</label>
-            <select value={role} onChange={e => setRole(e.target.value as UserRole)} className={input}>
+            <select value={role} onChange={e => setRole(e.target.value as UserRole)}
+              disabled={isProtected}
+              className={input + (isProtected ? ' cursor-not-allowed opacity-60' : '')}>
               {ROLES.map(r => (
                 <option key={r} value={r}>{ROLE_LABELS[r]}</option>
               ))}
             </select>
+            {isProtected && (
+              <p className="mt-1 text-[11px] text-graphite-500 dark:text-graphite-500">A função do administrador não pode ser alterada.</p>
+            )}
           </div>
 
           {erro && <p className="text-sm text-alert-red dark:text-red-400">{erro}</p>}

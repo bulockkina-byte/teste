@@ -55,7 +55,7 @@ function seedAdmin() {
     localStorage.setItem(USERS_KEY, JSON.stringify(users));
   } else {
     let changed = false;
-    if (!users['admin'].role) { users['admin'].role = 'admin'; changed = true; }
+    if (users['admin'].role !== 'admin') { users['admin'].role = 'admin'; changed = true; }
     if (changed) localStorage.setItem(USERS_KEY, JSON.stringify(users));
   }
 }

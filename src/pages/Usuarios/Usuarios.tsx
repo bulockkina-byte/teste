@@ -175,6 +175,7 @@ export function Usuarios() {
       {formOpen && (
         <UsuarioForm
           user={editando}
+          isProtected={editando?.username === 'admin'}
           onSave={handleSave}
           onClose={() => { setFormOpen(false); setEditando(null); }}
         />
