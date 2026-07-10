@@ -208,14 +208,25 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
                 </div>
                 <div>
                   <label className={labelClass}>Foto</label>
-                  <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-graphite-300/60 bg-white/50 px-3 py-2 text-xs text-graphite-400 transition-all duration-200 hover:border-aviation-500/50 hover:text-aviation-600 backdrop-blur-sm dark:border-graphite-700/40 dark:bg-graphite-900/30">
-                    <Upload className="h-4 w-4 shrink-0" />
-                    <span className="truncate">{foto ? 'Trocar foto' : 'Enviar foto'}</span>
-                    <input type="file" accept="image/*" onChange={handleFotoChange} className="hidden" />
-                  </label>
-                  {foto && (
-                    <img src={foto} alt="preview" className="mt-1.5 h-10 w-10 rounded-lg object-cover" />
-                  )}
+                  <div className="flex items-start gap-3">
+                    <label className="flex h-20 w-20 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-graphite-300/60 bg-white/50 transition-all duration-200 hover:border-aviation-500/50 hover:bg-aviation-50/30 dark:border-graphite-700/40 dark:bg-graphite-900/30 dark:hover:border-aviation-400/50">
+                      {foto ? (
+                        <img src={foto} alt="preview" className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex flex-col items-center gap-1 text-graphite-400">
+                          <Upload className="h-5 w-5" />
+                          <span className="text-[10px]">Enviar</span>
+                        </div>
+                      )}
+                      <input type="file" accept="image/*" onChange={handleFotoChange} className="hidden" />
+                    </label>
+                    {foto && (
+                      <button type="button" onClick={() => setFoto('')}
+                        className="mt-1 text-[11px] text-graphite-400 underline transition-colors hover:text-alert-red dark:text-graphite-500">
+                        Remover foto
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </fieldset>

@@ -7,7 +7,7 @@ export type Cargo =
   | 'GS'
   | 'OC';
 
-export type Equipe = 'Alfa' | 'Bravo' | 'Charlie' | 'Delta' | 'Feirista';
+export type Equipe = 'Alfa' | 'Bravo' | 'Charlie' | 'Delta' | 'Feirista' | 'Gerência';
 export type Turno = 'Diurno' | 'Noturno' | 'Feirista' | 'Gerência';
 export type CatCNH = 'A' | 'B' | 'C' | 'D' | 'E' | 'AB' | 'AC' | 'AD' | 'AE';
 
@@ -45,12 +45,12 @@ export const CARGO_OPTIONS: { value: Cargo; label: string }[] = [
   { value: 'OC', label: 'OC - Operador de Comunicações' },
 ];
 
-export const EQUIPE_OPTIONS: Equipe[] = ['Alfa', 'Bravo', 'Charlie', 'Delta', 'Feirista'];
+export const EQUIPE_OPTIONS: Equipe[] = ['Alfa', 'Bravo', 'Charlie', 'Delta', 'Feirista', 'Gerência'];
 export const TURNO_OPTIONS: Turno[] = ['Diurno', 'Noturno', 'Feirista', 'Gerência'];
 export const CNH_OPTIONS: CatCNH[] = ['A', 'B', 'C', 'D', 'E', 'AB', 'AC', 'AD', 'AE'];
 
 export function turnoAutoPorEquipe(equipe: Equipe, cargo?: Cargo): Turno {
-  if (cargo === 'GS') return 'Gerência';
+  if (cargo === 'GS' || equipe === 'Gerência') return 'Gerência';
   if (equipe === 'Alfa' || equipe === 'Charlie') return 'Diurno';
   if (equipe === 'Bravo' || equipe === 'Delta') return 'Noturno';
   if (equipe === 'Feirista') return 'Feirista';
