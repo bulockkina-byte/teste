@@ -62,6 +62,7 @@ function OcorrenciaForm({
   ocorrencia,
   userEquipe,
   todas,
+  savedId,
   onSave,
   onSaveDraft,
   onCancel,
@@ -69,6 +70,7 @@ function OcorrenciaForm({
   ocorrencia?: Ocorrencia;
   userEquipe: string;
   todas: Ocorrencia[];
+  savedId: string | null;
   onSave: (data: Omit<Ocorrencia, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) => void;
   onSaveDraft: (data: Omit<Ocorrencia, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) => void;
   onCancel: () => void;
@@ -81,6 +83,16 @@ function OcorrenciaForm({
     descricao: ocorrencia.descricao, local: ocorrencia.local, envolvidos: ocorrencia.envolvidos,
     acoesTomadas: ocorrencia.acoesTomadas, status: ocorrencia.status, fotos: ocorrencia.fotos,
   } : { ...emptyOcorrencia(), equipe: userEquipe, numero: gerarNumero('BONA', todas) });
+
+  const [successMsg, setSuccessMsg] = useState('');
+  function clearSuccess() { setSuccessMsg(''); }
+
+  useEffect(() => {
+    if (successMsg) {
+      const t = setTimeout(clearSuccess, 3000);
+      return () => clearTimeout(t);
+    }
+  }, [successMsg]);
 
   const input = 'w-full rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50';
   const select = input;
@@ -220,10 +232,15 @@ function OcorrenciaForm({
           </div>
         </div>
 
+        {successMsg && (
+          <div className="mx-6 mt-4 rounded-xl border border-green-300/60 bg-green-50/80 px-4 py-2.5 text-sm font-medium text-green-700 dark:border-green-700/40 dark:bg-green-900/20 dark:text-green-400">
+            {successMsg}
+          </div>
+        )}
         <div className="flex justify-end gap-3 border-t border-graphite-200/60 px-6 py-4 dark:border-graphite-700/50">
           <button onClick={onCancel} className="rounded-xl border border-graphite-300/60 bg-white/80 px-5 py-2.5 text-sm font-medium text-graphite-700 dark:border-graphite-700/40 dark:bg-graphite-800/80 dark:text-graphite-200">Cancelar</button>
-          <button onClick={() => onSaveDraft(form)} disabled={!form.data || !form.equipe}
-            className="flex items-center gap-2 rounded-xl border border-aviation-300/60 bg-white/80 px-5 py-2.5 text-sm font-medium text-aviation-700 transition-all hover:bg-aviation-50 dark:border-aviation-700/40 dark:bg-graphite-800/80 dark:text-aviation-300 dark:hover:bg-aviation-900/20 disabled:opacity-50 disabled:cursor-not-allowed">
+          <button onClick={() => { clearSuccess(); onSaveDraft(form); }} disabled={!form.data || !form.equipe}
+            className="flex items-center gap-2 rounded-xl border-2 border-orange-400 bg-gradient-to-r from-orange-500 to-orange-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-orange-500/25 transition-all hover:from-orange-600 hover:to-orange-700 hover:shadow-xl hover:shadow-orange-500/30 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">
             <Save className="h-4 w-4" /> Salvar e Continuar
           </button>
           <button onClick={() => onSave(form)} disabled={!form.data || !form.equipe}
@@ -386,8 +403,12 @@ export function Ocorrencias() {
   const [ocorrencias, setOcorrencias] = useState<Ocorrencia[]>([]);
   const [mode, setMode] = useState<'list' | 'form' | 'view'>('list');
   const [editando, setEditando] = useState<Ocorrencia | null>(null);
+  const [savedId, setSavedId] = useState<string | null>(null);
   const [visualizando, setVisualizando] = useState<Ocorrencia | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState('');
+  function clearSuccess() { setSuccessMsg(''); }
+  useEffect(() => { if (successMsg) { const t = setTimeout(clearSuccess, 3000); return () => clearTimeout(t); } }, [successMsg]);
 
   const [filtroAno, setFiltroAno] = useState(new Date().getFullYear().toString());
   const [filtroMes, setFiltroMes] = useState((new Date().getMonth() + 1).toString());
@@ -425,16 +446,18 @@ export function Ocorrencias() {
 
   function handleSave(data: Omit<Ocorrencia, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>, stayInForm = false) {
     let saved: Ocorrencia | null;
-    if (editando && editando.id) {
-      saved = atualizarOcorrencia(editando.id, data);
+    if (savedId) {
+      saved = atualizarOcorrencia(savedId, data);
     } else {
       saved = criarOcorrencia({ ...data, createdBy: username });
+      if (saved) setSavedId(saved.id);
     }
     carregar();
     if (saved && stayInForm) {
       setEditando(saved);
     } else if (saved) {
       setEditando(null);
+      setSavedId(null);
       setVisualizando(saved);
       setMode('view');
     } else {
@@ -452,10 +475,10 @@ export function Ocorrencias() {
     return (
       <PageContainer>
         <PageTitle icon={AlertTriangle} title={editando ? 'Editar Documento' : 'Novo Documento'} />
-        <OcorrenciaForm ocorrencia={editando || undefined} userEquipe={userEquipe} todas={ocorrencias}
+        <OcorrenciaForm ocorrencia={editando || undefined} userEquipe={userEquipe} todas={ocorrencias} savedId={savedId}
           onSave={(d) => handleSave(d, false)}
-          onSaveDraft={(d) => handleSave(d, true)}
-          onCancel={() => { setMode('list'); setEditando(null); }} />
+          onSaveDraft={(d) => { handleSave(d, true); setSuccessMsg('Documento salvo com sucesso! Preencha os campos restantes e clique em "Salvar" para finalizar.'); }}
+          onCancel={() => { setMode('list'); setEditando(null); setSavedId(null); }} />
       </PageContainer>
     );
   }
