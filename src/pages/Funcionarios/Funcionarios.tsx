@@ -1,10 +1,14 @@
-import { useEffect, useState } from 'react';
-import { Users, Search, AlertCircle, X, Calendar, Shield, Droplets, User, Hash, IdCard, Car, Briefcase, Clock, FileText } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Users, Search, AlertCircle, X, Calendar, Shield, Droplets, User, Hash, IdCard, Car, Briefcase, Clock, FileText, Radio, Mail } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { listarBombeiros, buscarBombeiro } from '../../services/bombeiroService';
+import { listarAPOCs, buscarAPOC } from '../../services/apocService';
 import type { Bombeiro } from '../../types/bombeiro';
+import type { APOC } from '../../types/apoc';
 import { CARGO_OPTIONS } from '../../types/bombeiro';
+
+type Tab = 'todos' | 'bombeiros' | 'apoc';
 
 function capitalize(str: string) {
   return str.replace(/\b\w/g, char => char.toUpperCase());
@@ -34,7 +38,7 @@ function InfoRow({ icon: Icon, label, value }: { icon: any; label: string; value
   );
 }
 
-function DetailModal({ bombeiro, onClose }: { bombeiro: Bombeiro; onClose: () => void }) {
+function BombeiroDetailModal({ bombeiro, onClose }: { bombeiro: Bombeiro; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 pt-10 pb-10" onClick={onClose}>
       <div className="relative w-full max-w-2xl rounded-2xl bg-white/95 shadow-2xl shadow-black/5 backdrop-blur-sm dark:bg-graphite-800/95 dark:shadow-black/20" onClick={e => e.stopPropagation()}>
@@ -61,6 +65,7 @@ function DetailModal({ bombeiro, onClose }: { bombeiro: Bombeiro; onClose: () =>
           <div>
             <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400">Informações Pessoais</h3>
             <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+              <InfoRow icon={Mail} label="E-mail" value={bombeiro.email} />
               <InfoRow icon={IdCard} label="CPF" value={bombeiro.cpf} />
               <InfoRow icon={IdCard} label="RG" value={bombeiro.rg} />
               <InfoRow icon={Car} label="CNH" value={bombeiro.cnhNumero} />
@@ -104,14 +109,80 @@ function DetailModal({ bombeiro, onClose }: { bombeiro: Bombeiro; onClose: () =>
   );
 }
 
-export function Funcionarios() {
-  const [funcionarios, setFuncionarios] = useState<Bombeiro[]>([]);
-  const [termo, setTermo] = useState('');
-  const [selecionado, setSelecionado] = useState<Bombeiro | null>(null);
+function APOCDetailModal({ apoc, onClose }: { apoc: APOC; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 pt-10 pb-10" onClick={onClose}>
+      <div className="relative w-full max-w-xl rounded-2xl bg-white/95 shadow-2xl shadow-black/5 backdrop-blur-sm dark:bg-graphite-800/95 dark:shadow-black/20" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-graphite-200 px-6 py-4 dark:border-graphite-700">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-aviation-500 to-aviation-700 text-sm font-bold text-white shadow-lg shadow-aviation-500/20">
+              <Radio className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">{capitalize(apoc.nomeCompleto)}</h2>
+              <p className="text-sm text-graphite-500">{capitalize(apoc.nomeGuerra)}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-800 dark:hover:text-graphite-300">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
 
-  useEffect(() => {
-    setFuncionarios(termo ? buscarBombeiro(termo) : listarBombeiros());
-  }, [termo]);
+        <div className="px-6 py-5 space-y-6">
+          <div>
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400">Dados do APOC</h3>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <InfoRow icon={User} label="Nome Completo" value={capitalize(apoc.nomeCompleto)} />
+              <InfoRow icon={User} label="Nome de Guerra" value={capitalize(apoc.nomeGuerra)} />
+              <InfoRow icon={Mail} label="E-mail" value={apoc.email} />
+              <InfoRow icon={Radio} label="Função" value={apoc.funcao} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const TABS: { key: Tab; label: string; icon: any }[] = [
+  { key: 'todos', label: 'Todos', icon: Users },
+  { key: 'bombeiros', label: 'Bombeiros', icon: Shield },
+  { key: 'apoc', label: 'APOC', icon: Radio },
+];
+
+export function Funcionarios() {
+  const [tab, setTab] = useState<Tab>('todos');
+  const [termo, setTermo] = useState('');
+  const [selecionado, setSelecionado] = useState<Bombeiro | APOC | null>(null);
+  const [tipoSelecionado, setTipoSelecionado] = useState<'bombeiro' | 'apoc'>('bombeiro');
+
+  const allBombeiros = useMemo(() => listarBombeiros(), []);
+  const allApocs = useMemo(() => listarAPOCs(), []);
+
+  const bombeiros = useMemo(() => {
+    if (!termo) return allBombeiros;
+    return buscarBombeiro(termo);
+  }, [termo, allBombeiros]);
+
+  const apocs = useMemo(() => {
+    if (!termo) return allApocs;
+    return buscarAPOC(termo);
+  }, [termo, allApocs]);
+
+  const filteredBombeiros = tab === 'apoc' ? [] : bombeiros;
+  const filteredApocs = tab === 'bombeiros' ? [] : apocs;
+
+  const totalRegistros = filteredBombeiros.length + filteredApocs.length;
+
+  function handleSelectBombeiro(b: Bombeiro) {
+    setSelecionado(b);
+    setTipoSelecionado('bombeiro');
+  }
+
+  function handleSelectApoc(a: APOC) {
+    setSelecionado(a);
+    setTipoSelecionado('apoc');
+  }
 
   return (
     <PageContainer>
@@ -119,8 +190,8 @@ export function Funcionarios() {
         <PageTitle icon={Users} title="Funcionários" />
       </div>
 
-      <div className="mb-6">
-        <div className="relative max-w-md">
+      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite-400" />
           <input
             type="text"
@@ -132,75 +203,170 @@ export function Funcionarios() {
         </div>
       </div>
 
-      {funcionarios.length === 0 ? (
+      <div className="mb-6 flex items-center gap-1 rounded-xl border border-graphite-200/60 bg-graphite-50/80 p-1 dark:border-graphite-700/40 dark:bg-graphite-800/50">
+        {TABS.map(t => {
+          const Icon = t.icon;
+          const count = t.key === 'todos' ? allBombeiros.length + allApocs.length : t.key === 'bombeiros' ? allBombeiros.length : allApocs.length;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                tab === t.key
+                  ? 'bg-white text-aviation-700 shadow-sm dark:bg-graphite-900 dark:text-aviation-300'
+                  : 'text-graphite-500 hover:text-graphite-700 dark:text-graphite-400 dark:hover:text-graphite-200'
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              {t.label}
+              <span className={`ml-1 rounded-full px-1.5 py-0.5 text-xs ${
+                tab === t.key
+                  ? 'bg-aviation-100 text-aviation-700 dark:bg-aviation-900/40 dark:text-aviation-300'
+                  : 'bg-graphite-200/60 text-graphite-500 dark:bg-graphite-700/40 dark:text-graphite-400'
+              }`}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {totalRegistros === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300/60 bg-white/50 p-12 text-center backdrop-blur-sm dark:border-graphite-700/40 dark:bg-graphite-900/30">
           <Users className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
           <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">
             Nenhum funcionário encontrado
           </h3>
           <p className="text-sm text-graphite-400">
-            Os funcionários cadastrados no módulo de Bombeiros aparecerão aqui.
+            {tab === 'apoc'
+              ? 'Nenhum membro do APOC cadastrado ainda.'
+              : tab === 'bombeiros'
+                ? 'Nenhum bombeiro cadastrado ainda.'
+                : 'Os funcionários cadastrados nos módulos de Bombeiros e APOC aparecerão aqui.'
+            }
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-graphite-200/60 bg-white/80 backdrop-blur-sm dark:border-graphite-700/40 dark:bg-graphite-900/80">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-graphite-200 bg-graphite-50 text-left dark:border-graphite-700 dark:bg-graphite-800">
-                <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Matrícula</th>
-                <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Nome</th>
-                <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Nome de Guerra</th>
-                <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Cargo</th>
-                <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Equipe</th>
-                <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Turno</th>
-                <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Situação</th>
-              </tr>
-            </thead>
-            <tbody>
-              {funcionarios.map(b => (
-                <tr
-                  key={b.id}
-                  onClick={() => setSelecionado(b)}
-                  className="cursor-pointer border-b border-graphite-100 transition-colors hover:bg-aviation-50/50 dark:border-graphite-800 dark:hover:bg-aviation-900/20"
-                >
-                  <td className="px-4 py-3 font-medium text-graphite-900 dark:text-graphite-100">{b.matricula}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      {b.foto && (
-                        <img src={b.foto} alt="" className="h-8 w-8 rounded-full object-cover" />
-                      )}
-                      <span className="text-graphite-700 dark:text-graphite-300">{capitalize(b.nomeCompleto)}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{capitalize(b.nomeGuerra)}</td>
-                  <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{labelCargo(b.cargo)}</td>
-                  <td className="px-4 py-3">
-                    <span className="inline-flex rounded-full bg-aviation-50 px-2.5 py-0.5 text-xs font-medium text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-300">
-                      {b.equipe}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{b.turno}</td>
-                  <td className="px-4 py-3">
-                    {b.dataDesligamento ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-medium text-alert-red dark:bg-red-900/20">
-                        <AlertCircle className="h-3 w-3" />
-                        Desligado
-                      </span>
-                    ) : (
-                      <span className="inline-flex rounded-full bg-status-green/10 px-2.5 py-0.5 text-xs font-medium text-status-green">
-                        Ativo
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="space-y-4">
+          {filteredBombeiros.length > 0 && (tab === 'todos' || tab === 'bombeiros') && (
+            <div>
+              {tab === 'todos' && (
+                <div className="mb-3 flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-aviation-600 dark:text-aviation-400" />
+                  <h3 className="text-sm font-semibold text-graphite-700 dark:text-graphite-300">
+                    Bombeiros ({filteredBombeiros.length})
+                  </h3>
+                </div>
+              )}
+              <div className="overflow-x-auto rounded-2xl border border-graphite-200/60 bg-white/80 backdrop-blur-sm dark:border-graphite-700/40 dark:bg-graphite-900/80">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-graphite-200 bg-graphite-50 text-left dark:border-graphite-700 dark:bg-graphite-800">
+                      <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Matrícula</th>
+                      <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Nome</th>
+                      <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Nome de Guerra</th>
+                      <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">E-mail</th>
+                      <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Cargo</th>
+                      <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Equipe</th>
+                      <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Turno</th>
+                      <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Situação</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredBombeiros.map(b => (
+                      <tr
+                        key={b.id}
+                        onClick={() => handleSelectBombeiro(b)}
+                        className="cursor-pointer border-b border-graphite-100 transition-colors hover:bg-aviation-50/50 dark:border-graphite-800 dark:hover:bg-aviation-900/20"
+                      >
+                        <td className="px-4 py-3 font-medium text-graphite-900 dark:text-graphite-100">{b.matricula}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            {b.foto && (
+                              <img src={b.foto} alt="" className="h-8 w-8 rounded-full object-cover" />
+                            )}
+                            <span className="text-graphite-700 dark:text-graphite-300">{capitalize(b.nomeCompleto)}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{capitalize(b.nomeGuerra)}</td>
+                        <td className="px-4 py-3 text-graphite-500 dark:text-graphite-400 text-xs">{b.email || '-'}</td>
+                        <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{labelCargo(b.cargo)}</td>
+                        <td className="px-4 py-3">
+                          <span className="inline-flex rounded-full bg-aviation-50 px-2.5 py-0.5 text-xs font-medium text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-300">
+                            {b.equipe}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{b.turno}</td>
+                        <td className="px-4 py-3">
+                          {b.dataDesligamento ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-medium text-alert-red dark:bg-red-900/20">
+                              <AlertCircle className="h-3 w-3" />
+                              Desligado
+                            </span>
+                          ) : (
+                            <span className="inline-flex rounded-full bg-status-green/10 px-2.5 py-0.5 text-xs font-medium text-status-green">
+                              Ativo
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {filteredApocs.length > 0 && (tab === 'todos' || tab === 'apoc') && (
+            <div>
+              {tab === 'todos' && (
+                <div className="mb-3 flex items-center gap-2">
+                  <Radio className="h-4 w-4 text-aviation-600 dark:text-aviation-400" />
+                  <h3 className="text-sm font-semibold text-graphite-700 dark:text-graphite-300">
+                    APOC ({filteredApocs.length})
+                  </h3>
+                </div>
+              )}
+              <div className="overflow-x-auto rounded-2xl border border-graphite-200/60 bg-white/80 backdrop-blur-sm dark:border-graphite-700/40 dark:bg-graphite-900/80">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-graphite-200 bg-graphite-50 text-left dark:border-graphite-700 dark:bg-graphite-800">
+                      <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Nome de Guerra</th>
+                      <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Nome Completo</th>
+                      <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">E-mail</th>
+                      <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Função</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredApocs.map(a => (
+                      <tr
+                        key={a.id}
+                        onClick={() => handleSelectApoc(a)}
+                        className="cursor-pointer border-b border-graphite-100 transition-colors hover:bg-aviation-50/50 dark:border-graphite-800 dark:hover:bg-aviation-900/20"
+                      >
+                        <td className="px-4 py-3 font-medium text-graphite-900 dark:text-graphite-100">{capitalize(a.nomeGuerra)}</td>
+                        <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{capitalize(a.nomeCompleto)}</td>
+                        <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{a.email}</td>
+                        <td className="px-4 py-3">
+                          <span className="inline-flex rounded-full bg-aviation-50 px-2.5 py-0.5 text-xs font-medium text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-300">
+                            {a.funcao}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {selecionado && (
-        <DetailModal bombeiro={selecionado} onClose={() => setSelecionado(null)} />
+      {selecionado && tipoSelecionado === 'bombeiro' && (
+        <BombeiroDetailModal bombeiro={selecionado as Bombeiro} onClose={() => setSelecionado(null)} />
+      )}
+      {selecionado && tipoSelecionado === 'apoc' && (
+        <APOCDetailModal apoc={selecionado as APOC} onClose={() => setSelecionado(null)} />
       )}
     </PageContainer>
   );

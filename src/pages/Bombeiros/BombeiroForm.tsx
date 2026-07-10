@@ -240,10 +240,17 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Turno *</label>
-                <select value={turno} onChange={e => setTurno(e.target.value as Turno)}
-                  className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900">
+                <select value={turno} onChange={e => setTurno(e.target.value as Turno)} disabled={equipe === 'Feirista'}
+                  className={`w-full rounded-xl border px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 ${
+                    equipe === 'Feirista'
+                      ? 'border-graphite-200/60 bg-graphite-100/50 text-graphite-400 cursor-not-allowed dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-500'
+                      : 'border-graphite-300/60 bg-white/70 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900'
+                  }`}>
                   {TURNO_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
                 </select>
+                {equipe === 'Feirista' && (
+                  <p className="mt-1 text-xs text-graphite-400 dark:text-graphite-500">Turno definido automaticamente pela equipe.</p>
+                )}
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Tipo Sanguíneo</label>
