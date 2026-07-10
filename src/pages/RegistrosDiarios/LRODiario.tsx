@@ -75,7 +75,7 @@ function ViaturasCCISection() {
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-graphite-900 dark:text-graphite-100">{v.prefixo}</p>
-                <p className="truncate text-xs text-graphite-500">{v.marca} {v.modelo} · {v.placa}</p>
+                <p className="truncate text-xs text-graphite-500 dark:text-graphite-400">{v.marca} {v.modelo} · {v.placa}</p>
               </div>
               <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${
                 v.situacao === 'Ativa' ? 'bg-status-green/10 text-status-green' :
@@ -201,13 +201,13 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
         <div className="space-y-6">
           {/* CCI 02 */}
           <div>
-            <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-graphite-500">CCI 02</h4>
+            <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">CCI 02</h4>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-graphite-200 dark:border-graphite-700">
-                    <th className="px-3 py-2 text-left text-xs font-medium text-graphite-500">Função</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-graphite-500">Nome</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-graphite-500 dark:text-graphite-400">Função</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-graphite-500 dark:text-graphite-400">Nome</th>
                     <th className="px-3 py-2 w-10" />
                   </tr>
                 </thead>
@@ -240,13 +240,13 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
           </div>
           {/* CCI 03 */}
           <div>
-            <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-graphite-500">CCI 03</h4>
+            <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">CCI 03</h4>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-graphite-200 dark:border-graphite-700">
-                    <th className="px-3 py-2 text-left text-xs font-medium text-graphite-500">Função</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-graphite-500">Nome</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-graphite-500 dark:text-graphite-400">Função</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-graphite-500 dark:text-graphite-400">Nome</th>
                     <th className="px-3 py-2 w-10" />
                   </tr>
                 </thead>
@@ -286,13 +286,13 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
         <div className="space-y-6">
           {/* CRS */}
           <div>
-            <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-graphite-500">CRS</h4>
+            <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">CRS</h4>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-graphite-200 dark:border-graphite-700">
-                    <th className="px-3 py-2 text-left text-xs font-medium text-graphite-500">Função</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-graphite-500">Nome</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-graphite-500 dark:text-graphite-400">Função</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-graphite-500 dark:text-graphite-400">Nome</th>
                     <th className="px-3 py-2 w-10" />
                   </tr>
                 </thead>
@@ -325,13 +325,13 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
           </div>
           {/* Outros (Extras, Férias, etc.) */}
           <div>
-            <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-graphite-500">Outros (Extras, Férias, Compondo Equipe)</h4>
+            <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Outros (Extras, Férias, Compondo Equipe)</h4>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-graphite-200 dark:border-graphite-700">
-                    <th className="px-3 py-2 text-left text-xs font-medium text-graphite-500">Função</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-graphite-500">Nome</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-graphite-500 dark:text-graphite-400">Função</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-graphite-500 dark:text-graphite-400">Nome</th>
                     <th className="px-3 py-2 w-10" />
                   </tr>
                 </thead>
@@ -381,28 +381,28 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
             {form.substituicoes.map((s, i) => (
               <div key={i} className="flex flex-wrap items-end gap-2 rounded-xl border border-graphite-200/50 bg-white/50 p-3 backdrop-blur-sm dark:border-graphite-700/30 dark:bg-graphite-800/30">
                 <div className="flex-1 min-w-32">
-                  <label className="mb-1 block text-xs text-graphite-500">Função</label>
+                  <label className="mb-1 block text-xs text-graphite-500 dark:text-graphite-400">Função</label>
                   <input value={s.funcao} onChange={e => {
                     const next = [...form.substituicoes]; next[i] = { ...next[i], funcao: e.target.value };
                     upd('substituicoes', next);
                   }} placeholder="Função" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
                 </div>
                 <div className="flex-1 min-w-32">
-                  <label className="mb-1 block text-xs text-graphite-500">Nome</label>
+                  <label className="mb-1 block text-xs text-graphite-500 dark:text-graphite-400">Nome</label>
                   <SearchSelect value={s.nome} onChange={v => {
                     const next = [...form.substituicoes]; next[i] = { ...next[i], nome: v };
                     upd('substituicoes', next);
                   }} placeholder="Nome" />
                 </div>
                 <div className="flex-1 min-w-32">
-                  <label className="mb-1 block text-xs text-graphite-500">Função Substituto</label>
+                  <label className="mb-1 block text-xs text-graphite-500 dark:text-graphite-400">Função Substituto</label>
                   <input value={s.funcaoSubstituto} onChange={e => {
                     const next = [...form.substituicoes]; next[i] = { ...next[i], funcaoSubstituto: e.target.value };
                     upd('substituicoes', next);
                   }} placeholder="Função substituto" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
                 </div>
                 <div className="flex-1 min-w-32">
-                  <label className="mb-1 block text-xs text-graphite-500">Nome Substituto</label>
+                  <label className="mb-1 block text-xs text-graphite-500 dark:text-graphite-400">Nome Substituto</label>
                   <SearchSelect value={s.nomeSubstituto} onChange={v => {
                     const next = [...form.substituicoes]; next[i] = { ...next[i], nomeSubstituto: v };
                     upd('substituicoes', next);
@@ -446,7 +446,7 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
             <div><input value={form.faisca2.combustivelFinal} onChange={e => upd('faisca2', { ...form.faisca2, combustivelFinal: e.target.value })} placeholder="Combustível Final" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
             <div><input value={form.faisca2.nitrogenio} onChange={e => upd('faisca2', { ...form.faisca2, nitrogenio: e.target.value })} placeholder="Nitrogênio" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
             <div>
-              <label className="mb-1 block text-xs text-graphite-500">EPR's</label>
+              <label className="mb-1 block text-xs text-graphite-500 dark:text-graphite-400">EPR's</label>
               <select value={form.faisca2.epr} onChange={e => upd('faisca2', { ...form.faisca2, epr: e.target.value })}
                 className="w-full rounded border border-graphite-300/60 bg-white/70 px-2 py-1.5 text-sm dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100">
                 <option value="">Selecione</option>
@@ -469,7 +469,7 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
             <div><input value={form.faisca3.combustivelFinal} onChange={e => upd('faisca3', { ...form.faisca3, combustivelFinal: e.target.value })} placeholder="Combustível Final" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
             <div><input value={form.faisca3.nitrogenio} onChange={e => upd('faisca3', { ...form.faisca3, nitrogenio: e.target.value })} placeholder="Nitrogênio" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
             <div>
-              <label className="mb-1 block text-xs text-graphite-500">EPR's</label>
+              <label className="mb-1 block text-xs text-graphite-500 dark:text-graphite-400">EPR's</label>
               <select value={form.faisca3.epr} onChange={e => upd('faisca3', { ...form.faisca3, epr: e.target.value })}
                 className="w-full rounded border border-graphite-300/60 bg-white/70 px-2 py-1.5 text-sm dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100">
                 <option value="">Selecione</option>
@@ -495,7 +495,7 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
             <div><input value={form.faiscaRT.combustivelFinal} onChange={e => upd('faiscaRT', { ...form.faiscaRT, combustivelFinal: e.target.value })} placeholder="Combustível Final" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
             <div><input value={form.faiscaRT.nitrogenio} onChange={e => upd('faiscaRT', { ...form.faiscaRT, nitrogenio: e.target.value })} placeholder="Nitrogênio" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
             <div>
-              <label className="mb-1 block text-xs text-graphite-500">EPR's</label>
+              <label className="mb-1 block text-xs text-graphite-500 dark:text-graphite-400">EPR's</label>
               <select value={form.faiscaRT.epr} onChange={e => upd('faiscaRT', { ...form.faiscaRT, epr: e.target.value })}
                 className="w-full rounded border border-graphite-300/60 bg-white/70 px-2 py-1.5 text-sm dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100">
                 <option value="">Selecione</option>
@@ -510,7 +510,7 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
           <legend className="mb-3 text-sm font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400">CRS</legend>
           <div className="space-y-2 text-sm">
             <div>
-              <label className="mb-1 block text-xs text-graphite-500">Situação</label>
+              <label className="mb-1 block text-xs text-graphite-500 dark:text-graphite-400">Situação</label>
               <select value={form.crs.situacao} onChange={e => upd('crs', { ...form.crs, situacao: e.target.value })}
                 className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900">
                 <option value="">Selecione</option>
@@ -524,7 +524,7 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
             <div><input value={form.crs.combustivelInicial} onChange={e => upd('crs', { ...form.crs, combustivelInicial: e.target.value })} placeholder="Combustível Inicial" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
             <div><input value={form.crs.combustivelFinal} onChange={e => upd('crs', { ...form.crs, combustivelFinal: e.target.value })} placeholder="Combustível Final" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
             <div>
-              <label className="mb-1 block text-xs text-graphite-500">EPR's</label>
+              <label className="mb-1 block text-xs text-graphite-500 dark:text-graphite-400">EPR's</label>
               <select value={form.crs.epr} onChange={e => upd('crs', { ...form.crs, epr: e.target.value })}
                 className="w-full rounded border border-graphite-300/60 bg-white/70 px-2 py-1.5 text-sm dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100">
                 <option value="">Selecione</option>
@@ -595,7 +595,7 @@ function LROCard({ lro, onView, onEdit, onClone, onDelete, canEdit }: {
           </div>
           <div>
             <p className="text-sm font-semibold text-graphite-900 dark:text-graphite-100">{lro.equipe} - {formatDate(lro.dataEntrada)}</p>
-            <p className="text-xs text-graphite-500">{lro.turno} · {formatDate(lro.dataEntrada)} a {formatDate(lro.dataSaida)}</p>
+            <p className="text-xs text-graphite-500 dark:text-graphite-400">{lro.turno} · {formatDate(lro.dataEntrada)} a {formatDate(lro.dataSaida)}</p>
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -614,7 +614,7 @@ function LROCard({ lro, onView, onEdit, onClone, onDelete, canEdit }: {
       </div>
       {expanded && (
         <div className="mt-4 space-y-3 border-t border-graphite-200 pt-4 dark:border-graphite-700">
-          <p className="text-xs text-graphite-500">Chefe: {lro.chefeEquipe || '-'} · APOC: {lro.apoc || '-'}</p>
+          <p className="text-xs text-graphite-500 dark:text-graphite-400">Chefe: {lro.chefeEquipe || '-'} · APOC: {lro.apoc || '-'}</p>
           {lro.cci02Slots.length > 0 && (
             <div>
               <p className="text-xs font-semibold text-aviation-600 dark:text-aviation-400">CCI 02</p>
@@ -639,7 +639,7 @@ function LROCard({ lro, onView, onEdit, onClone, onDelete, canEdit }: {
               <div className="mt-1 space-y-1">{lro.apoioOutrosSlots.map((s, i) => <p key={i} className="text-sm">{s.funcao || '-'}: {s.nome || '-'}</p>)}</div>
             </div>
           )}
-          <p className="text-xs text-graphite-500">Central Faisca: {lro.situacaoCentralFaisca}</p>
+          <p className="text-xs text-graphite-500 dark:text-graphite-400">Central Faisca: {lro.situacaoCentralFaisca}</p>
         </div>
       )}
     </div>
@@ -661,20 +661,20 @@ function ViewModeLRO({ lro, onBack }: { lro: LRO; onBack: () => void }) {
       </div>
       <div id="print-area" className="rounded-2xl border border-graphite-200/60 bg-white/80 p-4 backdrop-blur-sm dark:border-graphite-700/40 dark:bg-graphite-900/80">
         <div className="grid grid-cols-4 gap-4 mb-6">
-          <div><p className="text-xs text-graphite-400">Equipe</p><p className="text-sm font-medium">{lro.equipe}</p></div>
-          <div><p className="text-xs text-graphite-400">Turno</p><p className="text-sm font-medium">{lro.turno}</p></div>
-          <div><p className="text-xs text-graphite-400">Entrada</p><p className="text-sm font-medium">{formatDate(lro.dataEntrada)}</p></div>
-          <div><p className="text-xs text-graphite-400">Saída</p><p className="text-sm font-medium">{formatDate(lro.dataSaida)}</p></div>
+          <div><p className="text-xs text-graphite-400">Equipe</p><p className="text-sm font-medium dark:text-graphite-100">{lro.equipe}</p></div>
+          <div><p className="text-xs text-graphite-400">Turno</p><p className="text-sm font-medium dark:text-graphite-100">{lro.turno}</p></div>
+          <div><p className="text-xs text-graphite-400">Entrada</p><p className="text-sm font-medium dark:text-graphite-100">{formatDate(lro.dataEntrada)}</p></div>
+          <div><p className="text-xs text-graphite-400">Saída</p><p className="text-sm font-medium dark:text-graphite-100">{formatDate(lro.dataSaida)}</p></div>
         </div>
 
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div>
             <p className="text-xs text-graphite-400">Chefe de Equipe</p>
-            <p className="text-sm font-medium">{lro.chefeEquipe || '-'}</p>
+            <p className="text-sm font-medium dark:text-graphite-100">{lro.chefeEquipe || '-'}</p>
           </div>
           <div>
             <p className="text-xs text-graphite-400">APOC</p>
-            <p className="text-sm font-medium">{lro.apoc || '-'}</p>
+            <p className="text-sm font-medium dark:text-graphite-100">{lro.apoc || '-'}</p>
           </div>
         </div>
 
@@ -684,8 +684,8 @@ function ViewModeLRO({ lro, onBack }: { lro: LRO; onBack: () => void }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-graphite-200 dark:border-graphite-700">
-                  <th className="px-3 py-1.5 text-left text-xs text-graphite-500">Função</th>
-                  <th className="px-3 py-1.5 text-left text-xs text-graphite-500">Nome</th>
+                  <th className="px-3 py-1.5 text-left text-xs text-graphite-500 dark:text-graphite-400">Função</th>
+                  <th className="px-3 py-1.5 text-left text-xs text-graphite-500 dark:text-graphite-400">Nome</th>
                 </tr>
               </thead>
               <tbody>
@@ -705,8 +705,8 @@ function ViewModeLRO({ lro, onBack }: { lro: LRO; onBack: () => void }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-graphite-200 dark:border-graphite-700">
-                  <th className="px-3 py-1.5 text-left text-xs text-graphite-500">Função</th>
-                  <th className="px-3 py-1.5 text-left text-xs text-graphite-500">Nome</th>
+                  <th className="px-3 py-1.5 text-left text-xs text-graphite-500 dark:text-graphite-400">Função</th>
+                  <th className="px-3 py-1.5 text-left text-xs text-graphite-500 dark:text-graphite-400">Nome</th>
                 </tr>
               </thead>
               <tbody>
@@ -726,8 +726,8 @@ function ViewModeLRO({ lro, onBack }: { lro: LRO; onBack: () => void }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-graphite-200 dark:border-graphite-700">
-                  <th className="px-3 py-1.5 text-left text-xs text-graphite-500">Função</th>
-                  <th className="px-3 py-1.5 text-left text-xs text-graphite-500">Nome</th>
+                  <th className="px-3 py-1.5 text-left text-xs text-graphite-500 dark:text-graphite-400">Função</th>
+                  <th className="px-3 py-1.5 text-left text-xs text-graphite-500 dark:text-graphite-400">Nome</th>
                 </tr>
               </thead>
               <tbody>
@@ -747,8 +747,8 @@ function ViewModeLRO({ lro, onBack }: { lro: LRO; onBack: () => void }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-graphite-200 dark:border-graphite-700">
-                  <th className="px-3 py-1.5 text-left text-xs text-graphite-500">Função</th>
-                  <th className="px-3 py-1.5 text-left text-xs text-graphite-500">Nome</th>
+                  <th className="px-3 py-1.5 text-left text-xs text-graphite-500 dark:text-graphite-400">Função</th>
+                  <th className="px-3 py-1.5 text-left text-xs text-graphite-500 dark:text-graphite-400">Nome</th>
                 </tr>
               </thead>
               <tbody>
@@ -763,7 +763,7 @@ function ViewModeLRO({ lro, onBack }: { lro: LRO; onBack: () => void }) {
           </div>
         )}
 
-        <div className="text-xs text-graphite-500">Demais informações disponíveis na edição/visualização expandida.</div>
+        <div className="text-xs text-graphite-500 dark:text-graphite-400">Demais informações disponíveis na edição/visualização expandida.</div>
       </div>
     </div>
   );
@@ -912,7 +912,7 @@ export function LRODiario() {
               {EQUIPES.map(eq => <option key={eq} value={eq}>{eq}</option>)}
             </select>
           )}
-          <p className="text-sm text-graphite-500">{filtradas.length} LRO(s)</p>
+          <p className="text-sm text-graphite-500 dark:text-graphite-400">{filtradas.length} LRO(s)</p>
         </div>
         <div className="flex items-center gap-2">
           {canEdit && (
@@ -937,7 +937,7 @@ export function LRODiario() {
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300/60 bg-white/50 p-12 text-center backdrop-blur-sm dark:border-graphite-700/40 dark:bg-graphite-900/30">
           <FileSpreadsheet className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
           <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhum LRO encontrado</h3>
-          <p className="text-sm text-graphite-500">Clique em "Criar LRO" para começar.</p>
+          <p className="text-sm text-graphite-500 dark:text-graphite-400">Clique em "Criar LRO" para começar.</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -956,7 +956,7 @@ export function LRODiario() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="w-full max-w-sm rounded-2xl bg-white/95 p-6 shadow-xl shadow-black/5 backdrop-blur-sm dark:bg-graphite-800/95 dark:shadow-black/20">
             <h3 className="mb-2 text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar exclusão</h3>
-            <p className="mb-6 text-sm text-graphite-500">Tem certeza que deseja excluir este LRO?</p>
+            <p className="mb-6 text-sm text-graphite-500 dark:text-graphite-400">Tem certeza que deseja excluir este LRO?</p>
             <div className="flex justify-end gap-3">
               <button onClick={() => setConfirmDelete(null)}
                 className="rounded-xl border border-graphite-300/60 bg-white/80 px-4 py-2.5 text-sm font-medium text-graphite-700 shadow-sm backdrop-blur-sm transition-all duration-200 hover:bg-graphite-50 hover:border-graphite-300 dark:border-graphite-700/40 dark:bg-graphite-800/80 dark:text-graphite-200 dark:hover:bg-graphite-700/50">Cancelar</button>

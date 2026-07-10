@@ -86,7 +86,7 @@ function OcorrenciaForm({
     }
   }, [successMsg]);
 
-  const input = 'w-full rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all duration-200 focus:border-aviation-500 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-100 dark:focus:border-aviation-400';
+  const input = 'w-full rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all duration-200 focus:border-aviation-500 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-100 dark:hover:border-graphite-500 dark:focus:border-aviation-400 dark:focus:bg-graphite-800 dark:focus:ring-aviation-400/10 dark:placeholder:text-graphite-500';
   const select = input;
   const inputReadOnly = input + ' cursor-not-allowed bg-graphite-50 dark:bg-graphite-700/50';
   const label = 'block mb-1.5 text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400';
@@ -227,7 +227,7 @@ function OcorrenciaForm({
                       className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">✕</button>
                   </div>
                 ))}
-                <label className="flex h-16 w-16 cursor-pointer items-center justify-center rounded-xl border-2 border-dashed border-graphite-300 text-graphite-400 transition-colors hover:border-aviation-400 hover:text-aviation-500">
+                <label className="flex h-16 w-16 cursor-pointer items-center justify-center rounded-xl border-2 border-dashed border-graphite-300 text-graphite-400 transition-colors hover:border-aviation-400 hover:text-aviation-500 dark:border-graphite-600/50 dark:bg-graphite-800/30 dark:hover:border-aviation-500">
                   <Plus className="h-5 w-5" />
                   <input type="file" accept="image/*" className="hidden" onChange={handleImage} />
                 </label>
@@ -326,7 +326,7 @@ function OcorrenciaView({ ocorrencia, onBack }: { ocorrencia: Ocorrencia; onBack
             <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${tipoBadge}`}>{ocorrencia.tipoDocumento}</span>
           </div>
           <p className="mt-1 text-sm font-medium text-graphite-600 dark:text-graphite-300">{TIPO_DOCUMENTO[ocorrencia.tipoDocumento]}</p>
-          <p className="mt-0.5 text-sm text-graphite-500">{ocorrencia.data} {ocorrencia.hora && `às ${ocorrencia.hora}`}</p>
+          <p className="mt-0.5 text-sm text-graphite-500 dark:text-graphite-400">{ocorrencia.data} {ocorrencia.hora && `às ${ocorrencia.hora}`}</p>
         </div>
         <span className={`rounded-full px-3 py-1 text-xs font-bold ${statusColor[ocorrencia.status] || ''}`}>{ocorrencia.status}</span>
       </div>
@@ -413,8 +413,8 @@ function OcorrenciaCard({
         <div className="border-t border-graphite-200 px-5 py-4 dark:border-graphite-700">
           <p className="mb-2 text-sm font-semibold text-graphite-700 dark:text-graphite-300">{TIPO_DOCUMENTO[o.tipoDocumento]}</p>
           {o.descricao && <p className="mb-2 text-sm text-graphite-700 dark:text-graphite-300 whitespace-pre-wrap">{o.descricao}</p>}
-          {o.envolvidos && <p className="mb-1 text-xs text-graphite-500"><strong>Envolvidos:</strong> {o.envolvidos}</p>}
-          {o.acoesTomadas && <p className="mb-2 text-xs text-graphite-500 whitespace-pre-wrap"><strong>Ações:</strong> {o.acoesTomadas}</p>}
+          {o.envolvidos && <p className="mb-1 text-xs text-graphite-500 dark:text-graphite-400"><strong>Envolvidos:</strong> {o.envolvidos}</p>}
+          {o.acoesTomadas && <p className="mb-2 text-xs text-graphite-500 dark:text-graphite-400 whitespace-pre-wrap"><strong>Ações:</strong> {o.acoesTomadas}</p>}
           {o.fotos.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-2">
               {o.fotos.map((f, i) => <img key={i} src={f} className="h-14 w-14 rounded-lg object-cover" />)}
@@ -470,7 +470,7 @@ export function Ocorrencias() {
   const [filtroTipo, setFiltroTipo] = useState('');
   const MESES = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   const ANOS = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
-  const inputClass = 'rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all duration-200 hover:border-graphite-400 focus:border-aviation-500 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-100 dark:focus:border-aviation-400';
+  const inputClass = 'rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all duration-200 hover:border-graphite-400 focus:border-aviation-500 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-100 dark:hover:border-graphite-500 dark:focus:border-aviation-400 dark:focus:bg-graphite-800 dark:focus:ring-aviation-400/10 dark:placeholder:text-graphite-500';
 
   function carregar() { setOcorrencias(listarOcorrencias()); }
   useEffect(() => { carregar(); }, []);
@@ -606,7 +606,7 @@ export function Ocorrencias() {
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-graphite-700 dark:bg-graphite-900/30">
           <AlertTriangle className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
           <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhum documento encontrado</h3>
-          <p className="text-sm text-graphite-400">Clique em "Novo Documento" para criar BONA ou RAE.</p>
+          <p className="text-sm text-graphite-400 dark:text-graphite-500">Clique em "Novo Documento" para criar BONA ou RAE.</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -624,7 +624,7 @@ export function Ocorrencias() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl dark:bg-graphite-800">
             <h3 className="mb-2 text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar exclusão</h3>
-            <p className="mb-6 text-sm text-graphite-500">Tem certeza que deseja excluir este documento?</p>
+            <p className="mb-6 text-sm text-graphite-500 dark:text-graphite-400">Tem certeza que deseja excluir este documento?</p>
             <div className="flex justify-end gap-3">
               <button onClick={() => setConfirmDelete(null)}
                 className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-200">Cancelar</button>

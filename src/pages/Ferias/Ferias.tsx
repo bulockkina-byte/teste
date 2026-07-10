@@ -55,7 +55,7 @@ function FeriasForm({
     observacoes: '',
   });
 
-  const input = 'w-full rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all hover:border-graphite-400 focus:border-aviation-500 focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-100';
+  const input = 'w-full rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all hover:border-graphite-400 focus:border-aviation-500 focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-100 dark:hover:border-graphite-500 dark:focus:border-aviation-400 dark:focus:bg-graphite-800 dark:focus:ring-aviation-400/10 dark:placeholder:text-graphite-500';
   const label = 'block mb-1.5 text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400';
 
   useEffect(() => {
@@ -225,15 +225,15 @@ export function Ferias() {
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite-400" />
             <input type="text" value={termo} onChange={e => setTermo(e.target.value)}
               placeholder="Pesquisar funcionário..."
-              className="w-full rounded-xl border border-graphite-300 bg-white py-2.5 pl-10 pr-4 text-sm text-graphite-900 placeholder-graphite-400 outline-none transition-all hover:border-graphite-400 focus:border-aviation-500 focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-100" />
+              className="w-full rounded-xl border border-graphite-300 bg-white py-2.5 pl-10 pr-4 text-sm text-graphite-900 placeholder-graphite-400 outline-none transition-all hover:border-graphite-400 focus:border-aviation-500 focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-100 dark:hover:border-graphite-500 dark:focus:border-aviation-400 dark:focus:bg-graphite-800 dark:focus:ring-aviation-400/10 dark:placeholder:text-graphite-500" />
           </div>
           <select value={filtroAno} onChange={e => setFiltroAno(e.target.value)}
-            className="rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-100">
+            className="rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-100 dark:hover:border-graphite-500">
             <option value="">Todos os anos</option>
             {getAnos().map(a => <option key={a} value={a}>{a}</option>)}
           </select>
           <select value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}
-            className="rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-100">
+            className="rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-100 dark:hover:border-graphite-500">
             <option value="">Todos os status</option>
             {STATUS_FERIAS.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
@@ -250,7 +250,7 @@ export function Ferias() {
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-graphite-700 dark:bg-graphite-900/30">
           <CalendarDays className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
           <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhum registro de férias</h3>
-          <p className="text-sm text-graphite-400">Clique em "Nova Férias" para cadastrar.</p>
+          <p className="text-sm text-graphite-400 dark:text-graphite-500">Clique em "Nova Férias" para cadastrar.</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -329,7 +329,7 @@ export function Ferias() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl dark:bg-graphite-800">
             <h3 className="mb-2 text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar exclusão</h3>
-            <p className="mb-6 text-sm text-graphite-500">Tem certeza que deseja excluir este registro de férias?</p>
+            <p className="mb-6 text-sm text-graphite-500 dark:text-graphite-400">Tem certeza que deseja excluir este registro de férias?</p>
             <div className="flex justify-end gap-3">
               <button onClick={() => setConfirmDelete(null)}
                 className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-200">Cancelar</button>

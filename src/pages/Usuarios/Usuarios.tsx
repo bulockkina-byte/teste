@@ -87,7 +87,7 @@ export function Usuarios() {
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-graphite-700 dark:bg-graphite-900/30">
           <Lock className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
           <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Acesso Restrito</h3>
-          <p className="text-sm text-graphite-400">Apenas administradores podem gerenciar usuários.</p>
+          <p className="text-sm text-graphite-400 dark:text-graphite-500">Apenas administradores podem gerenciar usuários.</p>
         </div>
       </PageContainer>
     );
@@ -107,7 +107,7 @@ export function Usuarios() {
             value={termo}
             onChange={e => setTermo(e.target.value)}
             placeholder="Pesquisar por usuário, nome ou função..."
-            className="w-full rounded-xl border border-graphite-300 bg-white py-2.5 pl-10 pr-4 text-sm text-graphite-900 placeholder-graphite-400 outline-none transition-all hover:border-graphite-400 focus:border-aviation-500 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-100"
+            className="w-full rounded-xl border border-graphite-300 bg-white py-2.5 pl-10 pr-4 text-sm text-graphite-900 placeholder-graphite-400 outline-none transition-all hover:border-graphite-400 focus:border-aviation-500 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-100 dark:hover:border-graphite-500 dark:focus:border-aviation-400 dark:focus:bg-graphite-800 dark:focus:ring-aviation-400/10 dark:placeholder:text-graphite-500"
           />
         </div>
         <button
@@ -122,7 +122,7 @@ export function Usuarios() {
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-graphite-700 dark:bg-graphite-900/30">
           <UserCog className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
           <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhum usuário cadastrado</h3>
-          <p className="text-sm text-graphite-400">Clique em "Novo Usuário" para criar o primeiro acesso.</p>
+          <p className="text-sm text-graphite-400 dark:text-graphite-500">Clique em "Novo Usuário" para criar o primeiro acesso.</p>
         </div>
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-graphite-200 bg-white dark:border-graphite-700 dark:bg-graphite-800">
@@ -149,7 +149,7 @@ export function Usuarios() {
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => { setEditando({ username, name: data.name, role: data.role }); setFormOpen(true); }}
-                        className="rounded-xl p-1.5 text-graphite-400 transition-all hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-700"
+                        className="rounded-xl p-1.5 text-graphite-400 transition-all hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-700 dark:hover:text-graphite-300"
                         title="Editar"
                       >
                         <Pencil className="h-4 w-4" />
@@ -184,7 +184,7 @@ export function Usuarios() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl dark:bg-graphite-800">
             <h3 className="mb-2 text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar exclusão</h3>
-            <p className="mb-6 text-sm text-graphite-500">Tem certeza que deseja excluir este usuário? Ele não poderá mais acessar o sistema.</p>
+            <p className="mb-6 text-sm text-graphite-500 dark:text-graphite-400">Tem certeza que deseja excluir este usuário? Ele não poderá mais acessar o sistema.</p>
             <div className="flex justify-end gap-3">
               <button onClick={() => setConfirmDelete(null)}
                 className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-200">Cancelar</button>

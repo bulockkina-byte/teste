@@ -147,7 +147,7 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
 
         <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-            {erro && <p className="text-sm text-alert-red">{erro}</p>}
+            {erro && <p className="text-sm text-alert-red dark:text-red-400">{erro}</p>}
 
             {/* Informações Pessoais */}
             <fieldset>

@@ -48,7 +48,7 @@ export function UsuarioForm({ user, onSave, onClose }: Props) {
     onSave({ username, name, password, role });
   }
 
-  const input = 'w-full rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all duration-200 hover:border-graphite-400 focus:border-aviation-500 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-100 dark:focus:border-aviation-400';
+  const input = 'w-full rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all duration-200 hover:border-graphite-400 focus:border-aviation-500 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-100 dark:hover:border-graphite-500 dark:focus:border-aviation-400 dark:focus:bg-graphite-800 dark:focus:ring-aviation-400/10 dark:placeholder:text-graphite-500';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -90,7 +90,7 @@ export function UsuarioForm({ user, onSave, onClose }: Props) {
             </select>
           </div>
 
-          {erro && <p className="text-sm text-alert-red">{erro}</p>}
+          {erro && <p className="text-sm text-alert-red dark:text-red-400">{erro}</p>}
 
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose}

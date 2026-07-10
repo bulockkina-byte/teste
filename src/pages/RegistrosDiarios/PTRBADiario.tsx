@@ -194,9 +194,9 @@ function PTRBAForm({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-graphite-200 dark:border-graphite-700">
-                <th className="px-3 py-2 text-left text-xs font-medium text-graphite-500">Função</th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-graphite-500">Nome Completo</th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-graphite-500">Situação</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-graphite-500 dark:text-graphite-400">Função</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-graphite-500 dark:text-graphite-400">Nome Completo</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-graphite-500 dark:text-graphite-400">Situação</th>
                 <th className="px-3 py-2 w-10" />
               </tr>
             </thead>
@@ -342,7 +342,7 @@ function PTRBCard({ ptrb, onView, onEdit, onDelete, onClone, canEdit }: {
             <p className="text-sm font-semibold text-graphite-900 dark:text-graphite-100">
               PTR-BA - {ptrb.equipe} - {formatDate(ptrb.data)}
             </p>
-            <p className="text-xs text-graphite-500">
+            <p className="text-xs text-graphite-500 dark:text-graphite-400">
               {ptrb.turno} · {ptrb.horaInicio} às {ptrb.horaTermino} ({ptrb.duracao}h)
             </p>
           </div>
@@ -390,31 +390,31 @@ function PTRBCard({ ptrb, onView, onEdit, onDelete, onClone, canEdit }: {
           {ptrb.observacoes && (
             <div>
               <p className="text-xs font-semibold text-aviation-600 dark:text-aviation-400">Observações</p>
-              <p className="text-sm">{ptrb.observacoes}</p>
+              <p className="text-sm dark:text-graphite-100">{ptrb.observacoes}</p>
             </div>
           )}
           {ptrb.instrutor && (
             <div>
               <p className="text-xs font-semibold text-aviation-600 dark:text-aviation-400">Instrutor</p>
-              <p className="text-sm">{ptrb.instrutor}</p>
+              <p className="text-sm dark:text-graphite-100">{ptrb.instrutor}</p>
             </div>
           )}
           {ptrb.assuntoMinistrado && (
             <div>
               <p className="text-xs font-semibold text-aviation-600 dark:text-aviation-400">Assunto Ministrado</p>
-              <p className="text-sm">{ptrb.assuntoMinistrado}</p>
+              <p className="text-sm dark:text-graphite-100">{ptrb.assuntoMinistrado}</p>
             </div>
           )}
           {ptrb.descricao && (
             <div>
               <p className="text-xs font-semibold text-aviation-600 dark:text-aviation-400">Descrição</p>
-              <p className="text-sm whitespace-pre-wrap">{ptrb.descricao}</p>
+              <p className="text-sm whitespace-pre-wrap dark:text-graphite-100">{ptrb.descricao}</p>
             </div>
           )}
           {ptrb.informacoesComplementares && (
             <div>
               <p className="text-xs font-semibold text-aviation-600 dark:text-aviation-400">Informações Complementares</p>
-              <p className="text-sm whitespace-pre-wrap">{ptrb.informacoesComplementares}</p>
+              <p className="text-sm whitespace-pre-wrap dark:text-graphite-100">{ptrb.informacoesComplementares}</p>
             </div>
           )}
           {ptrb.fotos.some(f => f) && (
@@ -456,19 +456,19 @@ function ViewMode({ ptrb, onBack }: { ptrb: PTRB; onBack: () => void }) {
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div>
             <p className="text-xs text-graphite-400">Data</p>
-            <p className="text-sm font-medium">{formatDate(ptrb.data)}</p>
+            <p className="text-sm font-medium dark:text-graphite-100">{formatDate(ptrb.data)}</p>
           </div>
           <div>
             <p className="text-xs text-graphite-400">Equipe</p>
-            <p className="text-sm font-medium">{ptrb.equipe}</p>
+            <p className="text-sm font-medium dark:text-graphite-100">{ptrb.equipe}</p>
           </div>
           <div>
             <p className="text-xs text-graphite-400">Horário</p>
-            <p className="text-sm font-medium">{ptrb.horaInicio} às {ptrb.horaTermino} ({ptrb.duracao}h)</p>
+            <p className="text-sm font-medium dark:text-graphite-100">{ptrb.horaInicio} às {ptrb.horaTermino} ({ptrb.duracao}h)</p>
           </div>
           <div>
             <p className="text-xs text-graphite-400">Turno</p>
-            <p className="text-sm font-medium">{ptrb.turno}</p>
+            <p className="text-sm font-medium dark:text-graphite-100">{ptrb.turno}</p>
           </div>
         </div>
 
@@ -478,17 +478,17 @@ function ViewMode({ ptrb, onBack }: { ptrb: PTRB; onBack: () => void }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-graphite-200 dark:border-graphite-700">
-                  <th className="px-3 py-1.5 text-left text-xs text-graphite-500">Função</th>
-                  <th className="px-3 py-1.5 text-left text-xs text-graphite-500">Nome</th>
-                  <th className="px-3 py-1.5 text-left text-xs text-graphite-500">Situação</th>
+                  <th className="px-3 py-1.5 text-left text-xs text-graphite-500 dark:text-graphite-400">Função</th>
+                  <th className="px-3 py-1.5 text-left text-xs text-graphite-500 dark:text-graphite-400">Nome</th>
+                  <th className="px-3 py-1.5 text-left text-xs text-graphite-500 dark:text-graphite-400">Situação</th>
                 </tr>
               </thead>
               <tbody>
                 {ptrb.participantes.map((p, i) => (
                   <tr key={i} className="border-b border-graphite-100 dark:border-graphite-800">
-                    <td className="px-3 py-1.5">{p.funcao || '-'}</td>
-                    <td className="px-3 py-1.5">{p.nomeCompleto || '-'}</td>
-                    <td className="px-3 py-1.5">{p.situacao}</td>
+                    <td className="px-3 py-1.5 dark:text-graphite-100">{p.funcao || '-'}</td>
+                    <td className="px-3 py-1.5 dark:text-graphite-100">{p.nomeCompleto || '-'}</td>
+                    <td className="px-3 py-1.5 dark:text-graphite-100">{p.situacao}</td>
                   </tr>
                 ))}
               </tbody>
@@ -499,35 +499,35 @@ function ViewMode({ ptrb, onBack }: { ptrb: PTRB; onBack: () => void }) {
         {ptrb.observacoes && (
           <div className="mb-4">
             <p className="mb-1 text-xs font-semibold text-aviation-600 dark:text-aviation-400">Observações</p>
-            <p className="text-sm whitespace-pre-wrap">{ptrb.observacoes}</p>
+            <p className="text-sm whitespace-pre-wrap dark:text-graphite-100">{ptrb.observacoes}</p>
           </div>
         )}
 
         {ptrb.instrutor && (
           <div className="mb-4">
             <p className="mb-1 text-xs font-semibold text-aviation-600 dark:text-aviation-400">Instrutor</p>
-            <p className="text-sm">{ptrb.instrutor}</p>
+            <p className="text-sm dark:text-graphite-100">{ptrb.instrutor}</p>
           </div>
         )}
 
         {ptrb.assuntoMinistrado && (
           <div className="mb-4">
             <p className="mb-1 text-xs font-semibold text-aviation-600 dark:text-aviation-400">Assunto Ministrado</p>
-            <p className="text-sm">{ptrb.assuntoMinistrado}</p>
+            <p className="text-sm dark:text-graphite-100">{ptrb.assuntoMinistrado}</p>
           </div>
         )}
 
         {ptrb.descricao && (
           <div className="mb-4">
             <p className="mb-1 text-xs font-semibold text-aviation-600 dark:text-aviation-400">Descrição</p>
-            <p className="text-sm whitespace-pre-wrap">{ptrb.descricao}</p>
+            <p className="text-sm whitespace-pre-wrap dark:text-graphite-100">{ptrb.descricao}</p>
           </div>
         )}
 
         {ptrb.informacoesComplementares && (
           <div className="mb-4">
             <p className="mb-1 text-xs font-semibold text-aviation-600 dark:text-aviation-400">Informações Complementares</p>
-            <p className="text-sm whitespace-pre-wrap">{ptrb.informacoesComplementares}</p>
+            <p className="text-sm whitespace-pre-wrap dark:text-graphite-100">{ptrb.informacoesComplementares}</p>
           </div>
         )}
 
@@ -725,7 +725,7 @@ export function PTRBADiario() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="w-full max-w-sm rounded-2xl bg-white/95 p-6 shadow-xl shadow-black/5 backdrop-blur-sm dark:bg-graphite-800/95 dark:shadow-black/20">
             <h3 className="mb-2 text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar exclusão</h3>
-            <p className="mb-6 text-sm text-graphite-500">Tem certeza que deseja excluir este PTR-BA?</p>
+            <p className="mb-6 text-sm text-graphite-500 dark:text-graphite-400">Tem certeza que deseja excluir este PTR-BA?</p>
             <div className="flex justify-end gap-3">
               <button onClick={() => setConfirmDelete(null)}
                 className="rounded-xl border border-graphite-300/60 bg-white/80 px-4 py-2 text-sm font-medium text-graphite-700 shadow-sm backdrop-blur-sm transition-all duration-200 hover:bg-graphite-50 hover:border-graphite-300 dark:border-graphite-700/40 dark:bg-graphite-800/80 dark:text-graphite-200 dark:hover:bg-graphite-700/50">

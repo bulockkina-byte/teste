@@ -161,7 +161,7 @@ function NRFormInline({
           <div className="sm:col-span-2 lg:col-span-4">
             <label className={label}>Foto do Certificado</label>
             <div className="flex items-center gap-3">
-              <label className="flex h-20 w-20 cursor-pointer items-center justify-center rounded-xl border-2 border-dashed border-graphite-300 text-graphite-400 transition-colors hover:border-aviation-400 hover:text-aviation-500">
+              <label className="flex h-20 w-20 cursor-pointer items-center justify-center rounded-xl border-2 border-dashed border-graphite-300 dark:border-graphite-600/50 dark:bg-graphite-800/30 text-graphite-400 transition-colors hover:border-aviation-400 hover:text-aviation-500">
                 {form.foto ? <img src={form.foto} className="h-full w-full rounded-xl object-cover" /> : <Plus className="h-6 w-6" />}
                 <input type="file" accept="image/*" className="hidden" onChange={handleImage} />
               </label>
@@ -356,7 +356,7 @@ export function Certificacoes() {
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-graphite-700 dark:bg-graphite-900/30">
           <Award className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
           <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhum funcionário encontrado</h3>
-          <p className="text-sm text-graphite-400">Cadastre bombeiros primeiro para gerenciar certificações.</p>
+          <p className="text-sm text-graphite-400 dark:text-graphite-400">Cadastre bombeiros primeiro para gerenciar certificações.</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -404,7 +404,7 @@ export function Certificacoes() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl dark:bg-graphite-800">
             <h3 className="mb-2 text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar exclusão</h3>
-            <p className="mb-6 text-sm text-graphite-500">Tem certeza que deseja excluir esta certificação?</p>
+            <p className="mb-6 text-sm text-graphite-500 dark:text-graphite-400">Tem certeza que deseja excluir esta certificação?</p>
             <div className="flex justify-end gap-3">
               <button onClick={() => setConfirmDelete(null)}
                 className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-200">Cancelar</button>

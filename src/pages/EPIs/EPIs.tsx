@@ -278,7 +278,7 @@ export function EPIs() {
                     <td className="px-4 py-3">
                       <div>
                         <p className="font-bold text-graphite-900 dark:text-graphite-100">{e.nome}</p>
-                        {e.descricao && <p className="text-xs text-graphite-500">{e.descricao}</p>}
+                        {e.descricao && <p className="text-xs text-graphite-500 dark:text-graphite-400">{e.descricao}</p>}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{e.responsavel}</td>
@@ -331,7 +331,7 @@ export function EPIs() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="w-full max-w-sm rounded-2xl bg-white/95 p-6 shadow-xl shadow-black/5 backdrop-blur-sm dark:bg-graphite-800/95 dark:shadow-black/20">
             <h3 className="mb-2 text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar exclusão</h3>
-            <p className="mb-6 text-sm text-graphite-500">Tem certeza que deseja excluir este EPI?</p>
+            <p className="mb-6 text-sm text-graphite-500 dark:text-graphite-400">Tem certeza que deseja excluir este EPI?</p>
             <div className="flex justify-end gap-3">
               <button onClick={() => setConfirmDelete(null)}
                 className="rounded-xl border border-graphite-300/60 bg-white/80 px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-graphite-700/40 dark:bg-graphite-800/80 dark:text-graphite-200">Cancelar</button>

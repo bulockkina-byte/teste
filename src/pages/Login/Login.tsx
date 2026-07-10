@@ -42,7 +42,7 @@ export function Login() {
               <h1 className="text-xl font-bold bg-gradient-to-r from-graphite-900 to-graphite-600 bg-clip-text text-transparent dark:from-graphite-100 dark:to-graphite-400">
                 SESCINC Manager
               </h1>
-              <p className="text-xs text-graphite-500">
+              <p className="text-xs text-graphite-500 dark:text-graphite-400">
                 Sistema de Controle Operacional
               </p>
             </div>
@@ -52,7 +52,7 @@ export function Login() {
             <h2 className="mb-1 text-2xl font-bold text-graphite-900 dark:text-graphite-100">
               Bem-vindo de volta
             </h2>
-            <p className="mb-8 text-sm text-graphite-500">
+            <p className="mb-8 text-sm text-graphite-500 dark:text-graphite-400">
               Informe suas credenciais para acessar o sistema.
             </p>
 
@@ -115,7 +115,7 @@ export function Login() {
             </form>
           </div>
 
-          <p className="mt-8 text-center text-xs text-graphite-400 animate-fadeIn">
+          <p className="mt-8 text-center text-xs text-graphite-400 dark:text-graphite-500 animate-fadeIn">
             © 2026 SESCINC. Todos os direitos reservados.
           </p>
         </div>

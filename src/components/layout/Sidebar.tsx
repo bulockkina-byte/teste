@@ -130,7 +130,7 @@ function SidebarGroup({ item, collapsed, depth = 0 }: { item: MenuItemType; coll
 export function Sidebar() {
   const { collapsed, toggleSidebar } = useSidebar();
   const { user } = useAuth();
-  const isAdmin = user?.username === 'admin';
+  const isAdmin = user?.role === 'admin';
   const visibleMenu = filterMenu(menuItems, isAdmin);
 
   return (

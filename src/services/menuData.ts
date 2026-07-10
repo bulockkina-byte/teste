@@ -281,16 +281,4 @@ export const menuItems: MenuItem[] = [
     description: 'Gerenciamento de usuários do sistema.',
     adminOnly: true,
   },
-  {
-    label: 'Meu Perfil',
-    icon: UserCircle,
-    path: '/perfil',
-    description: 'Visualização e edição do perfil do usuário.',
-  },
-  {
-    label: 'Sair',
-    icon: LogOut,
-    path: '/sair',
-    description: 'Encerrar sessão atual.',
-  },
 ];

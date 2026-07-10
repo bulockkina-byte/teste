@@ -196,7 +196,7 @@ function OcorrenciaView({ ocorrencia, onBack }: { ocorrencia: Ocorrencia; onBack
       <div className="mb-4 flex items-start justify-between">
         <div>
           <h3 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">{ocorrencia.titulo}</h3>
-          <p className="mt-1 text-sm text-graphite-500">{ocorrencia.data} {ocorrencia.hora && `às ${ocorrencia.hora}`}</p>
+          <p className="mt-1 text-sm text-graphite-500 dark:text-graphite-400">{ocorrencia.data} {ocorrencia.hora && `às ${ocorrencia.hora}`}</p>
         </div>
         <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusColor[ocorrencia.status] || ''}`}>{ocorrencia.status}</span>
       </div>
@@ -274,8 +274,8 @@ function OcorrenciaCard({
       {expanded && (
         <div className="border-t border-graphite-200/60 px-5 py-4 dark:border-graphite-700/40">
           {o.descricao && <p className="mb-2 text-sm text-graphite-700 dark:text-graphite-300 whitespace-pre-wrap">{o.descricao}</p>}
-          {o.envolvidos && <p className="mb-1 text-xs text-graphite-500"><strong>Envolvidos:</strong> {o.envolvidos}</p>}
-          {o.acoesTomadas && <p className="mb-2 text-xs text-graphite-500 whitespace-pre-wrap"><strong>Ações:</strong> {o.acoesTomadas}</p>}
+          {o.envolvidos && <p className="mb-1 text-xs text-graphite-500 dark:text-graphite-400"><strong>Envolvidos:</strong> {o.envolvidos}</p>}
+          {o.acoesTomadas && <p className="mb-2 text-xs text-graphite-500 dark:text-graphite-400 whitespace-pre-wrap"><strong>Ações:</strong> {o.acoesTomadas}</p>}
           {o.fotos.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-2">
               {o.fotos.map((f, i) => <img key={i} src={f} className="h-14 w-14 rounded-lg object-cover" />)}
@@ -437,7 +437,7 @@ export function LROOcorrencias() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="w-full max-w-sm rounded-2xl bg-white/95 p-6 shadow-xl shadow-black/5 backdrop-blur-sm dark:bg-graphite-800/95 dark:shadow-black/20">
             <h3 className="mb-2 text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar exclusão</h3>
-            <p className="mb-6 text-sm text-graphite-500">Tem certeza que deseja excluir esta ocorrência?</p>
+            <p className="mb-6 text-sm text-graphite-500 dark:text-graphite-400">Tem certeza que deseja excluir esta ocorrência?</p>
             <div className="flex justify-end gap-3">
               <button onClick={() => setConfirmDelete(null)}
                 className="rounded-xl border border-graphite-300/60 bg-white/80 px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-graphite-700/40 dark:bg-graphite-800/80 dark:text-graphite-200">Cancelar</button>

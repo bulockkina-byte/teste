@@ -104,7 +104,7 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
               </div>
               <div>
                 <p className="text-sm font-bold text-graphite-900 dark:text-graphite-100">{conversaComNome}</p>
-                <p className="text-[10px] text-graphite-400">Mensagem privada</p>
+                <p className="text-[10px] text-graphite-400 dark:text-graphite-500">Mensagem privada</p>
               </div>
             </div>
           ) : (
@@ -163,7 +163,7 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
               <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-graphite-400" />
               <input type="text" value={busca} onChange={e => setBusca(e.target.value)}
                 placeholder="Buscar pessoa..."
-                className="w-full rounded-lg border border-graphite-300 bg-white py-2 pl-8 pr-3 text-xs text-graphite-900 placeholder-graphite-400 outline-none focus:border-aviation-500 dark:border-graphite-600 dark:bg-graphite-700 dark:text-graphite-100" />
+                className="w-full rounded-lg border border-graphite-300 bg-white py-2 pl-8 pr-3 text-xs text-graphite-900 placeholder-graphite-400 outline-none focus:border-aviation-500 dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-100 dark:placeholder:text-graphite-500 dark:focus:border-aviation-400" />
             </div>
           </div>
         )}
@@ -183,19 +183,19 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-graphite-900 dark:text-graphite-100 truncate">{b.nomeCompleto}</p>
-                      <p className="text-[10px] text-graphite-400">{b.nomeGuerra} · Equipe {b.equipe}</p>
+                      <p className="text-[10px] text-graphite-400 dark:text-graphite-500">{b.nomeGuerra} · Equipe {b.equipe}</p>
                     </div>
                   </button>
                 );
               })}
               {usuariosDisponiveis.length === 0 && (
-                <p className="py-6 text-center text-xs text-graphite-400">Nenhuma pessoa encontrada.</p>
+                <p className="py-6 text-center text-xs text-graphite-400 dark:text-graphite-500">Nenhuma pessoa encontrada.</p>
               )}
             </div>
           ) : (
             <div className="space-y-2">
               {mensagensAtuais.length === 0 && (
-                <p className="py-8 text-center text-xs text-graphite-400">
+                <p className="py-8 text-center text-xs text-graphite-400 dark:text-graphite-500">
                   {tab === 'geral' ? 'Nenhuma mensagem ainda. Comece a conversa!' : 'Nenhuma mensagem. Envie a primeira!'}
                 </p>
               )}
@@ -205,7 +205,7 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
                 return (
                   <div key={m.id}>
                     {showDay && (
-                      <p className="mb-1 text-center text-[10px] font-medium text-graphite-400">{formatDay(m.createdAt)}</p>
+                      <p className="mb-1 text-center text-[10px] font-medium text-graphite-400 dark:text-graphite-500">{formatDay(m.createdAt)}</p>
                     )}
                     <div className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                       <div className={`max-w-[75%] rounded-2xl px-3.5 py-2 ${
@@ -217,7 +217,7 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
                           <p className="mb-0.5 text-[10px] font-bold text-aviation-700 dark:text-aviation-300">{m.deNome}</p>
                         )}
                         <p className="text-sm leading-snug">{m.texto}</p>
-                        <p className={`mt-0.5 text-right text-[9px] ${isMe ? 'text-white/60' : 'text-graphite-400'}`}>
+                        <p className={`mt-0.5 text-right text-[9px] ${isMe ? 'text-white/60' : 'text-graphite-400 dark:text-graphite-500'}`}>
                           {formatTime(m.createdAt)}
                         </p>
                       </div>
@@ -239,7 +239,7 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
                 onKeyDown={handleKeyDown}
                 placeholder={tab === 'geral' ? 'Mensagem para todos...' : `Mensagem para ${conversaComNome}...`}
                 rows={1}
-                className="min-h-[38px] max-h-24 flex-1 resize-none rounded-xl border border-graphite-300 bg-white px-3 py-2 text-sm text-graphite-900 placeholder-graphite-400 outline-none focus:border-aviation-500 dark:border-graphite-600 dark:bg-graphite-700 dark:text-graphite-100"
+                className="min-h-[38px] max-h-24 flex-1 resize-none rounded-xl border border-graphite-300 bg-white px-3 py-2 text-sm text-graphite-900 placeholder-graphite-400 outline-none focus:border-aviation-500 dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-100 dark:placeholder:text-graphite-500 dark:focus:border-aviation-400"
               />
               <button onClick={handleSend} disabled={!msg.trim()}
                 className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-xl bg-aviation-600 text-white shadow-md transition-all hover:bg-aviation-700 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95">
