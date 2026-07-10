@@ -25,7 +25,7 @@ export function Tooltip({ text, children, position = 'right' }: TooltipProps) {
       {children}
       {visible && (
         <div
-          className={`absolute z-50 whitespace-nowrap rounded-md bg-graphite-800 px-2.5 py-1.5 text-xs font-medium text-white shadow-lg dark:bg-graphite-200 dark:text-graphite-900 ${positionClasses[position]}`}
+          className={`absolute z-50 whitespace-nowrap rounded-xl bg-graphite-800/95 px-3 py-1.5 text-xs font-medium text-white shadow-lg backdrop-blur-sm animate-fadeIn dark:bg-graphite-200/95 dark:text-graphite-900 ${positionClasses[position]}`}
         >
           {text}
         </div>

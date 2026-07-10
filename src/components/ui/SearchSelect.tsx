@@ -72,7 +72,7 @@ export function SearchSelect({ value, onChange, placeholder, className = '', car
     <div ref={triggerRef} className={`relative ${className}`}>
       <div
         onClick={() => { if (open) setOpen(false); else handleOpen(); }}
-        className="flex cursor-pointer items-center rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900"
+        className="flex cursor-pointer items-center rounded-xl border border-graphite-300/70 bg-white/50 px-3 py-2 text-sm transition-all duration-200 hover:border-graphite-300 dark:border-graphite-700/50 dark:bg-graphite-800/30 dark:hover:border-graphite-600"
       >
         <Search className="mr-2 h-4 w-4 text-graphite-400 shrink-0" />
         <span className={value ? 'text-graphite-900 dark:text-graphite-100 truncate' : 'text-graphite-400 truncate'}>
@@ -81,28 +81,28 @@ export function SearchSelect({ value, onChange, placeholder, className = '', car
       </div>
 
       {open && createPortal(
-        <div id="searchselect-menu" style={menuStyle} className="rounded-lg border border-graphite-200 bg-white shadow-lg dark:border-graphite-700 dark:bg-graphite-800">
+        <div id="searchselect-menu" style={menuStyle} className="animate-fadeIn rounded-2xl border border-graphite-200/60 bg-white shadow-xl shadow-black/5 dark:border-graphite-700/40 dark:bg-graphite-800/95">
           <div className="p-2">
             <input
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Digite para pesquisar..."
-              className="w-full rounded-md border border-graphite-200 bg-graphite-50 px-3 py-1.5 text-sm outline-none focus:border-aviation-500 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100"
+              className="w-full rounded-xl border border-graphite-200 bg-graphite-50/80 px-3 py-2 text-sm outline-none transition-all duration-200 placeholder:text-graphite-400 focus:border-aviation-500 focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700 dark:bg-graphite-900/50 dark:text-graphite-100 dark:placeholder:text-graphite-500"
               autoFocus
             />
           </div>
-          <div className="max-h-48 overflow-y-auto">
+          <div className="max-h-48 overflow-y-auto p-1">
             {filtered.length === 0 ? (
-              <p className="px-3 py-2 text-sm text-graphite-400">Nenhum resultado</p>
+              <p className="px-3 py-3 text-sm text-graphite-400">Nenhum resultado encontrado</p>
             ) : (
               filtered.map(b => (
                 <button
                   key={b.id}
                   type="button"
                   onClick={() => { onChange(b[valueField]); setOpen(false); setSearch(''); }}
-                  className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-aviation-50 dark:hover:bg-aviation-900/20 ${
-                    b[valueField] === value ? 'bg-aviation-50 text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-300' : 'text-graphite-700 dark:text-graphite-300'
+                  className={`flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm transition-all duration-200 hover:bg-aviation-50 dark:hover:bg-aviation-900/20 ${
+                    b[valueField] === value ? 'bg-aviation-50 text-aviation-700 shadow-sm dark:bg-aviation-900/30 dark:text-aviation-300' : 'text-graphite-700 dark:text-graphite-300'
                   }`}
                 >
                   <span className="flex-1 truncate">

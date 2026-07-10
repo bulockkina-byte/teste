@@ -13,15 +13,15 @@ export function Button({
   className = '',
   ...props
 }: ButtonProps) {
-  const base = 'inline-flex items-center justify-center rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-aviation-500/50 disabled:opacity-50 disabled:cursor-not-allowed';
+  const base = 'inline-flex items-center justify-center rounded-xl font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-aviation-500/50 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]';
 
   const variants = {
     primary:
-      'bg-aviation-600 text-white hover:bg-aviation-700 active:bg-aviation-800 dark:bg-aviation-500 dark:hover:bg-aviation-600',
+      'bg-gradient-to-r from-aviation-600 to-aviation-700 text-white shadow-lg shadow-aviation-500/20 hover:shadow-xl hover:shadow-aviation-500/30 hover:from-aviation-500 hover:to-aviation-600 dark:from-aviation-500 dark:to-aviation-600',
     secondary:
-      'bg-graphite-100 text-graphite-800 hover:bg-graphite-200 dark:bg-graphite-800 dark:text-graphite-100 dark:hover:bg-graphite-700',
+      'bg-white/80 text-graphite-700 border border-graphite-200/60 hover:bg-graphite-50 hover:border-graphite-300 dark:bg-graphite-800/80 dark:text-graphite-200 dark:border-graphite-700/50 dark:hover:bg-graphite-700/50 dark:hover:border-graphite-600',
     ghost:
-      'text-graphite-600 hover:bg-graphite-100 dark:text-graphite-400 dark:hover:bg-graphite-800',
+      'text-graphite-600 hover:bg-graphite-100 dark:text-graphite-400 dark:hover:bg-graphite-800/80',
   };
 
   const sizes = {

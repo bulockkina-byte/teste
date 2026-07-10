@@ -23,7 +23,7 @@ function formatDate(d: string) {
 function InfoRow({ icon: Icon, label, value }: { icon: any; label: string; value: string }) {
   return (
     <div className="flex items-start gap-3">
-      <div className="mt-0.5 rounded-lg bg-aviation-50 p-1.5 dark:bg-aviation-900/30">
+      <div className="mt-0.5 rounded-2xl bg-gradient-to-br from-aviation-50 to-aviation-100 p-1.5 shadow-sm dark:from-aviation-900/30 dark:to-aviation-800/20">
         <Icon className="h-4 w-4 text-aviation-600 dark:text-aviation-400" />
       </div>
       <div>
@@ -37,7 +37,7 @@ function InfoRow({ icon: Icon, label, value }: { icon: any; label: string; value
 function DetailModal({ bombeiro, onClose }: { bombeiro: Bombeiro; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 pt-10 pb-10" onClick={onClose}>
-      <div className="relative w-full max-w-2xl rounded-xl bg-white shadow-2xl dark:bg-graphite-800" onClick={e => e.stopPropagation()}>
+      <div className="relative w-full max-w-2xl rounded-2xl bg-white/95 shadow-2xl shadow-black/5 backdrop-blur-sm dark:bg-graphite-800/95 dark:shadow-black/20" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-graphite-200 px-6 py-4 dark:border-graphite-700">
           <div className="flex items-center gap-3">
             {bombeiro.foto ? (
@@ -52,7 +52,7 @@ function DetailModal({ bombeiro, onClose }: { bombeiro: Bombeiro; onClose: () =>
               <p className="text-sm text-graphite-500">{capitalize(bombeiro.nomeGuerra)} · {bombeiro.matricula}</p>
             </div>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-graphite-500 hover:bg-graphite-100 dark:hover:bg-graphite-700">
+          <button onClick={onClose} className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-800 dark:hover:text-graphite-300">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -127,23 +127,23 @@ export function Funcionarios() {
             value={termo}
             onChange={e => setTermo(e.target.value)}
             placeholder="Pesquisar por matrícula, nome, CPF ou equipe..."
-            className="w-full rounded-lg border border-graphite-200 bg-white py-2.5 pl-10 pr-4 text-sm text-graphite-900 placeholder-graphite-400 outline-none transition-all focus:border-aviation-500 focus:ring-1 focus:ring-aviation-500 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-100"
+            className="w-full rounded-xl border border-graphite-300/60 bg-white/70 py-2.5 pl-10 pr-4 text-sm text-graphite-900 placeholder-graphite-400 outline-none transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900"
           />
         </div>
       </div>
 
       {funcionarios.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-graphite-700 dark:bg-graphite-900">
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300/60 bg-white/50 p-12 text-center backdrop-blur-sm dark:border-graphite-700/40 dark:bg-graphite-900/30">
           <Users className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
           <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">
             Nenhum funcionário encontrado
           </h3>
-          <p className="text-sm text-graphite-500">
+          <p className="text-sm text-graphite-400">
             Os funcionários cadastrados no módulo de Bombeiros aparecerão aqui.
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-graphite-200 bg-white dark:border-graphite-700 dark:bg-graphite-900">
+        <div className="overflow-x-auto rounded-2xl border border-graphite-200/60 bg-white/80 backdrop-blur-sm dark:border-graphite-700/40 dark:bg-graphite-900/80">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-graphite-200 bg-graphite-50 text-left dark:border-graphite-700 dark:bg-graphite-800">

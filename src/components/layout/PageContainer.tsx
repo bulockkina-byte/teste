@@ -6,7 +6,7 @@ interface PageContainerProps {
 
 export function PageContainer({ children }: PageContainerProps) {
   return (
-    <div className="animate-fadeIn p-6">
+    <div className="animate-fadeIn space-y-6 p-6 pt-5">
       {children}
     </div>
   );

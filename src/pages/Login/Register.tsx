@@ -45,7 +45,7 @@ export function Register() {
       <div className="flex w-full flex-col justify-center px-6 lg:w-1/2 lg:px-16">
         <div className="mx-auto w-full max-w-sm">
           <div className="mb-8 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-aviation-600">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-aviation-500 to-aviation-700 shadow-sm shadow-aviation-500/20">
               <Plane className="h-6 w-6 text-white" />
             </div>
             <div>
@@ -77,7 +77,7 @@ export function Register() {
                   value={name}
                   onChange={e => setName(e.target.value)}
                   placeholder="Seu nome"
-                  className="w-full rounded-lg border border-graphite-300 bg-white py-2.5 pl-10 pr-4 text-sm text-graphite-900 outline-none transition-all focus:border-aviation-500 focus:ring-2 focus:ring-aviation-500/20 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-100"
+                  className="w-full rounded-xl border border-graphite-300/60 bg-white/70 py-2.5 pl-10 pr-4 text-sm text-graphite-900 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900"
                 />
               </div>
             </div>
@@ -93,7 +93,7 @@ export function Register() {
                   value={username}
                   onChange={e => setUsername(e.target.value)}
                   placeholder="seu.usuario"
-                  className="w-full rounded-lg border border-graphite-300 bg-white py-2.5 pl-10 pr-4 text-sm text-graphite-900 outline-none transition-all focus:border-aviation-500 focus:ring-2 focus:ring-aviation-500/20 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-100"
+                  className="w-full rounded-xl border border-graphite-300/60 bg-white/70 py-2.5 pl-10 pr-4 text-sm text-graphite-900 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900"
                 />
               </div>
             </div>
@@ -109,7 +109,7 @@ export function Register() {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="Mínimo 6 caracteres"
-                  className="w-full rounded-lg border border-graphite-300 bg-white py-2.5 pl-10 pr-10 text-sm text-graphite-900 outline-none transition-all focus:border-aviation-500 focus:ring-2 focus:ring-aviation-500/20 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-100"
+                  className="w-full rounded-xl border border-graphite-300/60 bg-white/70 py-2.5 pl-10 pr-11 text-sm text-graphite-900 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900"
                 />
                 <button
                   type="button"
@@ -132,7 +132,7 @@ export function Register() {
                   value={confirmPassword}
                   onChange={e => setConfirmPassword(e.target.value)}
                   placeholder="Repita a senha"
-                  className="w-full rounded-lg border border-graphite-300 bg-white py-2.5 pl-10 pr-4 text-sm text-graphite-900 outline-none transition-all focus:border-aviation-500 focus:ring-2 focus:ring-aviation-500/20 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-100"
+                  className="w-full rounded-xl border border-graphite-300/60 bg-white/70 py-2.5 pl-10 pr-4 text-sm text-graphite-900 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900"
                 />
               </div>
             </div>
@@ -144,7 +144,7 @@ export function Register() {
             <button
               type="submit"
               disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-aviation-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-aviation-700 disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 hover:from-aviation-500 hover:to-aviation-600 disabled:opacity-60 active:scale-[0.98]"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               {loading ? 'Cadastrando...' : 'Cadastrar'}

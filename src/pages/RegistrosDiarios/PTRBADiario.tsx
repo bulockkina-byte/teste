@@ -152,27 +152,27 @@ function PTRBAForm({
         <div>
           <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Data</label>
           <input type="date" value={form.data} onChange={e => setForm(f => ({ ...f, data: e.target.value }))}
-            className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+            className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Hora Início</label>
           <input type="time" value={form.horaInicio} onChange={e => updateHoraInicio(e.target.value)}
-            className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+            className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Hora Término</label>
           <input type="time" value={form.horaTermino} onChange={e => updateHoraTermino(e.target.value)}
-            className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+            className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Duração</label>
           <input value={form.duracao} disabled
-            className="w-full rounded-lg border border-graphite-200 bg-graphite-50 px-3 py-2 text-sm text-graphite-500 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-400" />
+            className="w-full rounded-xl border border-graphite-200/60 bg-graphite-100/50 px-3 py-2.5 text-sm text-graphite-400 dark:border-graphite-700/40 dark:bg-graphite-800/50 dark:text-graphite-500" />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Equipe</label>
           <select value={form.equipe} onChange={e => updateEquipe(e.target.value)}
-            className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+            className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900">
             {EQUIPES.map(eq => <option key={eq} value={eq}>{eq}</option>)}
           </select>
         </div>
@@ -181,7 +181,7 @@ function PTRBAForm({
       <div className="w-48">
         <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Turno</label>
         <input value={form.turno} disabled
-          className="w-full rounded-lg border border-graphite-200 bg-graphite-50 px-3 py-2 text-sm text-graphite-500 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-400" />
+          className="w-full rounded-xl border border-graphite-200/60 bg-graphite-100/50 px-3 py-2.5 text-sm text-graphite-400 dark:border-graphite-700/40 dark:bg-graphite-800/50 dark:text-graphite-500" />
       </div>
 
       {/* Participantes */}
@@ -204,7 +204,7 @@ function PTRBAForm({
                 <tr key={i} className="border-b border-graphite-100 dark:border-graphite-800">
                   <td className="px-3 py-2">
                     <select value={p.funcao} onChange={e => updateParticipante(i, 'funcao', e.target.value)}
-                      className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+                      className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900">
                       <option value="">Selecione</option>
                       {FUNCAO_OPTIONS.map(f => <option key={f} value={f}>{f}</option>)}
                     </select>
@@ -220,13 +220,13 @@ function PTRBAForm({
                   </td>
                   <td className="px-3 py-2">
                     <select value={p.situacao} onChange={e => updateParticipante(i, 'situacao', e.target.value)}
-                      className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+                      className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900">
                       {SITUACOES.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </td>
                   <td className="px-3 py-2">
                     <button type="button" onClick={() => removeParticipante(i)}
-                      className="rounded-lg p-1.5 text-alert-red hover:bg-red-50 dark:hover:bg-red-900/20">
+                      className="rounded-xl p-1.5 text-alert-red transition-all duration-200 hover:bg-red-50 dark:hover:bg-red-900/20">
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </td>
@@ -245,21 +245,21 @@ function PTRBAForm({
       <div>
         <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Observações</label>
         <textarea value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} rows={3}
-          className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+          className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
       </div>
 
       {/* Instrutor */}
       <div className="w-80">
         <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Instrutor</label>
         <input value={form.instrutor} readOnly
-          className="w-full rounded-lg border border-graphite-200 bg-graphite-50 px-3 py-2 text-sm text-graphite-500 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-400" />
+          className="w-full rounded-xl border border-graphite-200/60 bg-graphite-100/50 px-3 py-2.5 text-sm text-graphite-400 dark:border-graphite-700/40 dark:bg-graphite-800/50 dark:text-graphite-500" />
       </div>
 
       {/* Assunto Ministrado */}
       <div>
         <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Assunto Ministrado</label>
         <select value={form.assuntoMinistrado} onChange={e => setForm(f => ({ ...f, assuntoMinistrado: e.target.value }))}
-          className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+          className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900">
           <option value="">Selecione</option>
           {ASSUNTOS.map(a => <option key={a} value={a}>{a}</option>)}
         </select>
@@ -269,14 +269,14 @@ function PTRBAForm({
       <div>
         <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Descrição</label>
         <textarea value={form.descricao} onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))} rows={6}
-          className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+          className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
       </div>
 
       {/* Informações Complementares */}
       <div>
         <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Informações Complementares</label>
         <textarea value={form.informacoesComplementares} onChange={e => setForm(f => ({ ...f, informacoesComplementares: e.target.value }))} rows={6}
-          className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+          className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
       </div>
 
       {/* Fotos */}
@@ -287,7 +287,7 @@ function PTRBAForm({
         <div className="grid grid-cols-3 gap-4">
           {[0, 1, 2].map(idx => (
             <div key={idx}
-              className="flex aspect-video cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-graphite-300 bg-graphite-50 transition-colors hover:border-aviation-400 dark:border-graphite-600 dark:bg-graphite-800/50"
+              className="flex aspect-video cursor-pointer items-center justify-center rounded-2xl border-2 border-dashed border-graphite-300/60 bg-graphite-100/30 backdrop-blur-sm transition-all duration-200 hover:border-aviation-400/50 dark:border-graphite-600/40 dark:bg-graphite-800/30"
               onClick={() => document.getElementById(`foto-${idx}`)?.click()}>
               {form.fotos[idx] ? (
                 <img src={form.fotos[idx]} alt={`Foto ${idx + 1}`} className="h-full w-full rounded-lg object-cover" />
@@ -306,11 +306,11 @@ function PTRBAForm({
       {/* Actions */}
       <div className="flex items-center justify-end gap-3 border-t border-graphite-200 pt-6 dark:border-graphite-700">
         <button type="button" onClick={onCancel}
-          className="rounded-lg border border-graphite-300 bg-white px-4 py-2 text-sm font-medium text-graphite-700 transition-colors hover:bg-graphite-50 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-200">
+          className="rounded-xl border border-graphite-300/60 bg-white/80 px-4 py-2 text-sm font-medium text-graphite-700 shadow-sm backdrop-blur-sm transition-all duration-200 hover:bg-graphite-50 hover:border-graphite-300 dark:border-graphite-700/40 dark:bg-graphite-800/80 dark:text-graphite-200 dark:hover:bg-graphite-700/50">
           Cancelar
         </button>
         <button type="submit"
-          className="flex items-center gap-2 rounded-lg bg-aviation-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-aviation-700">
+          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
           <Save className="h-4 w-4" />
           {ptrb ? 'Salvar Alterações' : 'Criar PTR-BA'}
         </button>
@@ -334,7 +334,7 @@ function PTRBCard({ ptrb, onView, onEdit, onDelete, onClone, isAdmin }: {
     <div className="rounded-xl border border-graphite-200 bg-white p-4 shadow-sm dark:border-graphite-700 dark:bg-graphite-900">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-aviation-50 dark:bg-aviation-900/30">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-aviation-50 to-aviation-100 dark:from-aviation-900/30 dark:to-aviation-800/20">
             <FileText className="h-5 w-5 text-aviation-600 dark:text-aviation-400" />
           </div>
           <div>
@@ -348,25 +348,25 @@ function PTRBCard({ ptrb, onView, onEdit, onDelete, onClone, isAdmin }: {
         </div>
         <div className="flex items-center gap-1">
           <button onClick={onView} title="Visualizar"
-            className="rounded-lg p-1.5 text-graphite-500 hover:bg-graphite-100 dark:hover:bg-graphite-700">
+            className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-800 dark:hover:text-graphite-300">
             <Eye className="h-4 w-4" />
           </button>
           <button onClick={onEdit} title="Editar"
-            className="rounded-lg p-1.5 text-graphite-500 hover:bg-graphite-100 dark:hover:bg-graphite-700">
+            className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-800 dark:hover:text-graphite-300">
             <Pencil className="h-4 w-4" />
           </button>
           <button onClick={onClone} title="Clonar"
-            className="rounded-lg p-1.5 text-graphite-500 hover:bg-graphite-100 dark:hover:bg-graphite-700">
+            className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-800 dark:hover:text-graphite-300">
             <Copy className="h-4 w-4" />
           </button>
           {isAdmin && (
             <button onClick={onDelete} title="Excluir"
-              className="rounded-lg p-1.5 text-alert-red hover:bg-red-50 dark:hover:bg-red-900/20">
+              className="rounded-xl p-1.5 text-alert-red transition-all duration-200 hover:bg-red-50 dark:hover:bg-red-900/20">
               <Trash2 className="h-4 w-4" />
             </button>
           )}
           <button onClick={() => setExpanded(!expanded)}
-            className="rounded-lg p-1.5 text-graphite-500 hover:bg-graphite-100 dark:hover:bg-graphite-700">
+            className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-800 dark:hover:text-graphite-300">
             {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </button>
         </div>
@@ -440,11 +440,11 @@ function ViewMode({ ptrb, onBack }: { ptrb: PTRB; onBack: () => void }) {
         </h3>
         <div className="flex items-center gap-2">
           <button onClick={() => window.print()}
-            className="flex items-center gap-1 rounded-lg bg-aviation-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-aviation-700">
+            className="flex items-center gap-1 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-3 py-1.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
             <Printer className="h-4 w-4" /> Imprimir
           </button>
           <button onClick={onBack}
-            className="rounded-lg border border-graphite-300 bg-white px-3 py-1.5 text-sm text-graphite-700 hover:bg-graphite-50 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-200">
+            className="rounded-xl border border-graphite-300/60 bg-white/80 px-3 py-1.5 text-sm font-medium text-graphite-700 shadow-sm backdrop-blur-sm transition-all duration-200 hover:bg-graphite-50 hover:border-graphite-300 dark:border-graphite-700/40 dark:bg-graphite-800/80 dark:text-graphite-200 dark:hover:bg-graphite-700/50">
             Fechar
           </button>
         </div>
@@ -632,7 +632,7 @@ export function PTRBADiario() {
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <select value={filtroEquipe} onChange={e => setFiltroEquipe(e.target.value)}
-            className="rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+            className="rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900">
             <option value="">Todas as equipes</option>
             {EQUIPES.map(eq => <option key={eq} value={eq}>{eq}</option>)}
           </select>
@@ -641,7 +641,7 @@ export function PTRBADiario() {
           </p>
         </div>
         <button onClick={() => { setEditando(null); setMode('form'); }}
-          className="flex items-center gap-2 rounded-lg bg-aviation-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-aviation-700">
+          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
           <Plus className="h-4 w-4" /> Novo PTR-BA
         </button>
       </div>
@@ -675,11 +675,11 @@ export function PTRBADiario() {
             <p className="mb-6 text-sm text-graphite-500">Tem certeza que deseja excluir este PTR-BA?</p>
             <div className="flex justify-end gap-3">
               <button onClick={() => setConfirmDelete(null)}
-                className="rounded-lg border border-graphite-300 bg-white px-4 py-2 text-sm font-medium text-graphite-700 hover:bg-graphite-50 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-200">
+                className="rounded-xl border border-graphite-300/60 bg-white/80 px-4 py-2 text-sm font-medium text-graphite-700 shadow-sm backdrop-blur-sm transition-all duration-200 hover:bg-graphite-50 hover:border-graphite-300 dark:border-graphite-700/40 dark:bg-graphite-800/80 dark:text-graphite-200 dark:hover:bg-graphite-700/50">
                 Cancelar
               </button>
               <button onClick={() => handleDelete(confirmDelete)}
-                className="rounded-lg bg-alert-red px-4 py-2 text-sm font-medium text-white hover:bg-red-700">
+                className="rounded-xl bg-gradient-to-r from-alert-red to-red-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-red-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-red-500/30 active:scale-[0.98]">
                 Excluir
               </button>
             </div>

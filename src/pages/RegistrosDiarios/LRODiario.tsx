@@ -118,24 +118,24 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
         <div>
           <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Equipe de Serviço</label>
           <select value={form.equipe} onChange={e => handleEquipe(e.target.value)}
-            className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+            className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900">
             {EQUIPES.map(eq => <option key={eq} value={eq}>{eq}</option>)}
           </select>
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Turno</label>
           <input value={form.turno} disabled
-            className="w-full rounded-lg border border-graphite-200 bg-graphite-50 px-3 py-2 text-sm text-graphite-500 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-400" />
+            className="w-full rounded-xl border border-graphite-200/60 bg-graphite-100/50 px-3 py-2.5 text-sm text-graphite-400 dark:border-graphite-700/40 dark:bg-graphite-800/50 dark:text-graphite-500" />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Data de Entrada</label>
           <input type="date" value={form.dataEntrada} onChange={e => handleDataEntrada(e.target.value)}
-            className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+            className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Data de Saída</label>
           <input type="date" value={form.dataSaida} onChange={e => upd('dataSaida', e.target.value)}
-            className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+            className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
         </div>
       </div>
 
@@ -172,7 +172,7 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
                     <tr key={i} className="border-b border-graphite-100 dark:border-graphite-800">
                       <td className="px-3 py-2 min-w-40">
                         <select value={s.funcao} onChange={e => { const next = [...form.cci02Slots]; next[i] = { ...next[i], funcao: e.target.value }; upd('cci02Slots', next); }}
-                          className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+                          className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900">
                           <option value="">Selecione</option>
                           {FUNCOES_CARGO.map(f => <option key={f} value={f}>{f}</option>)}
                         </select>
@@ -182,7 +182,7 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
                       </td>
                       <td className="px-3 py-2">
                         <button type="button" onClick={() => upd('cci02Slots', form.cci02Slots.filter((_, j) => j !== i))}
-                          className="rounded-lg p-1.5 text-alert-red hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="h-4 w-4" /></button>
+                          className="rounded-xl p-1.5 text-alert-red transition-all duration-200 hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="h-4 w-4" /></button>
                       </td>
                     </tr>
                   ))}
@@ -211,7 +211,7 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
                     <tr key={i} className="border-b border-graphite-100 dark:border-graphite-800">
                       <td className="px-3 py-2 min-w-40">
                         <select value={s.funcao} onChange={e => { const next = [...form.cci03Slots]; next[i] = { ...next[i], funcao: e.target.value }; upd('cci03Slots', next); }}
-                          className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+                          className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900">
                           <option value="">Selecione</option>
                           {FUNCOES_CARGO.map(f => <option key={f} value={f}>{f}</option>)}
                         </select>
@@ -221,7 +221,7 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
                       </td>
                       <td className="px-3 py-2">
                         <button type="button" onClick={() => upd('cci03Slots', form.cci03Slots.filter((_, j) => j !== i))}
-                          className="rounded-lg p-1.5 text-alert-red hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="h-4 w-4" /></button>
+                          className="rounded-xl p-1.5 text-alert-red transition-all duration-200 hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="h-4 w-4" /></button>
                       </td>
                     </tr>
                   ))}
@@ -257,7 +257,7 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
                     <tr key={i} className="border-b border-graphite-100 dark:border-graphite-800">
                       <td className="px-3 py-2 min-w-40">
                         <select value={s.funcao} onChange={e => { const next = [...form.crsSlots]; next[i] = { ...next[i], funcao: e.target.value }; upd('crsSlots', next); }}
-                          className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+                          className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900">
                           <option value="">Selecione</option>
                           {FUNCOES_CARGO.map(f => <option key={f} value={f}>{f}</option>)}
                         </select>
@@ -267,7 +267,7 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
                       </td>
                       <td className="px-3 py-2">
                         <button type="button" onClick={() => upd('crsSlots', form.crsSlots.filter((_, j) => j !== i))}
-                          className="rounded-lg p-1.5 text-alert-red hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="h-4 w-4" /></button>
+                          className="rounded-xl p-1.5 text-alert-red transition-all duration-200 hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="h-4 w-4" /></button>
                       </td>
                     </tr>
                   ))}
@@ -296,7 +296,7 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
                     <tr key={i} className="border-b border-graphite-100 dark:border-graphite-800">
                       <td className="px-3 py-2 min-w-40">
                         <select value={s.funcao} onChange={e => { const next = [...form.apoioOutrosSlots]; next[i] = { ...next[i], funcao: e.target.value }; upd('apoioOutrosSlots', next); }}
-                          className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+                          className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900">
                           <option value="">Selecione</option>
                           {[...FUNCOES_CARGO, 'Extras', 'Férias', 'Outros'].map(f => <option key={f} value={f}>{f}</option>)}
                         </select>
@@ -306,7 +306,7 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
                       </td>
                       <td className="px-3 py-2">
                         <button type="button" onClick={() => upd('apoioOutrosSlots', form.apoioOutrosSlots.filter((_, j) => j !== i))}
-                          className="rounded-lg p-1.5 text-alert-red hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="h-4 w-4" /></button>
+                          className="rounded-xl p-1.5 text-alert-red transition-all duration-200 hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="h-4 w-4" /></button>
                       </td>
                     </tr>
                   ))}
@@ -327,7 +327,7 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
         <div className="mb-3 flex items-center gap-2">
           <span className="text-sm text-graphite-700 dark:text-graphite-300">Possui substituições?</span>
           <select value={form.substituicoesAtivo ? 'sim' : 'nao'} onChange={e => upd('substituicoesAtivo', e.target.value === 'sim')}
-            className="rounded-lg border border-graphite-300 bg-white px-3 py-1.5 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+            className="rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-1.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900">
             <option value="nao">Não</option>
             <option value="sim">Sim</option>
           </select>
@@ -335,13 +335,13 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
         {form.substituicoesAtivo && (
           <div className="space-y-2">
             {form.substituicoes.map((s, i) => (
-              <div key={i} className="flex flex-wrap items-end gap-2 rounded-lg border border-graphite-200 bg-graphite-50/50 p-3 dark:border-graphite-700 dark:bg-graphite-800/50">
+              <div key={i} className="flex flex-wrap items-end gap-2 rounded-xl border border-graphite-200/50 bg-white/50 p-3 backdrop-blur-sm dark:border-graphite-700/30 dark:bg-graphite-800/30">
                 <div className="flex-1 min-w-32">
                   <label className="mb-1 block text-xs text-graphite-500">Função</label>
                   <input value={s.funcao} onChange={e => {
                     const next = [...form.substituicoes]; next[i] = { ...next[i], funcao: e.target.value };
                     upd('substituicoes', next);
-                  }} placeholder="Função" className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+                  }} placeholder="Função" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
                 </div>
                 <div className="flex-1 min-w-32">
                   <label className="mb-1 block text-xs text-graphite-500">Nome</label>
@@ -355,7 +355,7 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
                   <input value={s.funcaoSubstituto} onChange={e => {
                     const next = [...form.substituicoes]; next[i] = { ...next[i], funcaoSubstituto: e.target.value };
                     upd('substituicoes', next);
-                  }} placeholder="Função substituto" className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+                  }} placeholder="Função substituto" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
                 </div>
                 <div className="flex-1 min-w-32">
                   <label className="mb-1 block text-xs text-graphite-500">Nome Substituto</label>
@@ -365,7 +365,7 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
                   }} placeholder="Nome substituto" />
                 </div>
                 <button type="button" onClick={() => upd('substituicoes', form.substituicoes.filter((_, j) => j !== i))}
-                  className="rounded-lg p-1.5 text-alert-red hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="h-4 w-4" /></button>
+                  className="rounded-xl p-1.5 text-alert-red transition-all duration-200 hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="h-4 w-4" /></button>
               </div>
             ))}
             <button type="button" onClick={() => upd('substituicoes', [...form.substituicoes, { funcao: '', nome: '', funcaoSubstituto: '', nomeSubstituto: '' }])}
@@ -381,7 +381,7 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
         <legend className="mb-3 text-sm font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400">Instruções</legend>
         <textarea value={form.instrucoes} onChange={e => upd('instrucoes', e.target.value)} rows={3}
           placeholder="Instruções do dia (preenchidas automaticamente com PTR-BA)..."
-          className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+          className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
       </fieldset>
 
       {/* 4 colunas de viaturas */}
@@ -390,14 +390,14 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
         <fieldset>
           <legend className="mb-3 text-sm font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400">FAISCA 2</legend>
           <div className="space-y-2 text-sm">
-            <div><input value={form.faisca2.cci319} onChange={e => upd('faisca2', { ...form.faisca2, cci319: e.target.value })} placeholder="CCI 319" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
-            <div><input value={form.faisca2.cci320} onChange={e => upd('faisca2', { ...form.faisca2, cci320: e.target.value })} placeholder="CCI 320" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
-            <div><input value={form.faisca2.cci333} onChange={e => upd('faisca2', { ...form.faisca2, cci333: e.target.value })} placeholder="CCI 333" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
-            <div><input value={form.faisca2.kmInicial} onChange={e => upd('faisca2', { ...form.faisca2, kmInicial: e.target.value })} placeholder="Km Inicial" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
-            <div><input value={form.faisca2.kmFinal} onChange={e => upd('faisca2', { ...form.faisca2, kmFinal: e.target.value })} placeholder="Km Final" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
-            <div><input value={form.faisca2.combustivelInicial} onChange={e => upd('faisca2', { ...form.faisca2, combustivelInicial: e.target.value })} placeholder="Combustível Inicial" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
-            <div><input value={form.faisca2.combustivelFinal} onChange={e => upd('faisca2', { ...form.faisca2, combustivelFinal: e.target.value })} placeholder="Combustível Final" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
-            <div><input value={form.faisca2.nitrogenio} onChange={e => upd('faisca2', { ...form.faisca2, nitrogenio: e.target.value })} placeholder="Nitrogênio" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div><input value={form.faisca2.cci319} onChange={e => upd('faisca2', { ...form.faisca2, cci319: e.target.value })} placeholder="CCI 319" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
+            <div><input value={form.faisca2.cci320} onChange={e => upd('faisca2', { ...form.faisca2, cci320: e.target.value })} placeholder="CCI 320" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
+            <div><input value={form.faisca2.cci333} onChange={e => upd('faisca2', { ...form.faisca2, cci333: e.target.value })} placeholder="CCI 333" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
+            <div><input value={form.faisca2.kmInicial} onChange={e => upd('faisca2', { ...form.faisca2, kmInicial: e.target.value })} placeholder="Km Inicial" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
+            <div><input value={form.faisca2.kmFinal} onChange={e => upd('faisca2', { ...form.faisca2, kmFinal: e.target.value })} placeholder="Km Final" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
+            <div><input value={form.faisca2.combustivelInicial} onChange={e => upd('faisca2', { ...form.faisca2, combustivelInicial: e.target.value })} placeholder="Combustível Inicial" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
+            <div><input value={form.faisca2.combustivelFinal} onChange={e => upd('faisca2', { ...form.faisca2, combustivelFinal: e.target.value })} placeholder="Combustível Final" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
+            <div><input value={form.faisca2.nitrogenio} onChange={e => upd('faisca2', { ...form.faisca2, nitrogenio: e.target.value })} placeholder="Nitrogênio" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
             <div>
               <label className="mb-1 block text-xs text-graphite-500">EPR's</label>
               <select value={form.faisca2.epr} onChange={e => upd('faisca2', { ...form.faisca2, epr: e.target.value })}
@@ -413,14 +413,14 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
         <fieldset>
           <legend className="mb-3 text-sm font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400">FAISCA 3</legend>
           <div className="space-y-2 text-sm">
-            <div><input value={form.faisca3.cci319} onChange={e => upd('faisca3', { ...form.faisca3, cci319: e.target.value })} placeholder="CCI 319" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
-            <div><input value={form.faisca3.cci320} onChange={e => upd('faisca3', { ...form.faisca3, cci320: e.target.value })} placeholder="CCI 320" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
-            <div><input value={form.faisca3.cci333} onChange={e => upd('faisca3', { ...form.faisca3, cci333: e.target.value })} placeholder="CCI 333" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
-            <div><input value={form.faisca3.kmInicial} onChange={e => upd('faisca3', { ...form.faisca3, kmInicial: e.target.value })} placeholder="Km Inicial" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
-            <div><input value={form.faisca3.kmFinal} onChange={e => upd('faisca3', { ...form.faisca3, kmFinal: e.target.value })} placeholder="Km Final" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
-            <div><input value={form.faisca3.combustivelInicial} onChange={e => upd('faisca3', { ...form.faisca3, combustivelInicial: e.target.value })} placeholder="Combustível Inicial" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
-            <div><input value={form.faisca3.combustivelFinal} onChange={e => upd('faisca3', { ...form.faisca3, combustivelFinal: e.target.value })} placeholder="Combustível Final" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
-            <div><input value={form.faisca3.nitrogenio} onChange={e => upd('faisca3', { ...form.faisca3, nitrogenio: e.target.value })} placeholder="Nitrogênio" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div><input value={form.faisca3.cci319} onChange={e => upd('faisca3', { ...form.faisca3, cci319: e.target.value })} placeholder="CCI 319" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
+            <div><input value={form.faisca3.cci320} onChange={e => upd('faisca3', { ...form.faisca3, cci320: e.target.value })} placeholder="CCI 320" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
+            <div><input value={form.faisca3.cci333} onChange={e => upd('faisca3', { ...form.faisca3, cci333: e.target.value })} placeholder="CCI 333" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
+            <div><input value={form.faisca3.kmInicial} onChange={e => upd('faisca3', { ...form.faisca3, kmInicial: e.target.value })} placeholder="Km Inicial" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
+            <div><input value={form.faisca3.kmFinal} onChange={e => upd('faisca3', { ...form.faisca3, kmFinal: e.target.value })} placeholder="Km Final" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
+            <div><input value={form.faisca3.combustivelInicial} onChange={e => upd('faisca3', { ...form.faisca3, combustivelInicial: e.target.value })} placeholder="Combustível Inicial" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
+            <div><input value={form.faisca3.combustivelFinal} onChange={e => upd('faisca3', { ...form.faisca3, combustivelFinal: e.target.value })} placeholder="Combustível Final" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
+            <div><input value={form.faisca3.nitrogenio} onChange={e => upd('faisca3', { ...form.faisca3, nitrogenio: e.target.value })} placeholder="Nitrogênio" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
             <div>
               <label className="mb-1 block text-xs text-graphite-500">EPR's</label>
               <select value={form.faisca3.epr} onChange={e => upd('faisca3', { ...form.faisca3, epr: e.target.value })}
@@ -436,17 +436,17 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
         <fieldset>
           <legend className="mb-3 text-sm font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400">FAISCA RT</legend>
           <div className="space-y-2 text-sm">
-            <div><input value={form.faiscaRT.cci319Reserva} onChange={e => upd('faiscaRT', { ...form.faiscaRT, cci319Reserva: e.target.value })} placeholder="CCI 319 RESERVA" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
-            <div><input value={form.faiscaRT.cci320Reserva} onChange={e => upd('faiscaRT', { ...form.faiscaRT, cci320Reserva: e.target.value })} placeholder="CCI 320 RESERVA" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
-            <div><input value={form.faiscaRT.cci333Reserva} onChange={e => upd('faiscaRT', { ...form.faiscaRT, cci333Reserva: e.target.value })} placeholder="CCI 333 RESERVA" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
-            <div><input value={form.faiscaRT.cci319Baixado} onChange={e => upd('faiscaRT', { ...form.faiscaRT, cci319Baixado: e.target.value })} placeholder="CCI 319 BAIXADO" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
-            <div><input value={form.faiscaRT.cci320Baixado} onChange={e => upd('faiscaRT', { ...form.faiscaRT, cci320Baixado: e.target.value })} placeholder="CCI 320 BAIXADO" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
-            <div><input value={form.faiscaRT.cci333Baixado} onChange={e => upd('faiscaRT', { ...form.faiscaRT, cci333Baixado: e.target.value })} placeholder="CCI 333 BAIXADO" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
-            <div><input value={form.faiscaRT.kmInicial} onChange={e => upd('faiscaRT', { ...form.faiscaRT, kmInicial: e.target.value })} placeholder="Km Inicial" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
-            <div><input value={form.faiscaRT.kmFinal} onChange={e => upd('faiscaRT', { ...form.faiscaRT, kmFinal: e.target.value })} placeholder="Km Final" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
-            <div><input value={form.faiscaRT.combustivelInicial} onChange={e => upd('faiscaRT', { ...form.faiscaRT, combustivelInicial: e.target.value })} placeholder="Combustível Inicial" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
-            <div><input value={form.faiscaRT.combustivelFinal} onChange={e => upd('faiscaRT', { ...form.faiscaRT, combustivelFinal: e.target.value })} placeholder="Combustível Final" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
-            <div><input value={form.faiscaRT.nitrogenio} onChange={e => upd('faiscaRT', { ...form.faiscaRT, nitrogenio: e.target.value })} placeholder="Nitrogênio" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div><input value={form.faiscaRT.cci319Reserva} onChange={e => upd('faiscaRT', { ...form.faiscaRT, cci319Reserva: e.target.value })} placeholder="CCI 319 RESERVA" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
+            <div><input value={form.faiscaRT.cci320Reserva} onChange={e => upd('faiscaRT', { ...form.faiscaRT, cci320Reserva: e.target.value })} placeholder="CCI 320 RESERVA" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
+            <div><input value={form.faiscaRT.cci333Reserva} onChange={e => upd('faiscaRT', { ...form.faiscaRT, cci333Reserva: e.target.value })} placeholder="CCI 333 RESERVA" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
+            <div><input value={form.faiscaRT.cci319Baixado} onChange={e => upd('faiscaRT', { ...form.faiscaRT, cci319Baixado: e.target.value })} placeholder="CCI 319 BAIXADO" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
+            <div><input value={form.faiscaRT.cci320Baixado} onChange={e => upd('faiscaRT', { ...form.faiscaRT, cci320Baixado: e.target.value })} placeholder="CCI 320 BAIXADO" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
+            <div><input value={form.faiscaRT.cci333Baixado} onChange={e => upd('faiscaRT', { ...form.faiscaRT, cci333Baixado: e.target.value })} placeholder="CCI 333 BAIXADO" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
+            <div><input value={form.faiscaRT.kmInicial} onChange={e => upd('faiscaRT', { ...form.faiscaRT, kmInicial: e.target.value })} placeholder="Km Inicial" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
+            <div><input value={form.faiscaRT.kmFinal} onChange={e => upd('faiscaRT', { ...form.faiscaRT, kmFinal: e.target.value })} placeholder="Km Final" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
+            <div><input value={form.faiscaRT.combustivelInicial} onChange={e => upd('faiscaRT', { ...form.faiscaRT, combustivelInicial: e.target.value })} placeholder="Combustível Inicial" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
+            <div><input value={form.faiscaRT.combustivelFinal} onChange={e => upd('faiscaRT', { ...form.faiscaRT, combustivelFinal: e.target.value })} placeholder="Combustível Final" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
+            <div><input value={form.faiscaRT.nitrogenio} onChange={e => upd('faiscaRT', { ...form.faiscaRT, nitrogenio: e.target.value })} placeholder="Nitrogênio" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
             <div>
               <label className="mb-1 block text-xs text-graphite-500">EPR's</label>
               <select value={form.faiscaRT.epr} onChange={e => upd('faiscaRT', { ...form.faiscaRT, epr: e.target.value })}
@@ -465,17 +465,17 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
             <div>
               <label className="mb-1 block text-xs text-graphite-500">Situação</label>
               <select value={form.crs.situacao} onChange={e => upd('crs', { ...form.crs, situacao: e.target.value })}
-                className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+                className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900">
                 <option value="">Selecione</option>
                 {CRS_SITUACOES.map(o => <option key={o} value={o}>{o}</option>)}
               </select>
             </div>
-            <div><input value={form.crs.kmOdoInicial} onChange={e => upd('crs', { ...form.crs, kmOdoInicial: e.target.value })} placeholder="Km Odômetro Inicial" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
-            <div><input value={form.crs.kmOdoFinal} onChange={e => upd('crs', { ...form.crs, kmOdoFinal: e.target.value })} placeholder="Km Odômetro Final" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
-            <div><input value={form.crs.kmTacInicial} onChange={e => upd('crs', { ...form.crs, kmTacInicial: e.target.value })} placeholder="Km Tacógrafo Inicial" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
-            <div><input value={form.crs.kmTacFinal} onChange={e => upd('crs', { ...form.crs, kmTacFinal: e.target.value })} placeholder="Km Tacógrafo Final" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
-            <div><input value={form.crs.combustivelInicial} onChange={e => upd('crs', { ...form.crs, combustivelInicial: e.target.value })} placeholder="Combustível Inicial" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
-            <div><input value={form.crs.combustivelFinal} onChange={e => upd('crs', { ...form.crs, combustivelFinal: e.target.value })} placeholder="Combustível Final" className="w-full rounded border border-graphite-300 bg-white px-2 py-1.5 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" /></div>
+            <div><input value={form.crs.kmOdoInicial} onChange={e => upd('crs', { ...form.crs, kmOdoInicial: e.target.value })} placeholder="Km Odômetro Inicial" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
+            <div><input value={form.crs.kmOdoFinal} onChange={e => upd('crs', { ...form.crs, kmOdoFinal: e.target.value })} placeholder="Km Odômetro Final" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
+            <div><input value={form.crs.kmTacInicial} onChange={e => upd('crs', { ...form.crs, kmTacInicial: e.target.value })} placeholder="Km Tacógrafo Inicial" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
+            <div><input value={form.crs.kmTacFinal} onChange={e => upd('crs', { ...form.crs, kmTacFinal: e.target.value })} placeholder="Km Tacógrafo Final" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
+            <div><input value={form.crs.combustivelInicial} onChange={e => upd('crs', { ...form.crs, combustivelInicial: e.target.value })} placeholder="Combustível Inicial" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
+            <div><input value={form.crs.combustivelFinal} onChange={e => upd('crs', { ...form.crs, combustivelFinal: e.target.value })} placeholder="Combustível Final" className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-2.5 py-1.5 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" /></div>
             <div>
               <label className="mb-1 block text-xs text-graphite-500">EPR's</label>
               <select value={form.crs.epr} onChange={e => upd('crs', { ...form.crs, epr: e.target.value })}
@@ -500,7 +500,7 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
         <fieldset key={key}>
           <legend className="mb-3 text-sm font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400">{label}</legend>
           <textarea value={(form as any)[key]} onChange={e => upd(key, e.target.value)} rows={2}
-            className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+            className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
         </fieldset>
       ))}
 
@@ -514,19 +514,19 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
           <legend className="mb-3 text-sm font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400">{label}</legend>
           <textarea value={(form as any)[key]} onChange={e => upd(key, e.target.value)} rows={2}
             placeholder="Preenchido automaticamente..."
-            className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+            className="w-full rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
         </fieldset>
       ))}
 
       <div className="flex items-center justify-end gap-3 border-t border-graphite-200 pt-6 dark:border-graphite-700">
         <button type="button" onClick={onCancel}
-          className="rounded-lg border border-graphite-300 bg-white px-4 py-2 text-sm font-medium text-graphite-700 hover:bg-graphite-50 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-200">Cancelar</button>
+          className="rounded-xl border border-graphite-300/60 bg-white/80 px-4 py-2.5 text-sm font-medium text-graphite-700 shadow-sm backdrop-blur-sm transition-all duration-200 hover:bg-graphite-50 hover:border-graphite-300 dark:border-graphite-700/40 dark:bg-graphite-800/80 dark:text-graphite-200 dark:hover:bg-graphite-700/50">Cancelar</button>
         <button type="button" onClick={() => onSaveDraft(form)}
-          className="flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-orange-700">
+          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
           <Save className="h-4 w-4" /> {lro?.id ? 'Salvar e Continuar' : 'Criar e Continuar'}
         </button>
         <button type="submit"
-          className="flex items-center gap-2 rounded-lg bg-aviation-600 px-4 py-2 text-sm font-medium text-white hover:bg-aviation-700">
+          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
           <Save className="h-4 w-4" /> {lro ? 'Salvar Alterações' : 'Criar LRO'}
         </button>
       </div>
@@ -540,10 +540,10 @@ function LROCard({ lro, onView, onEdit, onClone, onDelete, isAdmin }: {
 }) {
   const [expanded, setExpanded] = useState(false);
   return (
-    <div className="rounded-xl border border-graphite-200 bg-white p-4 shadow-sm dark:border-graphite-700 dark:bg-graphite-900">
+    <div className="rounded-2xl border border-graphite-200/60 bg-white/80 p-4 shadow-sm backdrop-blur-sm dark:border-graphite-700/40 dark:bg-graphite-900/80">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-aviation-50 dark:bg-aviation-900/30">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-aviation-50 to-aviation-100 dark:from-aviation-900/30 dark:to-aviation-800/20">
             <FileSpreadsheet className="h-5 w-5 text-aviation-600 dark:text-aviation-400" />
           </div>
           <div>
@@ -552,13 +552,13 @@ function LROCard({ lro, onView, onEdit, onClone, onDelete, isAdmin }: {
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <button onClick={onView} title="Visualizar" className="rounded-lg p-1.5 text-graphite-500 hover:bg-graphite-100 dark:hover:bg-graphite-700"><Eye className="h-4 w-4" /></button>
-          <button onClick={onEdit} title="Editar" className="rounded-lg p-1.5 text-graphite-500 hover:bg-graphite-100 dark:hover:bg-graphite-700"><Pencil className="h-4 w-4" /></button>
-          <button onClick={onClone} title="Copiar" className="rounded-lg p-1.5 text-graphite-500 hover:bg-graphite-100 dark:hover:bg-graphite-700"><Copy className="h-4 w-4" /></button>
+          <button onClick={onView} title="Visualizar" className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-800 dark:hover:text-graphite-300"><Eye className="h-4 w-4" /></button>
+          <button onClick={onEdit} title="Editar" className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-800 dark:hover:text-graphite-300"><Pencil className="h-4 w-4" /></button>
+          <button onClick={onClone} title="Copiar" className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-800 dark:hover:text-graphite-300"><Copy className="h-4 w-4" /></button>
           {isAdmin && (
-            <button onClick={onDelete} title="Excluir" className="rounded-lg p-1.5 text-alert-red hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="h-4 w-4" /></button>
+            <button onClick={onDelete} title="Excluir" className="rounded-xl p-1.5 text-alert-red transition-all duration-200 hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="h-4 w-4" /></button>
           )}
-          <button onClick={() => setExpanded(!expanded)} className="rounded-lg p-1.5 text-graphite-500 hover:bg-graphite-100 dark:hover:bg-graphite-700">
+          <button onClick={() => setExpanded(!expanded)} className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-800 dark:hover:text-graphite-300">
             {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </button>
         </div>
@@ -604,13 +604,13 @@ function ViewModeLRO({ lro, onBack }: { lro: LRO; onBack: () => void }) {
       <div className="mb-6 flex items-center justify-between print-hidden">
         <h3 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">LRO - {lro.equipe} - {formatDate(lro.dataEntrada)}</h3>
         <div className="flex items-center gap-2">
-          <button onClick={() => window.print()} className="flex items-center gap-1 rounded-lg bg-aviation-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-aviation-700">
+          <button onClick={() => window.print()} className="flex items-center gap-1 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-3 py-1.5 text-sm font-medium text-white shadow-md shadow-aviation-500/20 transition-all duration-200 hover:shadow-lg hover:shadow-aviation-500/30 hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
             <Printer className="h-4 w-4" /> Imprimir
           </button>
-          <button onClick={onBack} className="rounded-lg border border-graphite-300 bg-white px-3 py-1.5 text-sm text-graphite-700 hover:bg-graphite-50 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-200">Fechar</button>
+          <button onClick={onBack} className="rounded-xl border border-graphite-300/60 bg-white/80 px-3.5 py-1.5 text-sm text-graphite-700 backdrop-blur-sm transition-all duration-200 hover:bg-graphite-50 hover:border-graphite-300 dark:border-graphite-700/40 dark:bg-graphite-800/80 dark:text-graphite-200 dark:hover:bg-graphite-700/50">Fechar</button>
         </div>
       </div>
-      <div id="print-area" className="rounded-xl border border-graphite-200 bg-white p-4 dark:border-graphite-700 dark:bg-graphite-900">
+      <div id="print-area" className="rounded-2xl border border-graphite-200/60 bg-white/80 p-4 backdrop-blur-sm dark:border-graphite-700/40 dark:bg-graphite-900/80">
         <div className="grid grid-cols-4 gap-4 mb-6">
           <div><p className="text-xs text-graphite-400">Equipe</p><p className="text-sm font-medium">{lro.equipe}</p></div>
           <div><p className="text-xs text-graphite-400">Turno</p><p className="text-sm font-medium">{lro.turno}</p></div>
@@ -822,11 +822,11 @@ export function LRODiario() {
         <div className="flex flex-wrap items-center gap-3">
           {/* Mês */}
           <input type="month" value={filtroMes} onChange={e => setFiltroMes(e.target.value)}
-            className="rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+            className="rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
           {/* Equipe — só admin */}
           {isAdmin && (
             <select value={filtroEquipe} onChange={e => setFiltroEquipe(e.target.value)}
-              className="rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+              className="rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900">
               <option value="">Todas as equipes</option>
               {EQUIPES.map(eq => <option key={eq} value={eq}>{eq}</option>)}
             </select>
@@ -834,7 +834,7 @@ export function LRODiario() {
           {/* Chefe — só não-admin */}
           {!isAdmin && (
             <select value={filtroChefe} onChange={e => setFiltroChefe(e.target.value)}
-              className="rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+              className="rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900">
               <option value="">Todos os chefes</option>
               {getChefes(lros).map(c => <option key={c} value={c}>{c}</option>)}
             </select>
@@ -846,18 +846,18 @@ export function LRODiario() {
             const sorted = [...lros].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
             if (sorted.length > 0) handleClone(sorted[0]);
             else { setEditando(null); setMode('form'); }
-          }} className="flex items-center gap-1 rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm font-medium text-graphite-700 hover:bg-graphite-50 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-200">
+          }} className="flex items-center gap-1.5 rounded-xl border border-graphite-300/60 bg-white/80 px-3.5 py-2.5 text-sm font-medium text-graphite-700 shadow-sm backdrop-blur-sm transition-all duration-200 hover:bg-graphite-50 hover:border-graphite-300 dark:border-graphite-700/40 dark:bg-graphite-800/80 dark:text-graphite-200 dark:hover:bg-graphite-700/50">
             <Copy className="h-4 w-4" /> Copiar Último
           </button>
           <button onClick={() => { setEditando(null); setMode('form'); }}
-            className="flex items-center gap-2 rounded-lg bg-aviation-600 px-4 py-2 text-sm font-medium text-white hover:bg-aviation-700">
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
             <Plus className="h-4 w-4" /> Criar LRO
           </button>
         </div>
       </div>
 
       {filtradas.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-graphite-700 dark:bg-graphite-900">
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300/60 bg-white/50 p-12 text-center backdrop-blur-sm dark:border-graphite-700/40 dark:bg-graphite-900/30">
           <FileSpreadsheet className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
           <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhum LRO encontrado</h3>
           <p className="text-sm text-graphite-500">Clique em "Criar LRO" para começar.</p>
@@ -877,14 +877,14 @@ export function LRODiario() {
 
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl dark:bg-graphite-800">
+          <div className="w-full max-w-sm rounded-2xl bg-white/95 p-6 shadow-xl shadow-black/5 backdrop-blur-sm dark:bg-graphite-800/95 dark:shadow-black/20">
             <h3 className="mb-2 text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar exclusão</h3>
             <p className="mb-6 text-sm text-graphite-500">Tem certeza que deseja excluir este LRO?</p>
             <div className="flex justify-end gap-3">
               <button onClick={() => setConfirmDelete(null)}
-                className="rounded-lg border border-graphite-300 bg-white px-4 py-2 text-sm font-medium text-graphite-700 hover:bg-graphite-50 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-200">Cancelar</button>
+                className="rounded-xl border border-graphite-300/60 bg-white/80 px-4 py-2.5 text-sm font-medium text-graphite-700 shadow-sm backdrop-blur-sm transition-all duration-200 hover:bg-graphite-50 hover:border-graphite-300 dark:border-graphite-700/40 dark:bg-graphite-800/80 dark:text-graphite-200 dark:hover:bg-graphite-700/50">Cancelar</button>
               <button onClick={() => handleDelete(confirmDelete)}
-                className="rounded-lg bg-alert-red px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Excluir</button>
+                className="rounded-xl bg-gradient-to-r from-alert-red to-red-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-red-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-red-500/30 active:scale-[0.98]">Excluir</button>
             </div>
           </div>
         </div>

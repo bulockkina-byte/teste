@@ -121,7 +121,7 @@ function EscalaDiariaForm({
         <div>
           <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Equipe</label>
           <select value={form.equipe} onChange={e => updateEquipe(e.target.value)}
-            className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+            className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900">
             {EQUIPES.map(eq => <option key={eq} value={eq}>{eq}</option>)}
           </select>
         </div>
@@ -132,12 +132,12 @@ function EscalaDiariaForm({
         <div>
           <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Data do Plantão</label>
           <input type="date" value={form.dataPlantao} onChange={e => setForm(f => ({ ...f, dataPlantao: e.target.value }))}
-            className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+            className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Turno</label>
           <input value={form.turno} disabled
-            className="w-full rounded-lg border border-graphite-200 bg-graphite-50 px-3 py-2 text-sm text-graphite-500 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-400" />
+            className="w-full rounded-xl border border-graphite-200/60 bg-graphite-100/50 px-3 py-2.5 text-sm text-graphite-400 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-500" />
         </div>
       </div>
 
@@ -145,12 +145,12 @@ function EscalaDiariaForm({
         <div>
           <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Horário Início</label>
           <input type="time" value={form.horarioInicio} disabled
-            className="w-full rounded-lg border border-graphite-200 bg-graphite-50 px-3 py-2 text-sm text-graphite-500 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-400" />
+            className="w-full rounded-xl border border-graphite-200/60 bg-graphite-100/50 px-3 py-2.5 text-sm text-graphite-400 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-500" />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Horário Término</label>
           <input type="time" value={form.horarioTermino} disabled
-            className="w-full rounded-lg border border-graphite-200 bg-graphite-50 px-3 py-2 text-sm text-graphite-500 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-400" />
+            className="w-full rounded-xl border border-graphite-200/60 bg-graphite-100/50 px-3 py-2.5 text-sm text-graphite-400 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-500" />
         </div>
       </div>
 
@@ -161,7 +161,7 @@ function EscalaDiariaForm({
         </legend>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
           {/* CCI 02 */}
-          <div className="rounded-lg border border-graphite-200 bg-graphite-50/50 p-4 dark:border-graphite-700 dark:bg-graphite-800/50">
+          <div className="rounded-xl border border-graphite-200/60 bg-graphite-50/50 p-4 dark:border-graphite-700/40 dark:bg-graphite-800/50">
             <h4 className="mb-3 text-sm font-bold text-graphite-700 dark:text-graphite-300">CCI 02</h4>
             <div className="space-y-3">
               <SlotFuncao label="BA-MC" value={form.guarnicoes.cci02.baMc} onChange={v => updateGuarnicao('cci02', 'baMc', v)} />
@@ -170,7 +170,7 @@ function EscalaDiariaForm({
             </div>
           </div>
           {/* CCI 03 */}
-          <div className="rounded-lg border border-graphite-200 bg-graphite-50/50 p-4 dark:border-graphite-700 dark:bg-graphite-800/50">
+          <div className="rounded-xl border border-graphite-200/60 bg-graphite-50/50 p-4 dark:border-graphite-700/40 dark:bg-graphite-800/50">
             <h4 className="mb-3 text-sm font-bold text-graphite-700 dark:text-graphite-300">CCI 03</h4>
             <div className="space-y-3">
               <SlotFuncao label="BA-MC" value={form.guarnicoes.cci03.baMc} onChange={v => updateGuarnicao('cci03', 'baMc', v)} />
@@ -179,7 +179,7 @@ function EscalaDiariaForm({
             </div>
           </div>
           {/* CRS */}
-          <div className="rounded-lg border border-graphite-200 bg-graphite-50/50 p-4 dark:border-graphite-700 dark:bg-graphite-800/50">
+          <div className="rounded-xl border border-graphite-200/60 bg-graphite-50/50 p-4 dark:border-graphite-700/40 dark:bg-graphite-800/50">
             <h4 className="mb-3 text-sm font-bold text-graphite-700 dark:text-graphite-300">CRS</h4>
             <div className="space-y-3">
               <SlotFuncao label="BA-MC" value={form.guarnicoes.crs.baMc} onChange={v => updateGuarnicao('crs', 'baMc', v)} />
@@ -201,7 +201,7 @@ function EscalaDiariaForm({
             <div className="w-48">
               <label className="mb-1 block text-xs font-medium text-graphite-500 dark:text-graphite-400">Função do Instrutor</label>
               <select value={form[section].funcao} onChange={e => updateInstrutor(section, 'funcao', e.target.value)}
-                className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+                className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900">
                 <option value="">Selecione</option>
                 {FUNCOES_BDS_PTR.map(f => <option key={f} value={f}>{f}</option>)}
               </select>
@@ -227,9 +227,9 @@ function EscalaDiariaForm({
                 next[i] = e.target.value;
                 setForm(f => ({ ...f, atestados: next }));
               }} placeholder="Nome do funcionário com atestado"
-                className="flex-1 rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+                className="flex-1 rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
               <button type="button" onClick={() => setForm(f => ({ ...f, atestados: f.atestados.filter((_, j) => j !== i) }))}
-                className="rounded-lg p-1.5 text-alert-red hover:bg-red-50 dark:hover:bg-red-900/20">
+              className="rounded-xl p-1.5 text-alert-red transition-all duration-200 hover:bg-red-50 dark:hover:bg-red-900/20">
                 <Trash2 className="h-4 w-4" />
               </button>
             </div>
@@ -248,11 +248,11 @@ function EscalaDiariaForm({
         </legend>
         <div className="space-y-4">
           {form.trocas.map((t, i) => (
-            <div key={i} className="rounded-lg border border-graphite-200 bg-graphite-50/50 p-4 dark:border-graphite-700 dark:bg-graphite-800/50">
+            <div key={i} className="rounded-xl border border-graphite-200/60 bg-graphite-50/50 p-4 dark:border-graphite-700/40 dark:bg-graphite-800/50">
               <div className="mb-2 flex items-center justify-between">
                 <span className="text-xs font-semibold text-graphite-500">Troca {i + 1}</span>
                 <button type="button" onClick={() => setForm(f => ({ ...f, trocas: f.trocas.filter((_, j) => j !== i) }))}
-                  className="rounded-lg p-1 text-alert-red hover:bg-red-50 dark:hover:bg-red-900/20">
+                  className="rounded-xl p-1.5 text-alert-red transition-all duration-200 hover:bg-red-50 dark:hover:bg-red-900/20">
                   <Trash2 className="h-4 w-4" />
                 </button>
               </div>
@@ -264,7 +264,7 @@ function EscalaDiariaForm({
                     next[i] = { ...next[i], funcaoSaindo: e.target.value };
                     setForm(f => ({ ...f, trocas: next }));
                   }}
-                    className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+                    className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900">
                     <option value="">Selecione</option>
                     {FUNCOES_BDS_PTR.map(f => <option key={f} value={f}>{f}</option>)}
                   </select>
@@ -284,7 +284,7 @@ function EscalaDiariaForm({
                     next[i] = { ...next[i], funcaoEntrando: e.target.value };
                     setForm(f => ({ ...f, trocas: next }));
                   }}
-                    className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+                    className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900">
                     <option value="">Selecione</option>
                     {FUNCOES_BDS_PTR.map(f => <option key={f} value={f}>{f}</option>)}
                   </select>
@@ -314,11 +314,11 @@ function EscalaDiariaForm({
         </legend>
         <div className="space-y-4">
           {form.radio.map((r, i) => (
-            <div key={i} className="rounded-lg border border-graphite-200 bg-graphite-50/50 p-4 dark:border-graphite-700 dark:bg-graphite-800/50">
+            <div key={i} className="rounded-xl border border-graphite-200/60 bg-graphite-50/50 p-4 dark:border-graphite-700/40 dark:bg-graphite-800/50">
               <div className="mb-2 flex items-center justify-between">
                 <span className="text-xs font-semibold text-graphite-500">Rádio {i + 1}</span>
                 <button type="button" onClick={() => setForm(f => ({ ...f, radio: f.radio.filter((_, j) => j !== i) }))}
-                  className="rounded-lg p-1 text-alert-red hover:bg-red-50 dark:hover:bg-red-900/20">
+                  className="rounded-xl p-1.5 text-alert-red transition-all duration-200 hover:bg-red-50 dark:hover:bg-red-900/20">
                   <Trash2 className="h-4 w-4" />
                 </button>
               </div>
@@ -330,7 +330,7 @@ function EscalaDiariaForm({
                     next[i] = { ...next[i], funcao: e.target.value };
                     setForm(f => ({ ...f, radio: next }));
                   }}
-                    className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+                    className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900">
                     <option value="">Selecione</option>
                     {FUNCOES_BDS_PTR.map(f => <option key={f} value={f}>{f}</option>)}
                   </select>
@@ -350,7 +350,7 @@ function EscalaDiariaForm({
                     next[i] = { ...next[i], horarioInicio: e.target.value };
                     setForm(f => ({ ...f, radio: next }));
                   }}
-                    className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+                    className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs text-graphite-500">Fim</label>
@@ -359,7 +359,7 @@ function EscalaDiariaForm({
                     next[i] = { ...next[i], horarioFim: e.target.value };
                     setForm(f => ({ ...f, radio: next }));
                   }}
-                    className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+                    className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
                 </div>
               </div>
             </div>
@@ -374,11 +374,11 @@ function EscalaDiariaForm({
       {/* Actions */}
       <div className="flex items-center justify-end gap-3 border-t border-graphite-200 pt-6 dark:border-graphite-700">
         <button type="button" onClick={onCancel}
-          className="rounded-lg border border-graphite-300 bg-white px-4 py-2 text-sm font-medium text-graphite-700 transition-colors hover:bg-graphite-50 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-200">
+          className="rounded-xl border border-graphite-300/60 bg-white/80 px-4 py-2.5 text-sm font-medium text-graphite-700 backdrop-blur-sm transition-all duration-200 hover:bg-graphite-50 hover:border-graphite-300 dark:border-graphite-700/40 dark:bg-graphite-800/80 dark:text-graphite-200 dark:hover:bg-graphite-700/50">
           Cancelar
         </button>
         <button type="submit"
-          className="flex items-center gap-2 rounded-lg bg-aviation-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-aviation-700">
+          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
           <Save className="h-4 w-4" />
           {escala ? 'Salvar Alterações' : 'Criar Escala'}
         </button>
@@ -399,10 +399,10 @@ function EscalaCard({ escala, onView, onEdit, onDelete, onClone, isAdmin }: {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="rounded-xl border border-graphite-200 bg-white p-4 shadow-sm dark:border-graphite-700 dark:bg-graphite-900">
+    <div className="rounded-2xl border border-graphite-200/60 bg-white/80 p-4 shadow-sm backdrop-blur-sm dark:border-graphite-700/40 dark:bg-graphite-900/80">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-aviation-50 dark:bg-aviation-900/30">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-aviation-50 to-aviation-100 shadow-sm dark:from-aviation-900/30 dark:to-aviation-800/20">
             <Calendar className="h-5 w-5 text-aviation-600 dark:text-aviation-400" />
           </div>
           <div>
@@ -416,25 +416,25 @@ function EscalaCard({ escala, onView, onEdit, onDelete, onClone, isAdmin }: {
         </div>
         <div className="flex items-center gap-1">
           <button onClick={onView} title="Visualizar"
-            className="rounded-lg p-1.5 text-graphite-500 hover:bg-graphite-100 dark:hover:bg-graphite-700">
+            className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-800 dark:hover:text-graphite-300">
             <Eye className="h-4 w-4" />
           </button>
           <button onClick={onEdit} title="Editar"
-            className="rounded-lg p-1.5 text-graphite-500 hover:bg-graphite-100 dark:hover:bg-graphite-700">
+            className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-800 dark:hover:text-graphite-300">
             <Pencil className="h-4 w-4" />
           </button>
           <button onClick={onClone} title="Clonar"
-            className="rounded-lg p-1.5 text-graphite-500 hover:bg-graphite-100 dark:hover:bg-graphite-700">
+            className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-800 dark:hover:text-graphite-300">
             <Copy className="h-4 w-4" />
           </button>
           {isAdmin && (
             <button onClick={onDelete} title="Excluir"
-              className="rounded-lg p-1.5 text-alert-red hover:bg-red-50 dark:hover:bg-red-900/20">
+              className="rounded-xl p-1.5 text-alert-red transition-all duration-200 hover:bg-red-50 dark:hover:bg-red-900/20">
               <Trash2 className="h-4 w-4" />
             </button>
           )}
           <button onClick={() => setExpanded(!expanded)}
-            className="rounded-lg p-1.5 text-graphite-500 hover:bg-graphite-100 dark:hover:bg-graphite-700">
+            className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-800 dark:hover:text-graphite-300">
             {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </button>
         </div>
@@ -590,7 +590,7 @@ export function EscalaDiariaView() {
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <select value={filtroEquipe} onChange={e => setFiltroEquipe(e.target.value)}
-            className="rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+            className="rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900">
             <option value="">Todas as equipes</option>
             {EQUIPES.map(eq => <option key={eq} value={eq}>{eq}</option>)}
           </select>
@@ -599,16 +599,16 @@ export function EscalaDiariaView() {
           </p>
         </div>
         <button onClick={() => { setEditando(null); setMode('form'); }}
-          className="flex items-center gap-2 rounded-lg bg-aviation-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-aviation-700">
+          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
           <Plus className="h-4 w-4" /> Nova Escala Diária
         </button>
       </div>
 
       {escalasFiltradas.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-graphite-700 dark:bg-graphite-900">
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300/60 bg-white/50 p-12 text-center backdrop-blur-sm dark:border-graphite-700/40 dark:bg-graphite-900/30">
           <Calendar className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
           <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhuma escala encontrada</h3>
-          <p className="text-sm text-graphite-500">Clique em "Nova Escala Diária" para criar a primeira.</p>
+          <p className="text-sm text-graphite-400">Clique em "Nova Escala Diária" para criar a primeira.</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -628,16 +628,16 @@ export function EscalaDiariaView() {
 
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl dark:bg-graphite-800">
+          <div className="w-full max-w-sm rounded-2xl bg-white/95 p-6 shadow-xl shadow-black/5 backdrop-blur-sm dark:bg-graphite-800/95 dark:shadow-black/20">
             <h3 className="mb-2 text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar exclusão</h3>
             <p className="mb-6 text-sm text-graphite-500">Tem certeza que deseja excluir esta escala?</p>
             <div className="flex justify-end gap-3">
               <button onClick={() => setConfirmDelete(null)}
-                className="rounded-lg border border-graphite-300 bg-white px-4 py-2 text-sm font-medium text-graphite-700 hover:bg-graphite-50 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-200">
+                className="rounded-xl border border-graphite-300/60 bg-white/80 px-4 py-2 text-sm font-medium text-graphite-700 shadow-sm backdrop-blur-sm transition-all duration-200 hover:bg-graphite-50 hover:border-graphite-300 dark:border-graphite-700/40 dark:bg-graphite-800/80 dark:text-graphite-200 dark:hover:bg-graphite-700/50">
                 Cancelar
               </button>
               <button onClick={() => handleDelete(confirmDelete)}
-                className="rounded-lg bg-alert-red px-4 py-2 text-sm font-medium text-white hover:bg-red-700">
+                className="rounded-xl bg-gradient-to-r from-alert-red to-red-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-red-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-red-500/30 active:scale-[0.98]">
                 Excluir
               </button>
             </div>
@@ -657,16 +657,16 @@ function ViewMode({ escala, onBack }: { escala: EscalaDiaria; onBack: () => void
         </h3>
         <div className="flex items-center gap-2">
           <button onClick={() => window.print()}
-            className="flex items-center gap-1 rounded-lg bg-aviation-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-aviation-700">
+            className="flex items-center gap-1 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-3 py-1.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
             <Printer className="h-4 w-4" /> Imprimir
           </button>
           <button onClick={onBack}
-            className="rounded-lg border border-graphite-300 bg-white px-3 py-1.5 text-sm text-graphite-700 hover:bg-graphite-50 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-200">
+            className="rounded-xl border border-graphite-300/60 bg-white/80 px-3 py-1.5 text-sm font-medium text-graphite-700 shadow-sm backdrop-blur-sm transition-all duration-200 hover:bg-graphite-50 hover:border-graphite-300 dark:border-graphite-700/40 dark:bg-graphite-800/80 dark:text-graphite-200 dark:hover:bg-graphite-700/50">
             Fechar
           </button>
         </div>
       </div>
-      <div id="print-area" className="rounded-xl border border-graphite-200 bg-white p-4 shadow-sm dark:border-graphite-700 dark:bg-graphite-900 print:border-none print:shadow-none">
+      <div id="print-area" className="rounded-2xl border border-graphite-200/60 bg-white/80 p-4 shadow-sm backdrop-blur-sm dark:border-graphite-700/40 dark:bg-graphite-900/80 print:border-none print:shadow-none">
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div>
             <p className="text-xs text-graphite-400">Equipe</p>
@@ -693,19 +693,19 @@ function ViewMode({ escala, onBack }: { escala: EscalaDiaria; onBack: () => void
         <div className="mb-6">
           <p className="mb-2 text-xs font-semibold text-aviation-600 dark:text-aviation-400">Guarnições</p>
           <div className="grid grid-cols-3 gap-4">
-            <div className="rounded-lg bg-graphite-50 p-3 dark:bg-graphite-800">
+            <div className="rounded-2xl bg-white/60 p-3 backdrop-blur-sm dark:bg-graphite-800/60">
               <p className="mb-1 text-xs font-bold text-graphite-500">CCI 02</p>
               <p className="text-sm">BA-MC: {escala.guarnicoes.cci02.baMc || '-'}</p>
               <p className="text-sm">BA-CE: {escala.guarnicoes.cci02.baCe || '-'}</p>
               <p className="text-sm">BA-2: {escala.guarnicoes.cci02.ba2 || '-'}</p>
             </div>
-            <div className="rounded-lg bg-graphite-50 p-3 dark:bg-graphite-800">
+            <div className="rounded-2xl bg-white/60 p-3 backdrop-blur-sm dark:bg-graphite-800/60">
               <p className="mb-1 text-xs font-bold text-graphite-500">CCI 03</p>
               <p className="text-sm">BA-MC: {escala.guarnicoes.cci03.baMc || '-'}</p>
               <p className="text-sm">BA-2: {escala.guarnicoes.cci03.ba2_1 || '-'}</p>
               <p className="text-sm">BA-2: {escala.guarnicoes.cci03.ba2_2 || '-'}</p>
             </div>
-            <div className="rounded-lg bg-graphite-50 p-3 dark:bg-graphite-800">
+            <div className="rounded-2xl bg-white/60 p-3 backdrop-blur-sm dark:bg-graphite-800/60">
               <p className="mb-1 text-xs font-bold text-graphite-500">CRS</p>
               <p className="text-sm">BA-MC: {escala.guarnicoes.crs.baMc || '-'}</p>
               <p className="text-sm">BA-LR: {escala.guarnicoes.crs.baLr || '-'}</p>

@@ -7,10 +7,10 @@ export function Layout() {
   const { collapsed } = useSidebar();
 
   return (
-    <div className="min-h-screen bg-graphite-50 dark:bg-graphite-950">
+    <div className="min-h-screen bg-white dark:bg-graphite-950">
       <Sidebar />
       <div
-        className={`transition-all duration-300 ${
+        className={`will-change-[margin] transition-all duration-500 ease-out-expo ${
           collapsed ? 'ml-[70px]' : 'ml-[260px]'
         }`}
       >

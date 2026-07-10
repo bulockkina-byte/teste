@@ -119,7 +119,7 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
           </h2>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-graphite-500 transition-colors hover:bg-graphite-100 dark:hover:bg-graphite-700"
+            className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-800 dark:hover:text-graphite-300"
           >
             <X className="h-5 w-5" />
           </button>
@@ -137,33 +137,33 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
               <div>
                 <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">CPF *</label>
                 <input value={cpf} onChange={e => setCpf(formatCPF(e.target.value))} placeholder="000.000.000-00"
-                  className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+                  className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">RG</label>
                 <input value={rg} onChange={e => setRg(e.target.value)} placeholder="RG"
-                  className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+                  className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">CNH nº</label>
                 <input value={cnhNumero} onChange={e => setCnhNumero(e.target.value)} placeholder="Número da CNH"
-                  className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+                  className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Cat. CNH</label>
                 <select value={cnhCategoria} onChange={e => setCnhCategoria(e.target.value as CatCNH)}
-                  className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+                  className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900">
                   {CNH_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
                 </select>
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Validade CNH</label>
                 <input type="date" value={cnhValidade} onChange={e => setCnhValidade(e.target.value)}
-                  className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+                  className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Foto</label>
-                <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-graphite-300 bg-white px-3 py-2 text-sm text-graphite-500 transition-colors hover:border-aviation-500 hover:text-aviation-600 dark:border-graphite-700 dark:bg-graphite-900">
+                <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-graphite-300/60 bg-white/50 px-3 py-2 text-sm text-graphite-400 transition-all duration-200 hover:border-aviation-500/50 hover:text-aviation-600 backdrop-blur-sm dark:border-graphite-700/40 dark:bg-graphite-900/30">
                   <Upload className="h-4 w-4" />
                   {foto ? 'Trocar foto' : 'Enviar foto'}
                   <input type="file" accept="image/*" onChange={handleFotoChange} className="hidden" />
@@ -184,58 +184,58 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
               <div>
                 <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Matrícula MMS *</label>
                 <input value={matricula} onChange={e => setMatricula(e.target.value)} placeholder="MMS"
-                  className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+                  className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Nome Completo *</label>
                 <input value={nomeCompleto} onChange={e => setNomeCompleto(e.target.value)} placeholder="Nome completo"
-                  className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+                  className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Nome de Guerra *</label>
                 <input value={nomeGuerra} onChange={e => setNomeGuerra(e.target.value)} placeholder="Nome de guerra"
-                  className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+                  className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Data de Nascimento *</label>
                 <input type="date" value={dataNascimento} onChange={e => setDataNascimento(e.target.value)}
-                  className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+                  className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Data de Admissão</label>
                 <input type="date" value={dataAdmissao} onChange={e => setDataAdmissao(e.target.value)}
-                  className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+                  className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Idade</label>
                 <input value={idade || ''} disabled
-                  className="w-full rounded-lg border border-graphite-200 bg-graphite-50 px-3 py-2 text-sm text-graphite-500 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-400" />
+                  className="w-full rounded-xl border border-graphite-200/60 bg-graphite-100/50 px-3 py-2.5 text-sm text-graphite-400 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-500" />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Cargo *</label>
                 <select value={cargo} onChange={e => setCargo(e.target.value as Cargo)}
-                  className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+                  className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900">
                   {CARGO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Equipe *</label>
                 <select value={equipe} onChange={e => setEquipe(e.target.value as Equipe)}
-                  className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+                  className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900">
                   {EQUIPE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
                 </select>
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Turno *</label>
                 <select value={turno} onChange={e => setTurno(e.target.value as Turno)}
-                  className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100">
+                  className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900">
                   {TURNO_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
                 </select>
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Tipo Sanguíneo</label>
                 <input value={tipoSanguineo} onChange={e => setTipoSanguineo(e.target.value)} placeholder="Ex: A+"
-                  className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+                  className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
               </div>
             </div>
           </fieldset>
@@ -249,18 +249,18 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
               <div>
                 <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Data de Desligamento</label>
                 <input type="date" value={dataDesligamento} onChange={e => setDataDesligamento(e.target.value)}
-                  className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+                  className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
               </div>
             </div>
           </fieldset>
 
           <div className="flex items-center justify-end gap-3 border-t border-graphite-200 pt-4 dark:border-graphite-700">
             <button type="button" onClick={onClose}
-              className="rounded-lg border border-graphite-300 bg-white px-4 py-2 text-sm font-medium text-graphite-700 transition-colors hover:bg-graphite-50 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-200 dark:hover:bg-graphite-700">
+              className="rounded-xl border border-graphite-300/60 bg-white/80 px-4 py-2.5 text-sm font-medium text-graphite-700 backdrop-blur-sm transition-all duration-200 hover:bg-graphite-50 hover:border-graphite-300 dark:border-graphite-700/40 dark:bg-graphite-800/80 dark:text-graphite-200 dark:hover:bg-graphite-700/50">
               Cancelar
             </button>
             <button type="submit"
-              className="rounded-lg bg-aviation-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-aviation-700">
+              className="rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
               {bombeiro ? 'Salvar Alterações' : 'Cadastrar'}
             </button>
           </div>

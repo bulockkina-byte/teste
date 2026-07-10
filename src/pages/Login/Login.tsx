@@ -32,14 +32,14 @@ export function Login() {
 
   return (
     <div className="flex min-h-screen">
-      <div className="flex w-full flex-col justify-center px-6 lg:w-1/2 lg:px-16">
+      <div className="flex w-full flex-col justify-center px-6 lg:w-1/2 lg:px-16 animate-fadeIn">
         <div className="mx-auto w-full max-w-sm">
-          <div className="mb-8 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-aviation-600">
+          <div className="mb-6 flex items-center gap-3">
+            <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-aviation-500 to-aviation-700 shadow-lg shadow-aviation-500/20">
               <Plane className="h-6 w-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-graphite-900 dark:text-graphite-100">
+              <h1 className="text-xl font-bold bg-gradient-to-r from-graphite-900 to-graphite-600 bg-clip-text text-transparent dark:from-graphite-100 dark:to-graphite-400">
                 SESCINC Manager
               </h1>
               <p className="text-xs text-graphite-500">
@@ -48,94 +48,118 @@ export function Login() {
             </div>
           </div>
 
-          <h2 className="mb-2 text-2xl font-bold text-graphite-900 dark:text-graphite-100">
-            Acessar o sistema
-          </h2>
-          <p className="mb-8 text-sm text-graphite-500">
-            Informe suas credenciais para continuar.
-          </p>
+          <div className="animate-slideUp">
+            <h2 className="mb-1 text-2xl font-bold text-graphite-900 dark:text-graphite-100">
+              Bem-vindo de volta
+            </h2>
+            <p className="mb-8 text-sm text-graphite-500">
+              Informe suas credenciais para acessar o sistema.
+            </p>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-graphite-700 dark:text-graphite-300">
-                Usuário
-              </label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite-400" />
-                <input
-                  type="text"
-                  value={username}
-                  onChange={e => setUsername(e.target.value)}
-                  placeholder="seu.usuario"
-                  className="w-full rounded-lg border border-graphite-300 bg-white py-2.5 pl-10 pr-4 text-sm text-graphite-900 outline-none transition-all focus:border-aviation-500 focus:ring-2 focus:ring-aviation-500/20 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-100"
-                />
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-graphite-700 dark:text-graphite-300">
+                  Usuário
+                </label>
+                <div className="relative group">
+                  <User className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite-400 transition-colors group-focus-within:text-aviation-500" />
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={e => setUsername(e.target.value)}
+                    placeholder="seu.usuario"
+                    className="w-full rounded-xl border border-graphite-300/70 bg-white/50 py-2.5 pl-11 pr-4 text-sm text-graphite-900 outline-none transition-all duration-200 placeholder:text-graphite-400 hover:border-graphite-300 focus:border-aviation-500 focus:bg-white focus:ring-4 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-800/30 dark:text-graphite-100 dark:placeholder:text-graphite-500 dark:hover:border-graphite-600 dark:focus:border-aviation-400 dark:focus:bg-graphite-800"
+                  />
+                </div>
               </div>
-            </div>
 
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-graphite-700 dark:text-graphite-300">
-                Senha
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite-400" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full rounded-lg border border-graphite-300 bg-white py-2.5 pl-10 pr-10 text-sm text-graphite-900 outline-none transition-all focus:border-aviation-500 focus:ring-2 focus:ring-aviation-500/20 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-100"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-graphite-400 hover:text-graphite-600"
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-graphite-700 dark:text-graphite-300">
+                  Senha
+                </label>
+                <div className="relative group">
+                  <Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite-400 transition-colors group-focus-within:text-aviation-500" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full rounded-xl border border-graphite-300/70 bg-white/50 py-2.5 pl-11 pr-11 text-sm text-graphite-900 outline-none transition-all duration-200 placeholder:text-graphite-400 hover:border-graphite-300 focus:border-aviation-500 focus:bg-white focus:ring-4 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-800/30 dark:text-graphite-100 dark:placeholder:text-graphite-500 dark:hover:border-graphite-600 dark:focus:border-aviation-400 dark:focus:bg-graphite-800"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-graphite-400 transition-all duration-200 hover:text-graphite-600 dark:hover:text-graphite-300"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
-            </div>
 
-            {error && (
-              <p className="text-sm text-alert-red">{error}</p>
-            )}
+              {error && (
+                <div className="animate-slideUp rounded-xl bg-red-50 px-4 py-3 text-sm text-alert-red dark:bg-red-900/20">
+                  {error}
+                </div>
+              )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-aviation-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-aviation-700 disabled:opacity-60"
-            >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {loading ? 'Entrando...' : 'Entrar'}
-            </button>
-          </form>
+              <button
+                type="submit"
+                disabled={loading}
+                className="relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98] disabled:opacity-60 disabled:hover:shadow-none"
+              >
+                {loading && (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                )}
+                {loading ? 'Entrando...' : 'Entrar'}
+              </button>
+            </form>
+          </div>
 
-          <p className="mt-6 text-center text-xs text-graphite-400">
+          <p className="mt-8 text-center text-xs text-graphite-400 animate-fadeIn">
             © 2026 SESCINC. Todos os direitos reservados.
           </p>
         </div>
       </div>
 
       <div className="hidden lg:flex lg:w-1/2">
-        <div className="flex w-full flex-col items-center justify-center bg-gradient-to-br from-aviation-800 via-aviation-700 to-aviation-900 p-16">
-          <Plane className="mb-6 h-20 w-20 text-aviation-300/40" />
-          <h2 className="text-center text-2xl font-bold text-white">
-            Centro de Controle Operacional
-          </h2>
-          <p className="mt-4 max-w-md text-center text-aviation-200/80">
-            Sistema integrado de gestão para monitoramento, inspeções e controle
-            operacional com padrão de excelência aeroportuária.
-          </p>
-          <div className="mt-12 grid grid-cols-3 gap-6">
-            {['Segurança', 'Tecnologia', 'Eficiência'].map(item => (
-              <div
-                key={item}
-                className="flex flex-col items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-6 py-4"
-              >
-                <span className="text-xs font-medium uppercase tracking-wider text-aviation-300">
-                  {item}
-                </span>
+        <div className="relative flex w-full flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-aviation-900 via-aviation-800 to-aviation-950 p-16">
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.05)_0%,transparent_50%)]" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(59,130,246,0.05)_0%,transparent_50%)]" />
+            <div className="absolute -top-40 -right-40 h-80 w-80 rounded-full bg-aviation-500/10 blur-3xl" />
+            <div className="absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-aviation-400/5 blur-3xl" />
+          </div>
+
+          <div className="relative animate-slideUp">
+            <div className="mb-8 flex justify-center">
+              <div className="flex h-24 w-24 items-center justify-center rounded-3xl bg-white/5 backdrop-blur-sm border border-white/10 shadow-2xl">
+                <Plane className="h-12 w-12 text-white/70" />
               </div>
-            ))}
+            </div>
+            <h2 className="text-center text-3xl font-bold text-white">
+              Centro de Controle<br />Operacional
+            </h2>
+            <p className="mt-4 max-w-md text-center text-base text-aviation-200/70 leading-relaxed">
+              Sistema integrado de gestão para monitoramento de viaturas,
+              inspeções e controle operacional com padrão de excelência.
+            </p>
+            <div className="mt-12 flex justify-center gap-4">
+              {[
+                { label: 'Segurança', desc: 'Monitoramento 24h' },
+                { label: 'Tecnologia', desc: 'Sistema integrado' },
+                { label: 'Eficiência', desc: 'Gestão otimizada' },
+              ].map(item => (
+                <div
+                  key={item.label}
+                  className="group flex flex-1 flex-col items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-5 py-4 backdrop-blur-sm transition-all duration-300 hover:bg-white/10 hover:border-white/20 hover:shadow-lg hover:shadow-white/5"
+                >
+                  <span className="text-xs font-semibold uppercase tracking-widest text-aviation-300 transition-colors group-hover:text-aviation-200">
+                    {item.label}
+                  </span>
+                  <span className="text-[10px] text-white/40">{item.desc}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>

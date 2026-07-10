@@ -43,12 +43,12 @@ export function UsuarioForm({ user, onSave, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-graphite-800">
+      <div className="w-full max-w-md rounded-2xl bg-white/95 p-6 shadow-xl shadow-black/5 backdrop-blur-sm dark:bg-graphite-800/95 dark:shadow-black/20">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">
             {user ? 'Editar Usuário' : 'Novo Usuário'}
           </h2>
-          <button onClick={onClose} className="rounded-lg p-1 text-graphite-500 hover:bg-graphite-100 dark:hover:bg-graphite-700">
+          <button onClick={onClose} className="rounded-xl p-1 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-800 dark:hover:text-graphite-300">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -57,31 +57,31 @@ export function UsuarioForm({ user, onSave, onClose }: Props) {
           <div>
             <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Nome *</label>
             <input value={name} onChange={e => setName(e.target.value)} placeholder="Nome completo"
-              className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+              className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Usuário *</label>
             <input value={username} onChange={e => setUsername(e.target.value)} placeholder="nome.usuario"
               disabled={!!user}
-              className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm disabled:bg-graphite-50 dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+              className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 disabled:bg-graphite-100/50 disabled:text-graphite-400 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">
               Senha {user ? '(deixe em branco para manter)' : '*'}
             </label>
             <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Mínimo 6 caracteres"
-              className="w-full rounded-lg border border-graphite-300 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-900 dark:text-graphite-100" />
+              className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900" />
           </div>
 
           {erro && <p className="text-sm text-alert-red">{erro}</p>}
 
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose}
-              className="rounded-lg border border-graphite-300 bg-white px-4 py-2 text-sm font-medium text-graphite-700 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-200">
+              className="rounded-xl border border-graphite-300/60 bg-white/80 px-4 py-2.5 text-sm font-medium text-graphite-700 backdrop-blur-sm transition-all duration-200 hover:bg-graphite-50 hover:border-graphite-300 dark:border-graphite-700/40 dark:bg-graphite-800/80 dark:text-graphite-200 dark:hover:bg-graphite-700/50">
               Cancelar
             </button>
             <button type="submit"
-              className="rounded-lg bg-aviation-600 px-4 py-2 text-sm font-medium text-white hover:bg-aviation-700">
+              className="rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
               {user ? 'Salvar' : 'Criar'}
             </button>
           </div>

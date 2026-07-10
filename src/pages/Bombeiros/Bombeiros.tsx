@@ -16,12 +16,12 @@ export function Bombeiros() {
     return (
       <PageContainer>
         <PageTitle icon={Shield} title="Bombeiros" />
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-graphite-700 dark:bg-graphite-900">
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300/60 bg-white/50 p-12 text-center backdrop-blur-sm dark:border-graphite-700/40 dark:bg-graphite-900/30">
           <Lock className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
           <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">
             Acesso Restrito
           </h3>
-          <p className="text-sm text-graphite-500">
+          <p className="text-sm text-graphite-400">
             Apenas administradores podem acessar o cadastro de bombeiros.
           </p>
         </div>
@@ -88,12 +88,12 @@ export function Bombeiros() {
             value={termo}
             onChange={e => setTermo(e.target.value)}
             placeholder="Pesquisar por matrícula, nome, CPF ou equipe..."
-            className="w-full rounded-lg border border-graphite-200 bg-white py-2.5 pl-10 pr-4 text-sm text-graphite-900 placeholder-graphite-400 outline-none transition-all focus:border-aviation-500 focus:ring-1 focus:ring-aviation-500 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-100"
+            className="w-full rounded-xl border border-graphite-300/60 bg-white/70 py-2.5 pl-10 pr-4 text-sm text-graphite-900 placeholder-graphite-400 outline-none transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900"
           />
         </div>
         <button
           onClick={() => { setEditando(null); setFormOpen(true); }}
-          className="flex items-center gap-2 rounded-lg bg-aviation-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-aviation-700"
+          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]"
         >
           <Plus className="h-4 w-4" />
           Novo Cadastro
@@ -101,17 +101,17 @@ export function Bombeiros() {
       </div>
 
       {bombeiros.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-graphite-700 dark:bg-graphite-900">
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300/60 bg-white/50 p-12 text-center backdrop-blur-sm dark:border-graphite-700/40 dark:bg-graphite-900/30">
           <Shield className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
           <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">
             Nenhum bombeiro cadastrado
           </h3>
-          <p className="text-sm text-graphite-500">
+          <p className="text-sm text-graphite-400">
             Clique em "Novo Cadastro" para adicionar o primeiro bombeiro.
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-graphite-200 bg-white dark:border-graphite-700 dark:bg-graphite-900">
+        <div className="overflow-x-auto rounded-2xl border border-graphite-200/60 bg-white/80 backdrop-blur-sm dark:border-graphite-700/40 dark:bg-graphite-900/80">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-graphite-200 bg-graphite-50 text-left dark:border-graphite-700 dark:bg-graphite-800">
@@ -154,7 +154,7 @@ export function Bombeiros() {
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleEdit(b)}
-                        className="rounded-lg p-1.5 text-graphite-500 transition-colors hover:bg-graphite-100 dark:text-graphite-400 dark:hover:bg-graphite-700"
+                        className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-800 dark:hover:text-graphite-300"
                         title="Editar"
                       >
                         <Pencil className="h-4 w-4" />
@@ -162,7 +162,7 @@ export function Bombeiros() {
                       {isAdmin && (
                         <button
                           onClick={() => setConfirmDelete(b.id)}
-                          className="rounded-lg p-1.5 text-alert-red transition-colors hover:bg-red-50 dark:hover:bg-red-900/20"
+                          className="rounded-xl p-1.5 text-alert-red transition-all duration-200 hover:bg-red-50 dark:hover:bg-red-900/20"
                           title="Excluir"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -187,7 +187,7 @@ export function Bombeiros() {
 
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl dark:bg-graphite-800">
+          <div className="w-full max-w-sm rounded-2xl bg-white/95 p-6 shadow-xl shadow-black/5 backdrop-blur-sm dark:bg-graphite-800/95 dark:shadow-black/20">
             <h3 className="mb-2 text-lg font-bold text-graphite-900 dark:text-graphite-100">
               Confirmar exclusão
             </h3>
@@ -197,13 +197,13 @@ export function Bombeiros() {
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setConfirmDelete(null)}
-                className="rounded-lg border border-graphite-300 bg-white px-4 py-2 text-sm font-medium text-graphite-700 transition-colors hover:bg-graphite-50 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-200"
+                className="rounded-xl border border-graphite-300/60 bg-white/80 px-4 py-2.5 text-sm font-medium text-graphite-700 backdrop-blur-sm transition-all duration-200 hover:bg-graphite-50 hover:border-graphite-300 dark:border-graphite-700/40 dark:bg-graphite-800/80 dark:text-graphite-200 dark:hover:bg-graphite-700/50"
               >
                 Cancelar
               </button>
               <button
                 onClick={() => handleDelete(confirmDelete)}
-                className="rounded-lg bg-alert-red px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700"
+                className="rounded-xl bg-gradient-to-r from-alert-red to-red-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-red-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-red-500/30 active:scale-[0.98]"
               >
                 Excluir
               </button>
