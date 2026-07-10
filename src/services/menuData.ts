@@ -42,6 +42,7 @@ export const menuItems: MenuItem[] = [
   {
     label: 'Cadastro',
     icon: Database,
+    adminOnly: true,
     children: [
       {
         label: 'Bombeiros',
@@ -183,6 +184,12 @@ export const menuItems: MenuItem[] = [
         icon: Calendar,
         path: '/escalas',
         description: 'Gestão de escalas de trabalho.',
+      },
+      {
+        label: 'Agentes Extintores',
+        icon: Flame,
+        path: '/cadastro/extintores',
+        description: 'Controle de agentes extintores e recargas.',
       },
     ],
   },
