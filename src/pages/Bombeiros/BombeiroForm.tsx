@@ -35,7 +35,7 @@ function calcularIdade(dataNasc: string): number {
 
 const inputClass = "w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900";
 const selectClass = "w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900";
-const disabledClass = "w-full rounded-xl border border-graphite-200/60 bg-graphite-100/50 px-3 py-2.5 text-sm text-graphite-500 dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-500";
+const disabledClass = "w-full rounded-xl border border-graphite-200/60 bg-graphite-100/50 px-3 py-2.5 text-sm text-graphite-500 cursor-not-allowed dark:border-graphite-700/40 dark:bg-graphite-900/50 dark:text-graphite-500";
 const labelClass = "mb-1 block text-xs font-medium text-graphite-600 dark:text-graphite-400";
 const span2 = "md:col-span-2";
 
@@ -57,6 +57,7 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
   const [cnhValidade, setCnhValidade] = useState('');
   const [foto, setFoto] = useState('');
   const [dataDesligamento, setDataDesligamento] = useState('');
+  const [showDesligamento, setShowDesligamento] = useState(false);
   const [erro, setErro] = useState('');
 
   useEffect(() => {
@@ -78,6 +79,7 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
       setCnhValidade(bombeiro.cnhValidade);
       setFoto(bombeiro.foto);
       setDataDesligamento(bombeiro.dataDesligamento);
+      if (bombeiro.dataDesligamento) setShowDesligamento(true);
     }
   }, [bombeiro]);
 
@@ -89,6 +91,16 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
     const reader = new FileReader();
     reader.onload = () => setFoto(reader.result as string);
     reader.readAsDataURL(file);
+  }
+
+  function handleEquipeChange(novaEquipe: Equipe) {
+    setEquipe(novaEquipe);
+    setTurno(turnoAutoPorEquipe(novaEquipe, cargo));
+  }
+
+  function handleCargoChange(novoCargo: Cargo) {
+    setCargo(novoCargo);
+    setTurno(turnoAutoPorEquipe(equipe, novoCargo));
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -221,7 +233,7 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
                 </div>
                 <div>
                   <label className={labelClass}>Cargo *</label>
-                  <select value={cargo} onChange={e => setCargo(e.target.value as Cargo)} className={selectClass}>
+                  <select value={cargo} onChange={e => handleCargoChange(e.target.value as Cargo)} className={selectClass}>
                     {CARGO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
@@ -236,29 +248,22 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
                 </div>
                 <div>
                   <label className={labelClass}>Equipe *</label>
-                  <select value={equipe} onChange={e => {
-                    const novaEquipe = e.target.value as Equipe;
-                    setEquipe(novaEquipe);
-                    setTurno(turnoAutoPorEquipe(novaEquipe));
-                  }} className={selectClass}>
+                  <select value={equipe} onChange={e => handleEquipeChange(e.target.value as Equipe)} className={selectClass}>
                     {EQUIPE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className={labelClass}>Turno *</label>
-                  <select value={turno} onChange={e => setTurno(e.target.value as Turno)} disabled={equipe === 'Feirista'}
-                    className={`${selectClass} ${equipe === 'Feirista' ? '!border-graphite-200/60 !bg-graphite-100/50 !text-graphite-500 cursor-not-allowed dark:!border-graphite-700/40 dark:!bg-graphite-900/50' : ''}`}>
+                  <select value={turno} disabled className={disabledClass}>
                     {TURNO_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
                   </select>
-                  {equipe === 'Feirista' && (
-                    <p className="mt-0.5 text-[11px] text-graphite-400 dark:text-graphite-500">Definido pela equipe</p>
-                  )}
+                  <p className="mt-0.5 text-[11px] text-graphite-400 dark:text-graphite-500">Definido automaticamente</p>
                 </div>
-                {dataDesligamento !== '' && (
-                  <div className="md:col-span-3">
+                {showDesligamento && (
+                  <div>
                     <label className={labelClass}>Data de Desligamento</label>
                     <input type="date" value={dataDesligamento} onChange={e => setDataDesligamento(e.target.value)}
-                      className={`${inputClass} max-w-xs`} />
+                      className={inputClass} />
                   </div>
                 )}
               </div>
@@ -267,14 +272,14 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
 
           <div className="flex shrink-0 items-center justify-between border-t border-graphite-200 px-6 py-4 dark:border-graphite-700">
             <div>
-              {!dataDesligamento && (
-                <button type="button" onClick={() => setDataDesligamento('')}
-                  className="text-xs text-graphite-400 underline transition-colors hover:text-alert-red dark:text-graphite-500">
-                  Registrar desligamento
+              {bombeiro && !showDesligamento && (
+                <button type="button" onClick={() => setShowDesligamento(true)}
+                  className="rounded-xl bg-gradient-to-r from-alert-red to-red-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-red-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-red-500/30 hover:from-red-600 hover:to-red-700 active:scale-[0.98]">
+                  Registrar Desligamento
                 </button>
               )}
-              {dataDesligamento && (
-                <button type="button" onClick={() => setDataDesligamento('')}
+              {bombeiro && showDesligamento && (
+                <button type="button" onClick={() => { setShowDesligamento(false); setDataDesligamento(''); }}
                   className="text-xs text-graphite-400 underline transition-colors hover:text-alert-red dark:text-graphite-500">
                   Remover desligamento
                 </button>

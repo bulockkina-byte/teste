@@ -8,7 +8,7 @@ export type Cargo =
   | 'OC';
 
 export type Equipe = 'Alfa' | 'Bravo' | 'Charlie' | 'Delta' | 'Feirista';
-export type Turno = 'Diurno' | 'Noturno' | 'Feirista';
+export type Turno = 'Diurno' | 'Noturno' | 'Feirista' | 'Gerência';
 export type CatCNH = 'A' | 'B' | 'C' | 'D' | 'E' | 'AB' | 'AC' | 'AD' | 'AE';
 
 export interface Bombeiro {
@@ -46,10 +46,11 @@ export const CARGO_OPTIONS: { value: Cargo; label: string }[] = [
 ];
 
 export const EQUIPE_OPTIONS: Equipe[] = ['Alfa', 'Bravo', 'Charlie', 'Delta', 'Feirista'];
-export const TURNO_OPTIONS: Turno[] = ['Diurno', 'Noturno', 'Feirista'];
+export const TURNO_OPTIONS: Turno[] = ['Diurno', 'Noturno', 'Feirista', 'Gerência'];
 export const CNH_OPTIONS: CatCNH[] = ['A', 'B', 'C', 'D', 'E', 'AB', 'AC', 'AD', 'AE'];
 
-export function turnoAutoPorEquipe(equipe: Equipe): Turno {
+export function turnoAutoPorEquipe(equipe: Equipe, cargo?: Cargo): Turno {
+  if (cargo === 'GS') return 'Gerência';
   if (equipe === 'Alfa' || equipe === 'Charlie') return 'Diurno';
   if (equipe === 'Bravo' || equipe === 'Delta') return 'Noturno';
   if (equipe === 'Feirista') return 'Feirista';
