@@ -32,7 +32,7 @@ export interface Ocorrencia {
   local: string;
   envolvidos: string;
   acoesTomadas: string;
-  status: 'Aberta' | 'Em Andamento' | 'Fechada';
+  status: 'Aberta' | 'Encaminhada' | 'Em Andamento' | 'Fechada';
   fotos: string[];
 }
 
@@ -41,6 +41,6 @@ export const CATEGORIAS_OCORRENCIA: CategoriaOcorrencia[] = [
   'Equipamento', 'Infraestrutura', 'Treinamento', 'Outros',
 ];
 
-export const STATUS_OCORRENCIA = ['Aberta', 'Em Andamento', 'Fechada'] as const;
+export const STATUS_OCORRENCIA = ['Aberta', 'Encaminhada', 'Em Andamento', 'Fechada'] as const;
 
 export const EQUIPES = ['Alfa', 'Bravo', 'Charlie', 'Delta'] as const;

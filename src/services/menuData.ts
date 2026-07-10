@@ -149,8 +149,20 @@ export const menuItems: MenuItem[] = [
   {
     label: 'Documentos',
     icon: FileText,
-    path: '/documentos',
-    description: 'Repositório de documentos e normativas.',
+    children: [
+      {
+        label: 'Documentos Gerais',
+        icon: FileText,
+        path: '/documentos',
+        description: 'Repositório de documentos e normativas.',
+      },
+      {
+        label: 'Trocas',
+        icon: RefreshCw,
+        path: '/documentos/trocas',
+        description: 'Registro de trocas de plantão e equipamentos.',
+      },
+    ],
   },
   {
     label: 'Escalas',
@@ -161,8 +173,26 @@ export const menuItems: MenuItem[] = [
   {
     label: 'Treinamentos',
     icon: GraduationCap,
-    path: '/treinamentos',
-    description: 'Controle de treinamentos e capacitações.',
+    children: [
+      {
+        label: 'Treinamentos',
+        icon: GraduationCap,
+        path: '/treinamentos',
+        description: 'Controle de treinamentos e capacitações.',
+      },
+      {
+        label: 'TP/EPR',
+        icon: ScrollText,
+        path: '/treinamentos/tp-epr',
+        description: 'Teste de Progressão / Exame de Progressão.',
+      },
+      {
+        label: 'TAF',
+        icon: Target,
+        path: '/treinamentos/taf',
+        description: 'Teste de Aptidão Física.',
+      },
+    ],
   },
   {
     label: 'Certificações',

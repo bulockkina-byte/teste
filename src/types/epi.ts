@@ -5,10 +5,11 @@ export interface EPI {
   updatedAt: string;
   nome: string;
   descricao: string;
-  responsavel: string;
+  colaborador: string;
+  entreguePor: string;
+  ca: string;
   dataPagamento: string;
   dataValidade: string;
-  valor: string;
   fornecedor: string;
   notas: string;
 }

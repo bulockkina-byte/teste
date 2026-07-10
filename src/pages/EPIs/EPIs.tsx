@@ -48,13 +48,14 @@ function EPIFormInline({
 }) {
   const hoje = new Date().toISOString().split('T')[0];
   const [form, setForm] = useState(epi ? {
-    nome: epi.nome, descricao: epi.descricao, responsavel: epi.responsavel,
+    nome: epi.nome, descricao: epi.descricao, colaborador: epi.colaborador,
+    entreguePor: epi.entreguePor, ca: epi.ca,
     dataPagamento: epi.dataPagamento, dataValidade: epi.dataValidade,
-    valor: epi.valor, fornecedor: epi.fornecedor, notas: epi.notas,
+    fornecedor: epi.fornecedor, notas: epi.notas,
   } : {
-    nome: '', descricao: '', responsavel: '',
+    nome: '', descricao: '', colaborador: '', entreguePor: '', ca: '',
     dataPagamento: hoje, dataValidade: '',
-    valor: '', fornecedor: '', notas: '',
+    fornecedor: '', notas: '',
   });
 
   const input = 'w-full rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2 text-sm backdrop-blur-sm transition-all duration-200 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50';
@@ -76,8 +77,16 @@ function EPIFormInline({
             <input value={form.descricao} onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))} className={input} placeholder="Ex: Capacete Classe B" />
           </div>
           <div>
-            <label className={label}>Responsável *</label>
-            <input value={form.responsavel} onChange={e => setForm(f => ({ ...f, responsavel: e.target.value }))} className={input} placeholder="Nome do responsável" />
+            <label className={label}>Colaborador (Recebedor) *</label>
+            <input value={form.colaborador} onChange={e => setForm(f => ({ ...f, colaborador: e.target.value }))} className={input} placeholder="Nome de quem recebe" />
+          </div>
+          <div>
+            <label className={label}>Entregue Por *</label>
+            <input value={form.entreguePor} onChange={e => setForm(f => ({ ...f, entreguePor: e.target.value }))} className={input} placeholder="Nome de quem entregou" />
+          </div>
+          <div>
+            <label className={label}>Certificado de Aprovação (CA) *</label>
+            <input value={form.ca} onChange={e => setForm(f => ({ ...f, ca: e.target.value }))} className={input} placeholder="Nº do CA" />
           </div>
           <div>
             <label className={label}>Fornecedor</label>
@@ -91,18 +100,14 @@ function EPIFormInline({
             <label className={label}>Data de Validade *</label>
             <input type="date" value={form.dataValidade} onChange={e => setForm(f => ({ ...f, dataValidade: e.target.value }))} className={input} />
           </div>
-          <div>
-            <label className={label}>Valor (R$)</label>
-            <input value={form.valor} onChange={e => setForm(f => ({ ...f, valor: e.target.value }))} className={input} placeholder="0,00" />
-          </div>
-          <div>
+          <div className="sm:col-span-2 lg:col-span-4">
             <label className={label}>Notas</label>
             <input value={form.notas} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))} className={input} placeholder="Observações" />
           </div>
         </div>
         <div className="mt-3 flex justify-end gap-2">
           <button onClick={onCancel} className="rounded-lg border border-graphite-300/60 bg-white/80 px-3 py-1.5 text-xs font-medium text-graphite-700 dark:border-graphite-700/40 dark:bg-graphite-800/80 dark:text-graphite-200">Cancelar</button>
-          <button onClick={() => onSave(form)} disabled={!form.nome || !form.responsavel || !form.dataValidade}
+          <button onClick={() => onSave(form)} disabled={!form.nome || !form.colaborador || !form.entreguePor || !form.ca || !form.dataValidade}
             className="flex items-center gap-1 rounded-lg bg-gradient-to-r from-aviation-600 to-aviation-700 px-3 py-1.5 text-xs font-medium text-white shadow-md transition-all hover:from-aviation-500 hover:to-aviation-600 disabled:opacity-50 disabled:cursor-not-allowed">
             <Save className="h-3.5 w-3.5" /> Salvar
           </button>
@@ -255,12 +260,12 @@ export function EPIs() {
             <thead>
               <tr className="border-b border-graphite-200 bg-graphite-50 text-left dark:border-graphite-700 dark:bg-graphite-800">
                 <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">EPI</th>
-                <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Responsável</th>
-                <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Data Pagamento</th>
+                <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">CA</th>
+                <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Colaborador</th>
+                <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Entregue Por</th>
                 <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Validade</th>
                 <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Dias Restantes</th>
                 <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Status</th>
-                <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Fornecedor</th>
                 {canManage && <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Ações</th>}
               </tr>
             </thead>

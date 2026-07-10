@@ -1,11 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   AlertTriangle, Plus, Save, Eye, Pencil, Trash2, ChevronDown, ChevronUp, FileText,
+  Send, CheckCircle, RotateCcw,
 } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { useAuth } from '../../context/AuthContext';
 import { listarBombeiros } from '../../services/bombeiroService';
+import { turnoAutoPorEquipe } from '../../types/bombeiro';
 import { listarOcorrencias, criarOcorrencia, atualizarOcorrencia, excluirOcorrencia } from '../../services/ocorrenciaService';
 import { CATEGORIAS_OCORRENCIA, STATUS_OCORRENCIA, EQUIPES, TIPO_DOCUMENTO } from '../../types/ocorrencia';
 import type { Ocorrencia, TipoDocumento } from '../../types/ocorrencia';
@@ -37,13 +39,14 @@ function emptyOcorrencia(): Omit<Ocorrencia, 'id' | 'createdAt' | 'updatedAt' | 
   };
 }
 
-function getUserRole(username: string): 'admin' | 'gerente' | 'chefe' {
+function getUserRole(username: string): 'admin' | 'gestor' | 'gerente' | 'chefe' {
   if (username === 'admin') return 'admin';
   const b = listarBombeiros().find(
     x => x.nomeGuerra.toLowerCase() === username.toLowerCase() ||
          x.nomeCompleto.toLowerCase().includes(username.toLowerCase()),
   );
   if (b?.cargo === 'GS' || b?.equipe === 'Gerência') return 'gerente';
+  if (b?.cargo === 'OC') return 'gestor';
   if (b?.cargo === 'BA-CE' || b?.cargo === 'BA-LR') return 'chefe';
   return 'chefe';
 }
@@ -63,16 +66,26 @@ function OcorrenciaForm({
   userEquipe,
   todas,
   savedId,
+  role,
   onSave,
   onSaveDraft,
+  onEncaminhar,
+  onAceitar,
+  onSolicitarRetrabalho,
+  onConcluir,
   onCancel,
 }: {
   ocorrencia?: Ocorrencia;
   userEquipe: string;
   todas: Ocorrencia[];
   savedId: string | null;
+  role: string;
   onSave: (data: Omit<Ocorrencia, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) => void;
   onSaveDraft: (data: Omit<Ocorrencia, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) => void;
+  onEncaminhar?: () => void;
+  onAceitar?: () => void;
+  onSolicitarRetrabalho?: () => void;
+  onConcluir?: () => void;
   onCancel: () => void;
 }) {
   const [form, setForm] = useState(ocorrencia ? {
@@ -94,9 +107,15 @@ function OcorrenciaForm({
     }
   }, [successMsg]);
 
-  const input = 'w-full rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50';
+  const input = 'w-full rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all duration-200 focus:border-aviation-500 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-100 dark:focus:border-aviation-400';
   const select = input;
+  const inputReadOnly = input + ' cursor-not-allowed bg-graphite-50 dark:bg-graphite-700/50';
   const label = 'block mb-1.5 text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400';
+
+  function handleEquipe(equipe: string) {
+    const turno = turnoAutoPorEquipe(equipe as any);
+    setForm(f => ({ ...f, equipe, turno }));
+  }
 
   function handleTipo(tipo: TipoDocumento) {
     setForm(f => ({
@@ -119,29 +138,45 @@ function OcorrenciaForm({
     ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
     : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400';
 
+  const statusBadge: Record<string, string> = {
+    'Aberta': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+    'Encaminhada': 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
+    'Em Andamento': 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+    'Fechada': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+  };
+
+  const isGestor = role === 'gestor' || role === 'admin';
+  const isChefe = role === 'chefe';
+  const status = form.status;
+
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 pt-8 sm:pt-16">
-      <div className="flex max-h-[85vh] w-full max-w-3xl flex-col rounded-2xl bg-white/95 shadow-2xl shadow-black/10 backdrop-blur-sm dark:bg-graphite-800/95">
-        <div className="flex items-center justify-between border-b border-graphite-200/60 px-6 py-4 dark:border-graphite-700/50">
+      <div className="flex max-h-[85vh] w-full max-w-3xl flex-col rounded-2xl bg-white shadow-2xl shadow-black/10 dark:bg-graphite-800">
+        <div className="flex items-center justify-between border-b border-graphite-200 px-6 py-4 dark:border-graphite-700">
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">{ocorrencia ? 'Editar Documento' : 'Novo Documento'}</h2>
             <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${tipoBadge}`}>
               {form.tipoDocumento} · {form.numero}
             </span>
+            {status && (
+              <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${statusBadge[status] || ''}`}>
+                {status}
+              </span>
+            )}
           </div>
           <button onClick={onCancel} className="rounded-lg p-1.5 text-graphite-400 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-700">✕</button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5">
-          <div className="mb-5 rounded-xl border border-graphite-200/60 bg-graphite-50/50 p-4 dark:border-graphite-700/40 dark:bg-graphite-900/30">
+          <div className="mb-5 rounded-xl border border-graphite-200 bg-graphite-50 p-4 dark:border-graphite-700 dark:bg-graphite-900/50">
             <label className={label}>Tipo de Documento *</label>
             <div className="mt-2 grid grid-cols-2 gap-3">
               {(['BONA', 'RAE'] as TipoDocumento[]).map(tipo => (
                 <button key={tipo} type="button" onClick={() => handleTipo(tipo)}
                   className={`flex items-center gap-3 rounded-xl border-2 px-4 py-3 text-left transition-all ${
                     form.tipoDocumento === tipo
-                      ? 'border-aviation-500 bg-aviation-50/80 dark:border-aviation-400 dark:bg-aviation-900/20'
-                      : 'border-graphite-200/60 bg-white/60 hover:border-graphite-300 dark:border-graphite-700/40 dark:bg-graphite-800/40 dark:hover:border-graphite-600'
+                      ? 'border-aviation-500 bg-aviation-50 dark:border-aviation-400 dark:bg-aviation-900/20'
+                      : 'border-graphite-200 bg-white hover:border-graphite-300 dark:border-graphite-700 dark:bg-graphite-800 dark:hover:border-graphite-600'
                   }`}>
                   <FileText className={`h-5 w-5 shrink-0 ${form.tipoDocumento === tipo ? 'text-aviation-600 dark:text-aviation-400' : 'text-graphite-400'}`} />
                   <div>
@@ -156,7 +191,7 @@ function OcorrenciaForm({
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className={label}>Número</label>
-              <input value={form.numero} readOnly className={input + ' cursor-not-allowed bg-graphite-50/50 dark:bg-graphite-900/20'} />
+              <input value={form.numero} readOnly className={inputReadOnly} />
             </div>
             <div>
               <label className={label}>Data *</label>
@@ -168,18 +203,14 @@ function OcorrenciaForm({
             </div>
             <div>
               <label className={label}>Equipe *</label>
-              <select value={form.equipe} onChange={e => setForm(f => ({ ...f, equipe: e.target.value }))} className={select}>
+              <select value={form.equipe} onChange={e => handleEquipe(e.target.value)} className={select}>
                 <option value="">Selecione</option>
                 {EQUIPES.map(eq => <option key={eq} value={eq}>{eq}</option>)}
               </select>
             </div>
             <div>
               <label className={label}>Turno</label>
-              <select value={form.turno} onChange={e => setForm(f => ({ ...f, turno: e.target.value }))} className={select}>
-                <option value="">Selecione</option>
-                <option value="Diurno">Diurno</option>
-                <option value="Noturno">Noturno</option>
-              </select>
+              <input value={form.turno} readOnly className={inputReadOnly} />
             </div>
             <div>
               <label className={label}>Categoria *</label>
@@ -187,15 +218,9 @@ function OcorrenciaForm({
                 {CATEGORIAS_OCORRENCIA.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
-            <div>
-              <label className={label}>Status</label>
-              <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value as Ocorrencia['status'] }))} className={select}>
-                {STATUS_OCORRENCIA.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
             <div className="sm:col-span-2">
               <label className={label}>Título</label>
-              <input value={form.titulo} readOnly className={input + ' cursor-not-allowed bg-graphite-50/50 font-semibold dark:bg-graphite-900/20'} />
+              <input value={form.titulo} readOnly className={inputReadOnly + ' font-semibold'} />
             </div>
             <div className="sm:col-span-2">
               <label className={label}>Local</label>
@@ -223,7 +248,7 @@ function OcorrenciaForm({
                       className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">✕</button>
                   </div>
                 ))}
-                <label className="flex h-16 w-16 cursor-pointer items-center justify-center rounded-xl border-2 border-dashed border-graphite-300/60 text-graphite-400 transition-colors hover:border-aviation-400 hover:text-aviation-500">
+                <label className="flex h-16 w-16 cursor-pointer items-center justify-center rounded-xl border-2 border-dashed border-graphite-300 text-graphite-400 transition-colors hover:border-aviation-400 hover:text-aviation-500">
                   <Plus className="h-5 w-5" />
                   <input type="file" accept="image/*" className="hidden" onChange={handleImage} />
                 </label>
@@ -233,20 +258,64 @@ function OcorrenciaForm({
         </div>
 
         {successMsg && (
-          <div className="mx-6 mt-4 rounded-xl border border-green-300/60 bg-green-50/80 px-4 py-2.5 text-sm font-medium text-green-700 dark:border-green-700/40 dark:bg-green-900/20 dark:text-green-400">
+          <div className="mx-6 mt-4 rounded-xl border border-green-300 bg-green-50 px-4 py-2.5 text-sm font-medium text-green-700 dark:border-green-700 dark:bg-green-900/30 dark:text-green-400">
             {successMsg}
           </div>
         )}
-        <div className="flex justify-end gap-3 border-t border-graphite-200/60 px-6 py-4 dark:border-graphite-700/50">
-          <button onClick={onCancel} className="rounded-xl border border-graphite-300/60 bg-white/80 px-5 py-2.5 text-sm font-medium text-graphite-700 dark:border-graphite-700/40 dark:bg-graphite-800/80 dark:text-graphite-200">Cancelar</button>
-          <button onClick={() => { clearSuccess(); onSaveDraft(form); }} disabled={!form.data || !form.equipe}
-            className="flex items-center gap-2 rounded-xl border-2 border-orange-400 bg-gradient-to-r from-orange-500 to-orange-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-orange-500/25 transition-all hover:from-orange-600 hover:to-orange-700 hover:shadow-xl hover:shadow-orange-500/30 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">
-            <Save className="h-4 w-4" /> Salvar e Continuar
+
+        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-graphite-200 px-6 py-4 dark:border-graphite-700">
+          <button onClick={onCancel} className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-200">
+            Cancelar
           </button>
-          <button onClick={() => onSave(form)} disabled={!form.data || !form.equipe}
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl hover:from-aviation-500 hover:to-aviation-600 disabled:opacity-50 disabled:cursor-not-allowed">
-            <Save className="h-4 w-4" /> Salvar
-          </button>
+
+          {isChefe && status === 'Aberta' && !savedId && (
+            <button onClick={() => { clearSuccess(); onSaveDraft(form); }} disabled={!form.data || !form.equipe}
+              className="flex items-center gap-2 rounded-xl border-2 border-orange-400 bg-gradient-to-r from-orange-500 to-orange-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-orange-500/25 transition-all hover:from-orange-600 hover:to-orange-700 hover:shadow-xl hover:shadow-orange-500/30 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">
+              <Save className="h-4 w-4" /> Salvar e Continuar
+            </button>
+          )}
+
+          {isChefe && status === 'Aberta' && (
+            <button onClick={() => onSave(form)} disabled={!form.data || !form.equipe}
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl hover:from-aviation-500 hover:to-aviation-600 disabled:opacity-50 disabled:cursor-not-allowed">
+              <Save className="h-4 w-4" /> Salvar
+            </button>
+          )}
+
+          {isChefe && status === 'Aberta' && onEncaminhar && (
+            <button onClick={onEncaminhar} disabled={!form.data || !form.equipe}
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-orange-500/25 transition-all hover:from-orange-600 hover:to-orange-700 hover:shadow-xl hover:shadow-orange-500/30 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">
+              <Send className="h-4 w-4" /> Encaminhar ao Gestor
+            </button>
+          )}
+
+          {isGestor && status === 'Encaminhada' && onAceitar && (
+            <button onClick={onAceitar}
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-blue-500/25 transition-all hover:from-blue-600 hover:to-blue-700 hover:shadow-xl hover:shadow-blue-500/30 active:scale-[0.98]">
+              <CheckCircle className="h-4 w-4" /> Aceitar (Em Andamento)
+            </button>
+          )}
+
+          {isGestor && status === 'Em Andamento' && onSolicitarRetrabalho && (
+            <button onClick={onSolicitarRetrabalho}
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-yellow-500 to-yellow-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-yellow-500/25 transition-all hover:from-yellow-600 hover:to-yellow-700 hover:shadow-xl hover:shadow-yellow-500/30 active:scale-[0.98]">
+              <RotateCcw className="h-4 w-4" /> Solicitar Retrabalho
+            </button>
+          )}
+
+          {isGestor && status === 'Em Andamento' && onConcluir && (
+            <button onClick={onConcluir}
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-green-500 to-green-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-green-500/25 transition-all hover:from-green-600 hover:to-green-700 hover:shadow-xl hover:shadow-green-500/30 active:scale-[0.98]">
+              <CheckCircle className="h-4 w-4" /> Concluir (Fechada)
+            </button>
+          )}
+
+          {isGestor && (status === 'Em Andamento' || status === 'Encaminhada') && (
+            <button onClick={() => onSave(form)}
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
+              <Save className="h-4 w-4" /> Salvar Alterações
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -260,16 +329,17 @@ function OcorrenciaView({ ocorrencia, onBack }: { ocorrencia: Ocorrencia; onBack
   const value = 'text-sm text-graphite-900 dark:text-graphite-100';
 
   const statusColor: Record<string, string> = {
-    'Aberta': 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400',
-    'Em Andamento': 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400',
-    'Fechada': 'bg-status-green/10 text-status-green',
+    'Aberta': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+    'Encaminhada': 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
+    'Em Andamento': 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+    'Fechada': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
   };
   const tipoBadge = ocorrencia.tipoDocumento === 'BONA'
     ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
     : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400';
 
   return (
-    <div className="rounded-2xl border border-graphite-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm dark:border-graphite-700/40 dark:bg-graphite-800/80">
+    <div className="rounded-2xl border border-graphite-200 bg-white p-6 shadow-sm dark:border-graphite-700 dark:bg-graphite-800">
       <div className="mb-4 flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2">
@@ -279,7 +349,7 @@ function OcorrenciaView({ ocorrencia, onBack }: { ocorrencia: Ocorrencia; onBack
           <p className="mt-1 text-sm font-medium text-graphite-600 dark:text-graphite-300">{TIPO_DOCUMENTO[ocorrencia.tipoDocumento]}</p>
           <p className="mt-0.5 text-sm text-graphite-500">{ocorrencia.data} {ocorrencia.hora && `às ${ocorrencia.hora}`}</p>
         </div>
-        <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusColor[ocorrencia.status] || ''}`}>{ocorrencia.status}</span>
+        <span className={`rounded-full px-3 py-1 text-xs font-bold ${statusColor[ocorrencia.status] || ''}`}>{ocorrencia.status}</span>
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -311,7 +381,7 @@ function OcorrenciaView({ ocorrencia, onBack }: { ocorrencia: Ocorrencia; onBack
       )}
 
       <div className="mt-6 flex justify-end">
-        <button onClick={onBack} className="rounded-xl border border-graphite-300/60 bg-white/80 px-5 py-2.5 text-sm font-medium text-graphite-700 dark:border-graphite-700/40 dark:bg-graphite-800/80 dark:text-graphite-200">Voltar</button>
+        <button onClick={onBack} className="rounded-xl border border-graphite-300 bg-white px-5 py-2.5 text-sm font-medium text-graphite-700 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-200">Voltar</button>
       </div>
     </div>
   );
@@ -320,30 +390,34 @@ function OcorrenciaView({ ocorrencia, onBack }: { ocorrencia: Ocorrencia; onBack
 /* ───────── Card ───────── */
 
 function OcorrenciaCard({
-  o, isAdmin, onView, onEdit, onDelete,
+  o, isAdmin, isGestor, onView, onEdit, onDelete,
 }: {
-  o: Ocorrencia; isAdmin: boolean;
+  o: Ocorrencia; isAdmin: boolean; isGestor: boolean;
   onView: () => void; onEdit: () => void; onDelete: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const statusColor: Record<string, string> = {
-    'Aberta': 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400',
-    'Em Andamento': 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400',
-    'Fechada': 'bg-status-green/10 text-status-green',
+    'Aberta': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+    'Encaminhada': 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
+    'Em Andamento': 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+    'Fechada': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
   };
   const tipoBadge = o.tipoDocumento === 'BONA'
     ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
     : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400';
 
+  const canEdit = o.status === 'Aberta' && (isAdmin || isGestor);
+  const canDelete = o.status === 'Aberta' && isAdmin;
+
   return (
-    <div className="rounded-2xl border border-graphite-200/60 bg-white/80 shadow-sm backdrop-blur-sm transition-all hover:shadow-md dark:border-graphite-700/40 dark:bg-graphite-800/80">
+    <div className="rounded-2xl border border-graphite-200 bg-white shadow-sm transition-all hover:shadow-md dark:border-graphite-700 dark:bg-graphite-800">
       <button onClick={() => setExpanded(!expanded)}
         className="flex w-full items-center justify-between px-5 py-4 text-left">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-3">
             <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${tipoBadge}`}>{o.tipoDocumento}</span>
             <span className="shrink-0 text-xs font-semibold text-graphite-500 dark:text-graphite-400">{o.numero}</span>
-            <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-medium ${statusColor[o.status] || ''}`}>{o.status}</span>
+            <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${statusColor[o.status] || ''}`}>{o.status}</span>
             <span className="shrink-0 rounded-full bg-aviation-50 px-2.5 py-0.5 text-[10px] font-medium text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-300">{o.categoria}</span>
           </div>
           <div className="mt-1 flex items-center gap-3 text-xs text-graphite-500 dark:text-graphite-400">
@@ -357,7 +431,7 @@ function OcorrenciaCard({
       </button>
 
       {expanded && (
-        <div className="border-t border-graphite-200/60 px-5 py-4 dark:border-graphite-700/40">
+        <div className="border-t border-graphite-200 px-5 py-4 dark:border-graphite-700">
           <p className="mb-2 text-sm font-semibold text-graphite-700 dark:text-graphite-300">{TIPO_DOCUMENTO[o.tipoDocumento]}</p>
           {o.descricao && <p className="mb-2 text-sm text-graphite-700 dark:text-graphite-300 whitespace-pre-wrap">{o.descricao}</p>}
           {o.envolvidos && <p className="mb-1 text-xs text-graphite-500"><strong>Envolvidos:</strong> {o.envolvidos}</p>}
@@ -371,15 +445,15 @@ function OcorrenciaCard({
             <button onClick={onView} className="flex items-center gap-1 rounded-lg bg-aviation-50 px-3 py-1.5 text-xs font-medium text-aviation-700 transition-colors hover:bg-aviation-100 dark:bg-aviation-900/30 dark:text-aviation-300 dark:hover:bg-aviation-900/50">
               <Eye className="h-3.5 w-3.5" /> Ver
             </button>
-            {isAdmin && (
-              <>
-                <button onClick={onEdit} className="flex items-center gap-1 rounded-lg bg-graphite-100 px-3 py-1.5 text-xs font-medium text-graphite-700 transition-colors hover:bg-graphite-200 dark:bg-graphite-700 dark:text-graphite-300 dark:hover:bg-graphite-600">
-                  <Pencil className="h-3.5 w-3.5" /> Editar
-                </button>
-                <button onClick={onDelete} className="flex items-center gap-1 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-alert-red transition-colors hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/30">
-                  <Trash2 className="h-3.5 w-3.5" /> Excluir
-                </button>
-              </>
+            {canEdit && (
+              <button onClick={onEdit} className="flex items-center gap-1 rounded-lg bg-graphite-100 px-3 py-1.5 text-xs font-medium text-graphite-700 transition-colors hover:bg-graphite-200 dark:bg-graphite-700 dark:text-graphite-300 dark:hover:bg-graphite-600">
+                <Pencil className="h-3.5 w-3.5" /> Editar
+              </button>
+            )}
+            {canDelete && (
+              <button onClick={onDelete} className="flex items-center gap-1 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-alert-red transition-colors hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/30">
+                <Trash2 className="h-3.5 w-3.5" /> Excluir
+              </button>
             )}
           </div>
         </div>
@@ -396,9 +470,10 @@ export function Ocorrencias() {
   const role = useMemo(() => getUserRole(username), [username]);
   const userEquipe = useMemo(() => getUserEquipe(username), [username]);
   const isAdmin = role === 'admin';
+  const isGestor = role === 'gestor';
   const isGerente = role === 'gerente';
-  const canFilterTeam = isAdmin || isGerente;
-  const canEdit = isAdmin || role === 'chefe';
+  const canFilterTeam = isAdmin || isGestor || isGerente;
+  const canEdit = isAdmin || isGestor || role === 'chefe';
 
   const [ocorrencias, setOcorrencias] = useState<Ocorrencia[]>([]);
   const [mode, setMode] = useState<'list' | 'form' | 'view'>('list');
@@ -416,7 +491,7 @@ export function Ocorrencias() {
   const [filtroTipo, setFiltroTipo] = useState('');
   const MESES = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   const ANOS = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
-  const inputClass = 'rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-700/50 dark:bg-graphite-900/50 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-900';
+  const inputClass = 'rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all duration-200 hover:border-graphite-400 focus:border-aviation-500 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-100 dark:focus:border-aviation-400';
 
   function carregar() { setOcorrencias(listarOcorrencias()); }
   useEffect(() => { carregar(); }, []);
@@ -465,6 +540,11 @@ export function Ocorrencias() {
     }
   }
 
+  function handleStatusChange(id: string, newStatus: Ocorrencia['status']) {
+    atualizarOcorrencia(id, { status: newStatus });
+    carregar();
+  }
+
   function handleDelete(id: string) {
     excluirOcorrencia(id);
     setConfirmDelete(null);
@@ -475,9 +555,25 @@ export function Ocorrencias() {
     return (
       <PageContainer>
         <PageTitle icon={AlertTriangle} title={editando ? 'Editar Documento' : 'Novo Documento'} />
-        <OcorrenciaForm ocorrencia={editando || undefined} userEquipe={userEquipe} todas={ocorrencias} savedId={savedId}
+        <OcorrenciaForm ocorrencia={editando || undefined} userEquipe={userEquipe} todas={ocorrencias} savedId={savedId} role={role}
           onSave={(d) => handleSave(d, false)}
           onSaveDraft={(d) => { handleSave(d, true); setSuccessMsg('Documento salvo com sucesso! Preencha os campos restantes e clique em "Salvar" para finalizar.'); }}
+          onEncaminhar={() => {
+            handleSave({ ...editando!, status: 'Encaminhada' } as any, false);
+            setSuccessMsg('Documento encaminhado ao Gestor Aeroportuário.');
+          }}
+          onAceitar={() => {
+            if (savedId || editando?.id) handleStatusChange(savedId || editando!.id, 'Em Andamento');
+            setEditando(null); setSavedId(null); setMode('list');
+          }}
+          onSolicitarRetrabalho={() => {
+            if (savedId || editando?.id) handleStatusChange(savedId || editando!.id, 'Aberta');
+            setEditando(null); setSavedId(null); setMode('list');
+          }}
+          onConcluir={() => {
+            if (savedId || editando?.id) handleStatusChange(savedId || editando!.id, 'Fechada');
+            setEditando(null); setSavedId(null); setMode('list');
+          }}
           onCancel={() => { setMode('list'); setEditando(null); setSavedId(null); }} />
       </PageContainer>
     );
@@ -528,7 +624,7 @@ export function Ocorrencias() {
       </div>
 
       {filtradas.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300/60 bg-white/50 p-12 text-center backdrop-blur-sm dark:border-graphite-700/40 dark:bg-graphite-900/30">
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-graphite-700 dark:bg-graphite-900/30">
           <AlertTriangle className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
           <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhum documento encontrado</h3>
           <p className="text-sm text-graphite-400">Clique em "Novo Documento" para criar BONA ou RAE.</p>
@@ -536,9 +632,9 @@ export function Ocorrencias() {
       ) : (
         <div className="space-y-3">
           {filtradas.map(o => (
-            <OcorrenciaCard key={o.id} o={o} isAdmin={isAdmin}
+            <OcorrenciaCard key={o.id} o={o} isAdmin={isAdmin} isGestor={isGestor}
               onView={() => { setVisualizando(o); setMode('view'); }}
-              onEdit={() => { setEditando(o); setMode('form'); }}
+              onEdit={() => { setEditando(o); setSavedId(o.id); setMode('form'); }}
               onDelete={() => setConfirmDelete(o.id)}
             />
           ))}
@@ -547,12 +643,12 @@ export function Ocorrencias() {
 
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-sm rounded-2xl bg-white/95 p-6 shadow-xl shadow-black/5 backdrop-blur-sm dark:bg-graphite-800/95 dark:shadow-black/20">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl dark:bg-graphite-800">
             <h3 className="mb-2 text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar exclusão</h3>
             <p className="mb-6 text-sm text-graphite-500">Tem certeza que deseja excluir este documento?</p>
             <div className="flex justify-end gap-3">
               <button onClick={() => setConfirmDelete(null)}
-                className="rounded-xl border border-graphite-300/60 bg-white/80 px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-graphite-700/40 dark:bg-graphite-800/80 dark:text-graphite-200">Cancelar</button>
+                className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-200">Cancelar</button>
               <button onClick={() => handleDelete(confirmDelete)}
                 className="rounded-xl bg-gradient-to-r from-alert-red to-red-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-red-500/20 transition-all hover:shadow-xl hover:shadow-red-500/30 active:scale-[0.98]">Excluir</button>
             </div>
