@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plane, User, Lock, UserCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { User, Lock, UserCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export function Register() {
@@ -45,8 +45,8 @@ export function Register() {
       <div className="flex w-full flex-col justify-center px-6 lg:w-1/2 lg:px-16">
         <div className="mx-auto w-full max-w-sm">
           <div className="mb-8 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-aviation-500 to-aviation-700 shadow-sm shadow-aviation-500/20">
-              <Plane className="h-6 w-6 text-white" />
+            <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl shadow-sm shadow-aviation-500/20">
+              <img src="/logobombeiro.jpeg" alt="SCI NVT" className="h-full w-full object-cover" />
             </div>
             <div>
               <h1 className="text-xl font-bold text-graphite-900 dark:text-graphite-100">
@@ -165,26 +165,29 @@ SCI NVT
       </div>
 
       <div className="hidden lg:flex lg:w-1/2">
-        <div className="flex w-full flex-col items-center justify-center bg-gradient-to-br from-aviation-800 via-aviation-700 to-aviation-900 p-16">
-          <Plane className="mb-6 h-20 w-20 text-aviation-300/40" />
-          <h2 className="text-center text-2xl font-bold text-white">
-            Junte-se ao SCI NVT
-          </h2>
-          <p className="mt-4 max-w-md text-center text-aviation-200/80">
-            Crie sua conta e tenha acesso a todas as ferramentas de gestão
-            operacional do sistema.
-          </p>
-          <div className="mt-12 grid grid-cols-3 gap-6">
-            {['Segurança', 'Tecnologia', 'Eficiência'].map(item => (
-              <div
-                key={item}
-                className="flex flex-col items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-6 py-4"
-              >
-                <span className="text-xs font-medium uppercase tracking-wider text-aviation-300">
-                  {item}
-                </span>
-              </div>
-            ))}
+        <div className="relative flex w-full flex-col items-center justify-center overflow-hidden p-16">
+          <img src="/entradalogin.jpeg" alt="SCI NVT" className="absolute inset-0 h-full w-full object-cover" />
+          <div className="pointer-events-none absolute inset-0 bg-black/40" />
+          <div className="relative z-10 text-center">
+            <h2 className="text-2xl font-bold text-white drop-shadow-lg">
+              Junte-se ao SCI NVT
+            </h2>
+            <p className="mt-4 max-w-md text-white/80 drop-shadow">
+              Crie sua conta e tenha acesso a todas as ferramentas de gestão
+              operacional do sistema.
+            </p>
+            <div className="mt-12 grid grid-cols-3 gap-6">
+              {['Segurança', 'Tecnologia', 'Eficiência'].map(item => (
+                <div
+                  key={item}
+                  className="flex flex-col items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-6 py-4 backdrop-blur-sm"
+                >
+                  <span className="text-xs font-medium uppercase tracking-wider text-white">
+                    {item}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>

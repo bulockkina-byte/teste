@@ -1,4 +1,6 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { substituicaoPorSubstituto } from '../services/substituicaoService';
+import { listarBombeiros } from '../services/bombeiroService';
 
 export type UserRole = 'admin_master' | 'admin' | 'gerente' | 'chefe' | 'lider';
 
@@ -15,11 +17,14 @@ interface User {
   username: string;
   avatar: string;
   role: UserRole;
+  substituindoDe?: string;
+  substituindoFuncao?: UserRole;
 }
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
+  effectiveRole: UserRole;
   login: (username: string, password: string) => Promise<void>;
   register: (name: string, username: string, password: string, role: UserRole) => Promise<void>;
   logout: () => void;
@@ -44,6 +49,7 @@ function getStoredUsers(): Record<string, StoredUser> {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   isAuthenticated: false,
+  effectiveRole: 'chefe',
   login: async () => {},
   register: async () => {},
   logout: () => {},
@@ -53,7 +59,6 @@ function seedAdmin() {
   const users = getStoredUsers();
   let changed = false;
 
-  // Seed admin_master
   if (!users['admin_master']) {
     users['admin_master'] = { name: 'Administrador Master', password: 'admin_master', role: 'admin_master' };
     changed = true;
@@ -62,7 +67,6 @@ function seedAdmin() {
     changed = true;
   }
 
-  // Seed admin
   if (!users['admin']) {
     users['admin'] = { name: 'Administrador', password: 'admin', role: 'admin' };
     changed = true;
@@ -72,6 +76,15 @@ function seedAdmin() {
   }
 
   if (changed) localStorage.setItem(USERS_KEY, JSON.stringify(users));
+}
+
+const ROLE_HIERARQUIA: UserRole[] = ['admin_master', 'admin', 'gerente', 'chefe', 'lider'];
+
+function cargoParaUserRole(cargo: string): UserRole | null {
+  if (cargo === 'GS') return 'gerente';
+  if (cargo === 'BA-CE') return 'chefe';
+  if (cargo === 'BA-LR') return 'lider';
+  return null;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -86,7 +99,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!stored || stored.password !== password) {
       throw new Error('Usuário ou senha inválidos.');
     }
-    setUser({ name: stored.name, username, avatar: stored.name.charAt(0).toUpperCase(), role: stored.role || 'chefe' });
+
+    const bombeiros = listarBombeiros();
+    const bombeiro = bombeiros.find(b => b.nomeCompleto === stored.name || b.email === username);
+    let substituicao = null;
+    if (bombeiro) {
+      substituicao = substituicaoPorSubstituto(bombeiro.id);
+    }
+
+    const userData: User = {
+      name: stored.name,
+      username,
+      avatar: stored.name.charAt(0).toUpperCase(),
+      role: stored.role || 'chefe',
+    };
+
+    if (substituicao && bombeiro) {
+      const subRole = cargoParaUserRole(substituicao.funcaoSubstituicao);
+      if (subRole) {
+        userData.substituindoDe = substituicao.funcionarioNome;
+        userData.substituindoFuncao = subRole;
+      }
+    }
+
+    setUser(userData);
   }, []);
 
   const register = useCallback(async (name: string, username: string, password: string, role: UserRole) => {
@@ -103,8 +139,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const effectiveRole = useMemo(() => {
+    if (!user) return 'chefe';
+    if (user.substituindoFuncao) {
+      const userIdx = ROLE_HIERARQUIA.indexOf(user.role);
+      const subIdx = ROLE_HIERARQUIA.indexOf(user.substituindoFuncao);
+      return subIdx < userIdx ? user.substituindoFuncao : user.role;
+    }
+    return user.role;
+  }, [user]);
+
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, register, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, effectiveRole, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

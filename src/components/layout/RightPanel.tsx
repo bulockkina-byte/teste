@@ -8,30 +8,16 @@ import { listarBombeiros } from '../../services/bombeiroService';
 import {
   mensagensGerais, conversaCom, enviarMensagem, marcarLida, contarNaoLidas,
 } from '../../services/chatService';
+import {
+  gerarNotificacoes, listarNotificacoesPorEquipe,
+  marcarNotificacaoLida as marcarNotifLida,
+  marcarTodasNotificacoesLidas, limparNotificacoes,
+} from '../../services/notificacaoService';
+import type { Notificacao } from '../../services/notificacaoService';
+import type { Equipe } from '../../types/bombeiro';
 
 type RightTab = 'chat' | 'notificacoes' | 'contatos';
 type ChatSubTab = 'geral' | 'privado';
-
-interface Notificacao {
-  id: string;
-  titulo: string;
-  descricao: string;
-  tipo: 'info' | 'alerta' | 'sucesso' | 'erro';
-  lida: boolean;
-  createdAt: string;
-}
-
-function getNotificacoes(): Notificacao[] {
-  const stored = localStorage.getItem('sescinc-notificacoes');
-  if (stored) {
-    try { return JSON.parse(stored); } catch { return []; }
-  }
-  return [
-    { id: '1', titulo: 'Bem-vindo ao SCI NVT', descricao: 'Sistema atualizado com sucesso.', tipo: 'sucesso', lida: false, createdAt: new Date().toISOString() },
-    { id: '2', titulo: 'Manutenção Programada', descricao: 'Viatura 01 em manutenção prevista para amanhã.', tipo: 'info', lida: false, createdAt: new Date(Date.now() - 3600000).toISOString() },
-    { id: '3', titulo: 'EPI Vencendo', descricao: '3 EPIs com CA vencendo nos próximos 30 dias.', tipo: 'alerta', lida: true, createdAt: new Date(Date.now() - 86400000).toISOString() },
-  ];
-}
 
 function formatTimeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -59,7 +45,7 @@ const TIPO_COR: Record<string, string> = {
 };
 
 export function RightPanel({ onClose, openTab = 'chat' }: { onClose: () => void; openTab?: RightTab }) {
-  const { user } = useAuth();
+  const { user, effectiveRole } = useAuth();
   const username = user?.username || '';
   const [tab, setTab] = useState<RightTab>(openTab);
   const [chatSubTab, setChatSubTab] = useState<ChatSubTab>('geral');
@@ -75,7 +61,23 @@ export function RightPanel({ onClose, openTab = 'chat' }: { onClose: () => void;
 
   const bombeiros = useMemo(() => listarBombeiros(), []);
 
-  useEffect(() => { setNotificacoes(getNotificacoes()); }, []);
+  const userEquipes = useMemo(() => {
+    const isGlobal = effectiveRole === 'admin_master' || effectiveRole === 'admin' || effectiveRole === 'gerente';
+    if (isGlobal) return null;
+    const b = bombeiros.find(x =>
+      x.nomeGuerra.toLowerCase() === username.toLowerCase() ||
+      x.nomeCompleto.toLowerCase().includes(username.toLowerCase())
+    );
+    return b ? [b.equipe] as Equipe[] : null;
+  }, [bombeiros, username, effectiveRole]);
+
+  function carregarNotificacoes() {
+    const geradas = gerarNotificacoes();
+    const filtradas = userEquipes ? listarNotificacoesPorEquipe(userEquipes) : geradas;
+    setNotificacoes(filtradas);
+  }
+
+  useEffect(() => { carregarNotificacoes(); }, []);
 
   const usuariosFiltrados = useMemo(() => {
     if (!busca) return bombeiros;
@@ -128,14 +130,13 @@ export function RightPanel({ onClose, openTab = 'chat' }: { onClose: () => void;
   }
 
   function marcarTodasLidas() {
-    const updated = notificacoes.map(n => ({ ...n, lida: true }));
-    setNotificacoes(updated);
-    localStorage.setItem('sescinc-notificacoes', JSON.stringify(updated));
+    marcarTodasNotificacoesLidas(userEquipes || undefined);
+    carregarNotificacoes();
   }
 
-  function limparNotificacoes() {
+  function handleLimparNotificacoes() {
+    limparNotificacoes();
     setNotificacoes([]);
-    localStorage.removeItem('sescinc-notificacoes');
   }
 
   function formatTime(iso: string) {
@@ -152,11 +153,11 @@ export function RightPanel({ onClose, openTab = 'chat' }: { onClose: () => void;
   const mensagensAtuais = chatSubTab === 'geral' ? gerais : privadas;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+    <div className="fixed right-0 top-0 z-50 flex h-screen justify-end" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/30" />
       <div
         onClick={e => e.stopPropagation()}
-        className="relative flex h-full w-full max-w-[440px] flex-col bg-graphite-950 border-l border-border-dark shadow-2xl shadow-black/60 animate-slideInRight"
+        className="relative flex h-screen w-[360px] flex-col bg-graphite-950 border-l border-white/10 shadow-2xl shadow-black/60 animate-slideInRight"
       >
         {/* ── Header ── */}
         <div className="flex items-center justify-between border-b border-border-dark px-5 py-4">
@@ -444,7 +445,7 @@ export function RightPanel({ onClose, openTab = 'chat' }: { onClose: () => void;
                       className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-medium text-graphite-500 transition-colors hover:bg-surface-card hover:text-graphite-200">
                       <CheckCheck className="h-3 w-3" /> Lidas
                     </button>
-                    <button onClick={limparNotificacoes}
+                    <button onClick={handleLimparNotificacoes}
                       className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-medium text-graphite-500 transition-colors hover:bg-red-500/10 hover:text-red-400">
                       <Trash2 className="h-3 w-3" /> Limpar
                     </button>
@@ -466,7 +467,8 @@ export function RightPanel({ onClose, openTab = 'chat' }: { onClose: () => void;
                     const Icone = TIPO_ICONE[n.tipo] || Bell;
                     return (
                       <div key={n.id}
-                        className={`group relative rounded-xl border p-3.5 transition-all hover:shadow-md ${
+                        onClick={() => !n.lida && marcarNotifLida(n.id)}
+                        className={`group relative rounded-xl border p-3.5 transition-all hover:shadow-md cursor-pointer ${
                           n.lida
                             ? 'border-border-dark bg-surface-card/50'
                             : 'border-aviation-500/20 bg-surface-card'

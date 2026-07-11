@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plane, Eye, EyeOff, Loader2, User, Lock } from 'lucide-react';
+import { Eye, EyeOff, Loader2, User, Lock } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export function Login() {
@@ -35,8 +35,8 @@ export function Login() {
       <div className="flex w-full flex-col justify-center px-6 lg:w-1/2 lg:px-16 animate-fadeIn">
         <div className="mx-auto w-full max-w-sm">
           <div className="mb-6 flex items-center gap-3">
-            <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-aviation-500 to-aviation-700 shadow-lg shadow-aviation-500/20">
-              <Plane className="h-6 w-6 text-white" />
+            <div className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl shadow-lg shadow-aviation-500/20">
+              <img src="/logobombeiro.jpeg" alt="SCI NVT" className="h-full w-full object-cover" />
             </div>
             <div>
               <h1 className="text-xl font-bold bg-gradient-to-r from-graphite-900 to-graphite-600 bg-clip-text text-transparent dark:from-graphite-100 dark:to-graphite-400">
@@ -122,24 +122,14 @@ export function Login() {
       </div>
 
       <div className="hidden lg:flex lg:w-1/2">
-        <div className="relative flex w-full flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-aviation-900 via-aviation-800 to-aviation-950 p-16">
-          <div className="pointer-events-none absolute inset-0">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.05)_0%,transparent_50%)]" />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(59,130,246,0.05)_0%,transparent_50%)]" />
-            <div className="absolute -top-40 -right-40 h-80 w-80 rounded-full bg-aviation-500/10 blur-3xl" />
-            <div className="absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-aviation-400/5 blur-3xl" />
-          </div>
-
-          <div className="relative animate-slideUp">
-            <div className="mb-8 flex justify-center">
-              <div className="flex h-24 w-24 items-center justify-center rounded-3xl bg-white/5 backdrop-blur-sm border border-white/10 shadow-2xl">
-                <Plane className="h-12 w-12 text-white/70" />
-              </div>
-            </div>
-            <h2 className="text-center text-3xl font-bold text-white">
+        <div className="relative flex w-full flex-col items-center justify-center overflow-hidden p-16">
+          <img src="/entradalogin.jpeg" alt="SCI NVT" className="absolute inset-0 h-full w-full object-cover" />
+          <div className="pointer-events-none absolute inset-0 bg-black/40" />
+          <div className="relative z-10 animate-slideUp text-center">
+            <h2 className="text-3xl font-bold text-white drop-shadow-lg">
               Centro de Controle<br />Operacional
             </h2>
-            <p className="mt-4 max-w-md text-center text-base text-aviation-200/70 leading-relaxed">
+            <p className="mt-4 max-w-md text-base text-white/80 leading-relaxed drop-shadow">
               Sistema integrado de gestão para monitoramento de viaturas,
               inspeções e controle operacional com padrão de excelência.
             </p>
@@ -151,12 +141,12 @@ export function Login() {
               ].map(item => (
                 <div
                   key={item.label}
-                  className="group flex flex-1 flex-col items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-5 py-4 backdrop-blur-sm transition-all duration-300 hover:bg-white/10 hover:border-white/20 hover:shadow-lg hover:shadow-white/5"
+                  className="group flex flex-1 flex-col items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-5 py-4 backdrop-blur-sm transition-all duration-300 hover:bg-white/20 hover:border-white/30 hover:shadow-lg hover:shadow-white/10"
                 >
-                  <span className="text-xs font-semibold uppercase tracking-widest text-aviation-300 transition-colors group-hover:text-aviation-200">
+                  <span className="text-xs font-semibold uppercase tracking-widest text-white transition-colors group-hover:text-white">
                     {item.label}
                   </span>
-                  <span className="text-[10px] text-white/40">{item.desc}</span>
+                  <span className="text-[10px] text-white/60">{item.desc}</span>
                 </div>
               ))}
             </div>

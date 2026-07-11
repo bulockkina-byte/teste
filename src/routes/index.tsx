@@ -31,6 +31,7 @@ import { Equipamentos } from '../pages/Equipamentos/Equipamentos';
 import { AgentesExtintores } from '../pages/AgentesExtintores/AgentesExtintores';
 import { Hidrantes } from '../pages/Hidrantes/Hidrantes';
 import { APOCs } from '../pages/APOC/APOCs';
+import { Ferias } from '../pages/Ferias/Ferias';
 import { LRODiario } from '../pages/RegistrosDiarios/LRODiario';
 import { PTRBADiario } from '../pages/RegistrosDiarios/PTRBADiario';
 import { LROOcorrencias } from '../pages/RegistrosDiarios/LROOcorrencias';
@@ -55,6 +56,7 @@ export const router = createBrowserRouter([
       { path: 'cadastro/extintores', element: <AgentesExtintores /> },
       { path: 'cadastro/hidrantes', element: <Hidrantes /> },
       { path: 'cadastro/viaturas', element: <Viaturas /> },
+      { path: 'cadastro/ferias', element: <Ferias /> },
       { path: 'ocorrencias', element: <Ocorrencias /> },
       { path: 'inspecoes', element: <Inspecoes /> },
       { path: 'viaturas', element: <Viaturas /> },

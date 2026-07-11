@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, ChevronDown, Plane } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { useSidebar } from '../../hooks/useSidebar';
 import { useAuth } from '../../context/AuthContext';
 import { Tooltip } from '../ui/Tooltip';
@@ -140,13 +140,13 @@ export function Sidebar() {
       }`}
     >
       <div className="flex h-16 items-center border-b border-white/10 px-4">
-        <div className="flex items-center gap-3 overflow-hidden">
-          <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-white/20 to-white/5 shadow-sm">
-            <Plane className="h-5 w-5 text-white" />
+        <div className="flex items-center gap-3">
+          <div className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl shadow-sm">
+            <img src="/logobombeiro.jpeg" alt="SCI NVT" className="h-full w-full object-cover" />
           </div>
           <span
             className={`whitespace-nowrap text-lg font-bold text-white transition-all duration-300 ${
-              collapsed ? 'w-0 opacity-0 overflow-hidden' : 'opacity-100'
+              collapsed ? 'w-0 opacity-0 overflow-hidden pointer-events-none' : 'opacity-100'
             }`}
           >
             SCI NVT
@@ -174,7 +174,7 @@ export function Sidebar() {
 
       <div className="mx-3 mb-3 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
       <div className="px-3 pb-3 text-center text-[10px] font-medium uppercase tracking-widest text-aviation-400">
-        {collapsed ? 'S' : 'SCI NVT v1.0'}
+        {collapsed ? '' : 'SCI NVT v1.0'}
       </div>
     </aside>
   );
