@@ -57,6 +57,7 @@ export const router = createBrowserRouter([
       { path: 'cadastro/hidrantes', element: <Hidrantes /> },
       { path: 'cadastro/viaturas', element: <Viaturas /> },
       { path: 'cadastro/ferias', element: <Ferias /> },
+      { path: 'cadastro/documentos', element: <Documentos /> },
       { path: 'ocorrencias', element: <Ocorrencias /> },
       { path: 'inspecoes', element: <Inspecoes /> },
       { path: 'viaturas', element: <Viaturas /> },

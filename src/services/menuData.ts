@@ -83,6 +83,13 @@ export const menuItems: MenuItem[] = [
         description: 'Cadastro de viaturas operacionais.',
         adminOnly: true,
       },
+      {
+        label: 'Gerenciar Documentos',
+        icon: FileText,
+        path: '/cadastro/documentos',
+        description: 'Templates de documentos para preenchimento e assinatura.',
+        adminOnly: true,
+      },
     ],
   },
   {
@@ -162,16 +169,10 @@ export const menuItems: MenuItem[] = [
     icon: FileText,
     children: [
       {
-        label: 'Documentos Gerais',
-        icon: FileText,
-        path: '/documentos',
-        description: 'Repositório de documentos e normativas.',
-      },
-      {
-        label: 'Trocas',
+        label: 'Trocas de Serviço',
         icon: RefreshCw,
         path: '/documentos/trocas',
-        description: 'Registro de trocas de plantão e equipamentos.',
+        description: 'Formulário de Troca de Serviços (Permuta).',
       },
       {
         label: 'Checklists',

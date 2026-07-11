@@ -4,21 +4,99 @@ export interface Document {
   description: string | null;
   category: string;
   template_pdf_url: string | null;
+  template_pdf_pages: number;
+  template_pdf_width: number;
+  template_pdf_height: number;
   active: boolean;
   created_at: string;
   updated_at: string;
 }
+
+export type FieldType = 'text' | 'number' | 'date' | 'select' | 'textarea' | 'checkbox' | 'signature' | 'line';
+
+export type DataSource =
+  | 'manual'
+  | 'solicitante.nome'
+  | 'solicitante.cpf'
+  | 'solicitante.matricula'
+  | 'solicitante.funcao'
+  | 'solicitante.equipe'
+  | 'solicitado.nome'
+  | 'solicitado.cpf'
+  | 'solicitado.matricula'
+  | 'solicitado.funcao'
+  | 'solicitado.equipe'
+  | 'chefe_equipe.nome'
+  | 'chefe_equipe.funcao'
+  | 'gerente.nome'
+  | 'gerente.funcao'
+  | 'data_atual'
+  | 'hora_atual';
+
+export const DATA_SOURCE_LABELS: Record<DataSource, string> = {
+  manual: 'Preenchimento manual',
+  'solicitante.nome': 'Nome do Solicitante',
+  'solicitante.cpf': 'CPF do Solicitante',
+  'solicitante.matricula': 'Matrícula do Solicitante',
+  'solicitante.funcao': 'Função do Solicitante',
+  'solicitante.equipe': 'Equipe do Solicitante',
+  'solicitado.nome': 'Nome do Solicitado',
+  'solicitado.cpf': 'CPF do Solicitado',
+  'solicitado.matricula': 'Matrícula do Solicitado',
+  'solicitado.funcao': 'Função do Solicitado',
+  'solicitado.equipe': 'Equipe do Solicitado',
+  'chefe_equipe.nome': 'Nome do Chefe de Equipe',
+  'chefe_equipe.funcao': 'Função do Chefe de Equipe',
+  'gerente.nome': 'Nome do Gerente',
+  'gerente.funcao': 'Função do Gerente',
+  data_atual: 'Data Atual',
+  hora_atual: 'Hora Atual',
+};
+
+export const DATA_SOURCE_GROUPS = [
+  {
+    label: 'Solicitante',
+    sources: ['solicitante.nome', 'solicitante.cpf', 'solicitante.matricula', 'solicitante.funcao', 'solicitante.equipe'] as DataSource[],
+  },
+  {
+    label: 'Solicitado',
+    sources: ['solicitado.nome', 'solicitado.cpf', 'solicitado.matricula', 'solicitado.funcao', 'solicitado.equipe'] as DataSource[],
+  },
+  {
+    label: 'Chefe de Equipe',
+    sources: ['chefe_equipe.nome', 'chefe_equipe.funcao'] as DataSource[],
+  },
+  {
+    label: 'Gerente',
+    sources: ['gerente.nome', 'gerente.funcao'] as DataSource[],
+  },
+  {
+    label: 'Sistema',
+    sources: ['data_atual', 'hora_atual'] as DataSource[],
+  },
+];
 
 export interface DocumentField {
   id: string;
   document_id: string;
   field_name: string;
   field_label: string;
-  field_type: 'text' | 'number' | 'date' | 'select' | 'textarea' | 'checkbox';
+  field_type: FieldType;
   required: boolean;
   placeholder: string | null;
   options: string[] | null;
   order_index: number;
+  page: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  font_size: number;
+  data_source: DataSource;
+  is_signature: boolean;
+  signer_role: string | null;
+  read_only: boolean;
+  conditional_on: string | null;
   created_at: string;
 }
 
