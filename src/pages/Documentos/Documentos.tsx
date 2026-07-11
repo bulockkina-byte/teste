@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  FileText, Plus, Search, Send, Eye, Loader2,
+  FileText, Plus, Search, Eye, Loader2,
   ChevronDown, ChevronUp, Edit3, CheckCircle,
   Trash2, Download, Upload, Shield, Save, ArrowLeft,
   AlertTriangle, Package,
@@ -19,7 +19,7 @@ import {
   uploadPDF, getPdfBlob,
 } from '../../services/documentoService';
 import { preencherPdf, downloadPdf } from '../../services/pdfService';
-import type { Document, DocumentWithFields, DocumentField, DocumentSigner, DocumentFill } from '../../types/document';
+import type { Document, DocumentWithFields, DocumentField, DocumentFill } from '../../types/document';
 import { useAuth } from '../../context/AuthContext';
 import { listarBombeiros } from '../../services/bombeiroService';
 import { listarAPOCs } from '../../services/apocService';
@@ -35,7 +35,7 @@ export function Documentos() {
   const [selectedDoc, setSelectedDoc] = useState<DocumentWithFields | null>(null);
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [view, setView] = useState<View>('list');
   const [expandedFill, setExpandedFill] = useState<string | null>(null);
@@ -162,6 +162,7 @@ export function Documentos() {
       const doc = await criarDocumento({
         name: newDocName, description: newDocDesc || null,
         category: newDocCategory, template_pdf_url: null, active: true,
+        template_pdf_pages: 0, template_pdf_width: 0, template_pdf_height: 0,
       });
 
       const template = findTemplate(newDocName);

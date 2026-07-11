@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import pdfjsLib from '../../lib/pdfjs-setup';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
-import type { DocumentField, DataSource } from '../../types/document';
+import type { DocumentField } from '../../types/document';
 
 
 
@@ -81,7 +81,7 @@ export function PdfFieldEditor({
       canvas.width = viewport.width;
       canvas.height = viewport.height;
 
-      await page.render({ canvasContext: ctx, viewport }).promise;
+      await page.render({ canvasContext: ctx, viewport, canvas } as any).promise;
 
       const container = containerRef.current;
       if (container) {
@@ -214,6 +214,8 @@ export function PdfFieldEditor({
       data_source: 'manual',
       is_signature: false,
       signer_role: null,
+      read_only: false,
+      conditional_on: null,
     });
   }
 

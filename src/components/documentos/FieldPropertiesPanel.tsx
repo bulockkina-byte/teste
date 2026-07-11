@@ -1,5 +1,5 @@
-import { Trash2, Save, X } from 'lucide-react';
-import type { DocumentField, DataSource, FieldType } from '../../types/document';
+import { Trash2 } from 'lucide-react';
+import type { DocumentField, FieldType } from '../../types/document';
 import { DATA_SOURCE_LABELS, DATA_SOURCE_GROUPS } from '../../types/document';
 
 interface Props {
@@ -36,7 +36,7 @@ export function FieldPropertiesPanel({ field, onUpdate, onDelete }: Props) {
   }
 
   function handleChange(key: keyof DocumentField, value: unknown) {
-    onUpdate(field.id, { [key]: value });
+    onUpdate(field!.id, { [key]: value });
   }
 
   return (

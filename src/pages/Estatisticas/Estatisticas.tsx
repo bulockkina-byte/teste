@@ -370,7 +370,7 @@ function TabTreinamentos() {
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="equipe" tick={{ fontSize: 12 }} />
               <YAxis tick={{ fontSize: 12 }} />
-              <Tooltip formatter={(v) => `${v ?? 0}h`} />
+              <Tooltip formatter={(v: number | string) => `${v ?? 0}h`} />
               <Bar dataKey="horas" radius={[6, 6, 0, 0]}>
                 {horasPorEquipe.map((entry, i) => (
                   <Cell key={i} fill={entry.cor} />

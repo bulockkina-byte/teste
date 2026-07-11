@@ -338,7 +338,7 @@ export async function excluirPdf(docId: string): Promise<void> {
     .from(BUCKET)
     .list(docId);
   if (files && files.length > 0) {
-    const paths = files.map(f => `${docId}/${f.name}`);
+    const paths = files.map((f: { name: string }) => `${docId}/${f.name}`);
     await db.storage.from(BUCKET).remove(paths);
   }
 }

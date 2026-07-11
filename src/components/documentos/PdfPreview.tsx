@@ -47,7 +47,7 @@ export function PdfPreview({ pdfData, fields }: Props) {
       canvas.width = viewport.width;
       canvas.height = viewport.height;
 
-      await page.render({ canvasContext: ctx, viewport }).promise;
+      await page.render({ canvasContext: ctx, viewport, canvas } as any).promise;
 
       const container = containerRef.current;
       if (container) {

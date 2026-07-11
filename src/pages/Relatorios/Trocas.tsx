@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   RefreshCw, Plus, ArrowLeft, FileText, Loader2,
   Download, Save, ChevronDown, ChevronUp, Filter,
-  AlertTriangle, AlertCircle, X, Edit, Trash2,
+  AlertTriangle, AlertCircle, Edit, Trash2,
 } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
@@ -183,6 +183,7 @@ export function Trocas() {
         category: 'administrativo',
         template_pdf_url: null,
         active: true,
+        template_pdf_pages: 0, template_pdf_width: 0, template_pdf_height: 0,
       });
       await criarCamposEmLote(doc.id, template.fields.map((tf, i) => ({
         document_id: doc.id,
@@ -722,7 +723,7 @@ export function Trocas() {
             const nomeSol = data.nome_solicitante || '';
             const nomeSolic = data.nome_solicitado || '';
             const funcaoSol = getFuncaoByNome(nomeSol);
-            const funcaoSolic = getFuncaoByNome(nomeSolic);
+            void getFuncaoByNome(nomeSolic);
             const isExcessSol = (personExcessMap[nomeSol] || 0) > 0 && fills.filter(f => {
               const d2 = new Date(f.created_at);
               const d3 = new Date(fill.created_at);
