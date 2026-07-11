@@ -32,7 +32,7 @@ export function Login() {
 
   return (
     <div className="flex min-h-screen">
-      <div className="flex w-full flex-col justify-center px-6 lg:w-1/2 lg:px-16 animate-fadeIn">
+      <div className="flex w-full flex-col justify-center px-6 lg:w-5/12 lg:px-16 animate-fadeIn">
         <div className="mx-auto w-full max-w-sm">
           <div className="mb-6 flex items-center gap-3">
             <div className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl shadow-lg shadow-aviation-500/20">
@@ -67,8 +67,8 @@ export function Login() {
                     type="text"
                     value={username}
                     onChange={e => setUsername(e.target.value)}
-                    placeholder="seu.usuario"
-                    className="w-full rounded-xl border border-graphite-300/70 bg-white/50 py-2.5 pl-11 pr-4 text-sm text-graphite-900 outline-none transition-all duration-200 placeholder:text-graphite-400 hover:border-graphite-300 focus:border-aviation-500 focus:bg-white focus:ring-4 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card/30 dark:text-graphite-100 dark:placeholder:text-graphite-500 dark:hover:border-graphite-600 dark:focus:border-aviation-400 dark:focus:bg-surface-elevated"
+                    placeholder="Usuário"
+                    className="w-full rounded-xl border border-graphite-400 bg-white/50 py-2.5 pl-11 pr-4 text-sm text-graphite-900 outline-none transition-all duration-200 placeholder:text-graphite-400 hover:border-graphite-500 focus:border-aviation-500 focus:bg-white focus:ring-4 focus:ring-aviation-500/10 dark:border-graphite-500 dark:bg-surface-card/30 dark:text-graphite-100 dark:placeholder:text-graphite-500 dark:hover:border-graphite-400 dark:focus:border-aviation-400 dark:focus:bg-surface-elevated"
                   />
                 </div>
               </div>
@@ -84,7 +84,7 @@ export function Login() {
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full rounded-xl border border-graphite-300/70 bg-white/50 py-2.5 pl-11 pr-11 text-sm text-graphite-900 outline-none transition-all duration-200 placeholder:text-graphite-400 hover:border-graphite-300 focus:border-aviation-500 focus:bg-white focus:ring-4 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card/30 dark:text-graphite-100 dark:placeholder:text-graphite-500 dark:hover:border-graphite-600 dark:focus:border-aviation-400 dark:focus:bg-surface-elevated"
+                    className="w-full rounded-xl border border-graphite-400 bg-white/50 py-2.5 pl-11 pr-11 text-sm text-graphite-900 outline-none transition-all duration-200 placeholder:text-graphite-400 hover:border-graphite-500 focus:border-aviation-500 focus:bg-white focus:ring-4 focus:ring-aviation-500/10 dark:border-graphite-500 dark:bg-surface-card/30 dark:text-graphite-100 dark:placeholder:text-graphite-500 dark:hover:border-graphite-400 dark:focus:border-aviation-400 dark:focus:bg-surface-elevated"
                   />
                   <button
                     type="button"
@@ -121,9 +121,9 @@ export function Login() {
         </div>
       </div>
 
-      <div className="hidden lg:flex lg:w-1/2">
+      <div className="hidden lg:flex lg:w-7/12">
         <div className="relative flex w-full flex-col items-center justify-center overflow-hidden p-16">
-          <img src="/entradalogin.jpeg" alt="SCI NVT" className="absolute inset-0 h-full w-full object-cover" />
+          <img src="/entradalogin2.png" alt="SCI NVT" className="absolute inset-0 h-full w-full object-cover" style={{ filter: 'contrast(1.05) saturate(1.1)' }} />
           <div className="pointer-events-none absolute inset-0 bg-black/40" />
           <div className="relative z-10 animate-slideUp text-center">
             <h2 className="text-3xl font-bold text-white drop-shadow-lg">
