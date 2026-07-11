@@ -32,37 +32,37 @@ export function Login() {
 
   return (
     <div className="flex min-h-screen">
-      <div className="flex w-full flex-col justify-center px-6 lg:w-5/12 lg:px-16 animate-fadeIn">
-        <div className="mx-auto w-full max-w-sm">
+      <div className="flex w-full flex-col justify-center px-6 lg:w-2/5 lg:px-12 animate-fadeIn">
+        <div className="mx-auto w-full max-w-xs">
           <div className="mb-6 flex items-center gap-3">
-            <div className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl shadow-lg shadow-aviation-500/20">
+            <div className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl shadow-lg shadow-aviation-500/20">
               <img src="/logobombeiro.jpeg" alt="SCI NVT" className="h-full w-full object-cover" />
             </div>
             <div>
-              <h1 className="text-xl font-bold bg-gradient-to-r from-graphite-900 to-graphite-600 bg-clip-text text-transparent dark:from-graphite-100 dark:to-graphite-400">
+              <h1 className="text-2xl font-extrabold text-graphite-900 dark:text-graphite-50">
                 SCI NVT
               </h1>
-              <p className="text-xs text-graphite-500 dark:text-graphite-400">
+              <p className="text-xs font-medium text-graphite-600 dark:text-graphite-300">
                 Sistema de Controle Operacional
               </p>
             </div>
           </div>
 
           <div className="animate-slideUp">
-            <h2 className="mb-1 text-2xl font-bold text-graphite-900 dark:text-graphite-100">
+            <h2 className="mb-1 text-2xl font-bold text-graphite-900 dark:text-graphite-50">
               Bem-vindo de volta
             </h2>
-            <p className="mb-8 text-sm text-graphite-500 dark:text-graphite-400">
+            <p className="mb-8 text-sm text-graphite-600 dark:text-graphite-300">
               Informe suas credenciais para acessar o sistema.
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-graphite-700 dark:text-graphite-300">
+                <label className="mb-1.5 block text-sm font-semibold text-graphite-800 dark:text-graphite-200">
                   Usuário
                 </label>
                 <div className="relative group">
-                  <User className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite-400 transition-colors group-focus-within:text-aviation-500" />
+                  <User className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-graphite-600 transition-colors group-focus-within:text-aviation-500" />
                   <input
                     type="text"
                     value={username}
@@ -74,11 +74,11 @@ export function Login() {
               </div>
 
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-graphite-700 dark:text-graphite-300">
+                <label className="mb-1.5 block text-sm font-semibold text-graphite-800 dark:text-graphite-200">
                   Senha
                 </label>
                 <div className="relative group">
-                  <Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite-400 transition-colors group-focus-within:text-aviation-500" />
+                  <Lock className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-graphite-600 transition-colors group-focus-within:text-aviation-500" />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={password}
@@ -115,13 +115,13 @@ export function Login() {
             </form>
           </div>
 
-          <p className="mt-8 text-center text-xs text-graphite-400 dark:text-graphite-500 animate-fadeIn">
+          <p className="mt-8 text-center text-xs text-graphite-500 dark:text-graphite-400 animate-fadeIn">
             © 2026 SCI NVT. Todos os direitos reservados.
           </p>
         </div>
       </div>
 
-      <div className="hidden lg:flex lg:w-7/12">
+      <div className="hidden lg:flex lg:w-3/5">
         <div className="relative flex w-full flex-col items-center justify-center overflow-hidden p-16">
           <img src="/entradalogin2.png" alt="SCI NVT" className="absolute inset-0 h-full w-full object-cover" style={{ filter: 'contrast(1.05) saturate(1.1)' }} />
           <div className="pointer-events-none absolute inset-0 bg-black/40" />
