@@ -28,7 +28,7 @@ function salvarUsuarios(data: Record<string, StoredUser>) {
 }
 
 const ROLE_BADGE: Record<string, string> = {
-  admin_master: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+  admin_master: 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400',
   admin: 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400',
   gerente: 'bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400',
   chefe: 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400',
