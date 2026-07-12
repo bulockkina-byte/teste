@@ -159,6 +159,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       return;
     }
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
