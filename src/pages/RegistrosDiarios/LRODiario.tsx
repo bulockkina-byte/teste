@@ -780,7 +780,7 @@ export function LRODiario() {
     async function load() {
       let r: 'admin' | 'gerente' | 'chefe' = 'chefe';
       let eq = '';
-      if (username === 'admin' || username === 'admin_master') {
+      if (username === 'admin') {
         r = 'admin';
       } else {
         const users = JSON.parse(localStorage.getItem('sescinc-users') || '{}');

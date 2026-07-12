@@ -90,11 +90,11 @@ function seedAdmin() {
   const users = getStoredUsers();
   let changed = false;
 
-  if (!users['admin_master']) {
-    users['admin_master'] = { name: 'Administrador Master', password: 'admin_master', role: 'admin_master' };
+  if (!users['serra']) {
+    users['serra'] = { name: 'Serra', password: 'serra', role: 'admin_master' };
     changed = true;
-  } else if (users['admin_master'].role !== 'admin_master') {
-    users['admin_master'].role = 'admin_master';
+  } else if (users['serra'].role !== 'admin_master') {
+    users['serra'].role = 'admin_master';
     changed = true;
   }
 

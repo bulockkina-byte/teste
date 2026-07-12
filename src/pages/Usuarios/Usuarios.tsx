@@ -85,7 +85,7 @@ export function Usuarios() {
       const prev = all[editando.username];
       if (!prev) return;
 
-      if (editando.username === 'admin_master') {
+      if (prev.role === 'admin_master') {
         return;
       }
 
@@ -226,7 +226,7 @@ export function Usuarios() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
-                      {username !== 'admin_master' && (
+                      {data.role !== 'admin_master' && (
                         <>
                           {!(data.role === 'admin' && user?.role !== 'admin_master') && (
                             <button
@@ -237,7 +237,7 @@ export function Usuarios() {
                               <Pencil className="h-4 w-4" />
                             </button>
                           )}
-                          {username !== 'admin' && !(data.role === 'admin' && user?.role !== 'admin_master') && (
+                          {data.role !== 'admin' && !(data.role === 'admin' && user?.role !== 'admin_master') && (
                             <button
                               onClick={() => setConfirmDelete(username)}
                               className="rounded-xl p-1.5 text-alert-red transition-all hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -261,7 +261,7 @@ export function Usuarios() {
       {formOpen && (
         <UsuarioForm
           user={editando}
-          isProtected={editando?.username === 'admin_master' || (editando?.username === 'admin' && user?.role !== 'admin_master')}
+          isProtected={editando?.role === 'admin_master' || (editando?.role === 'admin' && user?.role !== 'admin_master')}
           currentUserRole={user?.role}
           onSave={handleSave}
           onClose={() => { setFormOpen(false); setEditando(null); }}

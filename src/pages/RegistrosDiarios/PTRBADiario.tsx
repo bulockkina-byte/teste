@@ -548,7 +548,7 @@ function ViewMode({ ptrb, onBack }: { ptrb: PTRB; onBack: () => void }) {
 
 // ─── MAIN ────────────────────────────────────────────────
 async function getUserRole(username: string): Promise<'admin' | 'gerente' | 'chefe'> {
-  if (username === 'admin' || username === 'admin_master') return 'admin';
+  if (username === 'admin') return 'admin';
   const users = JSON.parse(localStorage.getItem('sescinc-users') || '{}');
   const stored = users[username];
   if (stored?.role === 'admin_master' || stored?.role === 'admin') return 'admin';
