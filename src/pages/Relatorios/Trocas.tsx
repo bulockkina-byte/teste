@@ -379,7 +379,16 @@ export function Trocas() {
         dadosStr.check_deferido = '';
         dadosStr.check_indeferido = 'V';
       }
-      const pdfBlob = await preencherPdf(pdfBytes, dadosStr);
+      const pdfBlob = await preencherPdf(pdfBytes, dadosStr, doc.document_fields.map(f => ({
+        field_name: f.field_name,
+        x: f.x,
+        y: f.y,
+        width: f.width,
+        height: f.height,
+        font_size: f.font_size,
+        is_signature: f.is_signature,
+        page: f.page,
+      })));
       const nome = `Troca_${formData.nome_solicitante || 'doc'}_${new Date().toISOString().slice(0, 10)}.pdf`;
       downloadPdf(pdfBlob, nome);
       const docFills = await listarPreenchimentos(doc.id);
