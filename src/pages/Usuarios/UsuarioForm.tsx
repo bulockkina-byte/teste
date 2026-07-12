@@ -15,14 +15,16 @@ interface UserData {
   name: string;
   password: string;
   role: UserRole;
+  previousRole?: UserRole;
   personId?: string;
   personType?: 'bombeiro' | 'apoc';
 }
 
 interface Props {
-  user?: { username: string; name: string; role?: UserRole; personId?: string; personType?: 'bombeiro' | 'apoc' } | null;
+  user?: { username: string; name: string; role?: UserRole; previousRole?: UserRole; personId?: string; personType?: 'bombeiro' | 'apoc' } | null;
   isProtected?: boolean;
   currentUserRole?: UserRole;
+  currentUsername?: string;
   onSave: (data: UserData) => void;
   onClose: () => void;
 }
@@ -38,7 +40,7 @@ interface PersonOption {
   funcao?: string;
 }
 
-export function UsuarioForm({ user, isProtected = false, currentUserRole, onSave, onClose }: Props) {
+export function UsuarioForm({ user, isProtected = false, currentUserRole, currentUsername, onSave, onClose }: Props) {
   const [username, setUsername] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
@@ -218,6 +220,9 @@ export function UsuarioForm({ user, isProtected = false, currentUserRole, onSave
             </select>
             {isProtected && (
               <p className="mt-1 text-[11px] text-graphite-500 dark:text-graphite-500">A função deste usuário não pode ser alterada.</p>
+            )}
+            {user?.role === 'admin' && user?.previousRole && (currentUserRole === 'admin_master' || user?.username === currentUsername) && (
+              <p className="mt-1 text-[11px] text-graphite-500 dark:text-graphite-500">Função anterior: <span className="font-medium">{ROLE_LABELS[user.previousRole] || user.previousRole}</span></p>
             )}
           </div>
 

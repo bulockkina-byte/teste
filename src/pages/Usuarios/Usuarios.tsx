@@ -42,7 +42,7 @@ export function Usuarios() {
   const [usuarios, setUsuarios] = useState<[string, StoredUser][]>([]);
   const [termo, setTermo] = useState('');
   const [formOpen, setFormOpen] = useState(false);
-  const [editando, setEditando] = useState<{ username: string; name: string; role?: UserRole; personId?: string; personType?: 'bombeiro' | 'apoc' } | null>(null);
+  const [editando, setEditando] = useState<{ username: string; name: string; role?: UserRole; previousRole?: UserRole; personId?: string; personType?: 'bombeiro' | 'apoc' } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
@@ -69,7 +69,7 @@ export function Usuarios() {
     if (termo) {
       const t = termo.toLowerCase();
       setUsuarios(entries.filter(([u, d]) =>
-        u.includes(t) || d.name.toLowerCase().includes(t) || (ROLE_LABELS[d.role] || '').toLowerCase().includes(t)
+        u.includes(t) || d.name.toLowerCase().includes(t) || (ROLE_LABELS[d.role] || '').toLowerCase().includes(t) || (d.previousRole ? (ROLE_LABELS[d.previousRole] || '').toLowerCase().includes(t) : false)
       ));
     } else {
       setUsuarios(entries);
@@ -97,10 +97,15 @@ export function Usuarios() {
         return;
       }
 
+      const previousRole = (data.role === 'admin' && prev.role !== 'admin')
+        ? prev.role
+        : (data.role !== 'admin' ? undefined : prev.previousRole);
+
       all[data.username] = {
         name: data.name,
         password: data.password || prev.password,
         role: data.role,
+        previousRole,
         personId: data.personId,
         personType: data.personType,
       };
@@ -194,6 +199,20 @@ export function Usuarios() {
                     ? FUNCAO_APOC_OPTIONS.find(f => f.value === (person as APOC).funcao)?.label
                     : undefined;
 
+                const isViewerDev = user?.role === 'admin_master';
+                const isTargetAdmin = data.role === 'admin';
+                const isSelf = username === user?.username;
+
+                const displayRoles: UserRole[] = [];
+                if (isTargetAdmin && !isViewerDev && !isSelf) {
+                  if (data.previousRole) displayRoles.push(data.previousRole);
+                } else {
+                  displayRoles.push(data.role);
+                  if (isTargetAdmin && data.previousRole && (isViewerDev || isSelf)) {
+                    displayRoles.push(data.previousRole);
+                  }
+                }
+
                 return (
                 <tr key={username} className="border-b border-graphite-100 transition-colors hover:bg-graphite-50 dark:border-border-dark dark:hover:bg-surface-hover/50">
                   <td className="px-4 py-3">
@@ -216,9 +235,11 @@ export function Usuarios() {
                   <td className="px-4 py-3 font-mono text-xs text-graphite-600 dark:text-graphite-400">{username}</td>
                   <td className="px-4 py-3">
                     <div className="flex flex-col gap-1">
-                      <span className={`inline-flex w-fit rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${ROLE_BADGE[data.role] || ROLE_BADGE.chefe}`}>
-                        {ROLE_LABELS[data.role] || data.role}
-                      </span>
+                      {displayRoles.map(r => (
+                        <span key={r} className={`inline-flex w-fit rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${ROLE_BADGE[r] || ROLE_BADGE.chefe}`}>
+                          {ROLE_LABELS[r] || r}
+                        </span>
+                      ))}
                       {personCargo && (
                         <span className="text-[11px] text-graphite-500 dark:text-graphite-400">{personCargo}</span>
                       )}
@@ -228,16 +249,16 @@ export function Usuarios() {
                     <div className="flex items-center gap-1">
                       {data.role !== 'admin_master' && (
                         <>
-                          {!(data.role === 'admin' && user?.role !== 'admin_master') && (
+                          {data.role === 'admin' && user?.role !== 'admin_master' ? null : (
                             <button
-                              onClick={() => { setEditando({ username, name: data.name, role: data.role, personId: data.personId, personType: data.personType }); setFormOpen(true); }}
+                              onClick={() => { setEditando({ username, name: data.name, role: data.role, previousRole: data.previousRole, personId: data.personId, personType: data.personType }); setFormOpen(true); }}
                               className="rounded-xl p-1.5 text-graphite-400 transition-all hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover dark:hover:text-graphite-300"
                               title="Editar"
                             >
                               <Pencil className="h-4 w-4" />
                             </button>
                           )}
-                          {data.role !== 'admin' && !(data.role === 'admin' && user?.role !== 'admin_master') && (
+                          {user?.role === 'admin_master' ? (
                             <button
                               onClick={() => setConfirmDelete(username)}
                               className="rounded-xl p-1.5 text-alert-red transition-all hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -245,7 +266,15 @@ export function Usuarios() {
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
-                          )}
+                          ) : data.role !== 'admin' ? (
+                            <button
+                              onClick={() => setConfirmDelete(username)}
+                              className="rounded-xl p-1.5 text-alert-red transition-all hover:bg-red-50 dark:hover:bg-red-900/20"
+                              title="Excluir"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          ) : null}
                         </>
                       )}
                     </div>
@@ -261,8 +290,9 @@ export function Usuarios() {
       {formOpen && (
         <UsuarioForm
           user={editando}
-          isProtected={editando?.role === 'admin_master' || (editando?.role === 'admin' && user?.role !== 'admin_master')}
+          isProtected={editando?.role === 'admin_master'}
           currentUserRole={user?.role}
+          currentUsername={user?.username}
           onSave={handleSave}
           onClose={() => { setFormOpen(false); setEditando(null); }}
         />

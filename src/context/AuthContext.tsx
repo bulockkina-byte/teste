@@ -43,6 +43,7 @@ export interface StoredUser {
   name: string;
   password: string;
   role: UserRole;
+  previousRole?: UserRole;
   personId?: string;
   personType?: 'bombeiro' | 'apoc';
 }

@@ -21,6 +21,7 @@ const USERS_KEY = 'sescinc-users';
 interface StoredUser {
   name: string;
   role: UserRole;
+  previousRole?: UserRole;
 }
 
 function getStoredUsers(): Record<string, StoredUser> {
@@ -35,13 +36,14 @@ interface ChatUser {
   username: string;
   name: string;
   role: UserRole;
+  previousRole?: UserRole;
 }
 
 function getChatUsers(currentUsername: string): ChatUser[] {
   const users = getStoredUsers();
   return Object.entries(users)
     .filter(([key]) => key !== currentUsername)
-    .map(([key, u]) => ({ username: key, name: u.name, role: u.role }));
+    .map(([key, u]) => ({ username: key, name: u.name, role: u.role, previousRole: u.previousRole }));
 }
 
 const PRESENCE_KEY = 'sescinc-presence';
@@ -351,13 +353,14 @@ export function RightPanel({ onClose, openTab = 'chat' }: { onClose: () => void;
                     <div className="space-y-0.5">
                       {usuariosFiltrados.map(u => {
                         const initials = u.name.charAt(0).toUpperCase();
-                        const roleLabel: Record<UserRole, string> = {
-                          admin_master: 'Desenvolvedor',
-                          admin: 'Admin',
-                          gerente: 'Gerente',
-                          chefe: 'Chefe',
-                          lider: 'Lider',
-                        };
+                        const isViewerDev = effectiveRole === 'admin_master';
+                        const isTargetAdmin = u.role === 'admin';
+                        const displayLabel = isTargetAdmin && !isViewerDev && u.username !== username
+                          ? (u.previousRole ? (ROLE_LABELS[u.previousRole] || u.previousRole) : 'Admin')
+                          : (ROLE_LABELS[u.role] || u.role);
+                        const extraLabel = isTargetAdmin && (isViewerDev || u.username === username) && u.previousRole
+                          ? ` + ${ROLE_LABELS[u.previousRole] || u.previousRole}`
+                          : '';
                         return (
                           <button key={u.username}
                             onClick={() => { setConversaComUser(u.username); setConversaComNome(u.name); setBusca(''); }}
@@ -367,7 +370,7 @@ export function RightPanel({ onClose, openTab = 'chat' }: { onClose: () => void;
                             </div>
                             <div className="min-w-0 flex-1">
                               <p className="text-sm font-semibold text-graphite-100 truncate">{u.name}</p>
-                              <p className="text-[11px] text-graphite-500">{u.username} · {roleLabel[u.role]}</p>
+                              <p className="text-[11px] text-graphite-500">{u.username} · {displayLabel}{extraLabel}</p>
                             </div>
                             <MessageCircle className="h-4 w-4 shrink-0 text-graphite-700" />
                           </button>
@@ -602,13 +605,14 @@ export function RightPanel({ onClose, openTab = 'chat' }: { onClose: () => void;
                 <div className="space-y-0.5">
                   {usuariosFiltrados.map(u => {
                     const initials = u.name.charAt(0).toUpperCase();
-                    const roleLabel: Record<UserRole, string> = {
-                      admin_master: 'Desenvolvedor',
-                      admin: 'Admin',
-                      gerente: 'Gerente',
-                      chefe: 'Chefe',
-                      lider: 'Lider',
-                    };
+                    const isViewerDev = effectiveRole === 'admin_master';
+                    const isTargetAdmin = u.role === 'admin';
+                    const displayLabel = isTargetAdmin && !isViewerDev && u.username !== username
+                      ? (u.previousRole ? (ROLE_LABELS[u.previousRole] || u.previousRole) : 'Admin')
+                      : (ROLE_LABELS[u.role] || u.role);
+                    const extraLabel = isTargetAdmin && (isViewerDev || u.username === username) && u.previousRole
+                      ? ` + ${ROLE_LABELS[u.previousRole] || u.previousRole}`
+                      : '';
                     return (
                       <button key={u.username}
                         onClick={() => { setTab('chat'); setChatSubTab('privado'); setConversaComUser(u.username); setConversaComNome(u.name); setBusca(''); }}
@@ -625,7 +629,7 @@ export function RightPanel({ onClose, openTab = 'chat' }: { onClose: () => void;
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-semibold text-graphite-100 truncate">{u.name}</p>
-                          <p className="text-[11px] text-graphite-500">{u.username} · {roleLabel[u.role]}</p>
+                          <p className="text-[11px] text-graphite-500">{u.username} · {displayLabel}{extraLabel}</p>
                         </div>
                         <MessageCircle className="h-4 w-4 shrink-0 text-graphite-700" />
                       </button>
