@@ -71,16 +71,18 @@ export async function preencherPdf(
       const fontSize = pos.font_size || 10;
       const textFont = fontSize >= 10 ? boldFont : font;
 
-      // Converter coordenada Y (editor usa top-left, pdf-lib usa bottom-left)
-      const pdfY = pageHeight - pos.y - fontSize - 2;
+      // Editor usa scale=1.5, coordenadas salvas sao viewport (1.5x)
+      const VIEWPORT_SCALE = 1.5;
+      const pdfX = pos.x / VIEWPORT_SCALE;
+      const pdfY = pageHeight - (pos.y / VIEWPORT_SCALE) - fontSize - 2;
 
       // Quebra de linha para textos longos
-      const maxWidth = pos.width - 4;
+      const maxWidth = (pos.width / VIEWPORT_SCALE) - 4;
       const lines = breakText(textFont, value, fontSize, maxWidth);
 
       lines.forEach((line, i) => {
         page.drawText(line, {
-          x: pos.x + 2,
+          x: pdfX + 2,
           y: pdfY - (i * (fontSize + 2)),
           size: fontSize,
           font: textFont,
