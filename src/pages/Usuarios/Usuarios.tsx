@@ -1,11 +1,17 @@
-import { useState, useEffect } from 'react';
-import { UserCog, Search, Plus, Pencil, Trash2, Lock } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { UserCog, Search, Plus, Pencil, Trash2, Lock, User, Link } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { useAuth } from '../../context/AuthContext';
 import { ROLE_LABELS, type UserRole } from '../../context/AuthContext';
 import type { StoredUser } from '../../context/AuthContext';
 import { UsuarioForm } from './UsuarioForm';
+import { listarAtivos } from '../../services/bombeiroService';
+import { listarAPOCs } from '../../services/apocService';
+import type { Bombeiro } from '../../types/bombeiro';
+import type { APOC } from '../../types/apoc';
+import { CARGO_OPTIONS } from '../../types/bombeiro';
+import { FUNCAO_APOC_OPTIONS } from '../../types/apoc';
 
 const USERS_KEY = 'sescinc-users';
 
@@ -36,8 +42,26 @@ export function Usuarios() {
   const [usuarios, setUsuarios] = useState<[string, StoredUser][]>([]);
   const [termo, setTermo] = useState('');
   const [formOpen, setFormOpen] = useState(false);
-  const [editando, setEditando] = useState<{ username: string; name: string; role?: UserRole } | null>(null);
+  const [editando, setEditando] = useState<{ username: string; name: string; role?: UserRole; personId?: string; personType?: 'bombeiro' | 'apoc' } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+
+  const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
+  const [apocs, setApocs] = useState<APOC[]>([]);
+
+  useEffect(() => {
+    Promise.all([listarAtivos(), listarAPOCs()]).then(([b, a]) => {
+      setBombeiros(b);
+      setApocs(a);
+    }).catch(() => {});
+  }, []);
+
+  function resolvePerson(data: StoredUser) {
+    if (!data.personId || !data.personType) return null;
+    if (data.personType === 'bombeiro') {
+      return bombeiros.find(b => b.id === data.personId) || null;
+    }
+    return apocs.find(a => a.id === data.personId) || null;
+  }
 
   function carregar() {
     const all = listarUsuarios();
@@ -54,13 +78,11 @@ export function Usuarios() {
 
   useEffect(() => { carregar(); }, [termo]);
 
-  function handleSave(data: { username: string; name: string; password: string; role: UserRole }) {
+  function handleSave(data: { username: string; name: string; password: string; role: UserRole; personId?: string; personType?: 'bombeiro' | 'apoc' }) {
     const all = listarUsuarios();
-    // Apenas admin_master pode criar/editar outros admins
     if ((data.role === 'admin' || data.role === 'admin_master') && user?.role !== 'admin_master') {
       return;
     }
-    // Ninguém pode dar cargo de admin_master
     if (data.role === 'admin_master') {
       return;
     }
@@ -70,10 +92,12 @@ export function Usuarios() {
         name: data.name,
         password: data.password || prev.password,
         role: data.role,
+        personId: data.personId,
+        personType: data.personType,
       };
       if (data.username !== editando.username) delete all[editando.username];
     } else {
-      all[data.username] = { name: data.name, password: data.password, role: data.role };
+      all[data.username] = { name: data.name, password: data.password, role: data.role, personId: data.personId, personType: data.personType };
     }
     salvarUsuarios(all);
     setFormOpen(false);
@@ -145,31 +169,59 @@ export function Usuarios() {
               </tr>
             </thead>
             <tbody>
-              {usuarios.map(([username, data]) => (
+              {usuarios.map(([username, data]) => {
+                const person = resolvePerson(data);
+                const personFoto = person && 'foto' in person ? (person as Bombeiro).foto : undefined;
+                const personGuerra = person && 'nomeGuerra' in person ? (person as Bombeiro | APOC).nomeGuerra : undefined;
+                const personCargo = person && 'cargo' in person
+                  ? CARGO_OPTIONS.find(c => c.value === (person as Bombeiro).cargo)?.label
+                  : person && 'funcao' in person
+                    ? FUNCAO_APOC_OPTIONS.find(f => f.value === (person as APOC).funcao)?.label
+                    : undefined;
+
+                return (
                 <tr key={username} className="border-b border-graphite-100 transition-colors hover:bg-graphite-50 dark:border-border-dark dark:hover:bg-surface-hover/50">
-                  <td className="px-4 py-3 font-medium text-graphite-900 dark:text-graphite-100">{data.name}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-aviation-500 to-aviation-700 text-xs font-bold text-white">
+                        {personFoto ? (
+                          <img src={personFoto} className="h-full w-full object-cover" alt="" />
+                        ) : (
+                          data.name.charAt(0).toUpperCase()
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium text-graphite-900 dark:text-graphite-100 truncate">{data.name}</p>
+                        {personGuerra && (
+                          <p className="text-[11px] text-graphite-500 dark:text-graphite-400 truncate">{personGuerra}</p>
+                        )}
+                      </div>
+                    </div>
+                  </td>
                   <td className="px-4 py-3 font-mono text-xs text-graphite-600 dark:text-graphite-400">{username}</td>
                   <td className="px-4 py-3">
-                    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${ROLE_BADGE[data.role] || ROLE_BADGE.chefe}`}>
-                      {ROLE_LABELS[data.role] || data.role}
-                    </span>
+                    <div className="flex flex-col gap-1">
+                      <span className={`inline-flex w-fit rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${ROLE_BADGE[data.role] || ROLE_BADGE.chefe}`}>
+                        {ROLE_LABELS[data.role] || data.role}
+                      </span>
+                      {personCargo && (
+                        <span className="text-[11px] text-graphite-500 dark:text-graphite-400">{personCargo}</span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
-                      {/* admin_master não pode ser editado por ninguém */}
                       {username !== 'admin_master' && (
                         <>
-                          {/* admin só pode ser editado por admin_master */}
                           {!(data.role === 'admin' && user?.role !== 'admin_master') && (
                             <button
-                              onClick={() => { setEditando({ username, name: data.name, role: data.role }); setFormOpen(true); }}
+                              onClick={() => { setEditando({ username, name: data.name, role: data.role, personId: data.personId, personType: data.personType }); setFormOpen(true); }}
                               className="rounded-xl p-1.5 text-graphite-400 transition-all hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover dark:hover:text-graphite-300"
                               title="Editar"
                             >
                               <Pencil className="h-4 w-4" />
                             </button>
                           )}
-                          {/* admin_master não pode ser excluído; admin só pode ser excluído por admin_master */}
                           {username !== 'admin' && !(data.role === 'admin' && user?.role !== 'admin_master') && (
                             <button
                               onClick={() => setConfirmDelete(username)}
@@ -184,7 +236,8 @@ export function Usuarios() {
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

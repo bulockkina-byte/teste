@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -15,8 +15,8 @@ import { useTheme } from '../../hooks/useTheme';
 import { useAuth, ROLE_LABELS } from '../../context/AuthContext';
 import { Breadcrumb } from './Breadcrumb';
 import { RightPanel } from './RightPanel';
-import { listarBombeiros } from '../../services/bombeiroService';
-import type { Bombeiro } from '../../types/bombeiro';
+import { CARGO_OPTIONS } from '../../types/bombeiro';
+import { FUNCAO_APOC_OPTIONS } from '../../types/apoc';
 
 export function Header() {
   const { theme, toggleTheme } = useTheme();
@@ -27,26 +27,15 @@ export function Header() {
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
   const [rightPanelTab, setRightPanelTab] = useState<'notificacoes' | 'chat' | 'contatos'>('notificacoes');
 
-  const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
-
-  useEffect(() => {
-    async function carregar() {
-      const data = await listarBombeiros();
-      setBombeiros(data);
-    }
-    carregar();
-  }, []);
-  const bombeiro = useMemo(() => {
-    if (!user) return null;
-    return bombeiros.find(b =>
-      b.nomeGuerra.toLowerCase() === user.username.toLowerCase() ||
-      b.nomeCompleto.toLowerCase().includes(user.username.toLowerCase())
-    );
-  }, [user, bombeiros]);
-
-  const displayName = bombeiro?.nomeCompleto || user?.name || 'Usuário';
-  const displayRole = ROLE_LABELS[user?.role || 'chefe'];
-  const displayPhoto = bombeiro?.foto || null;
+  const pessoa = user?.pessoa;
+  const displayName = pessoa?.nomeGuerra || user?.name || 'Usuário';
+  const displayRole = pessoa
+    ? (pessoa.personType === 'bombeiro'
+        ? CARGO_OPTIONS.find(c => c.value === pessoa.funcao)?.label || ROLE_LABELS[user?.role || 'chefe']
+        : FUNCAO_APOC_OPTIONS.find(f => f.value === pessoa.funcao)?.label || ROLE_LABELS[user?.role || 'chefe'])
+    : ROLE_LABELS[user?.role || 'chefe'];
+  const displayPhoto = pessoa?.foto || null;
+  const fullName = pessoa?.nomeGuerra ? (user?.name || '') : '';
 
   const pageTitle = getPageTitle(pathname);
 
@@ -117,6 +106,11 @@ export function Header() {
               <p className="text-[10px] font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400">
                 {displayRole}
               </p>
+              {fullName && fullName !== displayName && (
+                <p className="text-[10px] text-graphite-400 dark:text-graphite-500 truncate max-w-[120px]">
+                  {fullName}
+                </p>
+              )}
             </div>
             <ChevronDown className={`h-4 w-4 text-graphite-400 transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''}`} />
           </button>
@@ -140,6 +134,9 @@ export function Header() {
                     <div className="min-w-0">
                       <p className="text-sm font-bold text-graphite-900 dark:text-graphite-100 truncate">{displayName}</p>
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400">{displayRole}</p>
+                      {fullName && fullName !== displayName && (
+                        <p className="text-[10px] text-graphite-400 truncate">{fullName}</p>
+                      )}
                       <p className="text-[10px] text-graphite-400">@{user?.username}</p>
                     </div>
                   </div>

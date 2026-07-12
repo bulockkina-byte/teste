@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { substituicaoPorSubstituto } from '../services/substituicaoService';
 import { listarBombeiros } from '../services/bombeiroService';
+import { listarAPOCs } from '../services/apocService';
 
 export type UserRole = 'admin_master' | 'admin' | 'gerente' | 'chefe' | 'lider';
 
@@ -12,6 +13,13 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   lider: 'Líder de Resgate',
 };
 
+export interface PessoaVinculada {
+  nomeGuerra: string;
+  foto?: string;
+  funcao: string;
+  personType: 'bombeiro' | 'apoc';
+}
+
 interface User {
   name: string;
   username: string;
@@ -19,6 +27,7 @@ interface User {
   role: UserRole;
   substituindoDe?: string;
   substituindoFuncao?: UserRole;
+  pessoa?: PessoaVinculada;
 }
 
 interface AuthContextType {
@@ -26,7 +35,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   effectiveRole: UserRole;
   login: (username: string, password: string) => Promise<void>;
-  register: (name: string, username: string, password: string, role: UserRole) => Promise<void>;
+  register: (name: string, username: string, password: string, role: UserRole, personId?: string, personType?: 'bombeiro' | 'apoc') => Promise<void>;
   logout: () => void;
 }
 
@@ -34,6 +43,8 @@ export interface StoredUser {
   name: string;
   password: string;
   role: UserRole;
+  personId?: string;
+  personType?: 'bombeiro' | 'apoc';
 }
 
 const USERS_KEY = 'sescinc-users';
@@ -107,6 +118,13 @@ function cargoParaUserRole(cargo: string): UserRole | null {
   return null;
 }
 
+function apocParaUserRole(funcao: string): UserRole {
+  if (funcao === 'supervisor') return 'gerente';
+  return 'chefe';
+}
+
+export { cargoParaUserRole, apocParaUserRole };
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(() => loadSession());
 
@@ -149,13 +167,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error('Usuário ou senha inválidos.');
     }
 
-    const bombeiros = await listarBombeiros();
-    const bombeiro = bombeiros.find(b => b.nomeCompleto === stored.name || b.email === username);
-    let substituicao = null;
-    if (bombeiro) {
-      substituicao = substituicaoPorSubstituto(bombeiro.id);
-    }
-
     const userData: User = {
       name: stored.name,
       username,
@@ -163,11 +174,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       role: stored.role || 'chefe',
     };
 
-    if (substituicao && bombeiro) {
-      const subRole = cargoParaUserRole(substituicao.funcaoSubstituicao);
-      if (subRole) {
-        userData.substituindoDe = substituicao.funcionarioNome;
-        userData.substituindoFuncao = subRole;
+    if (stored.personId && stored.personType) {
+      try {
+        if (stored.personType === 'bombeiro') {
+          const bombeiros = await listarBombeiros();
+          const b = bombeiros.find(p => p.id === stored.personId);
+          if (b) {
+            userData.pessoa = {
+              nomeGuerra: b.nomeGuerra,
+              foto: b.foto || undefined,
+              funcao: b.cargo,
+              personType: 'bombeiro',
+            };
+            const substituicao = substituicaoPorSubstituto(b.id);
+            if (substituicao) {
+              const subRole = cargoParaUserRole(substituicao.funcaoSubstituicao);
+              if (subRole) {
+                userData.substituindoDe = substituicao.funcionarioNome;
+                userData.substituindoFuncao = subRole;
+              }
+            }
+          }
+        } else if (stored.personType === 'apoc') {
+          const apocs = await listarAPOCs();
+          const a = apocs.find(p => p.id === stored.personId);
+          if (a) {
+            userData.pessoa = {
+              nomeGuerra: a.nomeGuerra,
+              foto: undefined,
+              funcao: a.funcao,
+              personType: 'apoc',
+            };
+          }
+        }
+      } catch { /* ignore - fallback to basic user data */ }
+    } else {
+      const bombeiros = await listarBombeiros();
+      const bombeiro = bombeiros.find(b => b.nomeCompleto === stored.name || b.email === username);
+      if (bombeiro) {
+        userData.pessoa = {
+          nomeGuerra: bombeiro.nomeGuerra,
+          foto: bombeiro.foto || undefined,
+          funcao: bombeiro.cargo,
+          personType: 'bombeiro',
+        };
+        const substituicao = substituicaoPorSubstituto(bombeiro.id);
+        if (substituicao) {
+          const subRole = cargoParaUserRole(substituicao.funcaoSubstituicao);
+          if (subRole) {
+            userData.substituindoDe = substituicao.funcionarioNome;
+            userData.substituindoFuncao = subRole;
+          }
+        }
       }
     }
 
@@ -175,13 +233,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     saveSession(userData);
   }, []);
 
-  const register = useCallback(async (name: string, username: string, password: string, role: UserRole) => {
+  const register = useCallback(async (name: string, username: string, password: string, role: UserRole, personId?: string, personType?: 'bombeiro' | 'apoc') => {
     await new Promise(r => setTimeout(r, 600));
     const users = getStoredUsers();
     if (users[username]) {
       throw new Error('Nome de usuário já existe.');
     }
-    users[username] = { name, password, role };
+    users[username] = { name, password, role, personId, personType };
     localStorage.setItem(USERS_KEY, JSON.stringify(users));
   }, []);
 
