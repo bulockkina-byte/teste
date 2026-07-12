@@ -479,15 +479,18 @@ export function Trocas() {
     const isError = missingFields.includes(field.field_name);
     const base = isError ? inputError : inputNormal;
 
+    if (field.field_name === 'motivo_troca') {
+      return <textarea value={value} onChange={e => handleFieldChange(field.field_name, e.target.value)} placeholder={field.placeholder || 'Descreva o motivo da troca...'} rows={5} className={`${base} ${cls}`} />;
+    }
+    if (field.field_name === 'justificativa_emergencial') {
+      return <textarea value={value} onChange={e => handleFieldChange(field.field_name, e.target.value)} placeholder={field.placeholder || 'Informe a justificativa emergencial...'} rows={5} className={`${base} ${cls}`} />;
+    }
+
     if (field.is_signature) return null;
 
     if (field.conditional_on) {
       const [depFieldName, depValue] = field.conditional_on.split('=');
       if ((formData[depFieldName] || '') !== depValue) return null;
-    }
-
-    if (field.field_name === 'motivo_troca' || field.field_name === 'justificativa_emergencial') {
-      return <textarea value={value} onChange={e => handleFieldChange(field.field_name, e.target.value)} placeholder={field.placeholder || 'Descreva o motivo da troca...'} rows={3} className={`${base} ${cls}`} />;
     }
 
     if (field.read_only) {

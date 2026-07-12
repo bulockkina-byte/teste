@@ -35,7 +35,7 @@ export function Documentos() {
   const [selectedDoc, setSelectedDoc] = useState<DocumentWithFields | null>(null);
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
-  const [, setSaving] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [view, setView] = useState<View>('list');
   const [expandedFill, setExpandedFill] = useState<string | null>(null);
@@ -357,7 +357,6 @@ export function Documentos() {
 
   // ═══ CAMPOS ═══
   const handleFieldUpdate = useCallback((id: string, updates: Partial<DocumentField>) => {
-    atualizarCampo(id, updates).catch(() => {});
     setSelectedDoc(prev => {
       if (!prev) return prev;
       return {
@@ -365,6 +364,10 @@ export function Documentos() {
         document_fields: prev.document_fields.map(f => f.id === id ? { ...f, ...updates } : f),
       };
     });
+  }, []);
+
+  const handleFieldCommit = useCallback((id: string, updates: Partial<DocumentField>) => {
+    atualizarCampo(id, updates).catch(err => console.error('Erro ao salvar campo:', err));
   }, []);
 
   const handleFieldAdd = useCallback((data: Omit<DocumentField, 'id' | 'created_at'>) => {
@@ -841,6 +844,7 @@ export function Documentos() {
                   selectedFieldId={selectedFieldId}
                   onSelectField={setSelectedFieldId}
                   onUpdateField={handleFieldUpdate}
+                  onCommitField={handleFieldCommit}
                   onAddField={handleFieldAdd}
                   onDropFromTray={handleDropFromTray}
                   documentId={selectedDoc.id}

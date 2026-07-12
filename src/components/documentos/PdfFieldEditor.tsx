@@ -9,6 +9,7 @@ interface Props {
   selectedFieldId: string | null;
   onSelectField: (id: string | null) => void;
   onUpdateField: (id: string, updates: Partial<DocumentField>) => void;
+  onCommitField?: (id: string, updates: Partial<DocumentField>) => void;
   onAddField: (field: Omit<DocumentField, 'id' | 'created_at'>) => void;
   onDropFromTray?: (fieldId: string, x: number, y: number, page: number) => void;
   documentId: string;
@@ -43,6 +44,7 @@ export function PdfFieldEditor({
   selectedFieldId,
   onSelectField,
   onUpdateField,
+  onCommitField,
   onAddField,
   onDropFromTray,
   documentId,
@@ -187,7 +189,13 @@ export function PdfFieldEditor({
       onUpdateField(dragState.id, { x: newX, y: newY });
     };
 
-    const handleMouseUp = () => setDragState(null);
+    const handleMouseUp = () => {
+      const field = fields.find(f => f.id === dragState.id);
+      if (field && onCommitField) {
+        onCommitField(dragState.id, { x: field.x, y: field.y });
+      }
+      setDragState(null);
+    };
 
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
@@ -195,7 +203,7 @@ export function PdfFieldEditor({
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [dragState, pageDims, onUpdateField]);
+  }, [dragState, pageDims, onUpdateField, onCommitField, fields]);
 
   useEffect(() => {
     if (!resizeState || !pageDims) return;
@@ -222,7 +230,13 @@ export function PdfFieldEditor({
       onUpdateField(resizeState.id, { width: newW, height: newH });
     };
 
-    const handleMouseUp = () => setResizeState(null);
+    const handleMouseUp = () => {
+      const field = fields.find(f => f.id === resizeState.id);
+      if (field && onCommitField) {
+        onCommitField(resizeState.id, { width: field.width, height: field.height });
+      }
+      setResizeState(null);
+    };
 
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
@@ -230,7 +244,7 @@ export function PdfFieldEditor({
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [resizeState, pageDims, onUpdateField]);
+  }, [resizeState, pageDims, onUpdateField, onCommitField, fields]);
 
   // Add field on double-click on empty area
   function handleCanvasDoubleClick(e: React.MouseEvent<HTMLDivElement>) {
