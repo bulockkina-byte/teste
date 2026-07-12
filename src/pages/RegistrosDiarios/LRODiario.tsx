@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import {
   FileSpreadsheet, Plus, Save, Eye, Pencil, Copy, Printer, Trash2, ChevronDown, ChevronUp, Truck,
 } from 'lucide-react';
@@ -773,22 +773,31 @@ function ViewModeLRO({ lro, onBack }: { lro: LRO; onBack: () => void }) {
 export function LRODiario() {
   const { user } = useAuth();
   const username = user?.username || '';
-  const role = useMemo(() => {
-    if (username === 'admin') return 'admin' as const;
-    const b = listarBombeiros().find(
-      x => x.nomeGuerra.toLowerCase() === username.toLowerCase() ||
-           x.nomeCompleto.toLowerCase().includes(username.toLowerCase()),
-    );
-    if (b?.cargo === 'GS' || b?.equipe === 'Gerência') return 'gerente' as const;
-    if (b?.cargo === 'BA-CE' || b?.cargo === 'BA-LR') return 'chefe' as const;
-    return 'chefe' as const;
-  }, [username]);
-  const userEquipe = useMemo(() => {
-    const b = listarBombeiros().find(
-      x => x.nomeGuerra.toLowerCase() === username.toLowerCase() ||
-           x.nomeCompleto.toLowerCase().includes(username.toLowerCase()),
-    );
-    return b?.equipe || '';
+  const [role, setRole] = useState<'admin' | 'gerente' | 'chefe'>('chefe');
+  const [userEquipe, setUserEquipe] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      let r: 'admin' | 'gerente' | 'chefe' = 'chefe';
+      let eq = '';
+      if (username === 'admin') {
+        r = 'admin';
+      } else {
+        const bombeiros = await listarBombeiros();
+        if (cancelled) return;
+        const b = bombeiros.find(
+          x => x.nomeGuerra.toLowerCase() === username.toLowerCase() ||
+               x.nomeCompleto.toLowerCase().includes(username.toLowerCase()),
+        );
+        if (b?.cargo === 'GS' || b?.equipe === 'Embaixador') r = 'gerente';
+        else if (b?.cargo === 'BA-CE' || b?.cargo === 'BA-LR') r = 'chefe';
+        eq = b?.equipe || '';
+      }
+      setRole(r);
+      setUserEquipe(eq);
+    }
+    load();
+    return () => { cancelled = true; };
   }, [username]);
   const isAdmin = role === 'admin';
   const isGerente = role === 'gerente';

@@ -100,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error('Usuário ou senha inválidos.');
     }
 
-    const bombeiros = listarBombeiros();
+    const bombeiros = await listarBombeiros();
     const bombeiro = bombeiros.find(b => b.nomeCompleto === stored.name || b.email === username);
     let substituicao = null;
     if (bombeiro) {

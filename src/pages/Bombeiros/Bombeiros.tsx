@@ -5,7 +5,7 @@ import { PageTitle } from '../../components/layout/PageTitle';
 import { useAuth } from '../../context/AuthContext';
 import { listarBombeiros, buscarBombeiro, criarBombeiro, atualizarBombeiro, excluirBombeiro } from '../../services/bombeiroService';
 import type { Bombeiro } from '../../types/bombeiro';
-import { CARGO_OPTIONS } from '../../types/bombeiro';
+import { CARGO_OPTIONS, EQUIPE_OPTIONS } from '../../types/bombeiro';
 import { BombeiroForm } from './BombeiroForm';
 
 export function Bombeiros() {
@@ -31,23 +31,28 @@ export function Bombeiros() {
 
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
   const [termo, setTermo] = useState('');
+  const [filterEquipe, setFilterEquipe] = useState('');
+  const [filterCargo, setFilterCargo] = useState('');
   const [formOpen, setFormOpen] = useState(false);
   const [editando, setEditando] = useState<Bombeiro | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   useEffect(() => {
-    setBombeiros(termo ? buscarBombeiro(termo) : listarBombeiros());
-  }, [termo]);
+    carregar();
+  }, [termo, filterEquipe, filterCargo]);
 
-  function carregar() {
-    setBombeiros(termo ? buscarBombeiro(termo) : listarBombeiros());
+  async function carregar() {
+    let lista = termo ? await buscarBombeiro(termo) : await listarBombeiros();
+    if (filterEquipe) lista = lista.filter(b => b.equipe === filterEquipe);
+    if (filterCargo) lista = lista.filter(b => b.cargo === filterCargo);
+    setBombeiros(lista);
   }
 
-  function handleSave(data: Omit<Bombeiro, 'id' | 'createdAt' | 'updatedAt'>) {
+  async function handleSave(data: Omit<Bombeiro, 'id' | 'createdAt' | 'updatedAt'>) {
     if (editando) {
-      atualizarBombeiro(editando.id, data);
+      await atualizarBombeiro(editando.id, data);
     } else {
-      criarBombeiro(data);
+      await criarBombeiro(data);
     }
     setFormOpen(false);
     setEditando(null);
@@ -68,8 +73,8 @@ export function Bombeiros() {
     return found ? found.label : valor;
   }
 
-  function handleDelete(id: string) {
-    excluirBombeiro(id);
+  async function handleDelete(id: string) {
+    await excluirBombeiro(id);
     setConfirmDelete(null);
     carregar();
   }
@@ -81,15 +86,33 @@ export function Bombeiros() {
       </div>
 
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite-400" />
-          <input
-            type="text"
-            value={termo}
-            onChange={e => setTermo(e.target.value)}
-            placeholder="Pesquisar por matrícula, nome, CPF ou equipe..."
-            className="w-full rounded-xl border border-graphite-300/60 bg-white/70 py-2.5 pl-10 pr-4 text-sm text-graphite-900 placeholder-graphite-400 outline-none transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated"
-          />
+        <div className="flex flex-1 flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[200px] max-w-md">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite-400" />
+            <input
+              type="text"
+              value={termo}
+              onChange={e => setTermo(e.target.value)}
+              placeholder="Pesquisar por matrícula, nome, CPF..."
+              className="w-full rounded-xl border border-graphite-300/60 bg-white/70 py-2.5 pl-10 pr-4 text-sm text-graphite-900 placeholder-graphite-400 outline-none transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-700"
+            />
+          </div>
+          <select
+            value={filterEquipe}
+            onChange={e => setFilterEquipe(e.target.value)}
+            className="rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm text-graphite-700 outline-none transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-200 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-700 dark:focus:text-graphite-100"
+          >
+            <option value="">Todas as Equipes</option>
+            {EQUIPE_OPTIONS.map(e => <option key={e} value={e}>{e}</option>)}
+          </select>
+          <select
+            value={filterCargo}
+            onChange={e => setFilterCargo(e.target.value)}
+            className="rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm text-graphite-700 outline-none transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-200 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-700 dark:focus:text-graphite-100"
+          >
+            <option value="">Todos os Cargos</option>
+            {CARGO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
         </div>
         <button
           onClick={() => { setEditando(null); setFormOpen(true); }}

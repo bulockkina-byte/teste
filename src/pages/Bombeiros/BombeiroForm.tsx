@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { X, Upload } from 'lucide-react';
-import type { Bombeiro, Cargo, Equipe, Turno, CatCNH } from '../../types/bombeiro';
+import type { Bombeiro, Cargo, Equipe, Turno, CatCNH, Sexo } from '../../types/bombeiro';
 import {
   CARGO_OPTIONS,
   EQUIPE_OPTIONS,
   TURNO_OPTIONS,
   CNH_OPTIONS,
+  SEXO_OPTIONS,
+  UF_OPTIONS,
   turnoAutoPorEquipe,
 } from '../../types/bombeiro';
 
@@ -23,6 +25,23 @@ function formatCPF(value: string) {
     .replace(/\.(\d{3})(\d)/, '.$1-$2');
 }
 
+function formatCEP(value: string) {
+  const digits = value.replace(/\D/g, '').slice(0, 8);
+  return digits.replace(/^(\d{5})(\d)/, '$1-$2');
+}
+
+function formatTel(value: string) {
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+  if (digits.length <= 10) {
+    return digits
+      .replace(/^(\d{2})(\d)/, '($1) $2')
+      .replace(/(\d{4})(\d)/, '$1-$2');
+  }
+  return digits
+    .replace(/^(\d{2})(\d)/, '($1) $2')
+    .replace(/(\d{5})(\d)/, '$1-$2');
+}
+
 function calcularIdade(dataNasc: string): number {
   if (!dataNasc) return 0;
   const hoje = new Date();
@@ -33,11 +52,18 @@ function calcularIdade(dataNasc: string): number {
   return idade;
 }
 
-const inputClass = "w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated";
-const selectClass = "w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated";
-const disabledClass = "w-full rounded-xl border border-graphite-200/60 bg-graphite-100/50 px-3 py-2.5 text-sm text-graphite-500 cursor-not-allowed dark:border-border-dark dark:bg-surface-card dark:text-graphite-500";
+const inputClass = "w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-700";
+const selectClass = "w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-700";
+const disabledClass = "w-full rounded-xl border border-graphite-200/60 bg-graphite-100/50 px-3 py-2.5 text-sm text-graphite-500 cursor-not-allowed dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-400";
 const labelClass = "mb-1 block text-xs font-medium text-graphite-600 dark:text-graphite-400";
-const span2 = "md:col-span-2";
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <legend className="mb-3 text-xs font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400">
+      {children}
+    </legend>
+  );
+}
 
 export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
   const [matricula, setMatricula] = useState('');
@@ -59,6 +85,16 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
   const [dataDesligamento, setDataDesligamento] = useState('');
   const [showDesligamento, setShowDesligamento] = useState(false);
   const [erro, setErro] = useState('');
+  const [endereco, setEndereco] = useState('');
+  const [numeroEndereco, setNumeroEndereco] = useState('');
+  const [complemento, setComplemento] = useState('');
+  const [cep, setCep] = useState('');
+  const [uf, setUf] = useState('');
+  const [municipio, setMunicipio] = useState('');
+  const [celular, setCelular] = useState('');
+  const [sexo, setSexo] = useState<Sexo>('M');
+  const [cursoChefeEquipe, setCursoChefeEquipe] = useState(false);
+  const [cursoMotoristaCCI, setCursoMotoristaCCI] = useState(false);
 
   useEffect(() => {
     if (bombeiro) {
@@ -80,6 +116,16 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
       setFoto(bombeiro.foto);
       setDataDesligamento(bombeiro.dataDesligamento);
       if (bombeiro.dataDesligamento) setShowDesligamento(true);
+      setEndereco(bombeiro.endereco || '');
+      setNumeroEndereco(bombeiro.numeroEndereco || '');
+      setComplemento(bombeiro.complemento || '');
+      setCep(bombeiro.cep || '');
+      setUf(bombeiro.uf || '');
+      setMunicipio(bombeiro.municipio || '');
+      setCelular(bombeiro.celular || '');
+      setSexo(bombeiro.sexo || 'M');
+      setCursoChefeEquipe(bombeiro.cursoChefeEquipe || false);
+      setCursoMotoristaCCI(bombeiro.cursoMotoristaCCI || false);
     }
   }, [bombeiro]);
 
@@ -105,7 +151,7 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!matricula || !nomeCompleto || !nomeGuerra || !dataNascimento || !cpf) {
+    if (!matricula || !nomeCompleto || !nomeGuerra || !cpf || !sexo || !dataNascimento || !tipoSanguineo || !email || !celular || !endereco || !numeroEndereco || !cep || !uf || !municipio || !dataAdmissao || !cnhNumero || !cnhValidade) {
       setErro('Preencha todos os campos obrigatórios.');
       return;
     }
@@ -129,12 +175,22 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
       cnhValidade,
       foto,
       dataDesligamento,
+      endereco,
+      numeroEndereco,
+      complemento,
+      cep: cep.replace(/\D/g, ''),
+      uf,
+      municipio,
+      celular: celular.replace(/\D/g, ''),
+      sexo,
+      cursoChefeEquipe,
+      cursoMotoristaCCI,
     });
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="relative flex h-full max-h-full w-full max-w-4xl flex-col rounded-2xl bg-white shadow-2xl dark:bg-surface-elevated">
+      <div className="relative flex h-full max-h-full w-full max-w-5xl flex-col rounded-2xl bg-white shadow-2xl dark:bg-surface-elevated">
         <div className="flex shrink-0 items-center justify-between border-b border-graphite-200 px-6 py-4 dark:border-border-dark">
           <h2 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">
             {bombeiro ? 'Editar Bombeiro' : 'Novo Bombeiro'}
@@ -146,16 +202,15 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
-          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
             {erro && <p className="text-sm text-alert-red dark:text-red-400">{erro}</p>}
 
             {/* Informações Pessoais */}
             <fieldset>
-              <legend className="mb-3 text-xs font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400">
-                Informações Pessoais
-              </legend>
-              <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-3">
-                <div className={span2}>
+              <SectionTitle>Informações Pessoais</SectionTitle>
+              <div className="flex gap-6">
+                <div className="flex-1 grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-4">
+                <div className="md:col-span-2">
                   <label className={labelClass}>Nome Completo *</label>
                   <input value={nomeCompleto} onChange={e => setNomeCompleto(e.target.value)} placeholder="Nome completo"
                     className={inputClass} />
@@ -171,9 +226,15 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
                     className={inputClass} />
                 </div>
                 <div>
-                  <label className={labelClass}>RG</label>
+                  <label className={labelClass}>RG *</label>
                   <input value={rg} onChange={e => setRg(e.target.value)} placeholder="RG"
                     className={inputClass} />
+                </div>
+                <div>
+                  <label className={labelClass}>Sexo *</label>
+                  <select value={sexo} onChange={e => setSexo(e.target.value as Sexo)} className={selectClass}>
+                    {SEXO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label className={labelClass}>Data de Nascimento *</label>
@@ -181,62 +242,90 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
                     className={inputClass} />
                 </div>
                 <div>
-                  <label className={labelClass}>E-mail</label>
+                  <label className={labelClass}>Idade</label>
+                  <input value={idade || ''} disabled className={disabledClass} />
+                </div>
+                <div>
+                  <label className={labelClass}>Tipo Sanguíneo *</label>
+                  <input value={tipoSanguineo} onChange={e => setTipoSanguineo(e.target.value)} placeholder="Ex: A+"
+                    className={inputClass} />
+                </div>
+                <div className="md:col-span-2">
+                  <label className={labelClass}>E-mail *</label>
                   <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@exemplo.com"
                     className={inputClass} />
                 </div>
                 <div>
-                  <label className={labelClass}>Tipo Sanguíneo</label>
-                  <input value={tipoSanguineo} onChange={e => setTipoSanguineo(e.target.value)} placeholder="Ex: A+"
+                  <label className={labelClass}>Nº Celular *</label>
+                  <input value={celular} onChange={e => setCelular(formatTel(e.target.value))} placeholder="(00) 00000-0000"
+                    className={inputClass} />
+                </div>
+                </div>
+                <div className="flex shrink-0 flex-col items-center gap-2 pt-6">
+                  <label className="flex h-28 w-28 cursor-pointer items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-graphite-300/60 bg-white/50 transition-all duration-200 hover:border-aviation-500/50 hover:bg-aviation-50/30 dark:border-border-dark dark:bg-surface-card dark:hover:border-aviation-400/50">
+                    {foto ? (
+                      <img src={foto} alt="preview" className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex flex-col items-center gap-1 text-graphite-400">
+                        <Upload className="h-6 w-6" />
+                        <span className="text-[10px]">Foto</span>
+                      </div>
+                    )}
+                    <input type="file" accept="image/*" onChange={handleFotoChange} className="hidden" />
+                  </label>
+                  {foto && (
+                    <button type="button" onClick={() => setFoto('')}
+                      className="text-[11px] text-graphite-400 underline transition-colors hover:text-alert-red dark:text-graphite-500">
+                      Remover foto
+                    </button>
+                  )}
+                </div>
+              </div>
+            </fieldset>
+
+            {/* Endereço */}
+            <fieldset>
+              <SectionTitle>Endereço</SectionTitle>
+              <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-4">
+                <div className="md:col-span-2">
+                  <label className={labelClass}>Endereço *</label>
+                  <input value={endereco} onChange={e => setEndereco(e.target.value)} placeholder="Rua, Avenida..."
                     className={inputClass} />
                 </div>
                 <div>
-                  <label className={labelClass}>CNH nº</label>
-                  <input value={cnhNumero} onChange={e => setCnhNumero(e.target.value)} placeholder="Número da CNH"
+                  <label className={labelClass}>Nº *</label>
+                  <input value={numeroEndereco} onChange={e => setNumeroEndereco(e.target.value)} placeholder="Número"
                     className={inputClass} />
                 </div>
                 <div>
-                  <label className={labelClass}>Cat. CNH</label>
-                  <select value={cnhCategoria} onChange={e => setCnhCategoria(e.target.value as CatCNH)} className={selectClass}>
-                    {CNH_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                  <label className={labelClass}>Complemento *</label>
+                  <input value={complemento} onChange={e => setComplemento(e.target.value)} placeholder="Complemento"
+                    className={inputClass} />
+                </div>
+                <div>
+                  <label className={labelClass}>CEP *</label>
+                  <input value={cep} onChange={e => setCep(formatCEP(e.target.value))} placeholder="00000-000"
+                    className={inputClass} />
+                </div>
+                <div>
+                  <label className={labelClass}>UF *</label>
+                  <select value={uf} onChange={e => setUf(e.target.value)} className={selectClass}>
+                    <option value="">Selecione</option>
+                    {UF_OPTIONS.map(u => <option key={u} value={u}>{u}</option>)}
                   </select>
                 </div>
-                <div>
-                  <label className={labelClass}>Validade CNH</label>
-                  <input type="date" value={cnhValidade} onChange={e => setCnhValidade(e.target.value)}
+                <div className="md:col-span-2">
+                  <label className={labelClass}>Município *</label>
+                  <input value={municipio} onChange={e => setMunicipio(e.target.value)} placeholder="Município"
                     className={inputClass} />
-                </div>
-                <div>
-                  <label className={labelClass}>Foto</label>
-                  <div className="flex items-start gap-3">
-                    <label className="flex h-20 w-20 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-graphite-300/60 bg-white/50 transition-all duration-200 hover:border-aviation-500/50 hover:bg-aviation-50/30 dark:border-border-dark dark:bg-surface-card dark:hover:border-aviation-400/50">
-                      {foto ? (
-                        <img src={foto} alt="preview" className="h-full w-full object-cover" />
-                      ) : (
-                        <div className="flex flex-col items-center gap-1 text-graphite-400">
-                          <Upload className="h-5 w-5" />
-                          <span className="text-[10px]">Enviar</span>
-                        </div>
-                      )}
-                      <input type="file" accept="image/*" onChange={handleFotoChange} className="hidden" />
-                    </label>
-                    {foto && (
-                      <button type="button" onClick={() => setFoto('')}
-                        className="mt-1 text-[11px] text-graphite-400 underline transition-colors hover:text-alert-red dark:text-graphite-500">
-                        Remover foto
-                      </button>
-                    )}
-                  </div>
                 </div>
               </div>
             </fieldset>
 
             {/* Dados Funcionais */}
             <fieldset>
-              <legend className="mb-3 text-xs font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400">
-                Dados Funcionais
-              </legend>
-              <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-3">
+              <SectionTitle>Dados Funcionais</SectionTitle>
+              <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-4">
                 <div>
                   <label className={labelClass}>Matrícula MMS *</label>
                   <input value={matricula} onChange={e => setMatricula(e.target.value)} placeholder="MMS"
@@ -249,13 +338,9 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
                   </select>
                 </div>
                 <div>
-                  <label className={labelClass}>Data de Admissão</label>
+                  <label className={labelClass}>Data de Admissão *</label>
                   <input type="date" value={dataAdmissao} onChange={e => setDataAdmissao(e.target.value)}
                     className={inputClass} />
-                </div>
-                <div>
-                  <label className={labelClass}>Idade</label>
-                  <input value={idade || ''} disabled className={disabledClass} />
                 </div>
                 <div>
                   <label className={labelClass}>Equipe *</label>
@@ -277,6 +362,54 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
                       className={inputClass} />
                   </div>
                 )}
+              </div>
+            </fieldset>
+
+            {/* CNH */}
+            <fieldset>
+              <SectionTitle>CNH</SectionTitle>
+              <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-4">
+                <div>
+                  <label className={labelClass}>CNH nº *</label>
+                  <input value={cnhNumero} onChange={e => setCnhNumero(e.target.value)} placeholder="Número da CNH"
+                    className={inputClass} />
+                </div>
+                <div>
+                  <label className={labelClass}>Categoria CNH *</label>
+                  <select value={cnhCategoria} onChange={e => setCnhCategoria(e.target.value as CatCNH)} className={selectClass}>
+                    {CNH_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelClass}>Validade CNH *</label>
+                  <input type="date" value={cnhValidade} onChange={e => setCnhValidade(e.target.value)}
+                    className={inputClass} />
+                </div>
+              </div>
+            </fieldset>
+
+            {/* Cursos */}
+            <fieldset>
+              <SectionTitle>Cursos</SectionTitle>
+              <div className="flex flex-wrap gap-6">
+                <label className="flex items-center gap-3 rounded-xl border border-graphite-300/60 bg-white/70 px-4 py-3 transition-all duration-200 hover:border-aviation-500/50 cursor-pointer dark:border-border-dark dark:bg-surface-card">
+                  <input
+                    type="checkbox"
+                    checked={cursoChefeEquipe}
+                    onChange={e => setCursoChefeEquipe(e.target.checked)}
+                    className="h-4 w-4 rounded border-graphite-300 text-aviation-600 focus:ring-aviation-500"
+                  />
+                  <span className="text-sm font-medium text-graphite-700 dark:text-graphite-200">Curso de Chefe de Equipe</span>
+                </label>
+                <label className="flex items-center gap-3 rounded-xl border border-graphite-300/60 bg-white/70 px-4 py-3 transition-all duration-200 hover:border-aviation-500/50 cursor-pointer dark:border-border-dark dark:bg-surface-card">
+                  <input
+                    type="checkbox"
+                    checked={cursoMotoristaCCI}
+                    onChange={e => setCursoMotoristaCCI(e.target.checked)}
+                    className="h-4 w-4 rounded border-graphite-300 text-aviation-600 focus:ring-aviation-500"
+                  />
+                  <span className="text-sm font-medium text-graphite-700 dark:text-graphite-200">Curso de Motorista/Condutor de CCI</span>
+                </label>
               </div>
             </fieldset>
           </div>

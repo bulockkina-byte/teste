@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import type { Bombeiro } from '../../types/bombeiro';
 import {
   BarChart3, AlertTriangle, TrendingUp,
   Shield, FileText, ChevronDown, ChevronUp,
@@ -34,7 +35,7 @@ const CORES_EQUIPE: Record<string, string> = {
   Charlie: '#10b981',
   Delta: '#8b5cf6',
   Feirista: '#ec4899',
-  'Gerência': '#6b7280',
+  'Embaixador': '#6b7280',
 };
 
 const CORES_CATEGORIA: Record<string, string> = {
@@ -74,7 +75,8 @@ function chaveMes(data: string): string {
 /* ───────── Tab: Geral ───────── */
 
 function TabGeral() {
-  const bombeiros = useMemo(() => listarAtivos(), []);
+  const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
+  useEffect(() => { (async () => { setBombeiros(await listarAtivos()); })(); }, []);
   const ocorrencias = useMemo(() => listarOcorrencias(), []);
   const ptrbs = useMemo(() => listarPTRBs(), []);
   const certificacoes = useMemo(() => listarCertificacoes(), []);
@@ -239,7 +241,8 @@ function TabGeral() {
 
 function TabTreinamentos() {
   const ptrbs = useMemo(() => listarPTRBs(), []);
-  const bombeiros = useMemo(() => listarAtivos(), []);
+  const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
+  useEffect(() => { (async () => { setBombeiros(await listarAtivos()); })(); }, []);
   const [filtroMeses, setFiltroMeses] = useState<1 | 3 | 6 | 12>(6);
   const [expandedAssunto, setExpandedAssunto] = useState<string | null>(null);
 
@@ -497,7 +500,8 @@ function TabTreinamentos() {
 
 function TabCertificacoes() {
   const certificacoes = useMemo(() => listarCertificacoes(), []);
-  const bombeiros = useMemo(() => listarAtivos(), []);
+  const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
+  useEffect(() => { (async () => { setBombeiros(await listarAtivos()); })(); }, []);
   const agora = new Date();
 
   const porEquipe = useMemo(() => {
@@ -699,12 +703,13 @@ function TabDesempenho() {
     return EQUIPES_OPERACIONAIS.map(e => ({ equipe: e, total: mapa[e] || 0, cor: CORES_EQUIPE[e] }));
   }, [lros]);
 
-  const efetivoPorTurno = useMemo(() => {
-    const bombeiros = listarAtivos();
-    const mapa: Record<string, number> = { Diurno: 0, Noturno: 0, Feirista: 0, Gerência: 0 };
+  const [efetivoPorTurno, setEfetivoPorTurno] = useState<{turno: string; total: number}[]>([]);
+  useEffect(() => { (async () => {
+    const bombeiros = await listarAtivos();
+    const mapa: Record<string, number> = { Diurno: 0, Noturno: 0, Feirista: 0, Administrativo: 0 };
     bombeiros.forEach(b => { mapa[b.turno] = (mapa[b.turno] || 0) + 1; });
-    return Object.entries(mapa).map(([turno, total]) => ({ turno, total }));
-  }, []);
+    setEfetivoPorTurno(Object.entries(mapa).map(([turno, total]) => ({ turno, total })));
+  })(); }, []);
 
   return (
     <div className="space-y-6">

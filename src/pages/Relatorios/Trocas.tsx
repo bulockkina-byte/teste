@@ -20,6 +20,8 @@ import type { DocumentWithFields, DocumentField, DocumentFill } from '../../type
 import { useAuth } from '../../context/AuthContext';
 import { listarBombeiros } from '../../services/bombeiroService';
 import { listarAPOCs } from '../../services/apocService';
+import type { Bombeiro } from '../../types/bombeiro';
+import type { APOC } from '../../types/apoc';
 
 type SubView = 'list' | 'form';
 
@@ -94,6 +96,11 @@ export function Trocas() {
   const [missingFields, setMissingFields] = useState<string[]>([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [showJustificativaPopup, setShowJustificativaPopup] = useState<string | null>(null);
+  const [showValidationPopup, setShowValidationPopup] = useState<string | null>(null);
+  const [showNotifPopup, setShowNotifPopup] = useState<{ msg: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [bombeirosList, setBombeirosList] = useState<Bombeiro[]>([]);
+  const [apocsList, setApocsList] = useState<APOC[]>([]);
   const now = new Date();
   const [filterMonth, setFilterMonth] = useState<number>(now.getMonth());
   const [filterYear, setFilterYear] = useState<number>(now.getFullYear());
@@ -104,7 +111,15 @@ export function Trocas() {
 
   const displayFields = useMemo(() => {
     const base = templateDoc ? templateDoc.document_fields : templateFieldsToDocFields(template.fields);
-    return base.map(f => FIELD_LABEL_OVERRIDES[f.field_name] ? { ...f, field_label: FIELD_LABEL_OVERRIDES[f.field_name] } : f);
+    return base
+      .filter(f => !f.field_name.startsWith('check_'))
+      .map(f => {
+        let patched = FIELD_LABEL_OVERRIDES[f.field_name] ? { ...f, field_label: FIELD_LABEL_OVERRIDES[f.field_name] } : f;
+        if (patched.field_name === 'motivo_troca' || patched.field_name === 'justificativa_emergencial') {
+          patched = { ...patched, field_type: 'textarea', is_signature: false, read_only: false, data_source: 'manual' };
+        }
+        return patched;
+      });
   }, [templateDoc]);
 
   const years = useMemo(() => {
@@ -159,7 +174,13 @@ export function Trocas() {
   async function init() {
     try {
       setLoading(true);
-      const docs = await listarDocumentos();
+      const [docs, bombeiros, apocs] = await Promise.all([
+        listarDocumentos(),
+        listarBombeiros(),
+        listarAPOCs(),
+      ]);
+      setBombeirosList(bombeiros);
+      setApocsList(apocs);
       const trocaDoc = docs.find(d => findTemplate(d.name) !== null);
       if (trocaDoc) {
         const full = await buscarDocumento(trocaDoc.id);
@@ -168,7 +189,7 @@ export function Trocas() {
         setFills(docFills);
       }
     } catch {
-      alert('Erro ao carregar trocas. Contate o administrador.');
+      setShowNotifPopup({ msg: 'Erro ao carregar trocas. Contate o administrador.', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -208,7 +229,7 @@ export function Trocas() {
       setTemplateDoc(full);
       return full;
     } catch {
-      alert('Erro ao criar documento. Contate o administrador.');
+      setShowNotifPopup({ msg: 'Erro ao criar documento. Contate o administrador.', type: 'error' });
       return null;
     }
   }
@@ -235,14 +256,12 @@ export function Trocas() {
     setFormData(prev => ({ ...prev, [fieldName]: value }));
   }
 
-  const HIDDEN_AUTENTIQUE_FIELDS = ['data_autentique_1', 'data_autentique_2'];
+  const HIDDEN_AUTENTIQUE_FIELDS = ['data_autentique_1', 'data_autentique_2', 'data_autentique_3', 'check_troca_sim', 'check_troca_nao', 'check_deferido', 'check_indeferido'];
 
   function getAllFuncionarios() {
-    const bombeiros = listarBombeiros();
-    const apocs = listarAPOCs();
     return [
-      ...bombeiros.map(b => ({ label: b.nomeCompleto, sublabel: `${b.cargo} - ${b.email}`, _type: 'bombeiro' as const, _raw: b })),
-      ...apocs.map(a => ({ label: a.nomeCompleto, sublabel: `APOC - ${a.email}`, _type: 'apoc' as const, _raw: a })),
+      ...bombeirosList.map(b => ({ label: b.nomeCompleto, sublabel: `${b.cargo} - ${b.email}`, _type: 'bombeiro' as const, _raw: b })),
+      ...apocsList.map(a => ({ label: a.nomeCompleto, sublabel: `APOC - ${a.email}`, _type: 'apoc' as const, _raw: a })),
     ];
   }
 
@@ -317,7 +336,7 @@ export function Trocas() {
     }
     setMissingFields(missing);
     if (missing.length > 0) {
-      alert('Preencha todos os campos obrigatorios. Os campos em vermelho precisam ser preenchidos.');
+      setShowValidationPopup('Preencha todos os campos obrigatorios. Os campos em vermelho precisam ser preenchidos.');
       return false;
     }
     return true;
@@ -339,12 +358,27 @@ export function Trocas() {
         });
       }
       const pdfKey = doc.template_pdf_url;
-      if (!pdfKey) { alert('PDF template nao vinculado. Contate o administrador.'); return; }
+      if (!pdfKey) { setShowNotifPopup({ msg: 'PDF template nao vinculado. Contate o administrador.', type: 'error' }); return; }
       const blob = await getPdfBlob(pdfKey);
-      if (!blob) { alert('PDF template nao encontrado.'); return; }
+      if (!blob) { setShowNotifPopup({ msg: 'PDF template nao encontrado.', type: 'error' }); return; }
       const pdfBytes = await blob.arrayBuffer();
       const dadosStr: Record<string, string> = {};
       for (const [k, v] of Object.entries(formData)) dadosStr[k] = String(v || '');
+
+      if (formData.troca_emergencial === 'SIM') {
+        dadosStr.check_troca_sim = 'V';
+        dadosStr.check_troca_nao = '';
+      } else if (formData.troca_emergencial === 'NAO') {
+        dadosStr.check_troca_sim = '';
+        dadosStr.check_troca_nao = 'V';
+      }
+      if (formData.deferido_indeferido === 'DEFERIDO') {
+        dadosStr.check_deferido = 'V';
+        dadosStr.check_indeferido = '';
+      } else if (formData.deferido_indeferido === 'INDEFERIDO') {
+        dadosStr.check_deferido = '';
+        dadosStr.check_indeferido = 'V';
+      }
       const pdfBlob = await preencherPdf(pdfBytes, dadosStr);
       const nome = `Troca_${formData.nome_solicitante || 'doc'}_${new Date().toISOString().slice(0, 10)}.pdf`;
       downloadPdf(pdfBlob, nome);
@@ -353,7 +387,7 @@ export function Trocas() {
       setEditingFillId(null);
       setSubView('list');
     } catch {
-      alert('Erro ao gerar PDF. Contate o administrador.');
+      setShowNotifPopup({ msg: 'Erro ao gerar PDF. Contate o administrador.', type: 'error' });
     } finally {
       setSaving(false);
     }
@@ -366,7 +400,7 @@ export function Trocas() {
 
   async function handleOverrideLimit() {
     if (!overrideName.trim()) {
-      alert('Informe o nome da pessoa para a qual a troca esta sendo realizada.');
+      setShowNotifPopup({ msg: 'Informe o nome da pessoa para a qual a troca esta sendo realizada.', type: 'error' });
       return;
     }
     setLimitPopupData(prev => ({ ...prev, targetName: overrideName.trim() }));
@@ -376,7 +410,7 @@ export function Trocas() {
     displayFields.forEach(f => { initialData[f.field_name] = ''; });
     setFormData(initialData);
     setSubView('form');
-    alert(`Aviso enviado ao gerente: ${user?.username} esta realizando uma troca adicional para ${overrideName.trim()}.`);
+    setShowNotifPopup({ msg: `Aviso enviado ao gerente: ${user?.username} esta realizando uma troca adicional para ${overrideName.trim()}.`, type: 'info' });
   }
 
   function handleEditFill(fill: DocumentFill) {
@@ -399,7 +433,7 @@ export function Trocas() {
       await excluirPreenchimento(deleteTargetId);
       setFills(prev => prev.filter(f => f.id !== deleteTargetId));
     } catch {
-      alert('Erro ao excluir. Contate o administrador.');
+      setShowNotifPopup({ msg: 'Erro ao excluir. Contate o administrador.', type: 'error' });
     } finally {
       setShowDeleteConfirm(false);
       setDeleteTargetId(null);
@@ -407,6 +441,7 @@ export function Trocas() {
   }
 
   async function handleSaveDraft() {
+    if (!validateForm()) return;
     setSaving(true);
     try {
       const doc = await ensureDocumentExists();
@@ -420,13 +455,13 @@ export function Trocas() {
           autentique_document_id: null, autentique_link: null,
         });
       }
-      alert('Rascunho salvo!');
+      setShowNotifPopup({ msg: 'Rascunho salvo com sucesso!', type: 'success' });
       const docFills = await listarPreenchimentos(doc.id);
       setFills(docFills);
       setEditingFillId(null);
       setSubView('list');
     } catch {
-      alert('Erro ao salvar. Contate o administrador.');
+      setShowNotifPopup({ msg: 'Erro ao salvar. Contate o administrador.', type: 'error' });
     } finally {
       setSaving(false);
     }
@@ -449,6 +484,10 @@ export function Trocas() {
     if (field.conditional_on) {
       const [depFieldName, depValue] = field.conditional_on.split('=');
       if ((formData[depFieldName] || '') !== depValue) return null;
+    }
+
+    if (field.field_name === 'motivo_troca' || field.field_name === 'justificativa_emergencial') {
+      return <textarea value={value} onChange={e => handleFieldChange(field.field_name, e.target.value)} placeholder={field.placeholder || 'Descreva o motivo da troca...'} rows={3} className={`${base} ${cls}`} />;
     }
 
     if (field.read_only) {
@@ -597,7 +636,7 @@ export function Trocas() {
               {fDeferido && <div><Label field={fDeferido} />{renderField(fDeferido)}</div>}
             </div>
             {fMotivo && (
-              <div className={`mt-3 grid gap-3 ${formData.troca_emergencial === 'SIM' ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
+              <div className="mt-3 grid grid-cols-1 gap-3">
                 <div><Label field={fMotivo} />{renderField(fMotivo)}</div>
                 {formData.troca_emergencial === 'SIM' && fJustEmerg && (
                   <div>
@@ -790,7 +829,9 @@ export function Trocas() {
                         Exclui em: {formatCountdown(draftCountdowns[fill.id])}
                       </span>
                     )}
-                    {isExpanded ? <ChevronUp className="h-4 w-4 text-graphite-400 dark:text-graphite-500" /> : <ChevronDown className="h-4 w-4 text-graphite-400 dark:text-graphite-500" />}
+                    <button onClick={() => setExpandedFill(isExpanded ? null : fill.id)} className="rounded p-1 text-graphite-400 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-700">
+                      {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </button>
                   </div>
                 </div>
                 {isExpanded && (
@@ -808,29 +849,68 @@ export function Trocas() {
                           <p className="text-graphite-900 dark:text-graphite-100">{new Date(data.data_folga_solicitado + 'T12:00:00').toLocaleDateString('pt-BR')}</p>
                         </div>
                       )}
-                      {data.motivo_troca && (
-                        <div className="md:col-span-1">
-                          <span className="text-xs text-graphite-400 dark:text-graphite-500">Motivo</span>
-                          <p className="text-graphite-900 dark:text-graphite-100">{data.motivo_troca}</p>
+                      {data.troca_emergencial === 'SIM' && (
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="h-5 w-5 text-orange-500" />
+                          <button onClick={() => setShowJustificativaPopup(fill.id)} className="text-sm font-medium text-orange-600 underline hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300">
+                            Troca Emergencial
+                          </button>
                         </div>
                       )}
                     </div>
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      {Object.entries(data).map(([key, val]) => {
-                        if (!val || key.includes('assinatura') || key === 'data_solicitada' || key === 'data_folga_solicitado' || key === 'motivo_troca') return null;
-                        return (
-                          <div key={key}>
-                            <span className="text-xs text-graphite-400 dark:text-graphite-500">{key.replace(/_/g, ' ')}</span>
-                            <p className="text-graphite-900 dark:text-graphite-100">{String(val)}</p>
-                          </div>
-                        );
-                      })}
-                    </div>
+                    {data.motivo_troca && (
+                      <div className="rounded-lg border border-graphite-200 bg-graphite-50 p-3 dark:border-graphite-600 dark:bg-graphite-700/50">
+                        <span className="text-xs text-graphite-400 dark:text-graphite-500">Motivo da Troca</span>
+                        <p className="mt-1 text-sm text-graphite-900 dark:text-graphite-100">{data.motivo_troca}</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             );
           })}
+        </div>
+      )}
+
+      {showJustificativaPopup && (() => {
+        const fill = filteredFills.find(f => f.id === showJustificativaPopup);
+        const data = fill?.filled_data as Record<string, string> | undefined;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowJustificativaPopup(null)}>
+            <div className="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-graphite-800" onClick={e => e.stopPropagation()}>
+              <div className="mb-4 flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900/40">
+                  <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-graphite-900 dark:text-graphite-100">Justificativa da Troca Emergencial</h3>
+              </div>
+              <p className="text-sm text-graphite-600 dark:text-graphite-300">{data?.justificativa_emergencial || 'Nenhuma justificativa informada.'}</p>
+              <div className="mt-6 flex justify-end">
+                <button onClick={() => setShowJustificativaPopup(null)} className="rounded-lg border border-graphite-200 px-4 py-2 text-sm font-medium text-graphite-700 hover:bg-graphite-50 dark:border-graphite-600 dark:text-graphite-200 dark:hover:bg-graphite-700">
+                  Fechar
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {showValidationPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowValidationPopup(null)}>
+          <div className="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-graphite-800" onClick={e => e.stopPropagation()}>
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40">
+                <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-graphite-900 dark:text-graphite-100">Campos Obrigatorios</h3>
+            </div>
+            <p className="text-sm text-graphite-600 dark:text-graphite-300">{showValidationPopup}</p>
+            <div className="mt-6 flex justify-end">
+              <button onClick={() => setShowValidationPopup(null)} className="rounded-lg bg-aviation-600 px-4 py-2 text-sm font-medium text-white hover:bg-aviation-700">
+                Entendido
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -852,6 +932,33 @@ export function Trocas() {
               </button>
               <button onClick={confirmDeleteFill} className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">
                 <Trash2 className="h-4 w-4" /> Sim, Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showNotifPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowNotifPopup(null)}>
+          <div className="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-graphite-800" onClick={e => e.stopPropagation()}>
+            <div className="mb-4 flex items-center gap-3">
+              <div className={`flex h-10 w-10 items-center justify-center rounded-full ${
+                showNotifPopup.type === 'success' ? 'bg-green-100 dark:bg-green-900/40' :
+                showNotifPopup.type === 'error' ? 'bg-red-100 dark:bg-red-900/40' :
+                'bg-blue-100 dark:bg-blue-900/40'
+              }`}>
+                {showNotifPopup.type === 'success' ? <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" /> :
+                 showNotifPopup.type === 'error' ? <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" /> :
+                 <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400" />}
+              </div>
+              <h3 className="text-lg font-semibold text-graphite-900 dark:text-graphite-100">
+                {showNotifPopup.type === 'success' ? 'Sucesso' : showNotifPopup.type === 'error' ? 'Erro' : 'Aviso'}
+              </h3>
+            </div>
+            <p className="text-sm text-graphite-600 dark:text-graphite-300">{showNotifPopup.msg}</p>
+            <div className="mt-6 flex justify-end">
+              <button onClick={() => setShowNotifPopup(null)} className="rounded-lg bg-aviation-600 px-4 py-2 text-sm font-medium text-white hover:bg-aviation-700">
+                Entendido
               </button>
             </div>
           </div>

@@ -35,9 +35,9 @@ function diasRestantes(dataValidade: string): number {
   return Math.ceil((validade.getTime() - agora.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-function calcularAlertasFerias(): Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[] {
+async function calcularAlertasFerias(): Promise<Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[]> {
   const alertas: Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[] = [];
-  const bombeiros = listarAtivos();
+  const bombeiros = await listarAtivos();
 
   for (const b of bombeiros) {
     if (!b.dataAdmissao || !b.equipe) continue;
@@ -63,17 +63,17 @@ function calcularAlertasFerias(): Omit<Notificacao, 'id' | 'lida' | 'createdAt'>
   return alertas;
 }
 
-function calcularAlertasEPI(): Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[] {
+async function calcularAlertasEPI(): Promise<Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[]> {
   const alertas: Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[] = [];
   const epis = listarEPIs();
-  const bombeiros = listarAtivos();
+  const bombeiros = await listarAtivos();
 
   for (const epi of epis) {
     if (!epi.dataValidade) continue;
     const dias = diasRestantes(epi.dataValidade);
     if (dias <= 30 && dias > 0) {
       const b = bombeiros.find(x => x.nomeCompleto === epi.colaborador);
-      const equipe = b?.equipe || 'Gerência';
+      const equipe = b?.equipe || 'Embaixador';
 
       let tipo: Notificacao['tipo'] = 'info';
       if (dias <= 7) tipo = 'erro';
@@ -91,17 +91,17 @@ function calcularAlertasEPI(): Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[] 
   return alertas;
 }
 
-function calcularAlertasCertificacao(): Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[] {
+async function calcularAlertasCertificacao(): Promise<Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[]> {
   const alertas: Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[] = [];
   const certificacoes = listarCertificacoes();
-  const bombeiros = listarAtivos();
+  const bombeiros = await listarAtivos();
 
   for (const cert of certificacoes) {
     if (!cert.dataValidade) continue;
     const dias = diasRestantes(cert.dataValidade);
     if (dias <= 90 && dias > 0) {
       const b = bombeiros.find(x => x.id === cert.funcionarioId);
-      const equipe = b?.equipe || 'Gerência';
+      const equipe = b?.equipe || 'Embaixador';
 
       let tipo: Notificacao['tipo'] = 'info';
       if (dias <= 30) tipo = 'erro';
@@ -119,14 +119,14 @@ function calcularAlertasCertificacao(): Omit<Notificacao, 'id' | 'lida' | 'creat
   return alertas;
 }
 
-export function gerarNotificacoes(): Notificacao[] {
+export async function gerarNotificacoes(): Promise<Notificacao[]> {
   const existentes = getStored();
   const existentesMap = new Map(existentes.map(n => [`${n.origem}-${n.descricao}`, n]));
 
   const novosAlertas = [
-    ...calcularAlertasFerias(),
-    ...calcularAlertasEPI(),
-    ...calcularAlertasCertificacao(),
+    ...(await calcularAlertasFerias()),
+    ...(await calcularAlertasEPI()),
+    ...(await calcularAlertasCertificacao()),
   ];
 
   const resultado: Notificacao[] = [];

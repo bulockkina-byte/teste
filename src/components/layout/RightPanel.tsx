@@ -14,7 +14,7 @@ import {
   marcarTodasNotificacoesLidas, limparNotificacoes,
 } from '../../services/notificacaoService';
 import type { Notificacao } from '../../services/notificacaoService';
-import type { Equipe } from '../../types/bombeiro';
+import type { Equipe, Bombeiro } from '../../types/bombeiro';
 
 type RightTab = 'chat' | 'notificacoes' | 'contatos';
 type ChatSubTab = 'geral' | 'privado';
@@ -59,7 +59,15 @@ export function RightPanel({ onClose, openTab = 'chat' }: { onClose: () => void;
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const bombeiros = useMemo(() => listarBombeiros(), []);
+  const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
+
+  useEffect(() => {
+    async function carregar() {
+      const data = await listarBombeiros();
+      setBombeiros(data);
+    }
+    carregar();
+  }, []);
 
   const userEquipes = useMemo(() => {
     const isGlobal = effectiveRole === 'admin_master' || effectiveRole === 'admin' || effectiveRole === 'gerente';

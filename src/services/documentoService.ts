@@ -159,6 +159,16 @@ export async function criarCamposEmLote(
   return (data as DocumentField[]) || [];
 }
 
+export async function sincronizarCamposTemplate(
+  doc: DocumentWithFields,
+  templateFields: Omit<DocumentField, 'id' | 'created_at'>[],
+): Promise<DocumentField[]> {
+  const existingNames = new Set(doc.document_fields.map(f => f.field_name));
+  const missing = templateFields.filter(tf => !existingNames.has(tf.field_name));
+  if (missing.length === 0) return [];
+  return criarCamposEmLote(doc.id, missing);
+}
+
 export async function atualizarCampo(id: string, updates: Partial<DocumentField>): Promise<DocumentField | null> {
   const db = getDb();
   const { data, error } = await db

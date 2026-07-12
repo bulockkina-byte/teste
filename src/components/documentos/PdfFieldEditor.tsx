@@ -3,8 +3,6 @@ import pdfjsLib from '../../lib/pdfjs-setup';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import type { DocumentField } from '../../types/document';
 
-
-
 interface Props {
   pdfData: ArrayBuffer;
   fields: DocumentField[];
@@ -12,6 +10,7 @@ interface Props {
   onSelectField: (id: string | null) => void;
   onUpdateField: (id: string, updates: Partial<DocumentField>) => void;
   onAddField: (field: Omit<DocumentField, 'id' | 'created_at'>) => void;
+  onDropFromTray?: (fieldId: string, x: number, y: number, page: number) => void;
   documentId: string;
 }
 
@@ -45,9 +44,11 @@ export function PdfFieldEditor({
   onSelectField,
   onUpdateField,
   onAddField,
+  onDropFromTray,
   documentId,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
@@ -55,46 +56,93 @@ export function PdfFieldEditor({
   const [dragState, setDragState] = useState<FieldDragState | null>(null);
   const [resizeState, setResizeState] = useState<FieldResizeState | null>(null);
   const [rendering, setRendering] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Load PDF
   useEffect(() => {
+    if (!pdfData) return;
+    let cancelled = false;
+    setLoadError(null);
+    setPdf(null);
+    setPageDims(null);
+
     (async () => {
-      const loadingTask = pdfjsLib.getDocument({ data: pdfData.slice(0) });
-      const pdfDoc = await loadingTask.promise;
-      setPdf(pdfDoc);
-      setTotalPages(pdfDoc.numPages);
-      setCurrentPage(1);
+      try {
+        const data = pdfData.slice(0);
+        const loadingTask = pdfjsLib.getDocument({ data });
+        const pdfDoc = await loadingTask.promise;
+        if (cancelled) return;
+        setPdf(pdfDoc);
+        setTotalPages(pdfDoc.numPages);
+        setCurrentPage(1);
+      } catch (err) {
+        console.error('Erro ao carregar PDF:', err);
+        if (!cancelled) setLoadError(String(err));
+      }
     })();
+
+    return () => { cancelled = true; };
   }, [pdfData]);
 
   // Render current page
   useEffect(() => {
     if (!pdf) return;
+    let cancelled = false;
+
     (async () => {
-      setRendering(true);
-      const page = await pdf.getPage(currentPage);
-      const viewport = page.getViewport({ scale: 1.5 });
+      try {
+        setRendering(true);
+        const page = await pdf.getPage(currentPage);
+        const viewport = page.getViewport({ scale: 1.5 });
 
-      const canvas = document.getElementById('pdf-canvas') as HTMLCanvasElement;
-      if (!canvas) return;
-      const ctx = canvas.getContext('2d')!;
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
+        const canvas = canvasRef.current;
+        if (!canvas) {
+          console.error('Canvas ref não disponível');
+          setRendering(false);
+          return;
+        }
 
-      await page.render({ canvasContext: ctx, viewport, canvas } as any).promise;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          console.error('Não foi possível obter contexto 2D do canvas');
+          setRendering(false);
+          return;
+        }
 
-      const container = containerRef.current;
-      if (container) {
-        const containerWidth = container.clientWidth - 32;
-        const scale = containerWidth / viewport.width;
-        setPageDims({
-          width: viewport.width,
-          height: viewport.height,
-          scale,
-        });
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        await page.render({ canvasContext: ctx, viewport } as any).promise;
+
+        if (cancelled) return;
+
+        const container = containerRef.current;
+        if (container) {
+          const containerWidth = container.clientWidth - 32;
+          if (containerWidth > 0) {
+            const scale = containerWidth / viewport.width;
+            setPageDims({
+              width: viewport.width,
+              height: viewport.height,
+              scale,
+            });
+          } else {
+            console.warn('Container sem largura, tentando com scale 1');
+            setPageDims({
+              width: viewport.width,
+              height: viewport.height,
+              scale: 1,
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Erro ao renderizar página do PDF:', err);
+      } finally {
+        if (!cancelled) setRendering(false);
       }
-      setRendering(false);
     })();
+
+    return () => { cancelled = true; };
   }, [pdf, currentPage]);
 
   // Drag handlers
@@ -219,23 +267,40 @@ export function PdfFieldEditor({
     });
   }
 
-  if (!pageDims) {
-    return <div className="flex items-center justify-center py-12 text-graphite-400">Carregando PDF...</div>;
+  if (loadError) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <p className="text-sm font-medium text-red-600 dark:text-red-400">Erro ao carregar PDF</p>
+          <p className="mt-1 text-xs text-graphite-400">{loadError}</p>
+        </div>
+      </div>
+    );
   }
 
-  const displayWidth = pageDims.width * pageDims.scale;
-  const displayHeight = pageDims.height * pageDims.scale;
+  const showCanvas = !!pdf;
+  const displayWidth = pageDims ? pageDims.width * pageDims.scale : 0;
+  const displayHeight = pageDims ? pageDims.height * pageDims.scale : 0;
   const pageFields = fields.filter(f => f.page === currentPage);
 
   return (
     <div className="flex gap-4">
-      {/* PDF + Fields */}
       <div className="flex-1 overflow-auto" ref={containerRef}>
         <div className="flex justify-center pb-4">
           <div
             className="relative inline-block"
-            style={{ width: displayWidth, height: displayHeight }}
+            style={pageDims ? { width: displayWidth, height: displayHeight } : undefined}
             onDoubleClick={handleCanvasDoubleClick}
+            onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+            onDrop={(e) => {
+              e.preventDefault();
+              const fieldId = e.dataTransfer.getData('text/field-id');
+              if (!fieldId || !onDropFromTray || !pageDims) return;
+              const rect = e.currentTarget.getBoundingClientRect();
+              const x = (e.clientX - rect.left) / pageDims.scale;
+              const y = (e.clientY - rect.top) / pageDims.scale;
+              onDropFromTray(fieldId, Math.max(0, x), Math.max(0, y), currentPage);
+            }}
             onClick={(e) => {
               if (!(e.target as HTMLElement).closest('.pdf-field-box')) {
                 onSelectField(null);
@@ -243,17 +308,17 @@ export function PdfFieldEditor({
             }}
           >
             <canvas
-              id="pdf-canvas"
+              ref={canvasRef}
               className="block shadow-lg"
-              style={{ width: displayWidth, height: displayHeight }}
+              style={pageDims ? { width: displayWidth, height: displayHeight } : { display: 'block' }}
             />
 
-            {pageFields.map(field => {
+            {showCanvas && pageDims && pageFields.map(field => {
               const isSelected = field.id === selectedFieldId;
               return (
                 <div
                   key={field.id}
-                  className={`pdf-field-box absolute cursor-move border-2 ${
+                  className={`pdf-field-box absolute cursor-move overflow-hidden border-2 ${
                     field.is_signature
                       ? 'border-purple-400 bg-purple-100/50'
                       : isSelected
@@ -261,17 +326,17 @@ export function PdfFieldEditor({
                       : 'border-dashed border-graphite-400 bg-yellow-50/70'
                   } ${isSelected ? 'ring-2 ring-aviation-300' : ''}`}
                   style={{
-                    left: field.x * pageDims.scale,
-                    top: field.y * pageDims.scale,
-                    width: field.width * pageDims.scale,
-                    height: field.height * pageDims.scale,
-                    fontSize: field.font_size * pageDims.scale,
+                    left: field.x * pageDims!.scale,
+                    top: field.y * pageDims!.scale,
+                    width: field.width * pageDims!.scale,
+                    height: field.height * pageDims!.scale,
+                    fontSize: field.font_size * pageDims!.scale,
                   }}
                   onMouseDown={(e) => handleFieldMouseDown(e, field.id)}
                 >
                   <div className="pointer-events-none flex h-full w-full items-center justify-center overflow-hidden px-1">
                     <span className="truncate text-xs font-medium text-graphite-700">
-                      {field.is_signature ? `✎ ${field.field_label}` : field.field_label}
+                      {field.field_name.startsWith('check_') ? '✓' : field.is_signature ? `✎ ${field.field_label}` : field.field_label}
                     </span>
                   </div>
 
@@ -292,10 +357,15 @@ export function PdfFieldEditor({
                 <span className="text-sm text-graphite-500">Renderizando...</span>
               </div>
             )}
+
+            {!showCanvas && !loadError && (
+              <div className="flex items-center justify-center py-12">
+                <span className="text-sm text-graphite-400">Carregando PDF...</span>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Pagination */}
         {totalPages > 1 && (
           <div className="flex items-center justify-center gap-3 pb-4">
             <button

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -16,6 +16,7 @@ import { useAuth, ROLE_LABELS } from '../../context/AuthContext';
 import { Breadcrumb } from './Breadcrumb';
 import { RightPanel } from './RightPanel';
 import { listarBombeiros } from '../../services/bombeiroService';
+import type { Bombeiro } from '../../types/bombeiro';
 
 export function Header() {
   const { theme, toggleTheme } = useTheme();
@@ -26,7 +27,15 @@ export function Header() {
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
   const [rightPanelTab, setRightPanelTab] = useState<'notificacoes' | 'chat' | 'contatos'>('notificacoes');
 
-  const bombeiros = useMemo(() => listarBombeiros(), []);
+  const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
+
+  useEffect(() => {
+    async function carregar() {
+      const data = await listarBombeiros();
+      setBombeiros(data);
+    }
+    carregar();
+  }, []);
   const bombeiro = useMemo(() => {
     if (!user) return null;
     return bombeiros.find(b =>

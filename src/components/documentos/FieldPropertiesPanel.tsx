@@ -1,4 +1,4 @@
-import { Trash2 } from 'lucide-react';
+import { Trash2, Package } from 'lucide-react';
 import type { DocumentField, FieldType } from '../../types/document';
 import { DATA_SOURCE_LABELS, DATA_SOURCE_GROUPS } from '../../types/document';
 
@@ -6,6 +6,7 @@ interface Props {
   field: DocumentField | null;
   onUpdate: (id: string, updates: Partial<DocumentField>) => void;
   onDelete: (id: string) => void;
+  onReturnToTray?: (id: string) => void;
 }
 
 const FIELD_TYPE_OPTIONS: { value: FieldType; label: string }[] = [
@@ -18,7 +19,7 @@ const FIELD_TYPE_OPTIONS: { value: FieldType; label: string }[] = [
   { value: 'line', label: 'Linha' },
 ];
 
-export function FieldPropertiesPanel({ field, onUpdate, onDelete }: Props) {
+export function FieldPropertiesPanel({ field, onUpdate, onDelete, onReturnToTray }: Props) {
   if (!field) {
     return (
       <div className="flex h-full flex-col items-center justify-center p-6 text-center">
@@ -184,6 +185,14 @@ export function FieldPropertiesPanel({ field, onUpdate, onDelete }: Props) {
           <input type="text" value={field.placeholder || ''} onChange={e => handleChange('placeholder', e.target.value || null)}
             className="w-full rounded-lg border border-graphite-200 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-100" />
         </div>
+
+        {/* Devolver à bandeja */}
+        {onReturnToTray && (field.x !== 0 || field.y !== 0) && (
+          <button onClick={() => onReturnToTray(field.id)}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-graphite-200 bg-graphite-50 px-3 py-2 text-sm font-medium text-graphite-700 hover:bg-graphite-100 dark:border-graphite-600 dark:bg-graphite-700 dark:text-graphite-300 dark:hover:bg-graphite-600">
+            <Package className="h-4 w-4" /> Devolver a Bandeja
+          </button>
+        )}
       </div>
     </div>
   );

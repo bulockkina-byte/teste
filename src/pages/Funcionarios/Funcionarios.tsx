@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Users, Search, AlertCircle, X, Calendar, Shield, Droplets, User, Hash, IdCard, Car, Briefcase, Clock, FileText, Radio, Mail } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
@@ -6,7 +6,7 @@ import { listarBombeiros, buscarBombeiro } from '../../services/bombeiroService'
 import { listarAPOCs, buscarAPOC } from '../../services/apocService';
 import type { Bombeiro } from '../../types/bombeiro';
 import type { APOC } from '../../types/apoc';
-import { CARGO_OPTIONS } from '../../types/bombeiro';
+import { CARGO_OPTIONS, EQUIPE_OPTIONS } from '../../types/bombeiro';
 
 type Tab = 'todos' | 'bombeiros' | 'apoc';
 
@@ -153,20 +153,49 @@ const TABS: { key: Tab; label: string; icon: any }[] = [
 export function Funcionarios() {
   const [tab, setTab] = useState<Tab>('todos');
   const [termo, setTermo] = useState('');
+  const [filterEquipe, setFilterEquipe] = useState('');
+  const [filterCargo, setFilterCargo] = useState('');
   const [selecionado, setSelecionado] = useState<Bombeiro | APOC | null>(null);
   const [tipoSelecionado, setTipoSelecionado] = useState<'bombeiro' | 'apoc'>('bombeiro');
 
-  const allBombeiros = useMemo(() => listarBombeiros(), []);
-  const allApocs = useMemo(() => listarAPOCs(), []);
+  const [allBombeiros, setAllBombeiros] = useState<Bombeiro[]>([]);
+  const [allApocs, setAllApocs] = useState<APOC[]>([]);
+  const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
+  const [apocs, setApocs] = useState<APOC[]>([]);
 
-  const bombeiros = useMemo(() => {
-    if (!termo) return allBombeiros;
-    return buscarBombeiro(termo);
-  }, [termo, allBombeiros]);
+  useEffect(() => {
+    async function load() {
+      setAllBombeiros(await listarBombeiros());
+    }
+    load();
+  }, []);
 
-  const apocs = useMemo(() => {
-    if (!termo) return allApocs;
-    return buscarAPOC(termo);
+  useEffect(() => {
+    async function load() {
+      setAllApocs(await listarAPOCs());
+    }
+    load();
+  }, []);
+
+  useEffect(() => {
+    async function load() {
+      let lista = termo ? await buscarBombeiro(termo) : allBombeiros;
+      if (filterEquipe) lista = lista.filter(b => b.equipe === filterEquipe);
+      if (filterCargo) lista = lista.filter(b => b.cargo === filterCargo);
+      setBombeiros(lista);
+    }
+    load();
+  }, [termo, filterEquipe, filterCargo, allBombeiros]);
+
+  useEffect(() => {
+    async function load() {
+      if (!termo) {
+        setApocs(allApocs);
+        return;
+      }
+      setApocs(await buscarAPOC(termo));
+    }
+    load();
   }, [termo, allApocs]);
 
   const filteredBombeiros = tab === 'apoc' ? [] : bombeiros;
@@ -191,15 +220,37 @@ export function Funcionarios() {
       </div>
 
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite-400" />
-          <input
-            type="text"
-            value={termo}
-            onChange={e => setTermo(e.target.value)}
-            placeholder="Pesquisar por matrícula, nome, CPF ou equipe..."
-            className="w-full rounded-xl border border-graphite-300/60 bg-white/70 py-2.5 pl-10 pr-4 text-sm text-graphite-900 placeholder-graphite-400 outline-none transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated"
-          />
+        <div className="flex flex-1 flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[200px] max-w-md">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite-400" />
+            <input
+              type="text"
+              value={termo}
+              onChange={e => setTermo(e.target.value)}
+              placeholder="Pesquisar por matrícula, nome, CPF..."
+              className="w-full rounded-xl border border-graphite-300/60 bg-white/70 py-2.5 pl-10 pr-4 text-sm text-graphite-900 placeholder-graphite-400 outline-none transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-700"
+            />
+          </div>
+          {(tab === 'todos' || tab === 'bombeiros') && (
+            <>
+              <select
+                value={filterEquipe}
+                onChange={e => setFilterEquipe(e.target.value)}
+                className="rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm text-graphite-700 outline-none transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-200 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-700 dark:focus:text-graphite-100"
+              >
+                <option value="">Todas as Equipes</option>
+                {EQUIPE_OPTIONS.map(e => <option key={e} value={e}>{e}</option>)}
+              </select>
+              <select
+                value={filterCargo}
+                onChange={e => setFilterCargo(e.target.value)}
+                className="rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm text-graphite-700 outline-none transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-200 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-700 dark:focus:text-graphite-100"
+              >
+                <option value="">Todos os Cargos</option>
+                {CARGO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </>
+          )}
         </div>
       </div>
 

@@ -18,26 +18,29 @@ export function APOCs() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   useEffect(() => {
-    setApocs(termo ? buscarAPOC(termo) : listarAPOCs());
+    async function load() {
+      setApocs(termo ? await buscarAPOC(termo) : await listarAPOCs());
+    }
+    load();
   }, [termo]);
 
-  function carregar() {
-    setApocs(termo ? buscarAPOC(termo) : listarAPOCs());
+  async function carregar() {
+    setApocs(termo ? await buscarAPOC(termo) : await listarAPOCs());
   }
 
-  function handleSave(data: Omit<APOC, 'id' | 'createdAt' | 'updatedAt' | 'funcao'>) {
+  async function handleSave(data: Omit<APOC, 'id' | 'createdAt' | 'updatedAt'>) {
     if (editando) {
-      atualizarAPOC(editando.id, data);
+      await atualizarAPOC(editando.id, data);
     } else {
-      criarAPOC(data);
+      await criarAPOC(data);
     }
     setFormOpen(false);
     setEditando(null);
     carregar();
   }
 
-  function handleDelete(id: string) {
-    excluirAPOC(id);
+  async function handleDelete(id: string) {
+    await excluirAPOC(id);
     setConfirmDelete(null);
     carregar();
   }
@@ -94,23 +97,29 @@ export function APOCs() {
         <div className="overflow-x-auto rounded-2xl border border-graphite-200/60 bg-white/80 backdrop-blur-sm dark:border-border-dark dark:bg-surface-card">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-graphite-200 bg-graphite-50 text-left dark:border-border-dark dark:bg-surface-card">
+              <tr className="border-b border-graphite-200 bg-graphite-50 text-left dark:border-graphite-700 dark:bg-graphite-800">
                 <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Nome de Guerra</th>
                 <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Nome Completo</th>
                 <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">E-mail</th>
+                <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Equipe</th>
                 <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Função</th>
                 {isAdmin && <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Ações</th>}
               </tr>
             </thead>
             <tbody>
               {apocs.map(a => (
-                <tr key={a.id} className="border-b border-graphite-100 transition-colors hover:bg-graphite-50 dark:border-border-dark dark:hover:bg-surface-hover/50">
+                <tr key={a.id} className="border-b border-graphite-100 transition-colors hover:bg-graphite-50 dark:border-graphite-700 dark:hover:bg-graphite-700/50">
                   <td className="px-4 py-3 font-medium text-graphite-900 dark:text-graphite-100">{capitalize(a.nomeGuerra)}</td>
                   <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{capitalize(a.nomeCompleto)}</td>
                   <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{a.email}</td>
                   <td className="px-4 py-3">
                     <span className="inline-flex rounded-full bg-aviation-50 px-2.5 py-0.5 text-xs font-medium text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-300">
-                      MOTIVA
+                      {a.equipe || 'MOTIVA'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="inline-flex rounded-full bg-purple-50 px-2.5 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+                      {a.funcao}
                     </span>
                   </td>
                   {isAdmin && (

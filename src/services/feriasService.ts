@@ -24,15 +24,15 @@ export function feriasPorFuncionario(funcionarioId: string): Ferias[] {
   return getAll().filter(f => f.funcionarioId === funcionarioId);
 }
 
-export function feriasPorEquipe(equipe: Equipe): Ferias[] {
-  const bombeiros = listarBombeiros().filter(b => b.equipe === equipe);
+export async function feriasPorEquipe(equipe: Equipe): Promise<Ferias[]> {
+  const bombeiros = (await listarBombeiros()).filter(b => b.equipe === equipe);
   const ids = new Set(bombeiros.map(b => b.id));
   return getAll().filter(f => ids.has(f.funcionarioId));
 }
 
-export function alertasVencimento(meses: 3 | 6 | 12): AlertaVencimento[] {
+export async function alertasVencimento(meses: 3 | 6 | 12): Promise<AlertaVencimento[]> {
   const agora = new Date();
-  const bombeiros = listarAtivos();
+  const bombeiros = await listarAtivos();
   const alertas: AlertaVencimento[] = [];
 
   for (const b of bombeiros) {

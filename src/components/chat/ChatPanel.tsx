@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import type { Bombeiro } from '../../types/bombeiro';
 import { Search, Send, X, MessageCircle, Users, User, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { listarBombeiros } from '../../services/bombeiroService';
@@ -20,7 +21,15 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
   const [refresh, setRefresh] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const bombeiros = useMemo(() => listarBombeiros(), []);
+  const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
+
+  useEffect(() => {
+    async function carregar() {
+      const data = await listarBombeiros();
+      setBombeiros(data);
+    }
+    carregar();
+  }, []);
 
   const usuariosDisponiveis = useMemo(() => {
     if (!busca) return bombeiros;

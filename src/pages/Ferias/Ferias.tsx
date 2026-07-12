@@ -10,7 +10,7 @@ import { useAuth } from '../../context/AuthContext';
 import { listarBombeiros, listarAtivos } from '../../services/bombeiroService';
 import { STATUS_FERIAS, STATUS_FERIAS_COLORS, FUNCOES_SUBSTITUICAO } from '../../types/ferias';
 import type { Ferias, StatusFerias, AlertaVencimento } from '../../types/ferias';
-import type { Cargo, Equipe } from '../../types/bombeiro';
+import type { Bombeiro, Cargo, Equipe } from '../../types/bombeiro';
 import { EQUIPE_OPTIONS } from '../../types/bombeiro';
 import {
   listarFerias, alertasVencimento,
@@ -57,7 +57,8 @@ function FeriasForm({
   onSave: (data: Omit<Ferias, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) => void;
   onCancel: () => void;
 }) {
-  const bombeiros = useMemo(() => listarAtivos(), []);
+  const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
+  useEffect(() => { (async () => { setBombeiros(await listarAtivos()); })(); }, []);
   const [form, setForm] = useState(ferias ? {
     funcionarioId: ferias.funcionarioId,
     funcionarioNome: ferias.funcionarioNome,
@@ -236,7 +237,8 @@ function VisaoGeral({
   const [expanded, setExpanded] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
-  const bombeiros = useMemo(() => listarBombeiros(), []);
+  const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
+  useEffect(() => { (async () => { setBombeiros(await listarBombeiros()); })(); }, []);
 
   const filtradas = useMemo(() => {
     let list = ferias;
@@ -438,7 +440,8 @@ function EscalaEquipe({ ferias }: { ferias: Ferias[] }) {
   const [equipeSel, setEquipeSel] = useState<Equipe>('Alfa');
   const [anoSel, setAnoSel] = useState(new Date().getFullYear().toString());
 
-  const bombeiros = useMemo(() => listarAtivos(), []);
+  const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
+  useEffect(() => { (async () => { setBombeiros(await listarAtivos()); })(); }, []);
   const membrosEquipe = useMemo(() =>
     bombeiros.filter(b => b.equipe === equipeSel),
     [bombeiros, equipeSel]
@@ -527,7 +530,8 @@ function SubstituicoesTab({ ferias }: { ferias: Ferias[] }) {
   const [formSubstitutoId, setFormSubstitutoId] = useState('');
   const [formFuncao, setFormFuncao] = useState<Cargo | ''>('');
 
-  const bombeiros = useMemo(() => listarAtivos(), []);
+  const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
+  useEffect(() => { (async () => { setBombeiros(await listarAtivos()); })(); }, []);
   const membrosEquipe = useMemo(() =>
     bombeiros.filter(b => b.equipe === equipeSel),
     [bombeiros, equipeSel]

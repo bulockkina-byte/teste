@@ -1,61 +1,87 @@
 import type { APOC } from '../types/apoc';
+import { supabase } from '../lib/supabase';
 
-const STORAGE_KEY = 'sescinc-apoc';
+const TABLE = 'apocs';
 
-function getAll(): APOC[] {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-  } catch {
-    return [];
-  }
+function getDb() {
+  if (!supabase) throw new Error('Supabase não configurado. Verifique as credenciais no arquivo .env');
+  return supabase;
 }
 
-function saveAll(list: APOC[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+function handleSupabaseError(err: unknown): never {
+  console.error('Erro Supabase:', err);
+  const msg = err instanceof Error ? err.message : 'Erro inesperado no banco de dados';
+  throw new Error(msg);
 }
 
-export function listarAPOCs(): APOC[] {
-  return getAll();
-}
-
-export function buscarAPOC(termo: string): APOC[] {
-  const t = termo.toLowerCase();
-  return getAll().filter(
-    a =>
-      a.nomeCompleto.toLowerCase().includes(t) ||
-      a.nomeGuerra.toLowerCase().includes(t) ||
-      a.email.toLowerCase().includes(t),
-  );
-}
-
-export function criarAPOC(data: Omit<APOC, 'id' | 'createdAt' | 'updatedAt' | 'funcao'>): APOC {
-  const list = getAll();
-  const novo: APOC = {
-    ...data,
-    funcao: 'MOTIVA',
-    id: crypto.randomUUID(),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+function rowToApoc(row: Record<string, unknown>): APOC {
+  return {
+    id: row.id as string,
+    nomeCompleto: row.nome_completo as string,
+    nomeGuerra: row.nome_guerra as string,
+    email: row.email as string,
+    funcao: row.funcao as APOC['funcao'],
+    equipe: row.equipe as string,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
   };
-  list.push(novo);
-  saveAll(list);
-  return novo;
 }
 
-export function atualizarAPOC(id: string, data: Partial<APOC>): APOC | null {
-  const list = getAll();
-  const idx = list.findIndex(a => a.id === id);
-  if (idx === -1) return null;
-  list[idx] = { ...list[idx], ...data, funcao: 'MOTIVA', updatedAt: new Date().toISOString() };
-  saveAll(list);
-  return list[idx];
+export async function listarAPOCs(): Promise<APOC[]> {
+  const db = getDb();
+  const { data, error } = await db
+    .from(TABLE)
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) handleSupabaseError(error);
+  return (data || []).map(rowToApoc);
 }
 
-export function excluirAPOC(id: string): boolean {
-  const list = getAll();
-  const idx = list.findIndex(a => a.id === id);
-  if (idx === -1) return false;
-  list.splice(idx, 1);
-  saveAll(list);
+export async function buscarAPOC(termo: string): Promise<APOC[]> {
+  const t = termo.toLowerCase();
+  const db = getDb();
+  const { data, error } = await db
+    .from(TABLE)
+    .select('*')
+    .or(`nome_completo.ilike.%${t}%,nome_guerra.ilike.%${t}%,email.ilike.%${t}%`);
+  if (error) handleSupabaseError(error);
+  return (data || []).map(rowToApoc);
+}
+
+export async function criarAPOC(data: Omit<APOC, 'id' | 'createdAt' | 'updatedAt'>): Promise<APOC> {
+  const db = getDb();
+  const { data: created, error } = await db
+    .from(TABLE)
+    .insert({
+      nome_completo: data.nomeCompleto,
+      nome_guerra: data.nomeGuerra,
+      email: data.email,
+      funcao: data.funcao,
+      equipe: data.equipe,
+    })
+    .select()
+    .single();
+  if (error) handleSupabaseError(error);
+  return rowToApoc(created);
+}
+
+export async function atualizarAPOC(id: string, data: Partial<APOC>): Promise<APOC | null> {
+  const db = getDb();
+  const row: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (data.nomeCompleto !== undefined) row.nome_completo = data.nomeCompleto;
+  if (data.nomeGuerra !== undefined) row.nome_guerra = data.nomeGuerra;
+  if (data.email !== undefined) row.email = data.email;
+  if (data.funcao !== undefined) row.funcao = data.funcao;
+  if (data.equipe !== undefined) row.equipe = data.equipe;
+
+  const { data: updated, error } = await db.from(TABLE).update(row).eq('id', id).select().single();
+  if (error) handleSupabaseError(error);
+  return updated ? rowToApoc(updated) : null;
+}
+
+export async function excluirAPOC(id: string): Promise<boolean> {
+  const db = getDb();
+  const { error } = await db.from(TABLE).delete().eq('id', id);
+  if (error) handleSupabaseError(error);
   return true;
 }

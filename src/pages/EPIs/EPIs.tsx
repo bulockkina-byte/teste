@@ -25,13 +25,13 @@ function getStatusEPI(dataValidade: string): { label: string; color: string } {
   return { label: 'Válido', color: 'bg-status-green/10 text-status-green' };
 }
 
-function getUserRole(username: string): 'admin' | 'gerente' | 'chefe' {
+async function getUserRole(username: string): Promise<'admin' | 'gerente' | 'chefe'> {
   if (username === 'admin') return 'admin';
-  const b = listarBombeiros().find(
+  const b = (await listarBombeiros()).find(
     x => x.nomeGuerra.toLowerCase() === username.toLowerCase() ||
          x.nomeCompleto.toLowerCase().includes(username.toLowerCase()),
   );
-  if (b?.cargo === 'GS' || b?.equipe === 'Gerência') return 'gerente';
+  if (b?.cargo === 'GS' || b?.equipe === 'Embaixador') return 'gerente';
   return 'chefe';
 }
 
@@ -122,7 +122,8 @@ function EPIFormInline({
 export function EPIs() {
   const { user } = useAuth();
   const username = user?.username || '';
-  const role = useMemo(() => getUserRole(username), [username]);
+  const [role, setRole] = useState<'admin' | 'gerente' | 'chefe'>('chefe');
+  useEffect(() => { (async () => { setRole(await getUserRole(username)); })(); }, [username]);
   const isAdmin = role === 'admin';
   const isGerente = role === 'gerente';
   const canManage = isAdmin;

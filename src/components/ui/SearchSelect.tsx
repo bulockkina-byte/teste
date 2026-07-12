@@ -18,16 +18,22 @@ export function SearchSelect({ value, onChange, placeholder, className = '', car
   const [search, setSearch] = useState('');
   const triggerRef = useRef<HTMLDivElement>(null);
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
+  const [ativos, setAtivos] = useState<{ id: string; nomeGuerra: string; nomeCompleto: string }[]>([]);
 
-  let ativos: { id: string; nomeGuerra: string; nomeCompleto: string }[];
-
-  if (cargo === 'APOC') {
-    ativos = listarAPOCs();
-  } else if (cargo) {
-    ativos = listarAtivos().filter(b => b.cargo === cargo);
-  } else {
-    ativos = [...listarAtivos(), ...listarAPOCs()];
-  }
+  useEffect(() => {
+    async function carregar() {
+      let lista: { id: string; nomeGuerra: string; nomeCompleto: string }[];
+      if (cargo === 'APOC') {
+        lista = await listarAPOCs();
+      } else if (cargo) {
+        lista = (await listarAtivos()).filter(b => b.cargo === cargo);
+      } else {
+        lista = [...(await listarAtivos()), ...(await listarAPOCs())];
+      }
+      setAtivos(lista);
+    }
+    carregar();
+  }, [cargo]);
 
   const filtered = ativos.filter(b =>
     b.nomeGuerra.toLowerCase().includes(search.toLowerCase()) ||

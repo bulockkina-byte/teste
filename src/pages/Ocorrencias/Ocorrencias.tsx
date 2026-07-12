@@ -444,19 +444,19 @@ function OcorrenciaCard({
 
 /* ───────── Página principal ───────── */
 
-function getUserRole(username: string): 'admin' | 'gerente' | 'chefe' {
+async function getUserRole(username: string): Promise<'admin' | 'gerente' | 'chefe'> {
   if (username === 'admin') return 'admin';
-  const b = listarBombeiros().find(
+  const b = (await listarBombeiros()).find(
     x => x.nomeGuerra.toLowerCase() === username.toLowerCase() ||
          x.nomeCompleto.toLowerCase().includes(username.toLowerCase()),
   );
-  if (b?.cargo === 'GS' || b?.equipe === 'Gerência') return 'gerente';
+  if (b?.cargo === 'GS' || b?.equipe === 'Embaixador') return 'gerente';
   if (b?.cargo === 'BA-CE' || b?.cargo === 'BA-LR') return 'chefe';
   return 'chefe';
 }
 
-function getUserEquipe(username: string): string {
-  const b = listarBombeiros().find(
+async function getUserEquipe(username: string): Promise<string> {
+  const b = (await listarBombeiros()).find(
     x => x.nomeGuerra.toLowerCase() === username.toLowerCase() ||
          x.nomeCompleto.toLowerCase().includes(username.toLowerCase()),
   );
@@ -466,8 +466,12 @@ function getUserEquipe(username: string): string {
 export function Ocorrencias() {
   const { user } = useAuth();
   const username = user?.username || '';
-  const role = useMemo(() => getUserRole(username), [username]);
-  const userEquipe = useMemo(() => getUserEquipe(username), [username]);
+  const [role, setRole] = useState<'admin' | 'gerente' | 'chefe'>('chefe');
+  const [userEquipe, setUserEquipe] = useState('');
+  useEffect(() => { (async () => {
+    setRole(await getUserRole(username));
+    setUserEquipe(await getUserEquipe(username));
+  })(); }, [username]);
   const isAdmin = role === 'admin';
   const isGerente = role === 'gerente';
   const canFilterTeam = isAdmin || isGerente;

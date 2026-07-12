@@ -6,6 +6,7 @@ import {
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { useAuth } from '../../context/AuthContext';
+import type { Bombeiro } from '../../types/bombeiro';
 import { listarBombeiros } from '../../services/bombeiroService';
 import { NR_OPTIONS } from '../../types/certificacao';
 import {
@@ -298,7 +299,8 @@ export function Certificacoes() {
   const [nrModal, setNrModal] = useState<CertificacaoNR | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
-  const bombeiros = useMemo(() => listarBombeiros(), []);
+  const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
+  useEffect(() => { (async () => { setBombeiros(await listarBombeiros()); })(); }, []);
 
   function carregar() { setCertificacoes(listarCertificacoes()); }
   useEffect(() => { carregar(); }, []);

@@ -31,19 +31,21 @@ function emptyOcorrencia(): Omit<Ocorrencia, 'id' | 'createdAt' | 'updatedAt' | 
   };
 }
 
-function getUserRole(username: string): 'admin' | 'gerente' | 'chefe' {
+async function getUserRole(username: string): Promise<'admin' | 'gerente' | 'chefe'> {
   if (username === 'admin') return 'admin';
-  const b = listarBombeiros().find(
+  const bombeiros = await listarBombeiros();
+  const b = bombeiros.find(
     x => x.nomeGuerra.toLowerCase() === username.toLowerCase() ||
          x.nomeCompleto.toLowerCase().includes(username.toLowerCase()),
   );
-  if (b?.cargo === 'GS' || b?.equipe === 'Gerência') return 'gerente';
+  if (b?.cargo === 'GS' || b?.equipe === 'Embaixador') return 'gerente';
   if (b?.cargo === 'BA-CE' || b?.cargo === 'BA-LR') return 'chefe';
   return 'chefe';
 }
 
-function getUserEquipe(username: string): string {
-  const b = listarBombeiros().find(
+async function getUserEquipe(username: string): Promise<string> {
+  const bombeiros = await listarBombeiros();
+  const b = bombeiros.find(
     x => x.nomeGuerra.toLowerCase() === username.toLowerCase() ||
          x.nomeCompleto.toLowerCase().includes(username.toLowerCase()),
   );
@@ -307,8 +309,20 @@ function OcorrenciaCard({
 export function LROOcorrencias() {
   const { user } = useAuth();
   const username = user?.username || '';
-  const role = useMemo(() => getUserRole(username), [username]);
-  const userEquipe = useMemo(() => getUserEquipe(username), [username]);
+  const [role, setRole] = useState<'admin' | 'gerente' | 'chefe'>('chefe');
+  const [userEquipe, setUserEquipe] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const r = await getUserRole(username);
+      if (cancelled) return;
+      setRole(r);
+      const eq = await getUserEquipe(username);
+      if (!cancelled) setUserEquipe(eq);
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [username]);
   const isAdmin = role === 'admin';
   const isGerente = role === 'gerente';
   const canFilterTeam = isAdmin || isGerente;

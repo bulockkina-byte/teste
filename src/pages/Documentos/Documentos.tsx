@@ -16,7 +16,7 @@ import {
   excluirDocumento, criarCampo, criarCamposEmLote, atualizarCampo, excluirCampo,
   criarSignatario, excluirSignatario,
   criarPreenchimento, listarPreenchimentos,
-  uploadPDF, getPdfBlob,
+  uploadPDF, getPdfBlob, sincronizarCamposTemplate,
 } from '../../services/documentoService';
 import { preencherPdf, downloadPdf } from '../../services/pdfService';
 import type { Document, DocumentWithFields, DocumentField, DocumentFill } from '../../types/document';
@@ -54,6 +54,10 @@ export function Documentos() {
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<'props' | 'signers' | 'tray'>('props');
 
+  // Funcionários (bombeiros + apocs)
+  const [bombeirosList, setBombeirosList] = useState<any[]>([]);
+  const [apocsList, setApocsList] = useState<any[]>([]);
+
   // Confirmation modal
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingPdfFile, setPendingPdfFile] = useState<File | null>(null);
@@ -64,6 +68,17 @@ export function Documentos() {
   const [previewLoading, setPreviewLoading] = useState(false);
 
   useEffect(() => { loadDocumentos(); }, []);
+
+  useEffect(() => {
+    async function loadFuncionarios() {
+      try {
+        const [b, a] = await Promise.all([listarBombeiros(), listarAPOCs()]);
+        setBombeirosList(b);
+        setApocsList(a);
+      } catch { /* ignore */ }
+    }
+    loadFuncionarios();
+  }, []);
 
   async function loadDocumentos() {
     try {
@@ -94,6 +109,34 @@ export function Documentos() {
   async function openManage(doc: Document) {
     try {
       const full = await buscarDocumento(doc.id);
+      if (!full) return;
+      const template = findTemplate(doc.name);
+      if (template) {
+        const synced = await sincronizarCamposTemplate(full, template.fields.map((tf, i) => ({
+          document_id: full.id,
+          field_name: tf.field_name,
+          field_label: tf.field_label,
+          field_type: tf.field_type,
+          required: tf.required,
+          placeholder: tf.placeholder,
+          options: tf.options,
+          order_index: i,
+          page: 1,
+          x: 0,
+          y: 0,
+          width: tf.width,
+          height: tf.height,
+          font_size: tf.font_size,
+          data_source: tf.data_source,
+          is_signature: tf.is_signature,
+          signer_role: tf.signer_role,
+          read_only: tf.read_only,
+          conditional_on: tf.conditional_on,
+        })));
+        if (synced.length > 0) {
+          full.document_fields = [...full.document_fields, ...synced];
+        }
+      }
       setSelectedDoc(full);
       setSelectedFieldId(null);
       await loadPdfData(full);
@@ -134,11 +177,9 @@ export function Documentos() {
   }
 
   function getAllFuncionarios() {
-    const bombeiros = listarBombeiros();
-    const apocs = listarAPOCs();
     return [
-      ...bombeiros.map(b => ({ label: b.nomeCompleto, sublabel: `${b.cargo} - ${b.email}` })),
-      ...apocs.map(a => ({ label: a.nomeCompleto, sublabel: `APOC - ${a.email}` })),
+      ...bombeirosList.map(b => ({ label: b.nomeCompleto, sublabel: `${b.cargo} - ${b.email}` })),
+      ...apocsList.map(a => ({ label: a.nomeCompleto, sublabel: `APOC - ${a.email}` })),
     ];
   }
 
@@ -151,7 +192,10 @@ export function Documentos() {
           setPdfData(buf);
           return;
         }
-      } catch { /* ignore */ }
+        console.warn('PDF blob retornou null para path:', doc.template_pdf_url);
+      } catch (err) {
+        console.error('Erro ao carregar PDF do storage:', err);
+      }
     }
     setPdfData(null);
   }
@@ -335,6 +379,43 @@ export function Documentos() {
       setActiveTab('props');
     } catch {
       alert('Erro inesperado ao posicionar campo. Contate o administrador.');
+    }
+  }
+
+  async function handleDropFromTray(fieldId: string, x: number, y: number, page: number) {
+    try {
+      await atualizarCampo(fieldId, { x, y, page });
+      setSelectedDoc(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          document_fields: prev.document_fields.map(f =>
+            f.id === fieldId ? { ...f, x, y, page } : f
+          ),
+        };
+      });
+      setSelectedFieldId(fieldId);
+      setActiveTab('props');
+    } catch {
+      alert('Erro inesperado ao posicionar campo. Contate o administrador.');
+    }
+  }
+
+  async function handleReturnToTray(fieldId: string) {
+    try {
+      await atualizarCampo(fieldId, { x: 0, y: 0 });
+      setSelectedDoc(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          document_fields: prev.document_fields.map(f =>
+            f.id === fieldId ? { ...f, x: 0, y: 0 } : f
+          ),
+        };
+      });
+      setSelectedFieldId(null);
+    } catch {
+      alert('Erro ao devolver campo para bandeja.');
     }
   }
 
@@ -626,11 +707,9 @@ export function Documentos() {
     const trayFields = allFields.filter(f => f.x === 0 && f.y === 0);
     const signers = [...selectedDoc.document_signers].sort((a, b) => a.order_index - b.order_index);
     const selectedField = allFields.find(f => f.id === selectedFieldId) || null;
-    const bombeiros = listarBombeiros();
-    const apocs = listarAPOCs();
     const allFuncionarios = [
-      ...bombeiros.map(b => ({ nome: b.nomeCompleto, funcao: b.cargo, email: b.email })),
-      ...apocs.map(a => ({ nome: a.nomeCompleto, funcao: 'APOC', email: a.email })),
+      ...bombeirosList.map(b => ({ nome: b.nomeCompleto, funcao: b.cargo, email: b.email })),
+      ...apocsList.map(a => ({ nome: a.nomeCompleto, funcao: 'APOC', email: a.email })),
     ];
 
     return (
@@ -656,7 +735,7 @@ export function Documentos() {
               </p>
               <div className="flex justify-end gap-3">
                 <button onClick={handleCancelPdfSwap}
-                  className="rounded-lg border border-graphite-200 px-4 py-2 text-sm font-medium hover:bg-graphite-50 dark:border-graphite-700">
+                  className="rounded-lg border border-graphite-200 px-4 py-2 text-sm font-medium text-graphite-700 hover:bg-graphite-50 dark:border-graphite-700 dark:text-graphite-200 dark:hover:bg-graphite-700">
                   Cancelar
                 </button>
                 <button onClick={handleConfirmPdfSwap}
@@ -672,13 +751,13 @@ export function Documentos() {
           {/* Toolbar */}
           <div className="flex items-center gap-3 border-b border-graphite-200 bg-white px-4 py-2 dark:border-graphite-700 dark:bg-graphite-800">
             <button onClick={() => { setView('list'); setSelectedDoc(null); setPdfData(null); }}
-              className="rounded-lg border border-graphite-200 px-3 py-1.5 text-sm hover:bg-graphite-50 dark:border-graphite-700">
+              className="rounded-lg border border-graphite-200 px-3 py-1.5 text-sm text-graphite-700 hover:bg-graphite-50 dark:border-graphite-700 dark:text-graphite-200 dark:hover:bg-graphite-700">
               <ArrowLeft className="inline h-4 w-4 mr-1" />Voltar
             </button>
             <PageTitle icon={Edit3} title={selectedDoc.name} />
 
             <div className="ml-auto flex items-center gap-2">
-              <label className="cursor-pointer flex items-center gap-2 rounded-lg border border-graphite-200 px-3 py-1.5 text-xs hover:bg-graphite-50 dark:border-graphite-700">
+              <label className="cursor-pointer flex items-center gap-2 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700">
                 <Upload className="h-3 w-3" /> {pdfData ? 'Trocar PDF' : 'Upload PDF Template'}
                 <input type="file" accept=".pdf" className="hidden" onChange={handleUploadPdf} ref={!pdfData ? pdfInputRef : undefined} />
               </label>
@@ -714,6 +793,7 @@ export function Documentos() {
                   onSelectField={setSelectedFieldId}
                   onUpdateField={handleFieldUpdate}
                   onAddField={handleFieldAdd}
+                  onDropFromTray={handleDropFromTray}
                   documentId={selectedDoc.id}
                 />
               </div>
@@ -744,12 +824,20 @@ export function Documentos() {
                         field={selectedField}
                         onUpdate={handleFieldUpdate}
                         onDelete={handleFieldDelete}
+                        onReturnToTray={handleReturnToTray}
                       />
                     )}
 
                     {/* TAB: Bandeja */}
                     {activeTab === 'tray' && (
-                      <div className="space-y-3 p-4">
+                      <div className="space-y-3 p-4"
+                        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          const fieldId = e.dataTransfer.getData('text/field-id');
+                          if (fieldId) handleReturnToTray(fieldId);
+                        }}
+                      >
                         <h4 className="text-sm font-semibold text-graphite-900 dark:text-graphite-100">
                           <Package className="mr-1 inline h-4 w-4" /> Bandeja de Campos
                         </h4>
@@ -765,7 +853,12 @@ export function Documentos() {
                           <div className="space-y-2">
                             {trayFields.map(field => (
                               <div key={field.id}
-                                className={`rounded-lg border px-3 py-2 ${
+                                draggable
+                                onDragStart={(e) => {
+                                  e.dataTransfer.setData('text/field-id', field.id);
+                                  e.dataTransfer.effectAllowed = 'move';
+                                }}
+                                className={`rounded-lg border px-3 py-2 cursor-grab active:cursor-grabbing ${
                                   field.is_signature
                                     ? 'border-purple-200 bg-purple-50/50 dark:border-purple-700 dark:bg-purple-900/20'
                                     : 'border-graphite-200 bg-graphite-50 dark:border-graphite-700 dark:bg-graphite-800'
@@ -773,7 +866,7 @@ export function Documentos() {
                                 <div className="flex items-center justify-between">
                                   <div className="flex-1 min-w-0">
                                     <span className="block truncate text-sm font-medium text-graphite-900 dark:text-graphite-100">
-                                      {field.is_signature ? '✎ ' : ''}{field.field_label}
+                                      {field.field_name === 'check_troca_sim' ? '✓ Sim' : field.field_name === 'check_troca_nao' ? '✓ Nao' : field.field_name === 'check_deferido' ? '✓ Deferido' : field.field_name === 'check_indeferido' ? '✓ Indeferido' : `${field.is_signature ? '✎ ' : ''}${field.field_label}`}
                                     </span>
                                     <span className="block text-xs text-graphite-400">{field.field_name}</span>
                                   </div>
@@ -823,29 +916,14 @@ export function Documentos() {
                           </div>
                         )}
 
-                        <div className="space-y-2">
-                          <h5 className="text-xs font-medium text-graphite-600">Adicionar dos cadastrados:</h5>
-                          <div className="max-h-40 space-y-1 overflow-y-auto">
-                            {allFuncionarios.map((f, i) => (
-                              <button key={i} onClick={() => { setSignerName(f.nome); setSignerRole(f.funcao); }}
-                                className="w-full rounded border border-graphite-100 px-2 py-1.5 text-left text-xs hover:border-aviation-300 hover:bg-aviation-50/50 dark:border-graphite-700">
-                                <span className="font-medium text-graphite-900 dark:text-graphite-100">{f.nome}</span>
-                                <span className="ml-1 text-graphite-400">({f.funcao})</span>
-                              </button>
-                            ))}
+                        {signers.length === 0 && (
+                          <div className="rounded-lg border border-dashed border-graphite-200 bg-graphite-50 p-6 text-center dark:border-graphite-700 dark:bg-graphite-800/50">
+                            <Shield className="mx-auto mb-2 h-8 w-8 text-graphite-300 dark:text-graphite-600" />
+                            <p className="text-xs text-graphite-500 dark:text-graphite-400">
+                              Os signatários serão adicionados automaticamente ao enviar para <strong>Autentique</strong>.
+                            </p>
                           </div>
-                        </div>
-
-                        <div className="space-y-2 border-t border-graphite-100 pt-3 dark:border-graphite-700">
-                          <h5 className="text-xs font-medium text-graphite-600">Ou adicionar manualmente:</h5>
-                          <input type="text" value={signerName} onChange={e => setSignerName(e.target.value)} placeholder="Nome"
-                            className="w-full rounded-lg border border-graphite-200 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-800" />
-                          <input type="text" value={signerRole} onChange={e => setSignerRole(e.target.value)} placeholder="Função (ex: chefe, gerente)"
-                            className="w-full rounded-lg border border-graphite-200 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-800" />
-                          <button onClick={handleAddSigner} className="flex w-full items-center justify-center gap-1 rounded-lg bg-aviation-600 px-3 py-2 text-xs font-medium text-white hover:bg-aviation-700">
-                            <Plus className="h-3 w-3" /> Adicionar
-                          </button>
-                        </div>
+                        )}
                       </div>
                     )}
                   </div>
