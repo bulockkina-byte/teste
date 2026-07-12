@@ -6,7 +6,7 @@ import { listarAPOCs } from '../services/apocService';
 export type UserRole = 'admin_master' | 'admin' | 'gerente' | 'chefe' | 'lider';
 
 export const ROLE_LABELS: Record<UserRole, string> = {
-  admin_master: 'Administrador Master',
+  admin_master: 'Desenvolvedor',
   admin: 'Administrador',
   gerente: 'Gerente da Seção de Combate a Incêndio',
   chefe: 'Chefe de Equipe',

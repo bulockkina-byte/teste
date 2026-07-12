@@ -90,6 +90,13 @@ export const menuItems: MenuItem[] = [
         description: 'Templates de documentos para preenchimento e assinatura.',
         adminOnly: true,
       },
+      {
+        label: 'Usuários',
+        icon: UserCog,
+        path: '/usuarios',
+        description: 'Gerenciamento de usuários do sistema.',
+        adminOnly: true,
+      },
     ],
   },
   {
@@ -283,12 +290,5 @@ export const menuItems: MenuItem[] = [
         description: 'Registro de trocas de plantão e equipamentos.',
       },
     ],
-  },
-  {
-    label: 'Usuários',
-    icon: UserCog,
-    path: '/usuarios',
-    description: 'Gerenciamento de usuários do sistema.',
-    adminOnly: true,
   },
 ];

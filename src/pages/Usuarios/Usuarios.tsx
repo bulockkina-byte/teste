@@ -80,14 +80,23 @@ export function Usuarios() {
 
   function handleSave(data: { username: string; name: string; password: string; role: UserRole; personId?: string; personType?: 'bombeiro' | 'apoc' }) {
     const all = listarUsuarios();
-    if ((data.role === 'admin' || data.role === 'admin_master') && user?.role !== 'admin_master') {
-      return;
-    }
-    if (data.role === 'admin_master') {
-      return;
-    }
+
     if (editando) {
       const prev = all[editando.username];
+      if (!prev) return;
+
+      if (editando.username === 'admin_master') {
+        return;
+      }
+
+      if (data.role === 'admin_master') {
+        return;
+      }
+
+      if (data.role === 'admin' && user?.role !== 'admin_master') {
+        return;
+      }
+
       all[data.username] = {
         name: data.name,
         password: data.password || prev.password,
@@ -97,6 +106,12 @@ export function Usuarios() {
       };
       if (data.username !== editando.username) delete all[editando.username];
     } else {
+      if (data.role === 'admin_master') {
+        return;
+      }
+      if (data.role === 'admin' && user?.role !== 'admin_master') {
+        return;
+      }
       all[data.username] = { name: data.name, password: data.password, role: data.role, personId: data.personId, personType: data.personType };
     }
     salvarUsuarios(all);
