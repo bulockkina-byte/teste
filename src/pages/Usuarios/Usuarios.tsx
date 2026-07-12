@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { UserCog, Search, Plus, Pencil, Trash2, Lock, User, Link } from 'lucide-react';
+import { UserCog, Search, Plus, Pencil, Trash2, Lock, User, Shield, ShieldOff } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { useAuth } from '../../context/AuthContext';
