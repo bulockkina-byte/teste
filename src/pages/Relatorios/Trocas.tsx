@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   RefreshCw, Plus, ArrowLeft, FileText, Loader2,
   Download, Save, ChevronDown, ChevronUp, Filter,
@@ -79,6 +80,7 @@ function formatCpf(v: string): string {
 
 export function Trocas() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const isAdmin = user?.role === 'admin_master' || user?.role === 'admin';
   const [loading, setLoading] = useState(true);
   const [subView, setSubView] = useState<SubView>('list');
@@ -746,9 +748,16 @@ export function Trocas() {
     <PageContainer>
       <div className="flex items-center justify-between">
         <PageTitle icon={RefreshCw} title="Trocas de Servico" />
-        <button onClick={startNewTroca} className="flex items-center gap-2 rounded-lg bg-aviation-600 px-4 py-2 text-sm font-medium text-white hover:bg-aviation-700">
-          <Plus className="h-4 w-4" /> Criar Troca
-        </button>
+        <div className="flex items-center gap-2">
+          {isAdmin && templateDoc && (
+            <button onClick={() => navigate('/documentos')} className="flex items-center gap-2 rounded-lg border border-graphite-200 bg-white px-3 py-2 text-sm font-medium text-graphite-700 hover:bg-graphite-50 dark:border-graphite-600 dark:bg-graphite-700 dark:text-graphite-200 dark:hover:bg-graphite-600">
+              <FileText className="h-4 w-4" /> Gerenciar Documento
+            </button>
+          )}
+          <button onClick={startNewTroca} className="flex items-center gap-2 rounded-lg bg-aviation-600 px-4 py-2 text-sm font-medium text-white hover:bg-aviation-700">
+            <Plus className="h-4 w-4" /> Criar Troca
+          </button>
+        </div>
       </div>
       <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-graphite-400 bg-white p-3 dark:border-graphite-500 dark:bg-graphite-800">
         <Filter className="h-4 w-4 text-graphite-400 dark:text-graphite-500" />
