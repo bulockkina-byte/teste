@@ -352,7 +352,7 @@ export function RightPanel({ onClose, openTab = 'chat' }: { onClose: () => void;
                       {usuariosFiltrados.map(u => {
                         const initials = u.name.charAt(0).toUpperCase();
                         const roleLabel: Record<UserRole, string> = {
-                          admin_master: 'Admin Master',
+                          admin_master: 'Desenvolvedor',
                           admin: 'Admin',
                           gerente: 'Gerente',
                           chefe: 'Chefe',

@@ -509,7 +509,7 @@ function EscalaCard({ escala, onView, onEdit, onDelete, onClone, isAdmin }: {
 // ─── MAIN ────────────────────────────────────────────────
 export function EscalaDiariaView() {
   const { user } = useAuth();
-  const isAdmin = user?.username === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'admin_master';
   const username = user?.username || '';
   const [escalas, setEscalas] = useState<EscalaDiaria[]>([]);
   const [mode, setMode] = useState<'list' | 'form' | 'view'>('list');

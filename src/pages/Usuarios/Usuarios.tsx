@@ -37,7 +37,7 @@ const ROLE_BADGE: Record<string, string> = {
 
 export function Usuarios() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'admin_master';
 
   const [usuarios, setUsuarios] = useState<[string, StoredUser][]>([]);
   const [termo, setTermo] = useState('');

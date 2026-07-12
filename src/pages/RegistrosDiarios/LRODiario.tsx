@@ -780,18 +780,24 @@ export function LRODiario() {
     async function load() {
       let r: 'admin' | 'gerente' | 'chefe' = 'chefe';
       let eq = '';
-      if (username === 'admin') {
+      if (username === 'admin' || username === 'admin_master') {
         r = 'admin';
       } else {
-        const bombeiros = await listarBombeiros();
-        if (cancelled) return;
-        const b = bombeiros.find(
-          x => x.nomeGuerra.toLowerCase() === username.toLowerCase() ||
-               x.nomeCompleto.toLowerCase().includes(username.toLowerCase()),
-        );
-        if (b?.cargo === 'GS' || b?.equipe === 'Embaixador') r = 'gerente';
-        else if (b?.cargo === 'BA-CE' || b?.cargo === 'BA-LR') r = 'chefe';
-        eq = b?.equipe || '';
+        const users = JSON.parse(localStorage.getItem('sescinc-users') || '{}');
+        const stored = users[username];
+        if (stored?.role === 'admin_master' || stored?.role === 'admin') {
+          r = 'admin';
+        } else {
+          const bombeiros = await listarBombeiros();
+          if (cancelled) return;
+          const b = bombeiros.find(
+            x => x.nomeGuerra.toLowerCase() === username.toLowerCase() ||
+                 x.nomeCompleto.toLowerCase().includes(username.toLowerCase()),
+          );
+          if (b?.cargo === 'GS' || b?.equipe === 'Embaixador') r = 'gerente';
+          else if (b?.cargo === 'BA-CE' || b?.cargo === 'BA-LR') r = 'chefe';
+          eq = b?.equipe || '';
+        }
       }
       setRole(r);
       setUserEquipe(eq);

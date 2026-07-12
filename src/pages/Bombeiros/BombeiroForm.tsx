@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, Upload } from 'lucide-react';
 import type { Bombeiro, Cargo, Equipe, Turno, CatCNH, Sexo } from '../../types/bombeiro';
 import {
@@ -10,6 +10,7 @@ import {
   UF_OPTIONS,
   turnoAutoPorEquipe,
 } from '../../types/bombeiro';
+import { Autocomplete } from '../../components/documentos/Autocomplete';
 
 interface Props {
   bombeiro?: Bombeiro | null;
@@ -95,6 +96,9 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
   const [sexo, setSexo] = useState<Sexo>('M');
   const [cursoChefeEquipe, setCursoChefeEquipe] = useState(false);
   const [cursoMotoristaCCI, setCursoMotoristaCCI] = useState(false);
+  const [municipios, setMunicipios] = useState<string[]>([]);
+  const [loadingMunicipios, setLoadingMunicipios] = useState(false);
+  const prevUfRef = useRef(uf);
 
   useEffect(() => {
     if (bombeiro) {
@@ -107,8 +111,8 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
       setCargo(bombeiro.cargo);
       setEquipe(bombeiro.equipe);
       setTurno(bombeiro.turno);
-      setTipoSanguineo(bombeiro.tipoSanguineo);
-      setCpf(bombeiro.cpf);
+      setTipoSanguineo(bombeiro.tipoSanguineo?.toUpperCase() || '');
+      setCpf(formatCPF(bombeiro.cpf));
       setRg(bombeiro.rg);
       setCnhNumero(bombeiro.cnhNumero);
       setCnhCategoria(bombeiro.cnhCategoria);
@@ -130,6 +134,25 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
   }, [bombeiro]);
 
   const idade = calcularIdade(dataNascimento);
+
+  useEffect(() => {
+    if (!uf) { setMunicipios([]); return; }
+    if (prevUfRef.current !== uf) {
+      setMunicipio('');
+    }
+    prevUfRef.current = uf;
+    let cancelled = false;
+    setLoadingMunicipios(true);
+    fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios`)
+      .then(r => r.json())
+      .then((data: { nome: string }[]) => {
+        if (cancelled) return;
+        setMunicipios(data.map(m => m.nome).sort((a, b) => a.localeCompare(b)));
+      })
+      .catch(() => { if (!cancelled) setMunicipios([]); })
+      .finally(() => { if (!cancelled) setLoadingMunicipios(false); });
+    return () => { cancelled = true; };
+  }, [uf]);
 
   function handleFotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -247,7 +270,7 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
                 </div>
                 <div>
                   <label className={labelClass}>Tipo Sanguíneo *</label>
-                  <input value={tipoSanguineo} onChange={e => setTipoSanguineo(e.target.value)} placeholder="Ex: A+"
+                  <input value={tipoSanguineo} onChange={e => setTipoSanguineo(e.target.value.toUpperCase())} placeholder="Ex: A+"
                     className={inputClass} />
                 </div>
                 <div className="md:col-span-2">
@@ -316,8 +339,21 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
                 </div>
                 <div className="md:col-span-2">
                   <label className={labelClass}>Município *</label>
-                  <input value={municipio} onChange={e => setMunicipio(e.target.value)} placeholder="Município"
-                    className={inputClass} />
+                  {uf ? (
+                    loadingMunicipios ? (
+                      <input disabled value="Carregando municípios..." className={disabledClass} />
+                    ) : (
+                      <Autocomplete
+                        value={municipio}
+                        onChange={setMunicipio}
+                        options={municipios.map(m => ({ label: m }))}
+                        placeholder="Buscar município..."
+                        className={inputClass}
+                      />
+                    )
+                  ) : (
+                    <input disabled value="" placeholder="Selecione a UF primeiro" className={disabledClass} />
+                  )}
                 </div>
               </div>
             </fieldset>

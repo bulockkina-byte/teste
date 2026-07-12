@@ -11,7 +11,7 @@ function formatDate(d: string) {
 
 export function EscalaMensal() {
   const { user } = useAuth();
-  const isAdmin = user?.username === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'admin_master';
   const username = user?.username || '';
 
   const todas = listarEscalas();

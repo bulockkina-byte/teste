@@ -290,7 +290,7 @@ function FuncionarioCard({
 
 export function Certificacoes() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'admin_master';
 
   const [certificacoes, setCertificacoes] = useState<CertificacaoNR[]>([]);
   const [termo, setTermo] = useState('');

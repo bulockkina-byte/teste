@@ -10,7 +10,7 @@ import { BombeiroForm } from './BombeiroForm';
 
 export function Bombeiros() {
   const { user } = useAuth();
-  const isAdmin = user?.username === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'admin_master';
 
   if (!isAdmin) {
     return (
