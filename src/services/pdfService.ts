@@ -61,9 +61,15 @@ export async function preencherPdf(
     const usedFields = new Set<string>();
 
     for (const pos of fieldPositions) {
-      const value = dados[pos.field_name];
+      let value = dados[pos.field_name];
       if (!value || value.trim() === '') continue;
       if (pos.is_signature) continue;
+
+      // Converter datas de YYYY-MM-DD para DD/MM/YYYY
+      if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        const [y, m, d] = value.split('-');
+        value = `${d}/${m}/${y}`;
+      }
 
       const page = pages[pos.page - 1] || pages[0];
       const { height: pageHeight } = page.getSize();
