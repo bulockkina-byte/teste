@@ -95,6 +95,24 @@ function seedAdmin() {
     changed = true;
   }
 
+  try {
+    const sessionRaw = localStorage.getItem('sescinc-session');
+    if (sessionRaw) {
+      const session = JSON.parse(sessionRaw);
+      if (session.username === 'admin_master') {
+        localStorage.removeItem('sescinc-session');
+      }
+    }
+    const presenceRaw = localStorage.getItem('sescinc-presence');
+    if (presenceRaw) {
+      const presence: Record<string, number> = JSON.parse(presenceRaw);
+      if ('admin_master' in presence) {
+        delete presence['admin_master'];
+        localStorage.setItem('sescinc-presence', JSON.stringify(presence));
+      }
+    }
+  } catch { /* ignore */ }
+
   if (!users['serra']) {
     users['serra'] = { name: 'Serra', password: 'serra', role: 'admin_master' };
     changed = true;
