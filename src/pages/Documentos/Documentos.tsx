@@ -3,7 +3,7 @@ import {
   FileText, Plus, Search, Eye, Loader2,
   ChevronDown, ChevronUp, Edit3, CheckCircle,
   Trash2, Download, Upload, Shield, Save, ArrowLeft,
-  AlertTriangle, Package,
+  AlertTriangle, Package, Link, Grid,
 } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
@@ -11,21 +11,24 @@ import { PdfFieldEditor } from '../../components/documentos/PdfFieldEditor';
 import { PdfPreview } from '../../components/documentos/PdfPreview';
 import { FieldPropertiesPanel } from '../../components/documentos/FieldPropertiesPanel';
 import { Autocomplete } from '../../components/documentos/Autocomplete';
+import { GridGenerator } from '../../components/documentos/GridGenerator';
 import {
   listarDocumentos, buscarDocumento, criarDocumento, atualizarDocumento,
   excluirDocumento, criarCampo, criarCamposEmLote, atualizarCampo, excluirCampo,
   criarSignatario, excluirSignatario,
   criarPreenchimento, listarPreenchimentos,
   uploadPDF, getPdfBlob, sincronizarCamposTemplate,
+  listarPdfsStorage,
 } from '../../services/documentoService';
 import { preencherPdf, downloadPdf } from '../../services/pdfService';
 import type { Document, DocumentWithFields, DocumentField, DocumentFill } from '../../types/document';
+import { SOURCE_MODULE_OPTIONS } from '../../types/document';
 import { useAuth } from '../../context/AuthContext';
 import { listarBombeiros } from '../../services/bombeiroService';
 import { listarAPOCs } from '../../services/apocService';
 import { findTemplate } from '../../data/documentTemplates';
 
-type View = 'list' | 'admin' | 'manage' | 'fill';
+type View = 'list' | 'admin' | 'manage' | 'fill' | 'grid';
 
 export function Documentos() {
   const { user } = useAuth();
@@ -58,9 +61,6 @@ export function Documentos() {
   const [bombeirosList, setBombeirosList] = useState<any[]>([]);
   const [apocsList, setApocsList] = useState<any[]>([]);
 
-  // Template path input
-  const [templatePathInput, setTemplatePathInput] = useState('');
-
   // Confirmation modal
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingPdfFile, setPendingPdfFile] = useState<File | null>(null);
@@ -70,7 +70,34 @@ export function Documentos() {
   const [previewPdfData, setPreviewPdfData] = useState<ArrayBuffer | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
+  // Vincular dropdown
+  const [vincularOpen, setVincularOpen] = useState<string | null>(null);
+  const [notifPopup, setNotifPopup] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{ msg: string; onConfirm: () => void; destructive?: boolean } | null>(null);
+
+  // Trocar template modal
+  const [showSwapTemplateModal, setShowSwapTemplateModal] = useState(false);
+
+  // Storage PDF picker
+  const [showStoragePicker, setShowStoragePicker] = useState(false);
+  const [storagePdfs, setStoragePdfs] = useState<{ name: string; path: string; id: string }[]>([]);
+  const [storageLoading, setStorageLoading] = useState(false);
+  const [storageSearch, setStorageSearch] = useState('');
+
   useEffect(() => { loadDocumentos(); }, []);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (vincularOpen) {
+        const target = e.target as HTMLElement;
+        if (!target.closest('[data-vincular-dropdown]')) {
+          setVincularOpen(null);
+        }
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [vincularOpen]);
 
   useEffect(() => {
     async function loadFuncionarios() {
@@ -87,10 +114,33 @@ export function Documentos() {
     try {
       setDocumentos(await listarDocumentos());
     } catch (err: any) {
-      alert('Erro inesperado ao carregar documentos. Contate o administrador.');
+      setNotifPopup({ msg: 'Erro inesperado ao carregar documentos. Contate o administrador.', type: 'error' });
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleVincular(docId: string, sourceModule: string) {
+    try {
+      await atualizarDocumento(docId, { source_module: sourceModule });
+      setDocumentos(prev => prev.map(d => d.id === docId ? { ...d, source_module: sourceModule } : d));
+      setVincularOpen(null);
+      setNotifPopup({ msg: `Documento vinculado a ${SOURCE_MODULE_OPTIONS.find(m => m.value === sourceModule)?.label || sourceModule}!`, type: 'success' });
+      setTimeout(() => setNotifPopup(null), 3000);
+    } catch {
+      setNotifPopup({ msg: 'Erro ao vincular documento.', type: 'error' });
+      setTimeout(() => setNotifPopup(null), 3000);
+    }
+  }
+
+  async function handleDesvincular(docId: string) {
+    try {
+      await atualizarDocumento(docId, { source_module: null });
+      setDocumentos(prev => prev.map(d => d.id === docId ? { ...d, source_module: null } : d));
+      setVincularOpen(null);
+    } catch {
+      setNotifPopup({ msg: 'Erro ao desvincular documento.', type: 'error' });
     }
   }
 
@@ -105,7 +155,7 @@ export function Documentos() {
       setFills(docFills);
       setView('fill');
     } catch {
-      alert('Erro inesperado ao abrir documento. Contate o administrador.');
+      setNotifPopup({ msg: 'Erro inesperado ao abrir documento. Contate o administrador.', type: 'error' });
     }
   }
 
@@ -145,7 +195,7 @@ export function Documentos() {
       await loadPdfData(full);
       setView('manage');
     } catch {
-      alert('Erro inesperado ao abrir configuracao. Contate o administrador.');
+      setNotifPopup({ msg: 'Erro inesperado ao abrir configuracao. Contate o administrador.', type: 'error' });
     }
   }
 
@@ -167,7 +217,7 @@ export function Documentos() {
         setPreviewPdfData(null);
       }
     } catch {
-      alert('Erro inesperado ao carregar preview. Contate o administrador.');
+      setNotifPopup({ msg: 'Erro inesperado ao carregar preview. Contate o administrador.', type: 'error' });
       setPreviewPdfData(null);
     } finally {
       setPreviewLoading(false);
@@ -210,6 +260,7 @@ export function Documentos() {
         name: newDocName, description: newDocDesc || null,
         category: newDocCategory, template_pdf_url: null, active: true,
         template_pdf_pages: 0, template_pdf_width: 0, template_pdf_height: 0,
+        created_by: user?.username || null, source_module: null,
       });
 
       const template = findTemplate(newDocName);
@@ -252,50 +303,34 @@ export function Documentos() {
       setNewDocName(''); setNewDocDesc('');
       await openManage(doc);
     } catch {
-      alert('Erro inesperado ao criar documento. Contate o administrador.');
+      setNotifPopup({ msg: 'Erro inesperado ao criar documento. Contate o administrador.', type: 'error' });
     }
   }
 
-  async function handleDeleteDocument(id: string) {
-    if (!confirm('Excluir este documento e todos os campos/signatarios?')) return;
-    try {
-      await excluirDocumento(id);
-      setDocumentos(await listarDocumentos());
-    } catch {
-      alert('Erro inesperado ao excluir documento. Contate o administrador.');
+  function handleDeleteDocument(id: string) {
+    if (!isAdmin) {
+      setNotifPopup({ msg: 'Apenas administradores podem excluir documentos.', type: 'error' });
+      return;
     }
+    setConfirmModal({
+      msg: 'Excluir este documento e todos os campos e signatarios?',
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await excluirDocumento(id);
+          setSelectedDoc(null);
+          setView('list');
+          await loadDocumentos();
+        } catch {
+          setNotifPopup({ msg: 'Erro inesperado ao excluir documento. Contate o administrador.', type: 'error' });
+        }
+      }
+    });
   }
 
   // ═══ TEMPLATE PATH ═══
-  async function handleSetTemplatePath() {
-    if (!selectedDoc || !templatePathInput.trim()) return;
-    const path = templatePathInput.trim();
 
-    setSaving(true);
-    try {
-      await atualizarDocumento(selectedDoc.id, { template_pdf_url: path });
-
-      const existingFields = selectedDoc.document_fields;
-      if (existingFields.length > 0) {
-        await Promise.all(existingFields.map(f => atualizarCampo(f.id, { x: 0, y: 0 })));
-      }
-
-      const full = await buscarDocumento(selectedDoc.id);
-      if (full) {
-        setSelectedDoc(full);
-        await loadPdfData(full);
-      }
-      setDocumentos(await listarDocumentos());
-      setActiveTab('tray');
-      showNotif({ message: 'Template vinculado com sucesso!', type: 'success' });
-    } catch (err) {
-      showNotif({ message: String(err), type: 'error' });
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  // ═══ UPLOAD PDF ═══
+  // ═══ TEMPLATE PATH ═══
   async function handleUploadPdf(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file || !selectedDoc) return;
@@ -309,11 +344,49 @@ export function Documentos() {
     if (e.target) e.target.value = '';
   }
 
+  async function openStoragePicker() {
+    setStorageLoading(true);
+    setShowStoragePicker(true);
+    try {
+      const pdfs = await listarPdfsStorage();
+      setStoragePdfs(pdfs);
+    } catch {
+      setNotifPopup({ msg: 'Erro ao listar PDFs do Storage.', type: 'error' });
+    } finally {
+      setStorageLoading(false);
+    }
+  }
+
+  async function handleSelectStoragePdf(pdfPath: string) {
+    if (!selectedDoc) return;
+    setShowStoragePicker(false);
+    setSaving(true);
+    try {
+      await atualizarDocumento(selectedDoc.id, { template_pdf_url: pdfPath });
+      const existingFields = selectedDoc.document_fields;
+      if (existingFields.length > 0) {
+        await Promise.all(existingFields.map(f => atualizarCampo(f.id, { x: 0, y: 0 })));
+      }
+      const full = await buscarDocumento(selectedDoc.id);
+      if (full) {
+        setSelectedDoc(full);
+        await loadPdfData(full);
+      }
+      setDocumentos(await listarDocumentos());
+      setActiveTab('tray');
+      setNotifPopup({ msg: 'Template vinculado com sucesso!', type: 'success' });
+    } catch {
+      setNotifPopup({ msg: 'Erro ao vincular PDF.', type: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function doUploadPdf(file: File) {
     if (!selectedDoc) return;
 
     if (file.size > 4 * 1024 * 1024) {
-      alert('O arquivo e muito grande. O limite e de 4MB. Tente comprimir o PDF.');
+      setNotifPopup({ msg: 'O arquivo e muito grande. O limite e de 4MB. Tente comprimir o PDF.', type: 'error' });
       return;
     }
 
@@ -336,7 +409,7 @@ export function Documentos() {
       setActiveTab('tray');
     } catch (err) {
       console.error('Erro no upload:', err);
-      alert('Erro inesperado ao fazer upload do PDF. Contate o administrador.');
+      setNotifPopup({ msg: 'Erro inesperado ao fazer upload do PDF. Contate o administrador.', type: 'error' });
     } finally {
       setSaving(false);
     }
@@ -380,18 +453,23 @@ export function Documentos() {
     }).catch(() => {});
   }, []);
 
-  async function handleFieldDelete(id: string) {
-    if (!confirm('Excluir este campo?')) return;
-    try {
-      await excluirCampo(id);
-      setSelectedDoc(prev => {
-        if (!prev) return prev;
-        return { ...prev, document_fields: prev.document_fields.filter(f => f.id !== id) };
-      });
-      if (selectedFieldId === id) setSelectedFieldId(null);
-    } catch {
-      alert('Erro inesperado ao excluir campo. Contate o administrador.');
-    }
+  function handleFieldDelete(id: string) {
+    setConfirmModal({
+      msg: 'Excluir este campo?',
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await excluirCampo(id);
+          setSelectedDoc(prev => {
+            if (!prev) return prev;
+            return { ...prev, document_fields: prev.document_fields.filter(f => f.id !== id) };
+          });
+          if (selectedFieldId === id) setSelectedFieldId(null);
+        } catch {
+          setNotifPopup({ msg: 'Erro inesperado ao excluir campo. Contate o administrador.', type: 'error' });
+        }
+      }
+    });
   }
 
   async function handlePositionField(fieldId: string, page: number) {
@@ -413,7 +491,7 @@ export function Documentos() {
       setSelectedFieldId(fieldId);
       setActiveTab('props');
     } catch {
-      alert('Erro inesperado ao posicionar campo. Contate o administrador.');
+      setNotifPopup({ msg: 'Erro inesperado ao posicionar campo. Contate o administrador.', type: 'error' });
     }
   }
 
@@ -432,7 +510,7 @@ export function Documentos() {
       setSelectedFieldId(fieldId);
       setActiveTab('props');
     } catch {
-      alert('Erro inesperado ao posicionar campo. Contate o administrador.');
+      setNotifPopup({ msg: 'Erro inesperado ao posicionar campo. Contate o administrador.', type: 'error' });
     }
   }
 
@@ -450,14 +528,14 @@ export function Documentos() {
       });
       setSelectedFieldId(null);
     } catch {
-      alert('Erro ao devolver campo para bandeja.');
+      setNotifPopup({ msg: 'Erro ao devolver campo para bandeja.', type: 'error' });
     }
   }
 
   // ═══ SIGNATÁRIOS ═══
   async function handleAddSigner() {
     if (!selectedDoc || !signerName.trim() || !signerRole.trim()) {
-      alert('Preencha nome e funcao do signatario');
+      setNotifPopup({ msg: 'Preencha nome e funcao do signatario', type: 'error' });
       return;
     }
     try {
@@ -473,18 +551,27 @@ export function Documentos() {
       setSignerName('');
       setSignerRole('');
     } catch {
-      alert('Erro inesperado ao adicionar signatario. Contate o administrador.');
+      setNotifPopup({ msg: 'Erro inesperado ao adicionar signatario. Contate o administrador.', type: 'error' });
     }
   }
 
-  async function handleDeleteSigner(id: string) {
-    if (!confirm('Remover signatario?') || !selectedDoc) return;
-    try {
-      await excluirSignatario(id);
-      setSelectedDoc({ ...selectedDoc, document_signers: selectedDoc.document_signers.filter(s => s.id !== id) });
-    } catch {
-      alert('Erro inesperado ao remover signatario. Contate o administrador.');
-    }
+  function handleDeleteSigner(id: string) {
+    if (!selectedDoc) return;
+    setConfirmModal({
+      msg: 'Remover signatario?',
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await excluirSignatario(id);
+          setSelectedDoc(prev => {
+            if (!prev) return prev;
+            return { ...prev, document_signers: prev.document_signers.filter(s => s.id !== id) };
+          });
+        } catch {
+          setNotifPopup({ msg: 'Erro inesperado ao remover signatario. Contate o administrador.', type: 'error' });
+        }
+      }
+    });
   }
 
   // ═══ PREENCHIMENTO ═══
@@ -501,7 +588,7 @@ export function Documentos() {
         if (depData !== depValue) continue;
       }
       if (field.required && !formData[field.field_name]) {
-        alert(`Preencha o campo: ${field.field_label}`);
+        setNotifPopup({ msg: `Preencha o campo: ${field.field_label}`, type: 'error' });
         return false;
       }
     }
@@ -513,9 +600,9 @@ export function Documentos() {
     setSaving(true);
     try {
       const pdfKey = selectedDoc.template_pdf_url;
-      if (!pdfKey) { alert('PDF nao vinculado.'); return; }
+      if (!pdfKey) { setNotifPopup({ msg: 'PDF nao vinculado.', type: 'error' }); return; }
       const blob = await getPdfBlob(pdfKey);
-      if (!blob) { alert('PDF nao encontrado.'); return; }
+      if (!blob) { setNotifPopup({ msg: 'PDF nao encontrado.', type: 'error' }); return; }
       const pdfBytes = await blob.arrayBuffer();
       const dadosStr: Record<string, string> = {};
       for (const [k, v] of Object.entries(formData)) dadosStr[k] = String(v || '');
@@ -523,7 +610,7 @@ export function Documentos() {
       const nome = `${selectedDoc.name.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`;
       downloadPdf(pdfBlob, nome);
     } catch {
-      alert('Erro inesperado ao gerar PDF. Contate o administrador.');
+      setNotifPopup({ msg: 'Erro inesperado ao gerar PDF. Contate o administrador.', type: 'error' });
     } finally {
       setSaving(false);
     }
@@ -537,9 +624,9 @@ export function Documentos() {
         filled_data: formData, status: 'draft',
         autentique_document_id: null, autentique_link: null,
       });
-      alert('Rascunho salvo!');
+      setNotifPopup({ msg: 'Rascunho salvo!', type: 'success' });
     } catch {
-      alert('Erro inesperado ao salvar rascunho. Contate o administrador.');
+      setNotifPopup({ msg: 'Erro inesperado ao salvar rascunho. Contate o administrador.', type: 'error' });
     }
   }
 
@@ -627,6 +714,9 @@ export function Documentos() {
   // ═══════════════════════════════
   if (view === 'list') {
     return (
+      <>
+      {renderOverlays()}
+      {previewDoc && renderPreviewModal()}
       <PageContainer>
         <div className="flex items-center justify-between">
           <PageTitle icon={FileText} title="Documentos" />
@@ -667,12 +757,42 @@ export function Documentos() {
                 {doc.description && <p className="text-sm text-graphite-600 dark:text-graphite-400">{doc.description}</p>}
                 <div className="mt-3 flex items-center justify-between">
                   <div className="flex gap-3">
-                    <button onClick={() => selectDocument(doc)} className="text-xs text-aviation-600 hover:text-aviation-700">Preencher</button>
-                    {doc.template_pdf_url && (
-                      <button onClick={() => openPreview(doc)} className="flex items-center gap-1 text-xs text-graphite-500 hover:text-graphite-700">
-                        <Eye className="h-3 w-3" /> Preview
+                    <div className="relative" data-vincular-dropdown>
+                      <button onClick={() => setVincularOpen(vincularOpen === doc.id ? null : doc.id)}
+                        className={`flex items-center gap-1 text-xs ${
+                          doc.source_module
+                            ? 'text-green-600 hover:text-green-700 dark:text-green-400'
+                            : 'text-aviation-600 hover:text-aviation-700 dark:text-aviation-400'
+                        }`}>
+                        <Link className="h-3 w-3" />
+                        {doc.source_module
+                          ? SOURCE_MODULE_OPTIONS.find(m => m.value === doc.source_module)?.label || doc.source_module
+                          : 'Vincular'}
                       </button>
-                    )}
+                      {vincularOpen === doc.id && (
+                        <div className="absolute left-0 top-6 z-40 w-52 rounded-lg border border-graphite-200 bg-white py-1 shadow-lg dark:border-graphite-700 dark:bg-graphite-800">
+                          {SOURCE_MODULE_OPTIONS.map(m => (
+                            <button key={m.value} onClick={() => handleVincular(doc.id, m.value)}
+                              className={`w-full px-3 py-2 text-left text-xs hover:bg-graphite-50 dark:hover:bg-graphite-700 ${
+                                doc.source_module === m.value
+                                  ? 'font-semibold text-green-600 dark:text-green-400'
+                                  : 'text-graphite-700 dark:text-graphite-300'
+                              }`}>
+                              {m.label}
+                            </button>
+                          ))}
+                          {doc.source_module && (
+                            <>
+                              <div className="my-1 border-t border-graphite-100 dark:border-graphite-700" />
+                              <button onClick={() => handleDesvincular(doc.id)}
+                                className="w-full px-3 py-2 text-left text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-graphite-700">
+                                Desvincular
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
                     {isAdmin && (
                       <button onClick={() => openManage(doc)} className="flex items-center gap-1 text-xs text-graphite-500 hover:text-graphite-700">
                         <Edit3 className="h-3 w-3" /> Editar
@@ -688,17 +808,16 @@ export function Documentos() {
           </div>
         )}
       </PageContainer>
+      </>
     );
   }
-
-  // ═══════════════════════════════
-  // VIEW: CRIAR NOVO
-  // ═══════════════════════════════
   if (view === 'admin') {
     return (
+      <>
+      {renderOverlays()}
       <PageContainer>
         <div className="mb-6 flex items-center gap-3">
-          <button onClick={() => setView('list')} className="rounded-lg border border-graphite-200 px-3 py-1.5 text-sm hover:bg-graphite-50 dark:border-graphite-700"><ArrowLeft className="inline h-4 w-4 mr-1" />Voltar</button>
+          <button onClick={() => setView('list')} className="rounded-lg border border-graphite-200 px-3 py-1.5 text-sm text-graphite-700 hover:bg-graphite-50 dark:border-graphite-700 dark:text-graphite-200 dark:hover:bg-graphite-700"><ArrowLeft className="inline h-4 w-4 mr-1" />Voltar</button>
           <PageTitle icon={Plus} title="Novo Documento" />
         </div>
         <div className="mx-auto max-w-xl rounded-xl border border-graphite-200 bg-white p-6 shadow-sm dark:border-graphite-700 dark:bg-graphite-800">
@@ -730,6 +849,7 @@ export function Documentos() {
           </div>
         </div>
       </PageContainer>
+      </>
     );
   }
 
@@ -749,6 +869,7 @@ export function Documentos() {
 
     return (
       <>
+        {renderOverlays()}
         {/* Confirmation Modal */}
         {showConfirmModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -765,8 +886,8 @@ export function Documentos() {
                 Tem certeza que deseja trocar o PDF deste documento?
               </p>
               <p className="mb-6 text-sm text-graphite-600 dark:text-graphite-400">
-                Os campos existentes <strong>não serão excluídos</strong>. Eles serão movidos para a aba
-                <strong> Bandeja</strong> e você poderá redistribuí-los no novo PDF ou excluí-los.
+                Os campos existentes <strong>nao serao excluidos</strong>. Eles serao movidos para a aba
+                <strong> Bandeja</strong> e voce podera redistribute-los no novo PDF ou exclui-los.
               </p>
               <div className="flex justify-end gap-3">
                 <button onClick={handleCancelPdfSwap}
@@ -776,6 +897,80 @@ export function Documentos() {
                 <button onClick={handleConfirmPdfSwap}
                   className="rounded-lg bg-aviation-600 px-4 py-2 text-sm font-medium text-white hover:bg-aviation-700">
                   Sim, Trocar PDF
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Swap Template Modal - sem PDF atual */}
+        {showSwapTemplateModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-2xl dark:bg-graphite-800">
+              <div className="mb-4 flex items-center gap-3">
+                <div className="rounded-full bg-amber-100 p-2 dark:bg-amber-900/30">
+                  <AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-graphite-900 dark:text-graphite-100">
+                  Trocar Template
+                </h3>
+              </div>
+              <p className="mb-6 text-sm text-graphite-600 dark:text-graphite-400">
+                Tem certeza que deseja trocar o template? O PDF atual sera removido e voce precisara selecionar um novo.
+              </p>
+              <div className="flex justify-end gap-3">
+                <button onClick={() => setShowSwapTemplateModal(false)}
+                  className="rounded-lg border border-graphite-200 px-4 py-2 text-sm font-medium text-graphite-700 hover:bg-graphite-50 dark:border-graphite-700 dark:text-graphite-200 dark:hover:bg-graphite-700">
+                  Cancelar
+                </button>
+                <button onClick={() => {
+                  setPdfData(null);
+                  if (selectedDoc) atualizarDocumento(selectedDoc.id, { template_pdf_url: null });
+                  setShowSwapTemplateModal(false);
+                }}
+                  className="rounded-lg bg-aviation-600 px-4 py-2 text-sm font-medium text-white hover:bg-aviation-700">
+                  Sim, Trocar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showStoragePicker && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="mx-4 w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl dark:bg-graphite-800">
+              <h3 className="mb-4 text-lg font-semibold text-graphite-900 dark:text-graphite-100">
+                <FileText className="mr-2 inline h-5 w-5" /> Escolher PDF do Storage
+              </h3>
+              <input type="text" value={storageSearch} onChange={e => setStorageSearch(e.target.value)}
+                placeholder="Buscar PDF..."
+                className="mb-4 w-full rounded-lg border border-graphite-200 bg-white px-3 py-2.5 text-sm dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-100" />
+              <div className="max-h-80 overflow-y-auto">
+                {storageLoading ? (
+                  <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-aviation-500" /></div>
+                ) : storagePdfs.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-graphite-500">Nenhum PDF encontrado no Storage.</p>
+                ) : (
+                  <div className="space-y-1">
+                    {storagePdfs
+                      .filter(p => p.name.toLowerCase().includes(storageSearch.toLowerCase()))
+                      .map(pdf => (
+                        <button key={pdf.id} onClick={() => handleSelectStoragePdf(pdf.path)}
+                          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-graphite-50 dark:hover:bg-graphite-700">
+                          <FileText className="h-4 w-4 shrink-0 text-aviation-600" />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium text-graphite-900 dark:text-graphite-100">{pdf.name}</p>
+                            <p className="truncate text-[11px] text-graphite-400">{pdf.path}</p>
+                          </div>
+                        </button>
+                      ))}
+                  </div>
+                )}
+              </div>
+              <div className="mt-4 flex justify-end">
+                <button onClick={() => { setShowStoragePicker(false); setStorageSearch(''); }}
+                  className="rounded-lg border border-graphite-200 px-4 py-2 text-sm font-medium text-graphite-700 hover:bg-graphite-50 dark:border-graphite-700 dark:text-graphite-200 dark:hover:bg-graphite-700">
+                  Fechar
                 </button>
               </div>
             </div>
@@ -792,19 +987,69 @@ export function Documentos() {
             <PageTitle icon={Edit3} title={selectedDoc.name} />
 
             <div className="ml-auto flex items-center gap-2">
+              <button onClick={async () => {
+                if (!selectedDoc) return;
+                try {
+                  for (const f of selectedDoc.document_fields) {
+                    await atualizarCampo(f.id, { x: f.x, y: f.y, width: f.width, height: f.height, font_size: f.font_size, page: f.page });
+                  }
+                  setNotifPopup({ msg: 'Campos salvos com sucesso!', type: 'success' });
+                  setTimeout(() => setNotifPopup(null), 3000);
+                  setView('list');
+                  setSelectedDoc(null);
+                  setPdfData(null);
+                  setDocumentos(await listarDocumentos());
+                } catch {
+                  setNotifPopup({ msg: 'Erro ao salvar campos.', type: 'error' });
+                  setTimeout(() => setNotifPopup(null), 3000);
+                }
+              }}
+                className="flex items-center gap-2 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700">
+                <Save className="h-3 w-3" /> Salvar
+              </button>
               {pdfData ? (
-                <button onClick={() => { setPdfData(null); if (selectedDoc) atualizarDocumento(selectedDoc.id, { template_pdf_url: null }); }}
-                  className="flex items-center gap-2 rounded-lg border border-graphite-200 bg-white px-3 py-1.5 text-xs font-medium text-graphite-700 hover:bg-graphite-50 dark:border-graphite-600 dark:bg-graphite-700 dark:text-graphite-200">
-                  <Upload className="h-3 w-3" /> Trocar Template
-                </button>
+                <>
+                  <button onClick={() => setShowSwapTemplateModal(true)}
+                    className="flex items-center gap-2 rounded-lg border border-graphite-200 bg-white px-3 py-1.5 text-xs font-medium text-graphite-700 hover:bg-graphite-50 dark:border-graphite-600 dark:bg-graphite-700 dark:text-graphite-200">
+                    <Upload className="h-3 w-3" /> Trocar Template
+                  </button>
+                  <button onClick={async () => {
+                    if (!selectedDoc) return;
+                    setConfirmModal({
+                      msg: 'Remover o PDF do Storage? O documento e os campos serao mantidos.',
+                      onConfirm: async () => {
+                        try {
+                          await excluirDocumento(selectedDoc.id);
+                          setPdfData(null);
+                          const full = await buscarDocumento(selectedDoc.id);
+                          if (full) setSelectedDoc(full);
+                          setDocumentos(await listarDocumentos());
+                          setNotifPopup({ msg: 'PDF removido com sucesso!', type: 'success' });
+                          setTimeout(() => setNotifPopup(null), 3000);
+                        } catch {
+                          setNotifPopup({ msg: 'Erro ao remover PDF.', type: 'error' });
+                          setTimeout(() => setNotifPopup(null), 3000);
+                        }
+                      },
+                      destructive: true,
+                    });
+                  }}
+                    className="flex items-center gap-2 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 dark:border-red-700 dark:bg-graphite-700 dark:text-red-400 dark:hover:bg-red-900/20">
+                    <Trash2 className="h-3 w-3" /> Remover PDF
+                  </button>
+                </>
               ) : (
                 <div className="flex items-center gap-2">
-                  <input type="text" value={templatePathInput} onChange={e => setTemplatePathInput(e.target.value)}
-                    placeholder="/templates/troca.pdf"
-                    className="w-64 rounded-lg border border-graphite-200 bg-white px-3 py-1.5 text-xs text-graphite-700 placeholder-graphite-400 dark:border-graphite-600 dark:bg-graphite-700 dark:text-graphite-200" />
-                  <button onClick={handleSetTemplatePath} disabled={!templatePathInput.trim()}
-                    className="flex items-center gap-2 rounded-lg bg-aviation-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-aviation-700 disabled:opacity-50">
-                    <Upload className="h-3 w-3" /> Vincular
+                  <div className="relative">
+                    <input ref={pdfInputRef} type="file" accept=".pdf" onChange={handleUploadPdf} className="hidden" />
+                    <button onClick={() => pdfInputRef.current?.click()}
+                      className="flex items-center gap-2 rounded-lg bg-aviation-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-aviation-700">
+                      <Upload className="h-3 w-3" /> Enviar PDF
+                    </button>
+                  </div>
+                  <button onClick={openStoragePicker}
+                    className="flex items-center gap-2 rounded-lg border border-graphite-200 bg-white px-3 py-1.5 text-xs font-medium text-graphite-700 hover:bg-graphite-50 dark:border-graphite-600 dark:bg-graphite-700 dark:text-graphite-200">
+                    <FileText className="h-3 w-3" /> Escolher do Storage
                   </button>
                 </div>
               )}
@@ -816,7 +1061,7 @@ export function Documentos() {
               <div className="rounded-xl border border-dashed border-graphite-300 bg-graphite-50 p-12 text-center dark:border-graphite-700 dark:bg-graphite-800/50">
                 <FileText className="mx-auto mb-4 h-12 w-12 text-graphite-300" />
                 <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Vincule o PDF template</h3>
-                <p className="mb-4 text-sm text-graphite-500">Coloque o PDF em <code className="bg-graphite-200 px-1 rounded dark:bg-graphite-700">public/templates/</code> e informe o path abaixo</p>
+                <p className="mb-4 text-sm text-graphite-500">Envie um PDF para usar como template deste documento</p>
                 {trayFields.length > 0 && (
                   <p className="mb-4 text-sm text-amber-600">
                     <Package className="mr-1 inline h-4 w-4" />
@@ -824,12 +1069,16 @@ export function Documentos() {
                   </p>
                 )}
                 <div className="flex items-center justify-center gap-2">
-                  <input type="text" value={templatePathInput} onChange={e => setTemplatePathInput(e.target.value)}
-                    placeholder="/templates/troca.pdf"
-                    className="w-72 rounded-lg border border-graphite-200 bg-white px-3 py-2.5 text-sm text-graphite-700 placeholder-graphite-400 dark:border-graphite-600 dark:bg-graphite-700 dark:text-graphite-200" />
-                  <button onClick={handleSetTemplatePath} disabled={!templatePathInput.trim() || saving}
-                    className="flex items-center gap-2 rounded-lg bg-aviation-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-aviation-700 disabled:opacity-50">
-                    <Upload className="h-4 w-4" /> Vincular
+                  <div className="relative">
+                    <input ref={pdfInputRef} type="file" accept=".pdf" onChange={handleUploadPdf} className="hidden" />
+                    <button onClick={() => pdfInputRef.current?.click()}
+                      className="flex items-center gap-2 rounded-lg bg-aviation-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-aviation-700">
+                      <Upload className="h-4 w-4" /> Enviar PDF
+                    </button>
+                  </div>
+                  <button onClick={openStoragePicker}
+                    className="flex items-center gap-2 rounded-lg border border-graphite-200 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 hover:bg-graphite-50 dark:border-graphite-600 dark:bg-graphite-700 dark:text-graphite-200">
+                    <FileText className="h-4 w-4" /> Escolher do Storage
                   </button>
                 </div>
               </div>
@@ -952,6 +1201,19 @@ export function Documentos() {
                           <Shield className="mr-1 inline h-4 w-4" /> Signatários ({signers.length})
                         </h4>
 
+                        <div className="space-y-2 rounded-lg border border-graphite-200 bg-graphite-50 p-3 dark:border-graphite-700 dark:bg-graphite-800/50">
+                          <input type="text" value={signerName} onChange={e => setSignerName(e.target.value)}
+                            placeholder="Nome do signatário"
+                            className="w-full rounded-lg border border-graphite-200 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-100" />
+                          <input type="text" value={signerRole} onChange={e => setSignerRole(e.target.value)}
+                            placeholder="Função (ex: Gestor, Solicitante)"
+                            className="w-full rounded-lg border border-graphite-200 bg-white px-3 py-2 text-sm dark:border-graphite-700 dark:bg-graphite-800 dark:text-graphite-100" />
+                          <button onClick={handleAddSigner}
+                            className="w-full rounded-lg bg-aviation-600 px-3 py-2 text-sm font-medium text-white hover:bg-aviation-700">
+                            Adicionar Signatário
+                          </button>
+                        </div>
+
                         {signers.length > 0 && (
                           <div className="space-y-2">
                             {signers.map(s => (
@@ -973,7 +1235,7 @@ export function Documentos() {
                           <div className="rounded-lg border border-dashed border-graphite-200 bg-graphite-50 p-6 text-center dark:border-graphite-700 dark:bg-graphite-800/50">
                             <Shield className="mx-auto mb-2 h-8 w-8 text-graphite-300 dark:text-graphite-600" />
                             <p className="text-xs text-graphite-500 dark:text-graphite-400">
-                              Os signatários serão adicionados automaticamente ao enviar para <strong>Autentique</strong>.
+                              Nenhum signatário adicionado ainda.
                             </p>
                           </div>
                         )}
@@ -999,6 +1261,8 @@ export function Documentos() {
     const signatureFields = fields.filter(f => f.is_signature);
 
     return (
+      <>
+      {renderOverlays()}
       <PageContainer>
         <div className="mb-6 flex items-center gap-3">
           <button onClick={() => { setView('list'); setSelectedDoc(null); setPdfData(null); }}
@@ -1098,62 +1362,102 @@ export function Documentos() {
           )}
         </div>
       </PageContainer>
+      </>
     );
   }
 
-  return (
-    <>
-      {/* PREVIEW MODAL - TELA CHEIA */}
-      {previewDoc && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-white dark:bg-graphite-900">
-          {/* Header */}
-          <div className="flex items-center gap-3 border-b border-graphite-200 bg-white px-4 py-2 dark:border-graphite-700 dark:bg-graphite-800">
-            <button onClick={closePreview}
-              className="rounded-lg border border-graphite-200 px-3 py-1.5 text-sm hover:bg-graphite-50 dark:border-graphite-700">
-              <ArrowLeft className="inline h-4 w-4 mr-1" />Fechar
-            </button>
-            <PageTitle icon={Eye} title={previewDoc.name} />
-            <div className="ml-auto flex items-center gap-2">
-              {isAdmin && (
-                <button onClick={() => { closePreview(); openManage(previewDoc); }}
-                  className="flex items-center gap-2 rounded-lg border border-graphite-200 px-3 py-1.5 text-xs hover:bg-graphite-50 dark:border-graphite-700">
-                  <Edit3 className="h-3 w-3" /> Editar
+  if (view === 'grid') {
+    return (
+      <>
+        {renderOverlays()}
+        <PageContainer>
+          <GridGenerator onBack={() => setView('list')} isAdmin={isAdmin} />
+        </PageContainer>
+      </>
+    );
+  }
+
+  function renderOverlays() {
+    return (
+      <>
+        {notifPopup && (
+          <div className={`fixed top-4 right-4 z-[100] flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium text-white shadow-lg ${
+            notifPopup.type === 'success' ? 'bg-green-600' : 'bg-red-600'
+          }`}>
+            {notifPopup.msg}
+          </div>
+        )}
+        {confirmModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50">
+            <div className="mx-4 w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-graphite-800">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+                <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
+              </div>
+              <h3 className="mb-2 text-lg font-semibold text-graphite-900 dark:text-graphite-100">Confirmar</h3>
+              <p className="mb-6 text-sm text-graphite-600 dark:text-graphite-400">{confirmModal.msg}</p>
+              <div className="flex justify-end gap-3">
+                <button onClick={() => setConfirmModal(null)}
+                  className="rounded-lg border border-graphite-200 px-4 py-2 text-sm font-medium text-graphite-700 hover:bg-graphite-50 dark:border-graphite-700 dark:text-graphite-200 dark:hover:bg-graphite-700">
+                  Cancelar
                 </button>
-              )}
-              <button onClick={() => { closePreview(); selectDocument(previewDoc); }}
-                className="flex items-center gap-2 rounded-lg bg-aviation-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-aviation-700">
-                <FileText className="h-3 w-3" /> Preencher
-              </button>
+                <button onClick={() => { confirmModal.onConfirm(); setConfirmModal(null); }}
+                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">
+                  Confirmar
+                </button>
+              </div>
             </div>
           </div>
+        )}
+      </>
+    );
+  }
 
-          {/* Content */}
-          <div className="flex flex-1 overflow-hidden">
-            {previewLoading ? (
-              <div className="flex flex-1 items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-aviation-500" />
-                <span className="ml-2 text-sm text-graphite-500">Carregando PDF...</span>
-              </div>
-            ) : !previewPdfData ? (
-              <div className="flex flex-1 flex-col items-center justify-center">
-                <FileText className="mb-4 h-16 w-16 text-graphite-300" />
-                <h3 className="mb-2 text-xl font-semibold text-graphite-700 dark:text-graphite-300">Nenhum PDF para visualizar</h3>
-                <p className="mb-4 text-sm text-graphite-500">Este documento ainda nao possui um PDF template configurado.</p>
-                {isAdmin && (
-                  <button onClick={() => { closePreview(); openManage(previewDoc); }}
-                    className="inline-flex items-center gap-2 rounded-lg bg-aviation-600 px-6 py-3 text-sm font-medium text-white hover:bg-aviation-700">
-                    <Upload className="h-4 w-4" /> Fazer Upload do PDF
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="flex flex-1 overflow-auto bg-graphite-100 dark:bg-graphite-900">
-                <PdfPreview pdfData={previewPdfData} fields={previewDoc.document_fields} />
-              </div>
+  function renderPreviewModal() {
+    if (!previewDoc) return null;
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col bg-white dark:bg-graphite-900">
+        <div className="flex items-center gap-3 border-b border-graphite-200 bg-white px-4 py-2 dark:border-graphite-700 dark:bg-graphite-800">
+          <button onClick={closePreview}
+            className="rounded-lg border border-graphite-200 px-3 py-1.5 text-sm hover:bg-graphite-50 dark:border-graphite-700">
+            <ArrowLeft className="inline h-4 w-4 mr-1" />Fechar
+          </button>
+          <PageTitle icon={Eye} title={previewDoc.name} />
+          <div className="ml-auto flex items-center gap-2">
+            {isAdmin && (
+              <button onClick={() => { closePreview(); openManage(previewDoc); }}
+                className="flex items-center gap-2 rounded-lg border border-graphite-200 px-3 py-1.5 text-xs hover:bg-graphite-50 dark:border-graphite-700">
+                <Edit3 className="h-3 w-3" /> Editar
+              </button>
             )}
           </div>
         </div>
-      )}
-    </>
-  );
+        <div className="flex flex-1 overflow-hidden">
+          {previewLoading ? (
+            <div className="flex flex-1 items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-aviation-500" />
+              <span className="ml-2 text-sm text-graphite-500">Carregando PDF...</span>
+            </div>
+          ) : !previewPdfData ? (
+            <div className="flex flex-1 flex-col items-center justify-center">
+              <FileText className="mb-4 h-16 w-16 text-graphite-300" />
+              <h3 className="mb-2 text-xl font-semibold text-graphite-700 dark:text-graphite-300">Nenhum PDF para visualizar</h3>
+              <p className="mb-4 text-sm text-graphite-500">Este documento ainda nao possui um PDF template configurado.</p>
+              {isAdmin && (
+                <button onClick={() => { closePreview(); openManage(previewDoc); }}
+                  className="inline-flex items-center gap-2 rounded-lg bg-aviation-600 px-6 py-3 text-sm font-medium text-white hover:bg-aviation-700">
+                  <Upload className="h-4 w-4" /> Fazer Upload do PDF
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-1 overflow-auto bg-graphite-100 dark:bg-graphite-900">
+              <PdfPreview pdfData={previewPdfData} fields={previewDoc.document_fields} />
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return null;
 }

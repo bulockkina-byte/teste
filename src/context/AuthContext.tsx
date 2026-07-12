@@ -37,6 +37,8 @@ export interface StoredUser {
 }
 
 const USERS_KEY = 'sescinc-users';
+const SESSION_KEY = 'sescinc-session';
+const IDLE_TIMEOUT = 10 * 60 * 1000;
 
 function getStoredUsers(): Record<string, StoredUser> {
   try {
@@ -44,6 +46,24 @@ function getStoredUsers(): Record<string, StoredUser> {
   } catch {
     return {};
   }
+}
+
+function saveSession(user: User) {
+  localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+}
+
+function loadSession(): User | null {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as User;
+  } catch {
+    return null;
+  }
+}
+
+function clearSession() {
+  localStorage.removeItem(SESSION_KEY);
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -88,9 +108,38 @@ function cargoParaUserRole(cargo: string): UserRole | null {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => loadSession());
 
   useEffect(() => { seedAdmin(); }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    let timer: ReturnType<typeof setTimeout>;
+    const reset = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (user?.username) {
+          try {
+            const raw = localStorage.getItem('sescinc-presence');
+            if (raw) {
+              const data: Record<string, number> = JSON.parse(raw);
+              delete data[user.username];
+              localStorage.setItem('sescinc-presence', JSON.stringify(data));
+            }
+          } catch { /* ignore */ }
+        }
+        clearSession();
+        setUser(null);
+      }, IDLE_TIMEOUT);
+    };
+    const events = ['mousedown', 'keydown', 'scroll', 'touchstart'];
+    events.forEach(e => window.addEventListener(e, reset));
+    reset();
+    return () => {
+      clearTimeout(timer);
+      events.forEach(e => window.removeEventListener(e, reset));
+    };
+  }, [user]);
 
   const login = useCallback(async (username: string, password: string) => {
     await new Promise(r => setTimeout(r, 600));
@@ -123,6 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setUser(userData);
+    saveSession(userData);
   }, []);
 
   const register = useCallback(async (name: string, username: string, password: string, role: UserRole) => {
@@ -136,8 +186,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
+    if (user?.username) {
+      try {
+        const raw = localStorage.getItem('sescinc-presence');
+        if (raw) {
+          const data: Record<string, number> = JSON.parse(raw);
+          delete data[user.username];
+          localStorage.setItem('sescinc-presence', JSON.stringify(data));
+        }
+      } catch { /* ignore */ }
+    }
+    clearSession();
     setUser(null);
-  }, []);
+  }, [user]);
 
   const effectiveRole = useMemo(() => {
     if (!user) return 'chefe';

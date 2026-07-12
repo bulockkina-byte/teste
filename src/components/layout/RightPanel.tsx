@@ -3,7 +3,7 @@ import {
   X, Bell, MessageCircle, Users, Send, Search, ArrowLeft,
   CheckCheck, Trash2, User, MessageSquare,
 } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth, type UserRole } from '../../context/AuthContext';
 import { listarBombeiros } from '../../services/bombeiroService';
 import {
   mensagensGerais, conversaCom, enviarMensagem, marcarLida, contarNaoLidas,
@@ -14,7 +14,64 @@ import {
   marcarTodasNotificacoesLidas, limparNotificacoes,
 } from '../../services/notificacaoService';
 import type { Notificacao } from '../../services/notificacaoService';
-import type { Equipe, Bombeiro } from '../../types/bombeiro';
+import type { Equipe } from '../../types/bombeiro';
+
+const USERS_KEY = 'sescinc-users';
+
+interface StoredUser {
+  name: string;
+  role: UserRole;
+}
+
+function getStoredUsers(): Record<string, StoredUser> {
+  try {
+    return JSON.parse(localStorage.getItem(USERS_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+interface ChatUser {
+  username: string;
+  name: string;
+  role: UserRole;
+}
+
+function getChatUsers(currentUsername: string): ChatUser[] {
+  const users = getStoredUsers();
+  return Object.entries(users)
+    .filter(([key]) => key !== currentUsername)
+    .map(([key, u]) => ({ username: key, name: u.name, role: u.role }));
+}
+
+const PRESENCE_KEY = 'sescinc-presence';
+const PRESENCE_TTL = 120_000;
+
+function touchPresence(myUsername: string) {
+  if (!myUsername) return;
+  try {
+    const raw = localStorage.getItem(PRESENCE_KEY);
+    const data: Record<string, number> = raw ? JSON.parse(raw) : {};
+    data[myUsername] = Date.now();
+    localStorage.setItem(PRESENCE_KEY, JSON.stringify(data));
+  } catch { /* ignore */ }
+}
+
+function getOnlineUsers(): Set<string> {
+  try {
+    const raw = localStorage.getItem(PRESENCE_KEY);
+    if (!raw) return new Set();
+    const data: Record<string, number> = JSON.parse(raw);
+    const now = Date.now();
+    const online = new Set<string>();
+    for (const [user, ts] of Object.entries(data)) {
+      if (now - ts < PRESENCE_TTL) online.add(user);
+    }
+    return online;
+  } catch {
+    return new Set();
+  }
+}
 
 type RightTab = 'chat' | 'notificacoes' | 'contatos';
 type ChatSubTab = 'geral' | 'privado';
@@ -59,25 +116,39 @@ export function RightPanel({ onClose, openTab = 'chat' }: { onClose: () => void;
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
+  const [chatUsers, setChatUsers] = useState<ChatUser[]>([]);
+  const [bombeirosEquipes, setBombeirosEquipes] = useState<{ nomeGuerra: string; equipe: Equipe }[]>([]);
+  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    async function carregar() {
-      const data = await listarBombeiros();
-      setBombeiros(data);
+    setChatUsers(getChatUsers(username));
+    async function carregarEquipes() {
+      try {
+        const data = await listarBombeiros();
+        setBombeirosEquipes(data.map(b => ({ nomeGuerra: b.nomeGuerra, equipe: b.equipe })));
+      } catch { /* ignore */ }
     }
-    carregar();
-  }, []);
+    carregarEquipes();
+
+    touchPresence(username);
+    setOnlineUsers(getOnlineUsers());
+    const interval = setInterval(() => {
+      touchPresence(username);
+      setOnlineUsers(getOnlineUsers());
+    }, 30_000);
+    const onFocus = () => { touchPresence(username); setOnlineUsers(getOnlineUsers()); };
+    window.addEventListener('focus', onFocus);
+    return () => { clearInterval(interval); window.removeEventListener('focus', onFocus); };
+  }, [username]);
 
   const userEquipes = useMemo(() => {
     const isGlobal = effectiveRole === 'admin_master' || effectiveRole === 'admin' || effectiveRole === 'gerente';
     if (isGlobal) return null;
-    const b = bombeiros.find(x =>
-      x.nomeGuerra.toLowerCase() === username.toLowerCase() ||
-      x.nomeCompleto.toLowerCase().includes(username.toLowerCase())
+    const b = bombeirosEquipes.find(x =>
+      x.nomeGuerra.toLowerCase() === username.toLowerCase()
     );
     return b ? [b.equipe] as Equipe[] : null;
-  }, [bombeiros, username, effectiveRole]);
+  }, [bombeirosEquipes, username, effectiveRole]);
 
   async function carregarNotificacoes() {
     const geradas = await gerarNotificacoes();
@@ -88,13 +159,13 @@ export function RightPanel({ onClose, openTab = 'chat' }: { onClose: () => void;
   useEffect(() => { carregarNotificacoes(); }, []);
 
   const usuariosFiltrados = useMemo(() => {
-    if (!busca) return bombeiros;
+    if (!busca) return chatUsers;
     const t = busca.toLowerCase();
-    return bombeiros.filter(b =>
-      b.nomeCompleto.toLowerCase().includes(t) ||
-      b.nomeGuerra.toLowerCase().includes(t)
+    return chatUsers.filter(u =>
+      u.name.toLowerCase().includes(t) ||
+      u.username.toLowerCase().includes(t)
     );
-  }, [bombeiros, busca]);
+  }, [chatUsers, busca]);
 
   const gerais = useMemo(() => mensagensGerais(), [refresh]);
   const privadas = useMemo(() =>
@@ -187,9 +258,9 @@ export function RightPanel({ onClose, openTab = 'chat' }: { onClose: () => void;
               </h2>
               <p className="text-[11px] text-graphite-500">
                 {conversaComUser ? 'Mensagem privada' :
-                 tab === 'chat' ? (chatSubTab === 'geral' ? 'Canal geral' : `${bombeiros.length} pessoas`) :
+                 tab === 'chat' ? (chatSubTab === 'geral' ? 'Canal geral' : `${chatUsers.length} usuarios`) :
                  tab === 'notificacoes' ? `${naoLidas} não lida(s)` :
-                 `${bombeiros.length} cadastrado(s)`}
+                 `${chatUsers.length} cadastrado(s)`}
               </p>
             </div>
           </div>
@@ -278,18 +349,25 @@ export function RightPanel({ onClose, openTab = 'chat' }: { onClose: () => void;
                     </div>
                   ) : (
                     <div className="space-y-0.5">
-                      {usuariosFiltrados.map(b => {
-                        const initials = b.nomeGuerra.charAt(0).toUpperCase();
+                      {usuariosFiltrados.map(u => {
+                        const initials = u.name.charAt(0).toUpperCase();
+                        const roleLabel: Record<UserRole, string> = {
+                          admin_master: 'Admin Master',
+                          admin: 'Admin',
+                          gerente: 'Gerente',
+                          chefe: 'Chefe',
+                          lider: 'Lider',
+                        };
                         return (
-                          <button key={b.id}
-                            onClick={() => { setConversaComUser(b.nomeGuerra.toLowerCase()); setConversaComNome(b.nomeCompleto); setBusca(''); }}
+                          <button key={u.username}
+                            onClick={() => { setConversaComUser(u.username); setConversaComNome(u.name); setBusca(''); }}
                             className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all hover:bg-surface-card active:scale-[0.98]">
                             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-aviation-500 to-aviation-700 text-xs font-bold text-white shadow-md shadow-aviation-500/10">
-                              {b.foto ? <img src={b.foto} className="h-full w-full rounded-full object-cover" /> : initials}
+                              {initials}
                             </div>
                             <div className="min-w-0 flex-1">
-                              <p className="text-sm font-semibold text-graphite-100 truncate">{b.nomeCompleto}</p>
-                              <p className="text-[11px] text-graphite-500">{b.nomeGuerra} · Equipe {b.equipe}</p>
+                              <p className="text-sm font-semibold text-graphite-100 truncate">{u.name}</p>
+                              <p className="text-[11px] text-graphite-500">{u.username} · {roleLabel[u.role]}</p>
                             </div>
                             <MessageCircle className="h-4 w-4 shrink-0 text-graphite-700" />
                           </button>
@@ -522,21 +600,32 @@ export function RightPanel({ onClose, openTab = 'chat' }: { onClose: () => void;
                 </div>
               ) : (
                 <div className="space-y-0.5">
-                  {usuariosFiltrados.map(b => {
-                    const initials = b.nomeGuerra.charAt(0).toUpperCase();
+                  {usuariosFiltrados.map(u => {
+                    const initials = u.name.charAt(0).toUpperCase();
+                    const roleLabel: Record<UserRole, string> = {
+                      admin_master: 'Admin Master',
+                      admin: 'Admin',
+                      gerente: 'Gerente',
+                      chefe: 'Chefe',
+                      lider: 'Lider',
+                    };
                     return (
-                      <button key={b.id}
-                        onClick={() => { setTab('chat'); setChatSubTab('privado'); setConversaComUser(b.nomeGuerra.toLowerCase()); setConversaComNome(b.nomeCompleto); setBusca(''); }}
+                      <button key={u.username}
+                        onClick={() => { setTab('chat'); setChatSubTab('privado'); setConversaComUser(u.username); setConversaComNome(u.name); setBusca(''); }}
                         className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-all hover:bg-surface-card active:scale-[0.98]">
                         <div className="relative">
                           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-aviation-500 to-aviation-700 text-sm font-bold text-white shadow-md shadow-aviation-500/10">
-                            {b.foto ? <img src={b.foto} className="h-full w-full rounded-full object-cover" /> : initials}
+                            {initials}
                           </div>
-                          <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-graphite-950 bg-green-500" />
+                          {onlineUsers.has(u.username) ? (
+                            <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-graphite-950 bg-green-500" />
+                          ) : (
+                            <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-graphite-950 bg-red-500" />
+                          )}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold text-graphite-100 truncate">{b.nomeCompleto}</p>
-                          <p className="text-[11px] text-graphite-500">{b.nomeGuerra} · {b.equipe} · {b.turno}</p>
+                          <p className="text-sm font-semibold text-graphite-100 truncate">{u.name}</p>
+                          <p className="text-[11px] text-graphite-500">{u.username} · {roleLabel[u.role]}</p>
                         </div>
                         <MessageCircle className="h-4 w-4 shrink-0 text-graphite-700" />
                       </button>

@@ -85,8 +85,11 @@ export async function atualizarDocumento(id: string, updates: Partial<Document>)
 
 export async function excluirDocumento(id: string): Promise<boolean> {
   const db = getDb();
-  const { error } = await db.from('documents').delete().eq('id', id);
-  if (error) handleSupabaseError(error);
+
+  await excluirPdf(id);
+
+  await atualizarDocumento(id, { template_pdf_url: null });
+
   return true;
 }
 
@@ -364,4 +367,26 @@ export async function excluirPdf(docId: string): Promise<void> {
     const paths = files.map((f: { name: string }) => `${docId}/${f.name}`);
     await db.storage.from(BUCKET).remove(paths);
   }
+}
+
+export async function listarPdfsStorage(): Promise<{ name: string; path: string; id: string }[]> {
+  const db = getDb();
+  const { data: folders } = await db.storage.from(BUCKET).list('', { limit: 100 });
+  if (!folders) return [];
+
+  const results: { name: string; path: string; id: string }[] = [];
+  for (const folder of folders) {
+    if (!folder.name) continue;
+    const { data: files } = await db.storage.from(BUCKET).list(folder.name, { limit: 50 });
+    if (files) {
+      for (const f of files) {
+        if (f.name && f.name.endsWith('.pdf')) {
+          const fullPath = `${folder.name}/${f.name}`;
+          const displayName = f.name.replace(/^\d+_/, '').replace(/\.pdf$/i, '');
+          results.push({ name: displayName, path: fullPath, id: fullPath });
+        }
+      }
+    }
+  }
+  return results;
 }

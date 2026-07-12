@@ -29,7 +29,6 @@ export function Autocomplete({ value, onChange, options, placeholder, className 
 
   function handleInput(v: string) {
     setQuery(v);
-    onChange(v);
     setOpen(true);
     setHighlighted(-1);
   }
@@ -79,6 +78,7 @@ export function Autocomplete({ value, onChange, options, placeholder, className 
         listRef.current && !listRef.current.contains(e.target as Node)
       ) {
         setOpen(false);
+        setQuery(value);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);

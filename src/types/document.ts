@@ -8,9 +8,21 @@ export interface Document {
   template_pdf_width: number;
   template_pdf_height: number;
   active: boolean;
+  source_module: string | null;
+  created_by: string | null;
   created_at: string;
   updated_at: string;
 }
+
+export type SourceModule = 'trocas' | 'ferias' | 'epis' | 'certificacoes' | 'ocorrencias';
+
+export const SOURCE_MODULE_OPTIONS: { value: SourceModule; label: string }[] = [
+  { value: 'trocas', label: 'Trocas de Serviço' },
+  { value: 'ferias', label: 'Férias' },
+  { value: 'epis', label: 'EPIs' },
+  { value: 'certificacoes', label: 'Certificações' },
+  { value: 'ocorrencias', label: 'Ocorrências' },
+];
 
 export type FieldType = 'text' | 'number' | 'date' | 'select' | 'textarea' | 'checkbox' | 'signature' | 'line';
 
