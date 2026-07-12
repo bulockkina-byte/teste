@@ -90,6 +90,11 @@ function seedAdmin() {
   const users = getStoredUsers();
   let changed = false;
 
+  if (users['admin_master']) {
+    delete users['admin_master'];
+    changed = true;
+  }
+
   if (!users['serra']) {
     users['serra'] = { name: 'Serra', password: 'serra', role: 'admin_master' };
     changed = true;
@@ -129,6 +134,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(() => loadSession());
 
   useEffect(() => { seedAdmin(); }, []);
+
+  useEffect(() => {
+    if (user && user.username === 'admin_master') {
+      clearSession();
+      setUser(null);
+      return;
+    }
 
   useEffect(() => {
     if (!user) return;
