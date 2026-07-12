@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   RefreshCw, Plus, ArrowLeft, FileText, Loader2,
   Download, Save, ChevronDown, ChevronUp, Filter,
@@ -80,7 +79,6 @@ function formatCpf(v: string): string {
 
 export function Trocas() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const isAdmin = user?.role === 'admin_master' || user?.role === 'admin';
   const [loading, setLoading] = useState(true);
   const [subView, setSubView] = useState<SubView>('list');
@@ -407,6 +405,30 @@ export function Trocas() {
   function handleGerarPdf() {
     if (!validateForm()) return;
     setShowConfirmPdf(true);
+  }
+
+  async function handleVisualizarPdf(fill: DocumentFill) {
+    if (!templateDoc?.template_pdf_url) return;
+    try {
+      const blob = await getPdfBlob(templateDoc.template_pdf_url);
+      if (!blob) { setShowNotifPopup({ msg: 'PDF template nao encontrado.', type: 'error' }); return; }
+      const pdfBytes = await blob.arrayBuffer();
+      const dadosStr: Record<string, string> = {};
+      const data = fill.filled_data as Record<string, string>;
+      for (const [k, v] of Object.entries(data)) dadosStr[k] = String(v || '');
+      if (data.troca_emergencial === 'SIM') { dadosStr.check_troca_sim = 'V'; dadosStr.check_troca_nao = ''; }
+      else if (data.troca_emergencial === 'NAO') { dadosStr.check_troca_sim = ''; dadosStr.check_troca_nao = 'V'; }
+      if (data.deferido_indeferido === 'DEFERIDO') { dadosStr.check_deferido = 'V'; dadosStr.check_indeferido = ''; }
+      else if (data.deferido_indeferido === 'INDEFERIDO') { dadosStr.check_deferido = ''; dadosStr.check_indeferido = 'V'; }
+      const pdfBlob = await preencherPdf(pdfBytes, dadosStr, templateDoc.document_fields.map(f => ({
+        field_name: f.field_name, x: f.x, y: f.y, width: f.width, height: f.height,
+        font_size: f.font_size, is_signature: f.is_signature, page: f.page,
+      })));
+      const url = URL.createObjectURL(pdfBlob);
+      window.open(url, '_blank');
+    } catch {
+      setShowNotifPopup({ msg: 'Erro ao visualizar PDF.', type: 'error' });
+    }
   }
 
   async function handleOverrideLimit() {
@@ -749,24 +771,6 @@ export function Trocas() {
       <div className="flex items-center justify-between">
         <PageTitle icon={RefreshCw} title="Trocas de Servico" />
         <div className="flex items-center gap-2">
-          {isAdmin && templateDoc && (
-            <>
-              <button onClick={() => navigate('/documentos')} className="flex items-center gap-2 rounded-lg border border-graphite-200 bg-white px-3 py-2 text-sm font-medium text-graphite-700 hover:bg-graphite-50 dark:border-graphite-600 dark:bg-graphite-700 dark:text-graphite-200 dark:hover:bg-graphite-600">
-                <FileText className="h-4 w-4" /> Gerenciar Documento
-              </button>
-              {templateDoc.template_pdf_url && (
-                <button onClick={async () => {
-                  const blob = await getPdfBlob(templateDoc.template_pdf_url!);
-                  if (blob) {
-                    const url = URL.createObjectURL(blob);
-                    window.open(url, '_blank');
-                  }
-                }} className="flex items-center gap-2 rounded-lg border border-graphite-200 bg-white px-3 py-2 text-sm font-medium text-graphite-700 hover:bg-graphite-50 dark:border-graphite-600 dark:bg-graphite-700 dark:text-graphite-200 dark:hover:bg-graphite-600">
-                  <Eye className="h-4 w-4" /> Visualizar Template
-                </button>
-              )}
-            </>
-          )}
           <button onClick={startNewTroca} className="flex items-center gap-2 rounded-lg bg-aviation-600 px-4 py-2 text-sm font-medium text-white hover:bg-aviation-700">
             <Plus className="h-4 w-4" /> Criar Troca
           </button>
@@ -866,6 +870,11 @@ export function Trocas() {
                     <button onClick={() => setExpandedFill(isExpanded ? null : fill.id)} className="rounded p-1 text-graphite-400 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-700">
                       {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                     </button>
+                    {isAdmin && templateDoc?.template_pdf_url && (
+                      <button onClick={() => handleVisualizarPdf(fill)} title="Visualizar PDF" className="rounded p-1 text-graphite-400 hover:bg-graphite-100 hover:text-aviation-600 dark:hover:bg-graphite-700 dark:hover:text-aviation-400">
+                        <Eye className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
                 {isExpanded && (
