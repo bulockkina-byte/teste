@@ -117,6 +117,9 @@ export function Perfil() {
       if (!stored) return;
       stored.personId = personId;
       stored.personType = personType;
+      if (personId && personType && linkedPerson) {
+        stored.name = linkedPerson.nomeCompleto;
+      }
       localStorage.setItem(USERS_KEY, JSON.stringify(users));
       setNotif({ msg: 'Vinculo atualizado com sucesso!', type: 'success' });
       setTimeout(() => setNotif(null), 3000);

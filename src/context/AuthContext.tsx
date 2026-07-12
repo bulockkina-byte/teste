@@ -180,6 +180,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const bombeiros = await listarBombeiros();
           const b = bombeiros.find(p => p.id === stored.personId);
           if (b) {
+            userData.name = b.nomeCompleto;
             userData.pessoa = {
               nomeGuerra: b.nomeGuerra,
               foto: b.foto || undefined,
@@ -199,6 +200,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const apocs = await listarAPOCs();
           const a = apocs.find(p => p.id === stored.personId);
           if (a) {
+            userData.name = a.nomeCompleto;
             userData.pessoa = {
               nomeGuerra: a.nomeGuerra,
               foto: undefined,
@@ -212,6 +214,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const bombeiros = await listarBombeiros();
       const bombeiro = bombeiros.find(b => b.nomeCompleto === stored.name || b.email === username);
       if (bombeiro) {
+        userData.name = bombeiro.nomeCompleto;
         userData.pessoa = {
           nomeGuerra: bombeiro.nomeGuerra,
           foto: bombeiro.foto || undefined,
