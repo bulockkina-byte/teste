@@ -79,8 +79,8 @@ export function RightPanel({ onClose, openTab = 'chat' }: { onClose: () => void;
     return b ? [b.equipe] as Equipe[] : null;
   }, [bombeiros, username, effectiveRole]);
 
-  function carregarNotificacoes() {
-    const geradas = gerarNotificacoes();
+  async function carregarNotificacoes() {
+    const geradas = await gerarNotificacoes();
     const filtradas = userEquipes ? listarNotificacoesPorEquipe(userEquipes) : geradas;
     setNotificacoes(filtradas);
   }

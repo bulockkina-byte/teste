@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   RefreshCw, Plus, ArrowLeft, FileText, Loader2,
   Download, Save, ChevronDown, ChevronUp, Filter,
-  AlertTriangle, AlertCircle, Edit, Trash2,
+  AlertTriangle, AlertCircle, Edit, Trash2, Eye,
 } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
@@ -750,9 +750,22 @@ export function Trocas() {
         <PageTitle icon={RefreshCw} title="Trocas de Servico" />
         <div className="flex items-center gap-2">
           {isAdmin && templateDoc && (
-            <button onClick={() => navigate('/documentos')} className="flex items-center gap-2 rounded-lg border border-graphite-200 bg-white px-3 py-2 text-sm font-medium text-graphite-700 hover:bg-graphite-50 dark:border-graphite-600 dark:bg-graphite-700 dark:text-graphite-200 dark:hover:bg-graphite-600">
-              <FileText className="h-4 w-4" /> Gerenciar Documento
-            </button>
+            <>
+              <button onClick={() => navigate('/documentos')} className="flex items-center gap-2 rounded-lg border border-graphite-200 bg-white px-3 py-2 text-sm font-medium text-graphite-700 hover:bg-graphite-50 dark:border-graphite-600 dark:bg-graphite-700 dark:text-graphite-200 dark:hover:bg-graphite-600">
+                <FileText className="h-4 w-4" /> Gerenciar Documento
+              </button>
+              {templateDoc.template_pdf_url && (
+                <button onClick={async () => {
+                  const blob = await getPdfBlob(templateDoc.template_pdf_url!);
+                  if (blob) {
+                    const url = URL.createObjectURL(blob);
+                    window.open(url, '_blank');
+                  }
+                }} className="flex items-center gap-2 rounded-lg border border-graphite-200 bg-white px-3 py-2 text-sm font-medium text-graphite-700 hover:bg-graphite-50 dark:border-graphite-600 dark:bg-graphite-700 dark:text-graphite-200 dark:hover:bg-graphite-600">
+                  <Eye className="h-4 w-4" /> Visualizar Template
+                </button>
+              )}
+            </>
           )}
           <button onClick={startNewTroca} className="flex items-center gap-2 rounded-lg bg-aviation-600 px-4 py-2 text-sm font-medium text-white hover:bg-aviation-700">
             <Plus className="h-4 w-4" /> Criar Troca
