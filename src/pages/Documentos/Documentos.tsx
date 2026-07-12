@@ -58,6 +58,9 @@ export function Documentos() {
   const [bombeirosList, setBombeirosList] = useState<any[]>([]);
   const [apocsList, setApocsList] = useState<any[]>([]);
 
+  // Template path input
+  const [templatePathInput, setTemplatePathInput] = useState('');
+
   // Confirmation modal
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingPdfFile, setPendingPdfFile] = useState<File | null>(null);
@@ -260,6 +263,35 @@ export function Documentos() {
       setDocumentos(await listarDocumentos());
     } catch {
       alert('Erro inesperado ao excluir documento. Contate o administrador.');
+    }
+  }
+
+  // ═══ TEMPLATE PATH ═══
+  async function handleSetTemplatePath() {
+    if (!selectedDoc || !templatePathInput.trim()) return;
+    const path = templatePathInput.trim();
+
+    setSaving(true);
+    try {
+      await atualizarDocumento(selectedDoc.id, { template_pdf_url: path });
+
+      const existingFields = selectedDoc.document_fields;
+      if (existingFields.length > 0) {
+        await Promise.all(existingFields.map(f => atualizarCampo(f.id, { x: 0, y: 0 })));
+      }
+
+      const full = await buscarDocumento(selectedDoc.id);
+      if (full) {
+        setSelectedDoc(full);
+        await loadPdfData(full);
+      }
+      setDocumentos(await listarDocumentos());
+      setActiveTab('tray');
+      showNotif({ message: 'Template vinculado com sucesso!', type: 'success' });
+    } catch (err) {
+      showNotif({ message: String(err), type: 'error' });
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -757,29 +789,46 @@ export function Documentos() {
             <PageTitle icon={Edit3} title={selectedDoc.name} />
 
             <div className="ml-auto flex items-center gap-2">
-              <label className="cursor-pointer flex items-center gap-2 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700">
-                <Upload className="h-3 w-3" /> {pdfData ? 'Trocar PDF' : 'Upload PDF Template'}
-                <input type="file" accept=".pdf" className="hidden" onChange={handleUploadPdf} ref={!pdfData ? pdfInputRef : undefined} />
-              </label>
+              {pdfData ? (
+                <button onClick={() => { setPdfData(null); if (selectedDoc) atualizarDocumento(selectedDoc.id, { template_pdf_url: null }); }}
+                  className="flex items-center gap-2 rounded-lg border border-graphite-200 bg-white px-3 py-1.5 text-xs font-medium text-graphite-700 hover:bg-graphite-50 dark:border-graphite-600 dark:bg-graphite-700 dark:text-graphite-200">
+                  <Upload className="h-3 w-3" /> Trocar Template
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <input type="text" value={templatePathInput} onChange={e => setTemplatePathInput(e.target.value)}
+                    placeholder="/templates/troca.pdf"
+                    className="w-64 rounded-lg border border-graphite-200 bg-white px-3 py-1.5 text-xs text-graphite-700 placeholder-graphite-400 dark:border-graphite-600 dark:bg-graphite-700 dark:text-graphite-200" />
+                  <button onClick={handleSetTemplatePath} disabled={!templatePathInput.trim()}
+                    className="flex items-center gap-2 rounded-lg bg-aviation-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-aviation-700 disabled:opacity-50">
+                    <Upload className="h-3 w-3" /> Vincular
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
           {!pdfData ? (
             <div className="flex flex-1 flex-col items-center justify-center">
               <div className="rounded-xl border border-dashed border-graphite-300 bg-graphite-50 p-12 text-center dark:border-graphite-700 dark:bg-graphite-800/50">
-                <Upload className="mx-auto mb-4 h-12 w-12 text-graphite-300" />
-                <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Faça upload do PDF template</h3>
-                <p className="mb-4 text-sm text-graphite-500">Faça upload do PDF do documento para posicionar os campos visualmente</p>
+                <FileText className="mx-auto mb-4 h-12 w-12 text-graphite-300" />
+                <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Vincule o PDF template</h3>
+                <p className="mb-4 text-sm text-graphite-500">Coloque o PDF em <code className="bg-graphite-200 px-1 rounded dark:bg-graphite-700">public/templates/</code> e informe o path abaixo</p>
                 {trayFields.length > 0 && (
                   <p className="mb-4 text-sm text-amber-600">
                     <Package className="mr-1 inline h-4 w-4" />
                     {trayFields.length} campo(s) na bandeja aguardando posicionamento
                   </p>
                 )}
-                <label className="cursor-pointer inline-flex items-center gap-2 rounded-lg bg-aviation-600 px-6 py-3 text-sm font-medium text-white hover:bg-aviation-700">
-                  <Upload className="h-4 w-4" /> Selecionar PDF
-                  <input type="file" accept=".pdf" className="hidden" onChange={handleUploadPdf} />
-                </label>
+                <div className="flex items-center justify-center gap-2">
+                  <input type="text" value={templatePathInput} onChange={e => setTemplatePathInput(e.target.value)}
+                    placeholder="/templates/troca.pdf"
+                    className="w-72 rounded-lg border border-graphite-200 bg-white px-3 py-2.5 text-sm text-graphite-700 placeholder-graphite-400 dark:border-graphite-600 dark:bg-graphite-700 dark:text-graphite-200" />
+                  <button onClick={handleSetTemplatePath} disabled={!templatePathInput.trim() || saving}
+                    className="flex items-center gap-2 rounded-lg bg-aviation-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-aviation-700 disabled:opacity-50">
+                    <Upload className="h-4 w-4" /> Vincular
+                  </button>
+                </div>
               </div>
             </div>
           ) : (

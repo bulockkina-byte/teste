@@ -331,6 +331,19 @@ export async function getPdfDownloadUrl(path: string): Promise<string | null> {
 }
 
 export async function getPdfBlob(path: string): Promise<Blob | null> {
+  if (path.startsWith('/')) {
+    try {
+      const res = await fetch(path);
+      if (!res.ok) {
+        console.error('Erro ao buscar PDF local:', res.statusText);
+        return null;
+      }
+      return await res.blob();
+    } catch (err) {
+      console.error('Erro ao buscar PDF local:', err);
+      return null;
+    }
+  }
   const db = getDb();
   const { data, error } = await db.storage
     .from(BUCKET)
