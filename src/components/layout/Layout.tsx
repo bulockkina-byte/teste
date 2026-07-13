@@ -4,14 +4,14 @@ import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 
 export function Layout() {
-  const { collapsed } = useSidebar();
+  const { effectiveCollapsed } = useSidebar();
 
   return (
     <div className="min-h-screen bg-white dark:bg-graphite-950">
       <Sidebar />
       <div
-        className={`will-change-[margin] transition-all duration-500 ease-out-expo ${
-          collapsed ? 'ml-[70px]' : 'ml-[260px]'
+        className={`will-change-[margin] transition-all duration-300 ease-out-expo ${
+          effectiveCollapsed ? 'ml-[70px]' : 'ml-[260px]'
         }`}
       >
         <Header />

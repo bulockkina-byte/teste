@@ -218,7 +218,7 @@ export function UsuarioForm({ user, isProtected = false, currentUserRole, curren
             {isProtected && (
               <p className="mt-1 text-[11px] text-graphite-500 dark:text-graphite-500">A função deste usuário não pode ser alterada.</p>
             )}
-            {user?.role === 'admin' && user?.previousRole && (currentUserRole === 'admin_master' || user?.username === currentUsername) && (
+            {user?.role === 'admin' && user?.previousRole && (currentUserRole === 'desenvolvedor' || user?.username === currentUsername) && (
               <p className="mt-1 text-[11px] text-graphite-500 dark:text-graphite-500">Função anterior: <span className="font-medium">{ROLE_LABELS[user.previousRole] || user.previousRole}</span></p>
             )}
           </div>

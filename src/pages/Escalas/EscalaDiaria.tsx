@@ -1,14 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Calendar, Shield, Users, Plus, Trash2, FileText, Radio,
   ChevronDown, ChevronUp, Save, Eye, Pencil, Copy, Printer,
-  RotateCcw,
+  RotateCcw, AlertTriangle, X as XIcon,
+  ArrowRightLeft, ArrowRight,
 } from 'lucide-react';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { useAuth } from '../../context/AuthContext';
 import { listarEscalas, criarEscala, atualizarEscala, excluirEscala } from '../../services/escalaService';
+import { listarBombeiros } from '../../services/bombeiroService';
+import { listarSubstituicoesTemporarias } from '../../services/substituicaoTemporariaService';
 import { FUNCOES_BDS_PTR } from '../../types/escala';
 import type { EscalaDiaria } from '../../types/escala';
+import type { Bombeiro, Cargo } from '../../types/bombeiro';
+import type { SubstituicaoTemporaria } from '../../types/substituicaoTemporaria';
+import { validarCursoParaFuncao } from '../../utils/validacaoCursos';
 
 const EQUIPES = ['Alfa', 'Bravo', 'Charlie', 'Delta'] as const;
 
@@ -52,11 +58,31 @@ function autoPreencher(equipe: string) {
   return { horarioInicio: '19:00', horarioTermino: '07:00', turno: 'Noturno' };
 }
 
-function SlotFuncao({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+const SLOT_ROLE_MAP: Record<string, Cargo> = {
+  'BA-CE': 'BA-CE',
+  'BA-LR': 'BA-LR',
+  'BA-MC': 'BA-MC',
+};
+
+function SlotFuncao({ label, value, onChange, allBombeiros }: { label: string; value: string; onChange: (v: string) => void; allBombeiros: Bombeiro[] }) {
+  const role = SLOT_ROLE_MAP[label];
+  const selecionado = value ? allBombeiros.find(b => b.nomeGuerra === value) : null;
+  const aviso = selecionado && role ? validarCursoParaFuncao(selecionado, role) : null;
+
   return (
     <div>
       <p className="mb-1 text-xs font-medium text-graphite-500 dark:text-graphite-400">{label}</p>
       <SearchSelect value={value} onChange={onChange} placeholder={`Selecione ${label}`} />
+      {aviso && (
+        <div className={`mt-1.5 flex items-start gap-2 rounded-lg px-2.5 py-2 text-[11px] leading-tight ${
+          aviso.nivel === 'bloqueado'
+            ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+            : 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400'
+        }`}>
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>{aviso.mensagem}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -72,6 +98,37 @@ function EscalaDiariaForm({
   onCancel: () => void;
 }) {
   const [form, setForm] = useState(emptyEscala());
+  const [allBombeiros, setAllBombeiros] = useState<Bombeiro[]>([]);
+  const [substituicoes, setSubstituicoes] = useState<SubstituicaoTemporaria[]>([]);
+
+  useEffect(() => { listarBombeiros().then(setAllBombeiros); }, []);
+
+  useEffect(() => {
+    listarSubstituicoesTemporarias().then(lista => {
+      setSubstituicoes(lista.filter(s => s.status === 'Aprovada'));
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!form.dataPlantao) return;
+    const data = form.dataPlantao;
+    const aprovadas = substituicoes.filter(s =>
+      s.status === 'Aprovada' && data >= s.dataInicio && data <= s.dataFim
+    );
+    if (aprovadas.length === 0) return;
+    setForm(f => {
+      const novasTrocas = aprovadas.map(s => ({
+        funcaoSaindo: s.funcionarioCargo || '',
+        nomeSaindo: s.funcionarioNome,
+        funcaoEntrando: s.substitutoCargo || '',
+        nomeEntrando: s.substitutoNome,
+      }));
+      const combinadas = [...f.trocas, ...novasTrocas.filter(n =>
+        !f.trocas.some(t => t.nomeSaindo === n.nomeSaindo && t.nomeEntrando === n.nomeEntrando)
+      )];
+      return { ...f, trocas: combinadas };
+    });
+  }, [form.dataPlantao, substituicoes]);
 
   useEffect(() => {
     if (escala) {
@@ -95,7 +152,34 @@ function EscalaDiariaForm({
 
   function updateEquipe(equipe: string) {
     const auto = autoPreencher(equipe);
-    setForm(f => ({ ...f, equipe, ...auto }));
+    const membros = allBombeiros.filter(b => b.equipe === equipe);
+    const find = (cargo: Cargo) => {
+      const idx = membros.findIndex(b => b.cargo === cargo);
+      if (idx !== -1) return membros.splice(idx, 1)[0].nomeGuerra;
+      return '';
+    };
+    const findAny = (cargos: Cargo[]) => {
+      for (const c of cargos) {
+        const idx = membros.findIndex(b => b.cargo === c);
+        if (idx !== -1) return membros.splice(idx, 1)[0].nomeGuerra;
+      }
+      return '';
+    };
+    const chefe = find('BA-CE');
+    const mc1 = find('BA-MC'), mc2 = find('BA-MC'), mc3 = find('BA-MC');
+    const lr = find('BA-LR');
+    const b2_1 = findAny(['BA-2','BA-RE']), b2_2 = findAny(['BA-2','BA-RE']), b2_3 = findAny(['BA-2','BA-RE']), b2_4 = findAny(['BA-2','BA-RE']), b2_5 = findAny(['BA-2','BA-RE']);
+    setForm(f => ({
+      ...f,
+      equipe,
+      ...auto,
+      chefeEquipe: chefe || f.chefeEquipe,
+      guarnicoes: {
+        crs: { baMc: mc1 || f.guarnicoes.crs.baMc, baLr: lr || f.guarnicoes.crs.baLr, baRe1: b2_1 || f.guarnicoes.crs.baRe1, baRe2: b2_2 || f.guarnicoes.crs.baRe2 },
+        cci02: { baMc: mc2 || f.guarnicoes.cci02.baMc, baCe: chefe || f.guarnicoes.cci02.baCe, ba2: b2_3 || f.guarnicoes.cci02.ba2 },
+        cci03: { baMc: mc3 || f.guarnicoes.cci03.baMc, ba2_1: b2_4 || f.guarnicoes.cci03.ba2_1, ba2_2: b2_5 || f.guarnicoes.cci03.ba2_2 },
+      },
+    }));
   }
 
   function updateGuarnicao(section: 'cci02' | 'cci03' | 'crs', field: string, value: string) {
@@ -131,6 +215,20 @@ function EscalaDiariaForm({
         <div>
           <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Chefe de Equipe - SCI NVT</label>
           <SearchSelect value={form.chefeEquipe} onChange={v => setForm(f => ({ ...f, chefeEquipe: v }))} placeholder="Selecione o chefe" />
+          {form.chefeEquipe && (() => {
+            const b = allBombeiros.find(x => x.nomeGuerra === form.chefeEquipe);
+            const aviso = b ? validarCursoParaFuncao(b, 'BA-CE') : null;
+            return aviso ? (
+              <div className={`mt-1.5 flex items-start gap-2 rounded-lg px-2.5 py-2 text-[11px] leading-tight ${
+                aviso.nivel === 'bloqueado'
+                  ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+                  : 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400'
+              }`}>
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>{aviso.mensagem}</span>
+              </div>
+            ) : null;
+          })()}
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Data do Plantão</label>
@@ -167,28 +265,28 @@ function EscalaDiariaForm({
           <div className="rounded-xl border border-graphite-200/60 bg-graphite-50/50 p-4 dark:border-border-dark dark:bg-surface-card/50">
             <h4 className="mb-3 text-sm font-bold text-graphite-700 dark:text-graphite-300">CCI 02</h4>
             <div className="space-y-3">
-              <SlotFuncao label="BA-MC" value={form.guarnicoes.cci02.baMc} onChange={v => updateGuarnicao('cci02', 'baMc', v)} />
-              <SlotFuncao label="BA-CE" value={form.guarnicoes.cci02.baCe} onChange={v => updateGuarnicao('cci02', 'baCe', v)} />
-              <SlotFuncao label="BA-2" value={form.guarnicoes.cci02.ba2} onChange={v => updateGuarnicao('cci02', 'ba2', v)} />
+              <SlotFuncao label="BA-MC" value={form.guarnicoes.cci02.baMc} onChange={v => updateGuarnicao('cci02', 'baMc', v)} allBombeiros={allBombeiros} />
+              <SlotFuncao label="BA-CE" value={form.guarnicoes.cci02.baCe} onChange={v => updateGuarnicao('cci02', 'baCe', v)} allBombeiros={allBombeiros} />
+              <SlotFuncao label="BA-2" value={form.guarnicoes.cci02.ba2} onChange={v => updateGuarnicao('cci02', 'ba2', v)} allBombeiros={allBombeiros} />
             </div>
           </div>
           {/* CCI 03 */}
           <div className="rounded-xl border border-graphite-200/60 bg-graphite-50/50 p-4 dark:border-border-dark dark:bg-surface-card/50">
             <h4 className="mb-3 text-sm font-bold text-graphite-700 dark:text-graphite-300">CCI 03</h4>
             <div className="space-y-3">
-              <SlotFuncao label="BA-MC" value={form.guarnicoes.cci03.baMc} onChange={v => updateGuarnicao('cci03', 'baMc', v)} />
-              <SlotFuncao label="BA-2" value={form.guarnicoes.cci03.ba2_1} onChange={v => updateGuarnicao('cci03', 'ba2_1', v)} />
-              <SlotFuncao label="BA-2" value={form.guarnicoes.cci03.ba2_2} onChange={v => updateGuarnicao('cci03', 'ba2_2', v)} />
+              <SlotFuncao label="BA-MC" value={form.guarnicoes.cci03.baMc} onChange={v => updateGuarnicao('cci03', 'baMc', v)} allBombeiros={allBombeiros} />
+              <SlotFuncao label="BA-2" value={form.guarnicoes.cci03.ba2_1} onChange={v => updateGuarnicao('cci03', 'ba2_1', v)} allBombeiros={allBombeiros} />
+              <SlotFuncao label="BA-2" value={form.guarnicoes.cci03.ba2_2} onChange={v => updateGuarnicao('cci03', 'ba2_2', v)} allBombeiros={allBombeiros} />
             </div>
           </div>
           {/* CRS */}
           <div className="rounded-xl border border-graphite-200/60 bg-graphite-50/50 p-4 dark:border-border-dark dark:bg-surface-card/50">
             <h4 className="mb-3 text-sm font-bold text-graphite-700 dark:text-graphite-300">CRS</h4>
             <div className="space-y-3">
-              <SlotFuncao label="BA-MC" value={form.guarnicoes.crs.baMc} onChange={v => updateGuarnicao('crs', 'baMc', v)} />
-              <SlotFuncao label="BA-LR" value={form.guarnicoes.crs.baLr} onChange={v => updateGuarnicao('crs', 'baLr', v)} />
-              <SlotFuncao label="BA-RE" value={form.guarnicoes.crs.baRe1} onChange={v => updateGuarnicao('crs', 'baRe1', v)} />
-              <SlotFuncao label="BA-RE" value={form.guarnicoes.crs.baRe2} onChange={v => updateGuarnicao('crs', 'baRe2', v)} />
+              <SlotFuncao label="BA-MC" value={form.guarnicoes.crs.baMc} onChange={v => updateGuarnicao('crs', 'baMc', v)} allBombeiros={allBombeiros} />
+              <SlotFuncao label="BA-LR" value={form.guarnicoes.crs.baLr} onChange={v => updateGuarnicao('crs', 'baLr', v)} allBombeiros={allBombeiros} />
+              <SlotFuncao label="BA-RE" value={form.guarnicoes.crs.baRe1} onChange={v => updateGuarnicao('crs', 'baRe1', v)} allBombeiros={allBombeiros} />
+              <SlotFuncao label="BA-RE" value={form.guarnicoes.crs.baRe2} onChange={v => updateGuarnicao('crs', 'baRe2', v)} allBombeiros={allBombeiros} />
             </div>
           </div>
         </div>
@@ -244,70 +342,29 @@ function EscalaDiariaForm({
         </div>
       </fieldset>
 
-      {/* Trocas */}
+      {/* Trocas (automáticas - somente leitura) */}
       <fieldset>
         <legend className="mb-4 text-sm font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400">
-          <Users className="mr-1 inline h-4 w-4" /> Trocas
+          <Users className="mr-1 inline h-4 w-4" /> Trocas {form.trocas.length > 0 && <span className="ml-1 text-[10px] text-amber-600">(automáticas - carregadas do sistema)</span>}
         </legend>
-        <div className="space-y-4">
-          {form.trocas.map((t, i) => (
-            <div key={i} className="rounded-xl border border-graphite-200/60 bg-graphite-50/50 p-4 dark:border-border-dark dark:bg-surface-card/50">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-xs font-semibold text-graphite-500">Troca {i + 1}</span>
-                <button type="button" onClick={() => setForm(f => ({ ...f, trocas: f.trocas.filter((_, j) => j !== i) }))}
-                  className="rounded-xl p-1.5 text-alert-red transition-all duration-200 hover:bg-red-50 dark:hover:bg-red-900/20">
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-                <div>
-                  <label className="mb-1 block text-xs text-graphite-500">Função (saindo)</label>
-                  <select value={t.funcaoSaindo} onChange={e => {
-                    const next = [...form.trocas];
-                    next[i] = { ...next[i], funcaoSaindo: e.target.value };
-                    setForm(f => ({ ...f, trocas: next }));
-                  }}
-                    className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated">
-                    <option value="" className={optionCls}>Selecione</option>
-                    {FUNCOES_BDS_PTR.map(f => <option key={f} value={f} className={optionCls}>{f}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs text-graphite-500">Nome (saindo)</label>
-                  <SearchSelect value={t.nomeSaindo} onChange={v => {
-                    const next = [...form.trocas];
-                    next[i] = { ...next[i], nomeSaindo: v };
-                    setForm(f => ({ ...f, trocas: next }));
-                  }} placeholder="Nome de guerra" />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs text-graphite-500">Função (entrando)</label>
-                  <select value={t.funcaoEntrando} onChange={e => {
-                    const next = [...form.trocas];
-                    next[i] = { ...next[i], funcaoEntrando: e.target.value };
-                    setForm(f => ({ ...f, trocas: next }));
-                  }}
-                    className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated">
-                    <option value="" className={optionCls}>Selecione</option>
-                    {FUNCOES_BDS_PTR.map(f => <option key={f} value={f} className={optionCls}>{f}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs text-graphite-500">Nome (entrando)</label>
-                  <SearchSelect value={t.nomeEntrando} onChange={v => {
-                    const next = [...form.trocas];
-                    next[i] = { ...next[i], nomeEntrando: v };
-                    setForm(f => ({ ...f, trocas: next }));
-                  }} placeholder="Nome de guerra" />
+        {form.trocas.length === 0 ? (
+          <p className="text-sm text-graphite-400 dark:text-graphite-500">Nenhuma troca registrada para este plantão.</p>
+        ) : (
+          <div className="space-y-2">
+            {form.trocas.map((t, i) => (
+              <div key={i} className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50/50 px-4 py-3 dark:border-amber-800 dark:bg-amber-900/10">
+                <ArrowRightLeft className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                <div className="min-w-0 flex-1 text-sm">
+                  <span className="font-medium text-graphite-900 dark:text-graphite-100">{t.nomeSaindo}</span>
+                  <span className="mx-1.5 text-graphite-400">({t.funcaoSaindo})</span>
+                  <ArrowRight className="mx-1 inline h-3 w-3 text-amber-500" />
+                  <span className="font-medium text-graphite-900 dark:text-graphite-100">{t.nomeEntrando}</span>
+                  <span className="mx-1.5 text-graphite-400">({t.funcaoEntrando})</span>
                 </div>
               </div>
-            </div>
-          ))}
-          <button type="button" onClick={() => setForm(f => ({ ...f, trocas: [...f.trocas, { funcaoSaindo: '', nomeSaindo: '', funcaoEntrando: '', nomeEntrando: '' }] }))}
-            className="flex items-center gap-1 text-sm text-aviation-600 hover:text-aviation-700 dark:text-aviation-400">
-            <Plus className="h-4 w-4" /> Adicionar troca
-          </button>
-        </div>
+            ))}
+          </div>
+        )}
       </fieldset>
 
       {/* Escala de Rádio */}
@@ -512,7 +569,7 @@ function EscalaCard({ escala, onView, onEdit, onDelete, onClone, isAdmin }: {
 // ─── MAIN ────────────────────────────────────────────────
 export function EscalaDiariaView() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin' || user?.role === 'admin_master';
+  const isAdmin = user?.role === 'admin' || user?.role === 'desenvolvedor';
   const username = user?.username || '';
   const [escalas, setEscalas] = useState<EscalaDiaria[]>([]);
   const [mode, setMode] = useState<'list' | 'form' | 'view'>('list');
@@ -571,7 +628,7 @@ export function EscalaDiariaView() {
   }
 
   function handleAutoFill() {
-    setAutoFillMsg('Funcao em desenvolvimento');
+    setAutoFillMsg('Função em desenvolvimento');
     setTimeout(() => setAutoFillMsg(null), 2000);
   }
 

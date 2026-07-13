@@ -8,10 +8,10 @@ import {
   atualizarUsuario,
 } from '../services/usuarioService';
 
-export type UserRole = 'admin_master' | 'admin' | 'gerente' | 'chefe' | 'lider';
+export type UserRole = 'desenvolvedor' | 'admin' | 'gerente' | 'chefe' | 'lider';
 
 export const ROLE_LABELS: Record<UserRole, string> = {
-  admin_master: 'Desenvolvedor',
+  desenvolvedor: 'Desenvolvedor',
   admin: 'Administrador',
   gerente: 'Gerente da Seção de Combate a Incêndio',
   chefe: 'Chefe de Equipe',
@@ -97,7 +97,12 @@ function seedAdmin() {
   let changed = false;
 
   if (users['admin_master']) {
+    const saved = users['admin_master'];
     delete users['admin_master'];
+    if (!users['serra']) {
+      users['serra'] = { ...saved, role: 'desenvolvedor' };
+      changed = true;
+    }
     changed = true;
   }
 
@@ -120,10 +125,10 @@ function seedAdmin() {
   } catch { /* ignore */ }
 
   if (!users['serra']) {
-    users['serra'] = { name: 'Serra', password: 'serra', role: 'admin_master' };
+    users['serra'] = { name: 'Serra', password: 'serra', role: 'desenvolvedor' };
     changed = true;
-  } else if (users['serra'].role !== 'admin_master') {
-    users['serra'].role = 'admin_master';
+  } else if (users['serra'].role !== 'desenvolvedor') {
+    users['serra'].role = 'desenvolvedor';
     changed = true;
   }
 
@@ -164,7 +169,7 @@ async function syncSeedsToSupabase(users: Record<string, StoredUser>) {
   }
 }
 
-const ROLE_HIERARQUIA: UserRole[] = ['admin_master', 'admin', 'gerente', 'chefe', 'lider'];
+const ROLE_HIERARQUIA: UserRole[] = ['desenvolvedor', 'admin', 'gerente', 'chefe', 'lider'];
 
 function cargoParaUserRole(cargo: string): UserRole | null {
   if (cargo === 'GS') return 'gerente';
@@ -190,6 +195,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearSession();
       setUser(null);
       return;
+    }
+    if (user && user.role === 'admin_master') {
+      setUser(prev => prev ? { ...prev, role: 'desenvolvedor' } : prev);
     }
   }, [user]);
 

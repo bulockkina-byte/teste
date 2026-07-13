@@ -29,6 +29,7 @@ import {
   AlertCircle,
   Radio,
   CalendarDays,
+  ArrowLeftRight,
 } from 'lucide-react';
 import type { MenuItem } from '../types/navigation';
 
@@ -127,6 +128,12 @@ export const menuItems: MenuItem[] = [
         path: '/cadastro/ferias',
         description: 'Controle de férias do efetivo.',
       },
+      {
+        label: 'Substituições',
+        icon: ArrowLeftRight,
+        path: '/funcionarios/substituicoes',
+        description: 'Substituições temporárias de funcionários.',
+      },
     ],
   },
   {
@@ -163,7 +170,7 @@ export const menuItems: MenuItem[] = [
     label: 'Inspeções Operacionais',
     icon: ShieldCheck,
     path: '/inspecoes',
-    description: 'Gestão de inspeções de segurança e conformidade.',
+    description: 'Conferência de extintores, hidrantes e inspeções de segurança.',
   },
   {
     label: 'Viaturas CCI',

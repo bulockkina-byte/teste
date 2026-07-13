@@ -1,17 +1,347 @@
-import { LayoutDashboard } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  LayoutDashboard, Users, Shield, AlertTriangle, CalendarClock,
+  GraduationCap, Flame, Truck, FileText, ArrowRight, Activity,
+  Clock, CheckCircle2, XCircle, AlertCircle, Eye, UserCheck,
+  Calendar, Award, HardHat,
+} from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
-import { EmptyCard } from '../../components/ui/EmptyCard';
+import { listarAtivos } from '../../services/bombeiroService';
+import { listarFeriasGozo, listarEscalas } from '../../services/feriasService';
+import { listarOcorrencias } from '../../services/ocorrenciaService';
+import { listarSubstituicoesTemporarias } from '../../services/substituicaoTemporariaService';
+import { listarCertificacoes } from '../../services/certificacaoService';
+import { listarCertificacoesCursos } from '../../services/certificacaoCursoService';
+import type { Bombeiro } from '../../types/bombeiro';
+import type { Ocorrencia } from '../../types/ocorrencia';
+import type { FeriasGozo } from '../../types/ferias';
+import type { SubstituicaoTemporaria } from '../../types/substituicaoTemporaria';
+import type { CertificacaoNR } from '../../types/certificacao';
+import type { CertificacaoCurso } from '../../types/certificacaoCurso';
+
+function fmt(d: string) {
+  if (!d) return '-';
+  return new Date(d + 'T12:00:00').toLocaleDateString('pt-BR');
+}
+
+function StatusBadge({ status, map }: { status: string; map: Record<string, string> }) {
+  return <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${map[status] || 'bg-graphite-100 text-graphite-600'}`}>{status}</span>;
+}
+
+const STATUS_OCORRENCIA_COLORS: Record<string, string> = {
+  'Aberta': 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400',
+  'Encaminhada': 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400',
+  'Em Andamento': 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400',
+  'Fechada': 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400',
+};
+
+const STATUS_GOZO_COLORS: Record<string, string> = {
+  'Programadas': 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400',
+  'Em Gozo': 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400',
+  'Gozadas': 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400',
+};
+
+const STATUS_SUBST_COLORS: Record<string, string> = {
+  'Pendente': 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400',
+  'Aprovado': 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400',
+  'Rejeitado': 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400',
+};
+
+function CardStat({ icon: Icon, label, value, color, onClick }: { icon: any; label: string; value: string | number; color: string; onClick?: () => void }) {
+  return (
+    <button onClick={onClick} disabled={!onClick}
+      className={`flex items-center gap-4 rounded-2xl border border-graphite-200 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-border-dark dark:bg-surface-card ${onClick ? 'cursor-pointer' : ''}`}>
+      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${color}`}>
+        <Icon className="h-6 w-6 text-white" />
+      </div>
+      <div className="min-w-0 text-left">
+        <p className="text-2xl font-black text-graphite-900 dark:text-graphite-100">{value}</p>
+        <p className="text-xs text-graphite-500 dark:text-graphite-400 truncate">{label}</p>
+      </div>
+    </button>
+  );
+}
 
 export function Dashboard() {
+  const navigate = useNavigate();
+  const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
+  const [feriasGozo, setFeriasGozo] = useState<FeriasGozo[]>([]);
+  const [ocorrencias, setOcorrencias] = useState<Ocorrencia[]>([]);
+  const [substituicoes, setSubstituicoes] = useState<SubstituicaoTemporaria[]>([]);
+  const [certificacoes, setCertificacoes] = useState<CertificacaoNR[]>([]);
+  const [cursos, setCursos] = useState<CertificacaoCurso[]>([]);
+  const [escalas, setEscalas] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [b, g, o, s, c, cr, e] = await Promise.all([
+          listarAtivos(), listarFeriasGozo(), listarOcorrencias(),
+          listarSubstituicoesTemporarias(), listarCertificacoes(),
+          listarCertificacoesCursos(), listarEscalas(),
+        ]);
+        setBombeiros(b); setFeriasGozo(g); setOcorrencias(o);
+        setSubstituicoes(s); setCertificacoes(c); setCursos(cr); setEscalas(e);
+      } catch { /* ignore */ }
+      setLoading(false);
+    })();
+  }, []);
+
+  const stats = useMemo(() => {
+    const emGozo = feriasGozo.filter(g => g.status === 'Em Gozo');
+    const programadas = feriasGozo.filter(g => g.status === 'Programadas');
+    const ocorrenciasAbertas = ocorrencias.filter(o => o.status !== 'Fechada');
+    const substPendentes = substituicoes.filter(s => s.status === 'Pendente');
+    const escalasPendentes = escalas.filter(e => e.status === 'Enviado');
+    const certVencendo = certificacoes.filter(c => {
+      if (!c.validade) return false;
+      const v = new Date(c.validade + 'T00:00:00');
+      return v > new Date() && v < new Date(Date.now() + 30 * 86400000);
+    });
+    const cursosVencendo = cursos.filter(c => {
+      if (!c.validade) return false;
+      const v = new Date(c.validade + 'T00:00:00');
+      return v > new Date() && v < new Date(Date.now() + 30 * 86400000);
+    });
+
+    return {
+      totalBombeiros: bombeiros.length,
+      emGozo: emGozo.length,
+      programadas: programadas.length,
+      ocorrenciasAbertas: ocorrenciasAbertas.length,
+      substPendentes: substPendentes.length,
+      escalasPendentes: escalasPendentes.length,
+      certVencendo: certVencendo.length + cursosVencendo.length,
+      equipes: ['Alfa', 'Bravo', 'Charlie', 'Delta'].map(eq => ({
+        nome: eq, total: bombeiros.filter(b => b.equipe === eq).length,
+      })),
+    };
+  }, [bombeiros, feriasGozo, ocorrencias, substituicoes, certificacoes, cursos, escalas]);
+
+  const feriasEmAndamento = useMemo(() =>
+    feriasGozo.filter(g => g.status === 'Em Gozo').slice(0, 8),
+    [feriasGozo],
+  );
+
+  const ocorrenciasRecentes = useMemo(() =>
+    ocorrencias.sort((a, b) => new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime()).slice(0, 6),
+    [ocorrencias],
+  );
+
+  const substituicoesPendentes = useMemo(() =>
+    substituicoes.filter(s => s.status === 'Pendente').slice(0, 6),
+    [substituicoes],
+  );
+
+  if (loading) {
+    return (
+      <PageContainer>
+        <div className="flex items-center justify-center py-32">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-aviation-500 border-t-transparent" />
+        </div>
+      </PageContainer>
+    );
+  }
+
   return (
     <PageContainer>
-      <PageTitle icon={LayoutDashboard} title="Dashboard" />
-      <EmptyCard
-        icon={LayoutDashboard}
-        title="Dashboard"
-        description="Visão geral do sistema com indicadores e métricas operacionais. Este módulo será desenvolvido em breve."
-      />
+      <div className="mb-6">
+        <PageTitle icon={LayoutDashboard} title="Dashboard" />
+      </div>
+
+      {/* Stats */}
+      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <CardStat icon={Users} label="Bombeiros Ativos" value={stats.totalBombeiros} color="bg-gradient-to-br from-blue-500 to-blue-700" onClick={() => navigate('/funcionarios')} />
+        <CardStat icon={AlertTriangle} label="Ocorrências Abertas" value={stats.ocorrenciasAbertas} color="bg-gradient-to-br from-red-500 to-red-700" onClick={() => navigate('/ocorrencias')} />
+        <CardStat icon={CalendarClock} label="Férias em Gozo" value={stats.emGozo} color="bg-gradient-to-br from-amber-500 to-amber-700" onClick={() => navigate('/cadastro/ferias')} />
+        <CardStat icon={Clock} label="Substituições Pendentes" value={stats.substPendentes} color="bg-gradient-to-br from-purple-500 to-purple-700" onClick={() => navigate('/funcionarios/substituicoes')} />
+        <CardStat icon={Award} label="Certificações Vencendo" value={stats.certVencendo} color="bg-gradient-to-br from-emerald-500 to-emerald-700" onClick={() => navigate('/certificacoes')} />
+        <CardStat icon={FileText} label="Escalas Pendentes" value={stats.escalasPendentes} color="bg-gradient-to-br from-cyan-500 to-cyan-700" onClick={() => navigate('/cadastro/ferias')} />
+      </div>
+
+      {/* Charts Row */}
+      <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Equipes Distribution */}
+        <div className="rounded-2xl border border-graphite-200 bg-white p-5 dark:border-border-dark dark:bg-surface-card">
+          <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-graphite-900 dark:text-graphite-100">
+            <Users className="h-4 w-4 text-aviation-600" /> Distribuição por Equipe
+          </h3>
+          <div className="space-y-3">
+            {stats.equipes.map(eq => {
+              const max = Math.max(...stats.equipes.map(x => x.total), 1);
+              const pct = (eq.total / max) * 100;
+              return (
+                <div key={eq.nome}>
+                  <div className="mb-1 flex items-center justify-between text-xs">
+                    <span className="font-medium text-graphite-700 dark:text-graphite-300">{eq.nome}</span>
+                    <span className="text-graphite-500">{eq.total}</span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-graphite-100 dark:bg-graphite-800">
+                    <div className="h-full rounded-full bg-gradient-to-r from-aviation-500 to-aviation-600 transition-all duration-500" style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Férias Status */}
+        <div className="rounded-2xl border border-graphite-200 bg-white p-5 dark:border-border-dark dark:bg-surface-card">
+          <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-graphite-900 dark:text-graphite-100">
+            <Calendar className="h-4 w-4 text-aviation-600" /> Status das Férias
+          </h3>
+          <div className="space-y-3">
+            {[
+              { label: 'Programadas', value: stats.programadas, color: 'bg-blue-500' },
+              { label: 'Em Gozo', value: stats.emGozo, color: 'bg-amber-500' },
+              { label: 'Gozadas', value: feriasGozo.filter(g => g.status === 'Gozadas').length, color: 'bg-green-500' },
+            ].map(item => {
+              const total = stats.programadas + stats.emGozo + feriasGozo.filter(g => g.status === 'Gozadas').length || 1;
+              const pct = (item.value / total) * 100;
+              return (
+                <div key={item.label}>
+                  <div className="mb-1 flex items-center justify-between text-xs">
+                    <span className="font-medium text-graphite-700 dark:text-graphite-300">{item.label}</span>
+                    <span className="text-graphite-500">{item.value}</span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-graphite-100 dark:bg-graphite-800">
+                    <div className={`h-full rounded-full ${item.color} transition-all duration-500`} style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Ocorrências por Status */}
+        <div className="rounded-2xl border border-graphite-200 bg-white p-5 dark:border-border-dark dark:bg-surface-card">
+          <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-graphite-900 dark:text-graphite-100">
+            <Activity className="h-4 w-4 text-aviation-600" /> Ocorrências por Status
+          </h3>
+          <div className="space-y-3">
+            {['Aberta', 'Encaminhada', 'Em Andamento', 'Fechada'].map(status => {
+              const count = ocorrencias.filter(o => o.status === status).length;
+              const total = ocorrencias.length || 1;
+              const pct = (count / total) * 100;
+              const colors: Record<string, string> = {
+                'Aberta': 'bg-red-500', 'Encaminhada': 'bg-yellow-500',
+                'Em Andamento': 'bg-blue-500', 'Fechada': 'bg-green-500',
+              };
+              return (
+                <div key={status}>
+                  <div className="mb-1 flex items-center justify-between text-xs">
+                    <span className="font-medium text-graphite-700 dark:text-graphite-300">{status}</span>
+                    <span className="text-graphite-500">{count}</span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-graphite-100 dark:bg-graphite-800">
+                    <div className={`h-full rounded-full ${colors[status]} transition-all duration-500`} style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Tables Row */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
+        {/* Férias em Andamento */}
+        <div className="rounded-2xl border border-graphite-200 bg-white shadow-sm dark:border-border-dark dark:bg-surface-card">
+          <div className="flex items-center justify-between border-b border-graphite-200 px-5 py-4 dark:border-border-dark">
+            <h3 className="flex items-center gap-2 text-sm font-bold text-graphite-900 dark:text-graphite-100">
+              <CalendarClock className="h-4 w-4 text-amber-500" /> Férias em Andamento
+            </h3>
+            <button onClick={() => navigate('/cadastro/ferias')} className="text-xs text-aviation-600 hover:text-aviation-700 dark:text-aviation-400">Ver todas</button>
+          </div>
+          <div className="p-3">
+            {feriasEmAndamento.length === 0 ? (
+              <p className="py-6 text-center text-xs text-graphite-400">Nenhuma féria em andamento</p>
+            ) : (
+              <div className="space-y-1">
+                {feriasEmAndamento.map(g => (
+                  <div key={g.id} className="flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-graphite-50 dark:hover:bg-surface-hover/50">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 text-[10px] font-bold text-white">
+                      {g.funcionarioNome?.charAt(0) || '?'}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-graphite-900 dark:text-graphite-100 truncate">{g.funcionarioNome?.split(' ')[0]}</p>
+                      <p className="text-[10px] text-graphite-500">{fmt(g.dataInicio)} - {fmt(g.dataFim)}</p>
+                    </div>
+                    <StatusBadge status={g.status} map={STATUS_GOZO_COLORS} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Ocorrências Recentes */}
+        <div className="rounded-2xl border border-graphite-200 bg-white shadow-sm dark:border-border-dark dark:bg-surface-card">
+          <div className="flex items-center justify-between border-b border-graphite-200 px-5 py-4 dark:border-border-dark">
+            <h3 className="flex items-center gap-2 text-sm font-bold text-graphite-900 dark:text-graphite-100">
+              <AlertTriangle className="h-4 w-4 text-red-500" /> Ocorrências Recentes
+            </h3>
+            <button onClick={() => navigate('/ocorrencias')} className="text-xs text-aviation-600 hover:text-aviation-700 dark:text-aviation-400">Ver todas</button>
+          </div>
+          <div className="p-3">
+            {ocorrenciasRecentes.length === 0 ? (
+              <p className="py-6 text-center text-xs text-graphite-400">Nenhuma ocorrência registrada</p>
+            ) : (
+              <div className="space-y-1">
+                {ocorrenciasRecentes.map(o => (
+                  <div key={o.id} className="flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-graphite-50 dark:hover:bg-surface-hover/50">
+                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold text-white ${
+                      o.status === 'Fechada' ? 'bg-gradient-to-br from-green-400 to-green-600' : 'bg-gradient-to-br from-red-400 to-red-600'
+                    }`}>
+                      {o.numeroOcorrencia?.slice(-2) || '?'}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-graphite-900 dark:text-graphite-100 truncate">{o.categoriaOcorrencia || 'Ocorrência'}</p>
+                      <p className="text-[10px] text-graphite-500">{o.equipe} · {fmt(o.dataOcorrencia)}</p>
+                    </div>
+                    <StatusBadge status={o.status} map={STATUS_OCORRENCIA_COLORS} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Substituições Pendentes */}
+        <div className="rounded-2xl border border-graphite-200 bg-white shadow-sm dark:border-border-dark dark:bg-surface-card">
+          <div className="flex items-center justify-between border-b border-graphite-200 px-5 py-4 dark:border-border-dark">
+            <h3 className="flex items-center gap-2 text-sm font-bold text-graphite-900 dark:text-graphite-100">
+              <Clock className="h-4 w-4 text-purple-500" /> Substituições Pendentes
+            </h3>
+            <button onClick={() => navigate('/funcionarios/substituicoes')} className="text-xs text-aviation-600 hover:text-aviation-700 dark:text-aviation-400">Ver todas</button>
+          </div>
+          <div className="p-3">
+            {substituicoesPendentes.length === 0 ? (
+              <p className="py-6 text-center text-xs text-graphite-400">Nenhuma substituição pendente</p>
+            ) : (
+              <div className="space-y-1">
+                {substituicoesPendentes.map(s => (
+                  <div key={s.id} className="flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-graphite-50 dark:hover:bg-surface-hover/50">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-purple-400 to-purple-600 text-[10px] font-bold text-white">
+                      <ArrowRight className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-graphite-900 dark:text-graphite-100 truncate">{s.funcionarioNome?.split(' ')[0]} → {s.substitutoNome?.split(' ')[0]}</p>
+                      <p className="text-[10px] text-graphite-500">{s.motivo || 'Sem motivo'}</p>
+                    </div>
+                    <StatusBadge status={s.status} map={STATUS_SUBST_COLORS} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </PageContainer>
   );
 }
+
+export default Dashboard;

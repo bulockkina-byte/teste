@@ -2,6 +2,8 @@ import type { Equipe } from '../types/bombeiro';
 import { listarAtivos } from './bombeiroService';
 import { listarEPIs } from './epiService';
 import { listarCertificacoes } from './certificacaoService';
+import { listarCertificacoesCursos } from './certificacaoCursoService';
+import { listarSubstituicoesTemporarias } from './substituicaoTemporariaService';
 
 export interface Notificacao {
   id: string;
@@ -10,7 +12,7 @@ export interface Notificacao {
   tipo: 'info' | 'alerta' | 'sucesso' | 'erro';
   lida: boolean;
   equipe: Equipe;
-  origem: 'ferias' | 'epi' | 'certificacao';
+  origem: 'ferias' | 'epi' | 'certificacao' | 'substituicao' | 'certificacao_curso';
   createdAt: string;
 }
 
@@ -119,6 +121,52 @@ async function calcularAlertasCertificacao(): Promise<Omit<Notificacao, 'id' | '
   return alertas;
 }
 
+async function calcularAlertasSubstituicao(): Promise<Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[]> {
+  const alertas: Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[] = [];
+  const subs = await listarSubstituicoesTemporarias();
+  const pendentes = subs.filter(s => s.status === 'Pendente');
+
+  for (const sub of pendentes) {
+    const equipe = (await listarAtivos()).find(b => b.id === sub.substitutoId)?.equipe || 'Embaixador';
+    alertas.push({
+      titulo: 'Substituição Pendente',
+      descricao: `${sub.funcionarioNome} → ${sub.substitutoNome} (${sub.tipo}) — ${sub.dias} dias`,
+      tipo: 'alerta',
+      equipe,
+      origem: 'substituicao',
+    });
+  }
+  return alertas;
+}
+
+async function calcularAlertasCertificacaoCurso(): Promise<Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[]> {
+  const alertas: Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[] = [];
+  const certificacoes = listarCertificacoesCursos();
+  const bombeiros = await listarAtivos();
+
+  for (const cert of certificacoes) {
+    if (cert.semValidade || !cert.dataValidade) continue;
+    const dias = diasRestantes(cert.dataValidade);
+    if (dias <= 180 && dias > 0) {
+      const b = bombeiros.find(x => x.id === cert.funcionarioId);
+      const equipe = b?.equipe || 'Embaixador';
+
+      let tipo: Notificacao['tipo'] = 'info';
+      if (dias <= 30) tipo = 'erro';
+      else if (dias <= 90) tipo = 'alerta';
+
+      alertas.push({
+        titulo: 'Certificado de Curso a vencer',
+        descricao: `${cert.funcionarioNome} — ${cert.cursoNome} vence em ${dias} dias (${new Date(cert.dataValidade + 'T00:00:00').toLocaleDateString('pt-BR')})`,
+        tipo,
+        equipe,
+        origem: 'certificacao_curso',
+      });
+    }
+  }
+  return alertas;
+}
+
 export async function gerarNotificacoes(): Promise<Notificacao[]> {
   const existentes = getStored();
   const existentesMap = new Map(existentes.map(n => [`${n.origem}-${n.descricao}`, n]));
@@ -127,17 +175,31 @@ export async function gerarNotificacoes(): Promise<Notificacao[]> {
     ...(await calcularAlertasFerias()),
     ...(await calcularAlertasEPI()),
     ...(await calcularAlertasCertificacao()),
+    ...(await calcularAlertasSubstituicao()),
+    ...(await calcularAlertasCertificacaoCurso()),
   ];
 
   const resultado: Notificacao[] = [];
   const chavesProcessadas = new Set<string>();
+  const agora = new Date();
 
   for (const alerta of novosAlertas) {
     const chave = `${alerta.origem}-${alerta.descricao}`;
     chavesProcessadas.add(chave);
     const existente = existentesMap.get(chave);
     if (existente) {
-      resultado.push(existente);
+      const criadoEm = new Date(existente.createdAt);
+      const diasDesdeCriacao = Math.floor((agora.getTime() - criadoEm.getTime()) / (1000 * 60 * 60 * 24));
+      if (alerta.origem === 'certificacao_curso' && diasDesdeCriacao >= 15 && existente.lida) {
+        resultado.push({
+          ...alerta,
+          id: crypto.randomUUID(),
+          lida: false,
+          createdAt: new Date().toISOString(),
+        });
+      } else {
+        resultado.push(existente);
+      }
     } else {
       resultado.push({
         ...alerta,

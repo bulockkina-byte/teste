@@ -144,7 +144,7 @@ export function RightPanel({ onClose, openTab = 'chat' }: { onClose: () => void;
   }, [username]);
 
   const userEquipes = useMemo(() => {
-    const isGlobal = effectiveRole === 'admin_master' || effectiveRole === 'admin' || effectiveRole === 'gerente';
+    const isGlobal = effectiveRole === 'desenvolvedor' || effectiveRole === 'admin' || effectiveRole === 'gerente';
     if (isGlobal) return null;
     const b = bombeirosEquipes.find(x =>
       x.nomeGuerra.toLowerCase() === username.toLowerCase()
@@ -353,7 +353,7 @@ export function RightPanel({ onClose, openTab = 'chat' }: { onClose: () => void;
                     <div className="space-y-0.5">
                       {usuariosFiltrados.map(u => {
                         const initials = u.name.charAt(0).toUpperCase();
-                        const isViewerDev = effectiveRole === 'admin_master';
+                        const isViewerDev = effectiveRole === 'desenvolvedor';
                         const isTargetAdmin = u.role === 'admin';
                         const displayLabel = isTargetAdmin && !isViewerDev && u.username !== username
                           ? (u.previousRole ? (ROLE_LABELS[u.previousRole] || u.previousRole) : 'Admin')
@@ -605,7 +605,7 @@ export function RightPanel({ onClose, openTab = 'chat' }: { onClose: () => void;
                 <div className="space-y-0.5">
                   {usuariosFiltrados.map(u => {
                     const initials = u.name.charAt(0).toUpperCase();
-                    const isViewerDev = effectiveRole === 'admin_master';
+                    const isViewerDev = effectiveRole === 'desenvolvedor';
                     const isTargetAdmin = u.role === 'admin';
                     const displayLabel = isTargetAdmin && !isViewerDev && u.username !== username
                       ? (u.previousRole ? (ROLE_LABELS[u.previousRole] || u.previousRole) : 'Admin')

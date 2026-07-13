@@ -34,7 +34,7 @@ function saveLocalUsers(data: Record<string, StoredUser>) {
 }
 
 const ROLE_BADGE: Record<string, string> = {
-  admin_master: 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400',
+  desenvolvedor: 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400',
   admin: 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400',
   gerente: 'bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400',
   chefe: 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400',
@@ -43,7 +43,7 @@ const ROLE_BADGE: Record<string, string> = {
 
 export function Usuarios() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin' || user?.role === 'admin_master';
+  const isAdmin = user?.role === 'admin' || user?.role === 'desenvolvedor';
 
   const [usuarios, setUsuarios] = useState<[string, StoredUser][]>([]);
   const [termo, setTermo] = useState('');
@@ -69,12 +69,18 @@ export function Usuarios() {
     return apocs.find(a => a.id === data.personId) || null;
   }
 
+  function migrarRole(d: StoredUser): StoredUser {
+    if (d.role === 'admin_master' as string) d.role = 'desenvolvedor' as UserRole;
+    if (d.previousRole === 'admin_master' as string) d.previousRole = 'desenvolvedor' as UserRole;
+    return d;
+  }
+
   async function carregar() {
     try {
       const remote = await listarUsuariosDb();
       const entries: [string, StoredUser][] = remote.map(u => [
         u.username,
-        { name: u.name, password: u.password, role: u.role, previousRole: u.previousRole, personId: u.personId, personType: u.personType },
+        migrarRole({ name: u.name, password: u.password, role: u.role as UserRole, previousRole: u.previousRole as UserRole | undefined, personId: u.personId, personType: u.personType }),
       ]);
       const localUsers = getLocalUsers();
       for (const [uname, data] of entries) {
@@ -92,7 +98,9 @@ export function Usuarios() {
       }
     } catch {
       const all = getLocalUsers();
-      const entries = Object.entries(all);
+      const entries = Object.entries(all).map(([u, d]) => [u, migrarRole(d)] as [string, StoredUser]);
+      const migrated = Object.fromEntries(entries);
+      saveLocalUsers(migrated);
       if (termo) {
         const t = termo.toLowerCase();
         setUsuarios(entries.filter(([u, d]) =>
@@ -113,17 +121,11 @@ export function Usuarios() {
       const prev = all[editando.username];
       if (!prev) return;
 
-      if (prev.role === 'admin_master') {
-        return;
-      }
+      if (prev.role === 'desenvolvedor') return;
 
-      if (data.role === 'admin_master') {
-        return;
-      }
+      if (data.role === 'desenvolvedor') return;
 
-      if (data.role === 'admin' && user?.role !== 'admin_master') {
-        return;
-      }
+      if (data.role === 'admin' && user?.role !== 'desenvolvedor') return;
 
       const previousRole = (data.role === 'admin' && prev.role !== 'admin')
         ? prev.role
@@ -156,12 +158,8 @@ export function Usuarios() {
         });
       } catch { /* ignore - Supabase offline */ }
     } else {
-      if (data.role === 'admin_master') {
-        return;
-      }
-      if (data.role === 'admin' && user?.role !== 'admin_master') {
-        return;
-      }
+      if (data.role === 'desenvolvedor') return;
+      if (data.role === 'admin' && user?.role !== 'desenvolvedor') return;
       all[data.username] = { name: data.name, password: data.password, role: data.role, personId: data.personId, personType: data.personType };
       saveLocalUsers(all);
 
@@ -199,7 +197,7 @@ export function Usuarios() {
     const target = all[username];
     if (!target) return;
 
-    if (target.role === 'admin_master') return;
+    if (target.role === 'desenvolvedor') return;
 
     let newRole: UserRole;
     let newPreviousRole: UserRole | undefined;
@@ -296,12 +294,10 @@ export function Usuarios() {
                     ? FUNCAO_APOC_OPTIONS.find(f => f.value === (person as APOC).funcao)?.label
                     : undefined;
 
-                const isViewerDev = user?.role === 'admin_master';
+                const isViewerDev = user?.role === 'desenvolvedor';
                 const isTargetAdmin = data.role === 'admin';
-                const isTargetDev = data.role === 'admin_master';
+                const isTargetDev = data.role === 'desenvolvedor';
                 const isSelf = username === user?.username;
-
-                if (isTargetDev && !isViewerDev) return null;
 
                 let displayRole: UserRole;
                 if (isTargetAdmin && !isViewerDev && !isSelf) {
@@ -309,6 +305,10 @@ export function Usuarios() {
                 } else {
                   displayRole = data.role;
                 }
+
+                const canEditThis = isViewerDev || (!isTargetDev && !isSelf && data.role !== 'admin');
+                const canDeleteThis = isViewerDev || (!isTargetDev && !isSelf && data.role !== 'admin');
+                const canToggleAdminThis = isViewerDev && !isTargetDev && !isSelf;
 
                 return (
                 <tr key={username} className="border-b border-graphite-100 transition-colors hover:bg-graphite-50 dark:border-border-dark dark:hover:bg-surface-hover/50">
@@ -345,58 +345,45 @@ export function Usuarios() {
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1">
-                      {data.role !== 'admin_master' && (
-                        <>
-                          {data.role === 'admin' && user?.role !== 'admin_master' ? null : (
-                            <>
-                              <button
-                                onClick={() => { setEditando({ username, name: data.name, role: data.role, previousRole: data.previousRole, personId: data.personId, personType: data.personType }); setFormOpen(true); }}
-                                className="rounded-xl p-1.5 text-graphite-400 transition-all hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover dark:hover:text-graphite-300"
-                                title="Editar"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </button>
-                              {data.role !== 'admin' ? (
-                                <button
-                                  onClick={() => handleToggleAdmin(username)}
-                                  className="rounded-xl p-1.5 text-amber-500 transition-all hover:bg-amber-50 hover:text-amber-700 dark:hover:bg-amber-900/20 dark:hover:text-amber-400"
-                                  title="Tornar Administrador"
-                                >
-                                  <ShieldCheck className="h-4 w-4" />
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => handleToggleAdmin(username)}
-                                  className="rounded-xl p-1.5 text-graphite-400 transition-all hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover dark:hover:text-graphite-300"
-                                  title="Remover Admin"
-                                >
-                                  <ShieldOff className="h-4 w-4" />
-                                </button>
-                              )}
-                            </>
-                          )}
-                          {user?.role === 'admin_master' ? (
-                            <button
-                              onClick={() => setConfirmDelete(username)}
-                              className="rounded-xl p-1.5 text-alert-red transition-all hover:bg-red-50 dark:hover:bg-red-900/20"
-                              title="Excluir"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          ) : data.role !== 'admin' ? (
-                            <button
-                              onClick={() => setConfirmDelete(username)}
-                              className="rounded-xl p-1.5 text-alert-red transition-all hover:bg-red-50 dark:hover:bg-red-900/20"
-                              title="Excluir"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          ) : null}
-                        </>
-                      )}
-                    </div>
+                   <td className="px-4 py-3">
+                     <div className="flex items-center gap-1">
+                       {canEditThis && (
+                         <button
+                           onClick={() => { setEditando({ username, name: data.name, role: data.role, previousRole: data.previousRole, personId: data.personId, personType: data.personType }); setFormOpen(true); }}
+                           className="rounded-xl p-1.5 text-graphite-400 transition-all hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover dark:hover:text-graphite-300"
+                           title="Editar"
+                         >
+                           <Pencil className="h-4 w-4" />
+                         </button>
+                       )}
+                       {canToggleAdminThis && data.role !== 'admin' && (
+                         <button
+                           onClick={() => handleToggleAdmin(username)}
+                           className="rounded-xl p-1.5 text-amber-500 transition-all hover:bg-amber-50 hover:text-amber-700 dark:hover:bg-amber-900/20 dark:hover:text-amber-400"
+                           title="Tornar Administrador"
+                         >
+                           <ShieldCheck className="h-4 w-4" />
+                         </button>
+                       )}
+                       {canToggleAdminThis && data.role === 'admin' && (
+                         <button
+                           onClick={() => handleToggleAdmin(username)}
+                           className="rounded-xl p-1.5 text-graphite-400 transition-all hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover dark:hover:text-graphite-300"
+                           title="Remover Admin"
+                         >
+                           <ShieldOff className="h-4 w-4" />
+                         </button>
+                       )}
+                       {canDeleteThis && (
+                         <button
+                           onClick={() => setConfirmDelete(username)}
+                           className="rounded-xl p-1.5 text-alert-red transition-all hover:bg-red-50 dark:hover:bg-red-900/20"
+                           title="Excluir"
+                         >
+                           <Trash2 className="h-4 w-4" />
+                         </button>
+                       )}
+                     </div>
                   </td>
                 </tr>
                 );
@@ -409,7 +396,7 @@ export function Usuarios() {
       {formOpen && (
         <UsuarioForm
           user={editando}
-          isProtected={editando?.role === 'admin_master'}
+          isProtected={editando?.role === 'desenvolvedor'}
           currentUserRole={user?.role}
           currentUsername={user?.username}
           onSave={handleSave}

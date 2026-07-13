@@ -32,7 +32,7 @@ type View = 'list' | 'admin' | 'manage' | 'fill' | 'grid';
 
 export function Documentos() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin_master' || user?.role === 'admin';
+  const isAdmin = user?.role === 'desenvolvedor' || user?.role === 'admin';
 
   const [documentos, setDocumentos] = useState<Document[]>([]);
   const [selectedDoc, setSelectedDoc] = useState<DocumentWithFields | null>(null);

@@ -80,7 +80,7 @@ function formatCpf(v: string): string {
 
 export function Trocas() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin_master' || user?.role === 'admin';
+  const isAdmin = user?.role === 'desenvolvedor' || user?.role === 'admin';
   const [loading, setLoading] = useState(true);
   const [subView, setSubView] = useState<SubView>('list');
   const [templateDoc, setTemplateDoc] = useState<DocumentWithFields | null>(null);
@@ -133,6 +133,10 @@ export function Trocas() {
       const d = new Date(fill.created_at);
       if (!isAdmin && fill.filled_by !== user?.username) return false;
       return d.getMonth() === filterMonth && d.getFullYear() === filterYear;
+    }).sort((a, b) => {
+      const nomeA = ((a.filled_data as Record<string, string>)?.nome_solicitante || '').toLowerCase();
+      const nomeB = ((b.filled_data as Record<string, string>)?.nome_solicitante || '').toLowerCase();
+      return nomeA.localeCompare(nomeB);
     });
   }, [fills, filterMonth, filterYear, isAdmin, user]);
 
@@ -457,6 +461,20 @@ export function Trocas() {
     setFormData(initialData);
     setSubView('form');
     setShowNotifPopup({ msg: `Aviso enviado ao gerente: ${user?.username} esta realizando uma troca adicional para ${overrideName.trim()}.`, type: 'info' });
+    try {
+      const existing = JSON.parse(localStorage.getItem('sescinc-notificacoes') || '[]');
+      existing.push({
+        id: crypto.randomUUID(),
+        titulo: 'Limite de Trocas Excedido',
+        descricao: `${user?.name} (${user?.username}) realizou ${limitPopupData.count + 1} trocas no mês e está realizando mais uma troca para ${overrideName.trim()}.`,
+        tipo: 'alerta',
+        lida: false,
+        equipe: '',
+        origem: 'substituicao',
+        createdAt: new Date().toISOString(),
+      });
+      localStorage.setItem('sescinc-notificacoes', JSON.stringify(existing));
+    } catch { /* ignore */ }
   }
 
   function handleEditFill(fill: DocumentFill) {
@@ -799,6 +817,20 @@ export function Trocas() {
         </select>
         <span className="ml-auto text-xs text-graphite-500 dark:text-graphite-400">{filteredFills.length} troca(s) encontrada(s)</span>
       </div>
+
+      {Object.keys(personExcessMap).length > 0 && (
+        <div className="mb-4 flex items-center gap-3 rounded-xl border border-red-300 bg-red-50 px-5 py-4 dark:border-red-800 dark:bg-red-900/20">
+          <AlertTriangle className="h-5 w-5 shrink-0 text-red-600 dark:text-red-400" />
+          <div className="text-sm text-red-800 dark:text-red-200">
+            <strong>Atenção:</strong>{' '}
+            {Object.entries(personExcessMap).map(([nome, excesso]) => (
+              <span key={nome}>{nome} excedeu o limite em {excesso} troca(s). </span>
+            ))}
+            O limite é de {MAX_TROCAS_PER_MONTH} trocas por mês por pessoa.
+          </div>
+        </div>
+      )}
+
       {filteredFills.length === 0 ? (
         <div className="rounded-xl border border-dashed border-graphite-400 bg-graphite-50 py-12 text-center dark:border-graphite-500 dark:bg-graphite-800/50">
           <FileText className="mx-auto mb-3 h-12 w-12 text-graphite-300 dark:text-graphite-600" />

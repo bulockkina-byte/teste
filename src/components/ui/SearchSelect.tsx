@@ -1,8 +1,17 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, Check } from 'lucide-react';
+import { Search, Check, X } from 'lucide-react';
 import { listarAtivos } from '../../services/bombeiroService';
 import { listarAPOCs } from '../../services/apocService';
+import { ABBR_CARGO } from '../../types/ferias';
+
+interface AtivoItem {
+  id: string;
+  nomeGuerra: string;
+  nomeCompleto: string;
+  cargo?: string;
+  equipe?: string;
+}
 
 interface Props {
   value: string;
@@ -10,30 +19,37 @@ interface Props {
   placeholder?: string;
   className?: string;
   cargo?: string;
+  equipe?: string;
   valueField?: 'nomeGuerra' | 'nomeCompleto';
+  disabledIds?: Set<string>;
+  disabledTooltip?: string;
+  showCargo?: boolean;
 }
 
-export function SearchSelect({ value, onChange, placeholder, className = '', cargo, valueField = 'nomeGuerra' }: Props) {
+export function SearchSelect({ value, onChange, placeholder, className = '', cargo, equipe, valueField = 'nomeGuerra', disabledIds, disabledTooltip, showCargo }: Props) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const triggerRef = useRef<HTMLDivElement>(null);
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
-  const [ativos, setAtivos] = useState<{ id: string; nomeGuerra: string; nomeCompleto: string }[]>([]);
+  const [ativos, setAtivos] = useState<AtivoItem[]>([]);
 
   useEffect(() => {
     async function carregar() {
-      let lista: { id: string; nomeGuerra: string; nomeCompleto: string }[];
+      let lista: AtivoItem[];
       if (cargo === 'APOC') {
-        lista = await listarAPOCs();
+        lista = (await listarAPOCs()).map(a => ({ id: a.id, nomeGuerra: a.nomeGuerra, nomeCompleto: a.nomeCompleto }));
       } else if (cargo) {
-        lista = (await listarAtivos()).filter(b => b.cargo === cargo);
+        lista = (await listarAtivos()).filter(b => b.cargo === cargo).map(b => ({ id: b.id, nomeGuerra: b.nomeGuerra, nomeCompleto: b.nomeCompleto, cargo: b.cargo, equipe: b.equipe }));
       } else {
-        lista = [...(await listarAtivos()), ...(await listarAPOCs())];
+        const bombeiros = (await listarAtivos()).map(b => ({ id: b.id, nomeGuerra: b.nomeGuerra, nomeCompleto: b.nomeCompleto, cargo: b.cargo, equipe: b.equipe }));
+        const apocs = (await listarAPOCs()).map(a => ({ id: a.id, nomeGuerra: a.nomeGuerra, nomeCompleto: a.nomeCompleto }));
+        lista = [...bombeiros, ...apocs];
       }
+      if (equipe) lista = lista.filter(b => b.equipe === equipe);
       setAtivos(lista);
     }
     carregar();
-  }, [cargo]);
+  }, [cargo, equipe]);
 
   const filtered = ativos.filter(b =>
     b.nomeGuerra.toLowerCase().includes(search.toLowerCase()) ||
@@ -89,7 +105,7 @@ export function SearchSelect({ value, onChange, placeholder, className = '', car
       >
         <Search className="mr-2 h-4 w-4 text-graphite-400 shrink-0" />
         <span className={value ? 'text-graphite-900 dark:text-graphite-100 truncate' : 'text-graphite-400 truncate'}>
-          {selected ? selected[valueField] : placeholder || 'Selecione...'}
+          {selected ? (showCargo && selected.cargo ? `${selected.cargo} ${selected[valueField]}` : selected[valueField]) : placeholder || 'Selecione...'}
         </span>
       </div>
 
@@ -109,22 +125,34 @@ export function SearchSelect({ value, onChange, placeholder, className = '', car
             {filtered.length === 0 ? (
               <p className="px-3 py-3 text-sm text-graphite-400">Nenhum resultado encontrado</p>
             ) : (
-              filtered.map(b => (
-                <button
-                  key={b.id}
-                  type="button"
-                  onClick={() => { onChange(b[valueField]); setOpen(false); setSearch(''); }}
-                  className={`flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm transition-all duration-200 hover:bg-aviation-50 dark:hover:bg-aviation-900/20 ${
-                    b[valueField] === value ? 'bg-aviation-50 text-aviation-700 shadow-sm dark:bg-aviation-900/30 dark:text-aviation-300' : 'text-graphite-700 dark:text-graphite-300'
-                  }`}
-                >
-                  <span className="flex-1 truncate">
-                    <span className="font-medium">{b.nomeGuerra}</span>
-                    <span className="ml-2 text-xs text-graphite-400">{b.nomeCompleto}</span>
-                  </span>
-                  {b[valueField] === value && <Check className="h-4 w-4 shrink-0 text-aviation-600" />}
-                </button>
-              ))
+              filtered.map(b => {
+                const isDisabled = disabledIds?.has(b.id) || false;
+                return (
+                  <button
+                    key={b.id}
+                    type="button"
+                    disabled={isDisabled}
+                    title={isDisabled ? (disabledTooltip || 'Pessoa nao atende os requisitos para esta funcao') : undefined}
+                    onClick={() => { if (!isDisabled) { onChange(b[valueField]); setOpen(false); setSearch(''); } }}
+                    className={`flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm transition-all duration-200 ${
+                      isDisabled
+                        ? 'cursor-not-allowed opacity-50 text-red-500 dark:text-red-400'
+                        : b[valueField] === value
+                          ? 'bg-aviation-50 text-aviation-700 shadow-sm dark:bg-aviation-900/30 dark:text-aviation-300 hover:bg-aviation-100 dark:hover:bg-aviation-900/40'
+                          : 'text-graphite-700 dark:text-graphite-300 hover:bg-aviation-50 dark:hover:bg-aviation-900/20'
+                    }`}
+                  >
+                    <span className="flex-1 truncate">
+                      <span className={`font-medium ${isDisabled ? 'text-red-600 dark:text-red-400 line-through' : ''}`}>
+                        {showCargo && b.cargo ? `${b.cargo} ` : ''}{b.nomeGuerra}
+                      </span>
+                      <span className={`ml-2 text-xs ${isDisabled ? 'text-red-400 dark:text-red-500' : 'text-graphite-400'}`}>{showCargo && b.cargo ? b.nomeCompleto : b.nomeCompleto}</span>
+                    </span>
+                    {isDisabled && <X className="h-4 w-4 shrink-0 text-red-400" />}
+                    {!isDisabled && b[valueField] === value && <Check className="h-4 w-4 shrink-0 text-aviation-600" />}
+                  </button>
+                );
+              })
             )}
           </div>
         </div>,

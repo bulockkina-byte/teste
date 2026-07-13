@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { UserCircle, Save, Link, Unlink, Eye, EyeOff, Loader2, CheckCircle } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth, ROLE_LABELS, type UserRole } from '../../context/AuthContext';
 import { Autocomplete } from '../../components/documentos/Autocomplete';
 import { listarAtivos } from '../../services/bombeiroService';
 import { listarAPOCs } from '../../services/apocService';
@@ -124,7 +124,7 @@ export function Perfil() {
       setNotif({ msg: 'Vinculo atualizado com sucesso!', type: 'success' });
       setTimeout(() => setNotif(null), 3000);
     } catch {
-      setNotif({ msg: 'Erro ao salvar vinculo.', type: 'error' });
+      setNotif({ msg: 'Erro ao salvar vínculo.', type: 'error' });
       setTimeout(() => setNotif(null), 3000);
     } finally {
       setSaving(false);
@@ -146,7 +146,7 @@ export function Perfil() {
       return;
     }
     if (newPassword !== confirmPassword) {
-      setNotif({ msg: 'As senhas nao coincidem.', type: 'error' });
+      setNotif({ msg: 'As senhas não coincidem.', type: 'error' });
       setTimeout(() => setNotif(null), 3000);
       return;
     }
@@ -207,7 +207,7 @@ export function Perfil() {
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Card perfil */}
         <div className="rounded-2xl border border-graphite-200 bg-white p-6 dark:border-border-dark dark:bg-surface-card">
-          <h3 className="mb-4 text-lg font-bold text-graphite-900 dark:text-graphite-100">Informacoes do Perfil</h3>
+          <h3 className="mb-4 text-lg font-bold text-graphite-900 dark:text-graphite-100">Informações do Perfil</h3>
 
           <div className="flex items-center gap-4 mb-6">
             <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-aviation-500 to-aviation-700 text-xl font-bold text-white shadow-lg shadow-aviation-500/20">
@@ -229,7 +229,7 @@ export function Perfil() {
           <div className="space-y-3">
             <div className="flex items-center justify-between rounded-xl bg-graphite-50 px-4 py-3 dark:bg-graphite-800/50">
               <span className="text-sm text-graphite-500 dark:text-graphite-400">Funcao do Sistema</span>
-              <span className="text-sm font-semibold text-graphite-900 dark:text-graphite-100">{user.role}</span>
+              <span className="text-sm font-semibold text-graphite-900 dark:text-graphite-100">{ROLE_LABELS[user.role as UserRole] || user.role}</span>
             </div>
             {displayCargo && (
               <div className="flex items-center justify-between rounded-xl bg-graphite-50 px-4 py-3 dark:bg-graphite-800/50">
@@ -254,8 +254,8 @@ export function Perfil() {
           </h3>
           <p className="mb-4 text-sm text-graphite-500 dark:text-graphite-400">
             {linkedPerson
-              ? 'Sua conta esta vinculada a uma pessoa. Voce pode alterar o vinculo abaixo.'
-              : 'Sua conta nao esta vinculada a nenhuma pessoa. Selecione um bombeiro ou APOC para vincular.'}
+              ? 'Sua conta está vinculada a uma pessoa. Você pode alterar o vínculo abaixo.'
+              : 'Sua conta não está vinculada a nenhuma pessoa. Selecione um bombeiro ou APOC para vincular.'}
           </p>
 
           {loadingPessoas ? (

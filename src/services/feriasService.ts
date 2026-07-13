@@ -110,6 +110,10 @@ function rowToItem(row: Record<string, unknown>): EscalaFeriasItem {
     feiristaId: row.feirista_id as string,
     feiristaNome: row.feirista_nome as string,
     periodoNumero: (row.periodo_numero as number) || 0,
+    rejeitado: (row.rejeitado as boolean) || false,
+    motivoRejeicao: (row.motivo_rejeicao as string) || '',
+    rejeitadoPor: (row.rejeitado_por as string) || '',
+    rejeitadoEm: (row.rejeitado_em as string) || '',
     createdAt: row.created_at as string,
   };
 }
@@ -130,6 +134,10 @@ function itemToRow(data: Partial<EscalaFeriasItem>): Record<string, unknown> {
   if (data.feiristaId !== undefined) row.feirista_id = data.feiristaId;
   if (data.feiristaNome !== undefined) row.feirista_nome = data.feiristaNome;
   if (data.periodoNumero !== undefined) row.periodo_numero = data.periodoNumero;
+  if (data.rejeitado !== undefined) row.rejeitado = data.rejeitado;
+  if (data.motivoRejeicao !== undefined) row.motivo_rejeicao = data.motivoRejeicao;
+  if (data.rejeitadoPor !== undefined) row.rejeitado_por = data.rejeitadoPor;
+  if (data.rejeitadoEm !== undefined) row.rejeitado_em = data.rejeitadoEm;
   return row;
 }
 
@@ -287,6 +295,49 @@ export async function aprovarEscala(
   });
 }
 
+export async function aprovarEscalaEGerarGozos(
+  id: string,
+  aprovadoPor: string,
+  aprovadoPorNome: string,
+): Promise<EscalaFerias | null> {
+  const escala = await aprovarEscala(id, aprovadoPor, aprovadoPorNome);
+  if (!escala) return null;
+  const itens = await listarItensEscala(id);
+  const existentes = await listarFeriasGozo();
+  const db = getDb();
+  const now = new Date().toISOString();
+  for (const item of itens) {
+    if (item.rejeitado) continue;
+    const jaExiste = existentes.some(
+      g => g.funcionarioId === item.funcionarioId && g.periodoNumero === item.periodoNumero
+    );
+    if (jaExiste) continue;
+    const row = gozoToRow({
+      funcionarioId: item.funcionarioId,
+      funcionarioNome: item.funcionarioNome,
+      equipe: escala.equipe,
+      periodoNumero: item.periodoNumero,
+      dataInicio: item.dataInicio,
+      dataFim: item.dataFim,
+      dias: item.dias,
+      status: 'Programadas',
+      substitutoId: item.substitutoId,
+      substitutoNome: item.substitutoNome,
+      funcaoSubstituicao: item.funcaoSubstituicao,
+      observacoes: item.feiristaNome ? `Feirista: ${item.feiristaNome}` : '',
+      modificadoPor: aprovadoPor,
+      bloqueado: false,
+    });
+    const { error } = await db.from(TABLE_GOZO).insert({
+      ...row,
+      created_at: now,
+      updated_at: now,
+    });
+    if (error) handleSupabaseError(error);
+  }
+  return escala;
+}
+
 export async function rejeitarEscala(
   id: string,
   observacoes: string,
@@ -356,6 +407,45 @@ export async function excluirItensEscala(escalaId: string): Promise<void> {
   const db = getDb();
   const { error } = await db.from(TABLE_ITEM).delete().eq('escala_id', escalaId);
   if (error) handleSupabaseError(error);
+}
+
+export async function rejeitarItemEscala(
+  id: string,
+  motivo: string,
+  rejeitadoPor: string,
+): Promise<EscalaFeriasItem | null> {
+  const db = getDb();
+  const now = new Date().toISOString();
+  const { data: updated, error } = await db
+    .from(TABLE_ITEM)
+    .update({
+      rejeitado: true,
+      motivo_rejeicao: motivo,
+      rejeitado_por: rejeitadoPor,
+      rejeitado_em: now,
+    })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) handleSupabaseError(error);
+  return updated ? rowToItem(updated) : null;
+}
+
+export async function aprovarItemEscala(id: string): Promise<EscalaFeriasItem | null> {
+  const db = getDb();
+  const { data: updated, error } = await db
+    .from(TABLE_ITEM)
+    .update({
+      rejeitado: false,
+      motivo_rejeicao: '',
+      rejeitado_por: '',
+      rejeitado_em: '',
+    })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) handleSupabaseError(error);
+  return updated ? rowToItem(updated) : null;
 }
 
 // ── Alerts ───────────────────────────────────────────────────────────

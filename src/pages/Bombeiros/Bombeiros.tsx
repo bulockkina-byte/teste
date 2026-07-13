@@ -11,7 +11,7 @@ import { useDebounce } from '../../hooks/useDebounce';
 
 export function Bombeiros() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin' || user?.role === 'admin_master';
+  const isAdmin = user?.role === 'admin' || user?.role === 'desenvolvedor';
 
   if (!isAdmin) {
     return (
