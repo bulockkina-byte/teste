@@ -1,7 +1,6 @@
 import { supabase } from '../lib/supabase';
 import type { FeriasGozo, EscalaFerias, EscalaFeriasItem, FeriasAlerta } from '../types/ferias';
 import type { Bombeiro, Equipe, Cargo } from '../types/bombeiro';
-import type { Bombeiro } from '../types/bombeiro';
 
 const TABLE_GOZO = 'ferias';
 const TABLE_ESCALA = 'ferias_escala';
