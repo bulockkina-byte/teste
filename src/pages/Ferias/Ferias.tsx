@@ -1128,6 +1128,7 @@ function TabEscalaAnual() {
     if (!escala || !user) return;
     const member = teamMembers.find(b => b.id === formFuncId);
     const sub = teamMembers.find(b => b.id === formSubId);
+    const feirista = teamMembers.find(b => b.id === formFeirista);
     const existing = itens.find(i => i.escalaId === escala.id && i.mes === mes);
 
     const data: Omit<EscalaFeriasItem, 'id' | 'createdAt'> = {
@@ -1142,8 +1143,8 @@ function TabEscalaAnual() {
       substitutoId: formSubId,
       substitutoNome: sub?.nomeCompleto || '',
       funcaoSubstituicao: formFuncaoSub,
-      feiristaId: '',
-      feiristaNome: formFeirista,
+      feiristaId: formFeirista,
+      feiristaNome: feirista?.nomeCompleto || '',
     };
 
     setSaving(true);
@@ -1250,7 +1251,7 @@ function TabEscalaAnual() {
       setFormFuncId(existing.funcionarioId);
       setFormSubId(existing.substitutoId);
       setFormFuncaoSub(existing.funcaoSubstituicao as Cargo || '');
-      setFormFeirista(existing.feiristaNome);
+      setFormFeirista(existing.feiristaId || '');
     } else {
       resetForm();
     }
@@ -1438,8 +1439,13 @@ function TabEscalaAnual() {
                       </div>
 
                       <div>
-                        <label className={labelCls}>Nome Feirista</label>
-                        <input type="text" value={formFeirista} onChange={e => setFormFeirista(e.target.value)} placeholder="Nome do feirista (se aplicavel)" className={inputCls} />
+                        <label className={labelCls}>Feirista</label>
+                        <select value={formFeirista} onChange={e => setFormFeirista(e.target.value)} className={selectCls}>
+                          <option value="" className={optionCls}>Nenhum</option>
+                          {teamMembers.filter(m => m.id !== formFuncId).map(m => (
+                            <option key={m.id} value={m.id} className={optionCls}>{m.nomeCompleto} ({ABBR_CARGO[m.cargo] || m.cargo})</option>
+                          ))}
+                        </select>
                       </div>
 
                       <div className="flex gap-2">
@@ -1508,6 +1514,7 @@ function TabMinhaEquipe() {
   const [feriasGozo, setFeriasGozo] = useState<FeriasGozo[]>([]);
   const [myBombeiro, setMyBombeiro] = useState<Bombeiro | null>(null);
   const [selectedEquipe, setSelectedEquipe] = useState<Equipe | ''>('');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const equipes: Equipe[] = ['Alfa', 'Bravo', 'Charlie', 'Delta'];
@@ -1587,41 +1594,80 @@ function TabMinhaEquipe() {
       <div className="space-y-3">
         {teamMembers.map(m => {
           const periodos = buildPeriodos(m, feriasGozo);
+          const isExpanded = expandedId === m.id;
           return (
-            <div key={m.id} className="rounded-2xl border border-graphite-200 bg-white p-5 shadow-sm dark:border-border-dark dark:bg-surface-card">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-aviation-500 to-aviation-700 text-sm font-bold text-white shadow-sm">
-                  {m.foto ? <img src={m.foto} alt="" className="h-full w-full rounded-xl object-cover" /> : m.nomeGuerra.charAt(0)}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="font-bold text-graphite-900 dark:text-graphite-100 truncate">{m.nomeCompleto}</p>
-                  <div className="flex items-center gap-2 text-xs text-graphite-500 dark:text-graphite-400">
-                    <span>{ABBR_CARGO[m.cargo] || m.cargo}</span>
-                    <span>·</span>
-                    <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {fmt(m.dataAdmissao)}</span>
+            <div key={m.id}>
+              <button
+                onClick={() => setExpandedId(isExpanded ? null : m.id)}
+                className={`w-full rounded-2xl border p-4 text-left shadow-sm transition-all hover:shadow-md dark:bg-surface-card ${
+                  isExpanded
+                    ? 'border-aviation-400 bg-aviation-50 dark:border-aviation-500 dark:bg-aviation-900/20'
+                    : 'border-graphite-200 bg-white dark:border-border-dark'
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-aviation-500 to-aviation-700 text-sm font-bold text-white shadow-sm">
+                    {m.foto ? <img src={m.foto} alt="" className="h-full w-full rounded-xl object-cover" /> : m.nomeGuerra.charAt(0)}
                   </div>
-                </div>
-              </div>
-
-              {periodos.length === 0 ? (
-                <p className="text-sm text-graphite-400 dark:text-graphite-500">Nenhum periodo calculado.</p>
-              ) : (
-                <div className="space-y-2">
-                  {periodos.map(p => (
-                    <div key={p.numero} className="flex items-center justify-between gap-3 rounded-xl border border-graphite-200 p-3 dark:border-border-dark dark:bg-surface-hover">
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold text-graphite-900 dark:text-graphite-100">
-                          Periodo {p.numero}: {fmt(p.dataInicio)} - {fmt(p.dataFim)}
-                        </p>
-                        <p className="text-[10px] text-graphite-400 dark:text-graphite-500">
-                          Vence: {fmt(p.dataVencimento)} · {p.diasDireito} dias
-                        </p>
-                      </div>
-                      <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${PERIODO_STATUS_COLORS[p.status] || ''}`}>
-                        {p.status}
-                      </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-graphite-900 dark:text-graphite-100 truncate">{m.nomeCompleto}</p>
+                    <div className="flex items-center gap-2 text-xs text-graphite-500 dark:text-graphite-400">
+                      <span>{ABBR_CARGO[m.cargo] || m.cargo}</span>
+                      <span>·</span>
+                      <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {fmt(m.dataAdmissao)}</span>
                     </div>
-                  ))}
+                  </div>
+                  <div className="flex flex-wrap gap-1 shrink-0">
+                    {periodos.map(p => {
+                      const label = p.gozo
+                        ? p.gozo.status === 'Gozadas' ? 'G' : p.gozo.status === 'Em Gozo' ? 'EG' : 'PR'
+                        : p.status === 'Disponivel' ? 'D' : p.status === 'Vencido' ? 'V' : '?';
+                      const color = p.gozo
+                        ? p.gozo.status === 'Gozadas'
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400'
+                          : p.gozo.status === 'Em Gozo'
+                            ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400'
+                            : 'bg-purple-100 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400'
+                        : p.status === 'Disponivel'
+                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
+                          : 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400';
+                      return (
+                        <span key={p.numero} title={`Periodo ${p.numero}: ${p.gozo ? p.gozo.status : p.status}`} className={`inline-flex h-5 w-5 items-center justify-center rounded text-[9px] font-bold ${color}`}>
+                          {label}
+                        </span>
+                      );
+                    })}
+                  </div>
+                  {isExpanded ? <ChevronDown className="h-5 w-5 shrink-0 text-graphite-400" /> : <ChevronRight className="h-5 w-5 shrink-0 text-graphite-400" />}
+                </div>
+              </button>
+
+              {isExpanded && (
+                <div className="mt-2 rounded-2xl border border-graphite-200 bg-white p-5 shadow-sm dark:border-border-dark dark:bg-surface-card">
+                  <h4 className="mb-4 text-sm font-bold text-graphite-900 dark:text-graphite-100">
+                    Periodos Aquisitivos - {m.nomeCompleto}
+                  </h4>
+                  {periodos.length === 0 ? (
+                    <p className="text-sm text-graphite-400 dark:text-graphite-500">Nenhum periodo calculado.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {periodos.map(p => (
+                        <div key={p.numero} className="flex items-center justify-between gap-3 rounded-xl border border-graphite-200 p-3 dark:border-border-dark dark:bg-surface-hover">
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-graphite-900 dark:text-graphite-100">
+                              Periodo {p.numero}: {fmt(p.dataInicio)} - {fmt(p.dataFim)}
+                            </p>
+                            <p className="text-[10px] text-graphite-400 dark:text-graphite-500">
+                              Vence: {fmt(p.dataVencimento)} · {p.diasDireito} dias
+                            </p>
+                          </div>
+                          <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${PERIODO_STATUS_COLORS[p.status] || ''}`}>
+                            {p.status}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
