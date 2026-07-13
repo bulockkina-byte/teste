@@ -431,7 +431,7 @@ export function Funcionarios() {
               <span className={`ml-1 rounded-full px-1.5 py-0.5 text-xs ${
                 tab === t.key
                   ? 'bg-aviation-100 text-aviation-700 dark:bg-aviation-900/40 dark:text-aviation-300'
-                  : 'bg-graphite-200/60 text-graphite-500 dark:bg-surface-hover40 dark:text-graphite-400'
+                  : 'bg-graphite-200/60 text-graphite-500 dark:bg-graphite-700 dark:text-graphite-300'
               }`}>
                 {count}
               </span>
@@ -456,7 +456,7 @@ export function Funcionarios() {
               <span className={`ml-1 rounded-full px-1.5 py-0.5 text-xs ${
                 subView === 'lista'
                   ? 'bg-aviation-100 text-aviation-700 dark:bg-aviation-900/40 dark:text-aviation-300'
-                  : 'bg-graphite-200/60 text-graphite-500 dark:bg-surface-hover40 dark:text-graphite-400'
+                  : 'bg-graphite-200/60 text-graphite-500 dark:bg-graphite-700 dark:text-graphite-300'
               }`}>
                 {allSubstituicoes.length}
               </span>
@@ -478,71 +478,77 @@ export function Funcionarios() {
             <div className="rounded-2xl border border-graphite-200/60 bg-white/80 p-6 backdrop-blur-sm dark:border-border-dark dark:bg-surface-card">
               <h3 className="mb-6 text-lg font-bold text-graphite-900 dark:text-graphite-100">Nova Substituição Temporária</h3>
 
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-graphite-600 dark:text-graphite-400">Substituído</label>
-                  <SearchSelect
-                    value={formSubstituido?.nomeGuerra || ''}
-                    onChange={(val) => {
-                      const found = allBombeiros.find(b => b.nomeGuerra === val);
-                      setFormSubstituido(found || null);
-                    }}
-                    placeholder="Selecione o funcionário..."
-                  />
-                  {formSubstituido && (
-                    <p className="mt-1 text-xs text-graphite-500 dark:text-graphite-400">
-                      {capitalize(formSubstituido.nomeCompleto)} · {labelCargo(formSubstituido.cargo)}
-                    </p>
-                  )}
+              <div className="space-y-5">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold text-graphite-600 dark:text-graphite-400">Substituído</label>
+                    <SearchSelect
+                      value={formSubstituido?.nomeCompleto || ''}
+                      valueField="nomeCompleto"
+                      onChange={(val) => {
+                        const found = allBombeiros.find(b => b.nomeCompleto === val);
+                        setFormSubstituido(found || null);
+                      }}
+                      placeholder="Selecione o funcionário..."
+                    />
+                    {formSubstituido && (
+                      <p className="mt-1 text-xs text-graphite-500 dark:text-graphite-400">
+                        {labelCargo(formSubstituido.cargo)} · {formSubstituido.equipe}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold text-graphite-600 dark:text-graphite-400">Substituto</label>
+                    <SearchSelect
+                      value={formSubstituto?.nomeCompleto || ''}
+                      valueField="nomeCompleto"
+                      onChange={(val) => {
+                        const found = allBombeiros.find(b => b.nomeCompleto === val);
+                        setFormSubstituto(found || null);
+                      }}
+                      placeholder="Selecione o substituto..."
+                    />
+                    {formSubstituto && (
+                      <p className="mt-1 text-xs text-graphite-500 dark:text-graphite-400">
+                        {labelCargo(formSubstituto.cargo)} · {formSubstituto.equipe}
+                      </p>
+                    )}
+                    {formSubstituido && formSubstituto && formSubstituido.id === formSubstituto.id && (
+                      <p className="mt-1 text-xs text-alert-red">O substituto não pode ser a mesma pessoa que o substituído.</p>
+                    )}
+                  </div>
                 </div>
 
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-graphite-600 dark:text-graphite-400">Substituto</label>
-                  <SearchSelect
-                    value={formSubstituto?.nomeGuerra || ''}
-                    onChange={(val) => {
-                      const found = allBombeiros.find(b => b.nomeGuerra === val);
-                      setFormSubstituto(found || null);
-                    }}
-                    placeholder="Selecione o substituto..."
-                  />
-                  {formSubstituto && (
-                    <p className="mt-1 text-xs text-graphite-500 dark:text-graphite-400">
-                      {capitalize(formSubstituto.nomeCompleto)} · {labelCargo(formSubstituto.cargo)}
-                    </p>
-                  )}
-                  {formSubstituido && formSubstituto && formSubstituido.id === formSubstituto.id && (
-                    <p className="mt-1 text-xs text-alert-red">O substituto não pode ser a mesma pessoa que o substituído.</p>
-                  )}
-                </div>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold text-graphite-600 dark:text-graphite-400">Função de Substituição</label>
+                    <input
+                      type="text"
+                      readOnly
+                      value={substituicaoFuncao ? labelCargo(substituicaoFuncao) : 'Selecione o substituído primeiro'}
+                      className={`${INPUT_CLASS} cursor-default opacity-70`}
+                    />
+                  </div>
 
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-graphite-600 dark:text-graphite-400">Função de Substituição</label>
-                  <input
-                    type="text"
-                    readOnly
-                    value={substituicaoFuncao ? labelCargo(substituicaoFuncao) : 'Selecione o substituído primeiro'}
-                    className={`${INPUT_CLASS} cursor-default opacity-70`}
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-graphite-600 dark:text-graphite-400">Motivo</label>
-                  <select
-                    value={formMotivo}
-                    onChange={e => setFormMotivo(e.target.value as MotivoSubstituicao)}
-                    className={INPUT_CLASS}
-                  >
-                    {MOTIVOS_SUBSTITUICAO.map(m => (
-                      <option key={m.value} value={m.value} className="dark:bg-graphite-700 dark:text-graphite-100">
-                        {m.label}{m.dias > 0 ? ` (${m.dias} dias)` : ''}
-                      </option>
-                    ))}
-                  </select>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold text-graphite-600 dark:text-graphite-400">Motivo</label>
+                    <select
+                      value={formMotivo}
+                      onChange={e => setFormMotivo(e.target.value as MotivoSubstituicao)}
+                      className={INPUT_CLASS}
+                    >
+                      {MOTIVOS_SUBSTITUICAO.map(m => (
+                        <option key={m.value} value={m.value} className="dark:bg-graphite-700 dark:text-graphite-100">
+                          {m.label}{m.dias > 0 ? ` (${m.dias} dias)` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 {formMotivo === 'Outro' && (
-                  <>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
                       <label className="mb-1.5 block text-xs font-semibold text-graphite-600 dark:text-graphite-400">Descrição do Motivo</label>
                       <input
@@ -563,27 +569,29 @@ export function Funcionarios() {
                         className={INPUT_CLASS}
                       />
                     </div>
-                  </>
+                  </div>
                 )}
 
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-graphite-600 dark:text-graphite-400">Data de Saída</label>
-                  <input
-                    type="date"
-                    value={formDataInicio}
-                    onChange={e => setFormDataInicio(e.target.value)}
-                    className={INPUT_CLASS}
-                  />
-                </div>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold text-graphite-600 dark:text-graphite-400">Data de Saída</label>
+                    <input
+                      type="date"
+                      value={formDataInicio}
+                      onChange={e => setFormDataInicio(e.target.value)}
+                      className={INPUT_CLASS}
+                    />
+                  </div>
 
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-graphite-600 dark:text-graphite-400">Data de Retorno</label>
-                  <input
-                    type="text"
-                    readOnly
-                    value={dataFimCalculada ? formatDate(dataFimCalculada) : 'Preencha a data de saída'}
-                    className={`${INPUT_CLASS} cursor-default opacity-70`}
-                  />
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold text-graphite-600 dark:text-graphite-400">Data de Retorno</label>
+                    <input
+                      type="text"
+                      readOnly
+                      value={dataFimCalculada ? formatDate(dataFimCalculada) : 'Preencha a data de saída'}
+                      className={`${INPUT_CLASS} cursor-default opacity-70`}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -591,13 +599,13 @@ export function Funcionarios() {
                 <div className="mt-6 rounded-xl border border-graphite-200/60 bg-graphite-50/80 p-4 dark:border-border-dark dark:bg-surface-card/50">
                   <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400">Resumo da Substituição</h4>
                   <div className="flex items-center gap-3 text-sm">
-                    <div className="text-center">
-                      <p className="font-semibold text-graphite-900 dark:text-graphite-100">{capitalize(formSubstituido.nomeGuerra)}</p>
-                      <p className="text-xs text-graphite-500">{labelCargo(formSubstituido.cargo)}</p>
+                    <div className="flex-1 text-center">
+                      <p className="font-semibold text-graphite-900 dark:text-graphite-100">{capitalize(formSubstituido.nomeCompleto)}</p>
+                      <p className="text-xs text-graphite-500">{labelCargo(formSubstituido.cargo)} · {formSubstituido.equipe}</p>
                     </div>
-                    <ArrowRight className="h-5 w-5 text-aviation-500" />
-                    <div className="text-center">
-                      <p className="font-semibold text-graphite-900 dark:text-graphite-100">{capitalize(formSubstituto.nomeGuerra)}</p>
+                    <ArrowRight className="h-5 w-5 shrink-0 text-aviation-500" />
+                    <div className="flex-1 text-center">
+                      <p className="font-semibold text-graphite-900 dark:text-graphite-100">{capitalize(formSubstituto.nomeCompleto)}</p>
                       <p className="text-xs text-graphite-500">assumirá {labelCargo(substituicaoFuncao)}</p>
                     </div>
                   </div>
