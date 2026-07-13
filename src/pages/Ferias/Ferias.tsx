@@ -1281,7 +1281,6 @@ function TabEscalaAnual() {
     setFormDias(30);
     setFormDataInicio('');
     setFormSubId('');
-    setFormFuncaoSub('');
     setFormFeirista('');
   }
 
@@ -1293,7 +1292,6 @@ function TabEscalaAnual() {
       setFormDias(existing.dias || 30);
       setFormDataInicio(existing.dataInicio || monthStart(ano, mes));
       setFormSubId(existing.substitutoId);
-      setFormFuncaoSub(existing.funcaoSubstituicao as Cargo || '');
       setFormFeirista(existing.feiristaId || '');
     } else {
       resetForm();
