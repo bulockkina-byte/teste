@@ -11,7 +11,7 @@ import { useAuth } from '../../context/AuthContext';
 import { listarAtivos } from '../../services/bombeiroService';
 import {
   calcularPeriodosAquisitivos, MESES, ABBR_CARGO,
-  STATUS_ESCALA_COLORS, FUNCOES_SUBSTITUICAO,
+  STATUS_ESCALA_COLORS,
 } from '../../types/ferias';
 import type {
   PeriodoAquisitivo, FeriasGozo, EscalaFerias, EscalaFeriasItem,
@@ -110,11 +110,6 @@ function buildPeriodos(b: Bombeiro, gozos: FeriasGozo[]): PeriodoView[] {
 
 function monthStart(year: number, month: number): string {
   return `${year}-${String(month).padStart(2, '0')}-01`;
-}
-
-function monthEnd(year: number, month: number): string {
-  const d = new Date(year, month, 0);
-  return d.toISOString().split('T')[0];
 }
 
 // -- Dashboard Stats Calculation --------------------------------------------------
@@ -1063,7 +1058,6 @@ function TabEscalaAnual() {
   const [formDias, setFormDias] = useState<number>(30);
   const [formDataInicio, setFormDataInicio] = useState('');
   const [formSubId, setFormSubId] = useState('');
-  const [formFuncaoSub, setFormFuncaoSub] = useState<Cargo | ''>('');
   const [formFeirista, setFormFeirista] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -1519,7 +1513,7 @@ function TabEscalaAnual() {
                       {formSubId && (
                         <div className="rounded-lg bg-graphite-50 p-2 dark:bg-surface-card">
                           <p className="text-xs text-graphite-600 dark:text-graphite-400">
-                            Substituicao automatica: <span className="font-bold text-graphite-900 dark:text-graphite-100">{ABBR_CARGO[formSubAutoFuncao] || formSubAutoFuncao}</span> (mesma funcao do funcionario em gozo)
+                            Substituicao automatica: <span className="font-bold text-graphite-900 dark:text-graphite-100">{formSubAutoFuncao ? (ABBR_CARGO[formSubAutoFuncao] || formSubAutoFuncao) : '-'}</span> (mesma funcao do funcionario em gozo)
                           </p>
                         </div>
                       )}
