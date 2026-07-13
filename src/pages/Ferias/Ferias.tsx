@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect, useMemo } from 'react';
 import {
   CalendarDays, Plus, Search, Pencil, Trash2, X, Save, User,
-  Calendar, Clock, ChevronDown, ChevronRight, ChevronLeft, Users, AlertTriangle,
+  Calendar, Clock, ChevronDown, ChevronRight, Users, AlertTriangle,
   ArrowRightLeft, Check, Send, RotateCcw,
   BarChart3, FileText, CheckCircle2, XCircle, Eye,
 } from 'lucide-react';
