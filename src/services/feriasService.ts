@@ -109,6 +109,7 @@ function rowToItem(row: Record<string, unknown>): EscalaFeriasItem {
     funcaoSubstituicao: row.funcao_substituicao as Cargo | '',
     feiristaId: row.feirista_id as string,
     feiristaNome: row.feirista_nome as string,
+    periodoNumero: (row.periodo_numero as number) || 0,
     createdAt: row.created_at as string,
   };
 }
@@ -128,6 +129,7 @@ function itemToRow(data: Partial<EscalaFeriasItem>): Record<string, unknown> {
   if (data.funcaoSubstituicao !== undefined) row.funcao_substituicao = data.funcaoSubstituicao;
   if (data.feiristaId !== undefined) row.feirista_id = data.feiristaId;
   if (data.feiristaNome !== undefined) row.feirista_nome = data.feiristaNome;
+  if (data.periodoNumero !== undefined) row.periodo_numero = data.periodoNumero;
   return row;
 }
 

@@ -1248,6 +1248,7 @@ function TabEscalaAnual() {
           funcaoSubstituicao: gozo.funcaoSubstituicao || '',
           feiristaId: '',
           feiristaNome: '',
+          periodoNumero: gozo.periodoNumero,
         });
       }
     }
