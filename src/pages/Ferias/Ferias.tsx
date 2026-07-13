@@ -2,7 +2,7 @@
 import {
   CalendarDays, Plus, Search, Pencil, Trash2, X, Save, User,
   Calendar, Clock, ChevronDown, ChevronRight, Users, AlertTriangle,
-  ArrowRightLeft, Shield, Check, Send, Eye, Ban, RotateCcw,
+   ArrowRightLeft, Check, Send, RotateCcw,
   BarChart3, FileText, CheckCircle2, XCircle,
 } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
@@ -17,7 +17,6 @@ import type {
   PeriodoAquisitivo, FeriasGozo, EscalaFerias, EscalaFeriasItem,
 } from '../../types/ferias';
 import type { Bombeiro, Cargo, Equipe } from '../../types/bombeiro';
-import { EQUIPE_OPTIONS } from '../../types/bombeiro';
 import {
   listarFeriasGozo, criarFeriasGozo,
   listarEscalas, obterEscala, criarEscala,
@@ -429,16 +428,6 @@ function TabAprovacoes() {
 
   function getTeamMembers(equipe: string): Bombeiro[] {
     return bombeiros.filter(b => b.equipe === equipe);
-  }
-
-  function getItensByMonth(escalaId: number): Map<number, EscalaFeriasItem[]> {
-    const map = new Map<number, EscalaFeriasItem[]>();
-    items.filter(i => i.escalaId === expandedId).forEach(item => {
-      const list = map.get(item.mes) || [];
-      list.push(item);
-      map.set(item.mes, list);
-    });
-    return map;
   }
 
   if (loading) {

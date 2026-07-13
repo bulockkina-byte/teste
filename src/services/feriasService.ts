@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import type { FeriasGozo, EscalaFerias, EscalaFeriasItem, FeriasAlerta } from '../types/ferias';
+import type { Bombeiro, Equipe, Cargo } from '../types/bombeiro';
 import type { Bombeiro } from '../types/bombeiro';
 
 const TABLE_GOZO = 'ferias';
@@ -24,7 +25,7 @@ function rowToGozo(row: Record<string, unknown>): FeriasGozo {
     id: row.id as string,
     funcionarioId: row.funcionario_id as string,
     funcionarioNome: row.funcionario_nome as string,
-    equipe: row.equipe as string,
+    equipe: row.equipe as Equipe,
     periodoNumero: row.periodo_numero as number,
     dataInicio: row.data_inicio as string,
     dataFim: row.data_fim as string,
@@ -32,7 +33,7 @@ function rowToGozo(row: Record<string, unknown>): FeriasGozo {
     status: row.status as FeriasGozo['status'],
     substitutoId: row.substituto_id as string,
     substitutoNome: row.substituto_nome as string,
-    funcaoSubstituicao: row.funcao_substituicao as string,
+    funcaoSubstituicao: row.funcao_substituicao as Cargo | '',
     observacoes: row.observacoes as string,
     modificadoPor: row.modificado_por as string,
     bloqueado: row.bloqueado as boolean,
@@ -63,7 +64,7 @@ function gozoToRow(data: Partial<FeriasGozo>): Record<string, unknown> {
 function rowToEscala(row: Record<string, unknown>): EscalaFerias {
   return {
     id: row.id as string,
-    equipe: row.equipe as string,
+    equipe: row.equipe as Equipe,
     ano: row.ano as number,
     chefeId: row.chefe_id as string,
     chefeNome: row.chefe_nome as string,
@@ -100,13 +101,13 @@ function rowToItem(row: Record<string, unknown>): EscalaFeriasItem {
     mes: row.mes as number,
     funcionarioId: row.funcionario_id as string,
     funcionarioNome: row.funcionario_nome as string,
-    funcao: row.funcao as string,
+    funcao: row.funcao as Cargo,
     dias: row.dias as number,
     dataInicio: row.data_inicio as string,
     dataFim: row.data_fim as string,
     substitutoId: row.substituto_id as string,
     substitutoNome: row.substituto_nome as string,
-    funcaoSubstituicao: row.funcao_substituicao as string,
+    funcaoSubstituicao: row.funcao_substituicao as Cargo | '',
     feiristaId: row.feirista_id as string,
     feiristaNome: row.feirista_nome as string,
     createdAt: row.created_at as string,
@@ -404,7 +405,7 @@ export function listarFerias(): any[] {
   return [];
 }
 
-export function alertasVencimento(meses: number): Promise<any[]> {
+export function alertasVencimento(_meses: number): Promise<any[]> {
   return Promise.resolve([]);
 }
 
@@ -412,8 +413,8 @@ export function criarFerias(data: any): any {
   return data;
 }
 
-export function atualizarFerias(id: string, data: any): any {
+export function atualizarFerias(_id: string, data: any): any {
   return data;
 }
 
-export function excluirFerias(id: string): void {}
+export function excluirFerias(_id: string): void {}
