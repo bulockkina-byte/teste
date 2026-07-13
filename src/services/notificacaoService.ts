@@ -12,7 +12,7 @@ export interface Notificacao {
   tipo: 'info' | 'alerta' | 'sucesso' | 'erro';
   lida: boolean;
   equipe: Equipe;
-  origem: 'ferias' | 'epi' | 'certificacao' | 'substituicao' | 'certificacao_curso';
+  origem: 'ferias' | 'epi' | 'certificacao' | 'substituicao' | 'certificacao_curso' | 'credencial';
   createdAt: string;
 }
 
@@ -177,6 +177,7 @@ export async function gerarNotificacoes(): Promise<Notificacao[]> {
     ...(await calcularAlertasCertificacao()),
     ...(await calcularAlertasSubstituicao()),
     ...(await calcularAlertasCertificacaoCurso()),
+    ...(await calcularAlertasCredenciais()),
   ];
 
   const resultado: Notificacao[] = [];
@@ -261,4 +262,30 @@ export function contarNaoLidas(equipes?: Equipe[]): number {
 
 export function limparNotificacoes() {
   localStorage.removeItem(STORAGE_KEY);
+}
+
+async function calcularAlertasCredenciais(): Promise<Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[]> {
+  const alertas: Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[] = [];
+  try {
+    const bombeiros = await listarAtivos();
+    const agora = new Date();
+    const seisMeses = new Date(agora);
+    seisMeses.setMonth(seisMeses.getMonth() + 6);
+
+    for (const b of bombeiros) {
+      if (!b.credencialValidade) continue;
+      const venc = new Date(b.credencialValidade + 'T00:00:00');
+      if (venc > agora && venc <= seisMeses) {
+        const dias = Math.ceil((venc.getTime() - agora.getTime()) / 86400000);
+        alertas.push({
+          titulo: 'Credencial Próxima do Vencimento',
+          descricao: `${b.nomeCompleto} (${b.nomeGuerra}) - Credencial vence em ${dias} dias. Necessário juntar documentação para refazer.`,
+          tipo: 'alerta',
+          equipe: b.equipe,
+          origem: 'credencial',
+        });
+      }
+    }
+  } catch { /* ignorar */ }
+  return alertas;
 }

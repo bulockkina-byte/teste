@@ -82,6 +82,7 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
   const [cnhNumero, setCnhNumero] = useState('');
   const [cnhCategoria, setCnhCategoria] = useState<CatCNH>('B');
   const [cnhValidade, setCnhValidade] = useState('');
+  const [credencialValidade, setCredencialValidade] = useState('');
   const [foto, setFoto] = useState('');
   const [dataDesligamento, setDataDesligamento] = useState('');
   const [showDesligamento, setShowDesligamento] = useState(false);
@@ -117,6 +118,7 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
       setCnhNumero(bombeiro.cnhNumero);
       setCnhCategoria(bombeiro.cnhCategoria);
       setCnhValidade(bombeiro.cnhValidade);
+      setCredencialValidade(bombeiro.credencialValidade || '');
       setFoto(bombeiro.foto);
       setDataDesligamento(bombeiro.dataDesligamento);
       if (bombeiro.dataDesligamento) setShowDesligamento(true);
@@ -196,6 +198,7 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
       cnhNumero,
       cnhCategoria,
       cnhValidade,
+      credencialValidade,
       foto,
       dataDesligamento,
       endereco,
@@ -420,6 +423,12 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
                   <label className={labelClass}>Validade CNH *</label>
                   <input type="date" value={cnhValidade} onChange={e => setCnhValidade(e.target.value)}
                     className={inputClass} />
+                </div>
+                <div>
+                  <label className={labelClass}>Validade Credencial</label>
+                  <input type="date" value={credencialValidade} onChange={e => setCredencialValidade(e.target.value)}
+                    className={inputClass} />
+                  <p className="mt-0.5 text-[10px] text-graphite-400 dark:text-graphite-500">Quando faltar 6 meses, o chefe e gerente serão notificados</p>
                 </div>
               </div>
             </fieldset>
