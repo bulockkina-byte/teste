@@ -1,6 +1,11 @@
 import { supabase } from '../lib/supabase';
 import type { EPI } from '../types/epi';
 
+function getDb() {
+  if (!supabase) throw new Error('Supabase não configurado. Verifique as credenciais no arquivo .env');
+  return supabase;
+}
+
 function mapRow(row: Record<string, unknown>): EPI {
   return {
     id: row.id as string,
@@ -45,7 +50,7 @@ function toRow(data: Partial<EPI>): Record<string, unknown> {
 }
 
 export async function listarEPIs(): Promise<EPI[]> {
-  const { data, error } = await supabase
+  const { data, error } = await getDb()
     .from('epis')
     .select('*')
     .order('created_at', { ascending: false });
@@ -76,7 +81,7 @@ export async function criarEPI(
     data_assinatura: '',
     data_devolucao: '',
   };
-  const { data: result, error } = await supabase
+  const { data: result, error } = await getDb()
     .from('epis')
     .insert(row)
     .select()
@@ -89,7 +94,7 @@ export async function criarEPI(
 }
 
 export async function atualizarEPI(id: string, data: Partial<EPI>): Promise<EPI | null> {
-  const { data: result, error } = await supabase
+  const { data: result, error } = await getDb()
     .from('epis')
     .update(toRow(data))
     .eq('id', id)
@@ -103,7 +108,7 @@ export async function atualizarEPI(id: string, data: Partial<EPI>): Promise<EPI 
 }
 
 export async function excluirEPI(id: string): Promise<void> {
-  const { error } = await supabase.from('epis').delete().eq('id', id);
+  const { error } = await getDb().from('epis').delete().eq('id', id);
   if (error) console.error('Erro ao excluir EPI:', error);
 }
 

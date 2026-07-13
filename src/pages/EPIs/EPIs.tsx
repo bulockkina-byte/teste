@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   HardHat, Plus, Save, Pencil, Trash2, AlertTriangle, Search, X, Clock,
-  DollarSign, Send, RotateCcw, FileText, ChevronDown, ChevronRight,
+  DollarSign, Send, RotateCcw, ChevronDown, ChevronRight,
   User, CheckCircle2,
 } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
@@ -13,7 +13,7 @@ import {
   pagarEPI, enviarAutentiqueEPI, assinarEPI, devolverEPI,
 } from '../../services/epiService';
 import { CATEGORIAS_EPI, EPI_STATUS_LABELS, EPI_STATUS_COLORS } from '../../types/epi';
-import type { EPI, EPIStatus } from '../../types/epi';
+import type { EPI } from '../../types/epi';
 import type { Bombeiro } from '../../types/bombeiro';
 
 function getDiasParaVencer(dataValidade: string): number {
@@ -202,7 +202,6 @@ function FichaFuncionario({
             <div className="space-y-2">
               {episDoFunc.map(epi => {
                 const dias = getDiasParaVencer(epi.dataValidade);
-                const validade = getStatusValidade(epi.dataValidade);
                 return (
                   <div key={epi.id} className="flex flex-col gap-2 rounded-lg border border-graphite-100 bg-graphite-50/50 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-border-dark dark:bg-surface-card">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
