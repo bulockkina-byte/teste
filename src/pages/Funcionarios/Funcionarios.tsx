@@ -213,7 +213,11 @@ export function Funcionarios() {
 
   useEffect(() => {
     async function load() {
-      setAllSubstituicoes(await listarSubstituicoesTemporarias());
+      try {
+        setAllSubstituicoes(await listarSubstituicoesTemporarias());
+      } catch (e) {
+        console.error('Erro ao carregar substituicoes:', e);
+      }
     }
     load();
   }, []);
