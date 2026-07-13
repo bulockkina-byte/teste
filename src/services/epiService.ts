@@ -26,6 +26,10 @@ function mapRow(row: Record<string, unknown>): EPI {
     dataEnvioAutentique: row.data_envio_autentique as string,
     dataAssinatura: row.data_assinatura as string,
     dataDevolucao: row.data_devolucao as string,
+    dataFabricacao: (row.data_fabricacao as string) || '',
+    tamanho: (row.tamanho as string) || '',
+    numeroSerie: (row.numero_serie as string) || '',
+    estado: (row.estado as EPI['estado']) || 'Novo',
   };
 }
 
@@ -45,6 +49,10 @@ function toRow(data: Partial<EPI>): Record<string, unknown> {
   if (data.dataEnvioAutentique !== undefined) row.data_envio_autentique = data.dataEnvioAutentique;
   if (data.dataAssinatura !== undefined) row.data_assinatura = data.dataAssinatura;
   if (data.dataDevolucao !== undefined) row.data_devolucao = data.dataDevolucao;
+  if (data.dataFabricacao !== undefined) row.data_fabricacao = data.dataFabricacao;
+  if (data.tamanho !== undefined) row.tamanho = data.tamanho;
+  if (data.numeroSerie !== undefined) row.numero_serie = data.numeroSerie;
+  if (data.estado !== undefined) row.estado = data.estado;
   row.updated_at = new Date().toISOString();
   return row;
 }
@@ -76,7 +84,11 @@ export async function criarEPI(
     data_validade: data.dataValidade,
     fornecedor: data.fornecedor,
     notas: data.notas,
-    status: 'entregue',
+    data_fabricacao: data.dataFabricacao || '',
+    tamanho: data.tamanho || '',
+    numero_serie: data.numeroSerie || '',
+    estado: data.estado || 'Novo',
+    status: 'pago',
     data_envio_autentique: '',
     data_assinatura: '',
     data_devolucao: '',

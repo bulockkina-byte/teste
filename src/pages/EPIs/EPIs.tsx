@@ -1,34 +1,51 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   HardHat, Plus, Save, Pencil, Trash2, AlertTriangle, Search, X, Clock,
   DollarSign, Send, RotateCcw, ChevronDown, ChevronRight,
-  User, CheckCircle2,
+  User, CheckCircle2, Bell, Package, Eye,
 } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { useAuth } from '../../context/AuthContext';
 import { listarBombeiros } from '../../services/bombeiroService';
 import {
-  listarEPIs, criarEPI, atualizarEPI, excluirEPI,
-  pagarEPI, enviarAutentiqueEPI, assinarEPI, devolverEPI,
+  listarEPIs, criarEPI, excluirEPI,
 } from '../../services/epiService';
-import { CATEGORIAS_EPI, EPI_STATUS_LABELS, EPI_STATUS_COLORS } from '../../types/epi';
-import type { EPI } from '../../types/epi';
+import {
+  listarEstoque, criarEstoque, atualizarEstoque, excluirEstoque,
+  baixarEstoque, reporEstoque,
+} from '../../services/epiEstoqueService';
+import {
+  CATEGORIAS_EPI, EPI_STATUS_LABELS, EPI_STATUS_COLORS,
+  ESTADO_CONSERVACAO_OPTIONS, TAMANHOS_EPI,
+  getDiasParaVencer, getPrioridade, getLabelValidade,
+  calcularDataValidade, getDiasParaVencerLabel,
+} from '../../types/epi';
+import type { EPI, EPIEstoque, EstadoConservacao } from '../../types/epi';
 import type { Bombeiro } from '../../types/bombeiro';
 
-function getDiasParaVencer(dataValidade: string): number {
-  const hoje = new Date();
-  hoje.setHours(0, 0, 0, 0);
-  const validade = new Date(dataValidade + 'T00:00:00');
-  return Math.ceil((validade.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+type Tab = 'funcionarios' | 'epis';
+
+const DURACAO_PLANTAO_MS = 12 * 60 * 60 * 1000;
+const PLANTOES_PARA_NOTIFICAR = 3;
+const INTERVALO_NOTIFICACAO_MS = PLANTOES_PARA_NOTIFICAR * DURACAO_PLANTAO_MS;
+
+function getControleNotificacao(username: string): { ultima: string } | null {
+  try {
+    const raw = localStorage.getItem('epi-notif-control');
+    if (!raw) return null;
+    const data = JSON.parse(raw) as Record<string, { ultima: string }>;
+    return data[username] || null;
+  } catch { return null; }
 }
 
-function getStatusValidade(dataValidade: string): { label: string; color: string } {
-  const dias = getDiasParaVencer(dataValidade);
-  if (dias < 0) return { label: 'Vencido', color: 'bg-red-50 text-alert-red dark:bg-red-900/20 dark:text-red-400' };
-  if (dias <= 30) return { label: 'Crítico', color: 'bg-red-50 text-alert-red dark:bg-red-900/20 dark:text-red-400' };
-  if (dias <= 150) return { label: 'Próximo ao Vencimento', color: 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400' };
-  return { label: 'Válido', color: 'bg-status-green/10 text-status-green' };
+function setControleNotificacao(username: string) {
+  try {
+    const raw = localStorage.getItem('epi-notif-control');
+    const data: Record<string, { ultima: string }> = raw ? JSON.parse(raw) : {};
+    data[username] = { ultima: new Date().toISOString() };
+    localStorage.setItem('epi-notif-control', JSON.stringify(data));
+  } catch { /* ignore */ }
 }
 
 async function getUserRole(username: string): Promise<'admin' | 'gerente' | 'chefe'> {
@@ -44,145 +61,717 @@ async function getUserRole(username: string): Promise<'admin' | 'gerente' | 'che
   return 'chefe';
 }
 
-type Tab = 'funcionarios' | 'epis';
+function getEquipeDoBombeiro(bombeiro: Bombeiro): string {
+  return bombeiro.equipe;
+}
 
-/* ───────── Formulário Inline ───────── */
+export function EPIs() {
+  const { user } = useAuth();
+  const username = user?.username || '';
+  const [role, setRole] = useState<'admin' | 'gerente' | 'chefe'>('chefe');
+  useEffect(() => { (async () => { setRole(await getUserRole(username)); })(); }, [username]);
+  const isAdmin = role === 'admin';
+  const isGerente = role === 'gerente';
+  const canManage = isAdmin;
 
-function EPIFormInline({
-  epi,
-  funcionarios,
-  onSave,
-  onCancel,
-}: {
-  epi?: EPI;
-  funcionarios: Bombeiro[];
-  onSave: (data: Omit<EPI, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'status' | 'dataEnvioAutentique' | 'dataAssinatura' | 'dataDevolucao'>) => void;
-  onCancel: () => void;
-}) {
-  const hoje = new Date().toISOString().split('T')[0];
-  const [form, setForm] = useState(epi ? {
-    nome: epi.nome, descricao: epi.descricao, colaborador: epi.colaborador,
-    colaboradorId: epi.colaboradorId, entreguePor: epi.entreguePor, ca: epi.ca,
-    dataPagamento: epi.dataPagamento, dataValidade: epi.dataValidade,
-    fornecedor: epi.fornecedor, notas: epi.notas,
-  } : {
-    nome: '', descricao: '', colaborador: '', colaboradorId: '', entreguePor: '', ca: '',
-    dataPagamento: hoje, dataValidade: '',
-    fornecedor: '', notas: '',
-  });
+  const [tab, setTab] = useState<Tab>('funcionarios');
+  const [epis, setEpis] = useState<EPI[]>([]);
+  const [funcionarios, setFuncionarios] = useState<Bombeiro[]>([]);
+  const [estoque, setEstoque] = useState<EPIEstoque[]>([]);
+  const [termo, setTermo] = useState('');
+  const [filtroEquipe, setFiltroEquipe] = useState('');
+  const [filtroFuncao, setFiltroFuncao] = useState('');
+  const [filtroValidade, setFiltroValidade] = useState('');
+  const [showNotificacoes, setShowNotificacoes] = useState(false);
+  const [formEstoqueOpen, setFormEstoqueOpen] = useState(false);
+  const [editandoEstoque, setEditandoEstoque] = useState<EPIEstoque | null>(null);
+  const [pagarEpiState, setPagarEpiState] = useState<{ bombeiro: Bombeiro } | null>(null);
+  const [devolverEpiState, setDevolverEpiState] = useState<{ bombeiro: Bombeiro } | null>(null);
+  const [confirmDeleteEstoque, setConfirmDeleteEstoque] = useState<string | null>(null);
+  const [confirmDeleteEpi, setConfirmDeleteEpi] = useState<string | null>(null);
+  const [confirmPagar, setConfirmPagar] = useState<{ estoque: EPIEstoque; bombeiro: Bombeiro } | null>(null);
+  const [confirmDevolver, setConfirmDevolver] = useState<{ epi: EPI; bombeiro: Bombeiro } | null>(null);
 
-  const input = 'w-full rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2 text-sm backdrop-blur-sm transition-all duration-200 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50';
-  const label = 'block mb-1 text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400';
+  async function carregar() {
+    const [episData, funcsData, estoqueData] = await Promise.all([listarEPIs(), listarBombeiros(), listarEstoque()]);
+    setEpis(episData);
+    setFuncionarios(funcsData);
+    setEstoque(estoqueData);
+  }
+  useEffect(() => { carregar(); }, []);
 
-  function handleColaboradorChange(value: string) {
-    const func = funcionarios.find(f => f.id === value);
-    setForm(f => ({
-      ...f,
-      colaboradorId: value,
-      colaborador: func ? func.nomeGuerra : '',
+  const meuBombeiro = useMemo(() => {
+    return funcionarios.find(
+      f => f.nomeGuerra.toLowerCase() === username.toLowerCase() ||
+           f.nomeCompleto.toLowerCase().includes(username.toLowerCase()),
+    );
+  }, [funcionarios, username]);
+
+  const minhaEquipe = useMemo(() => {
+    if (isGerente || isAdmin) return null;
+    return meuBombeiro?.equipe || null;
+  }, [meuBombeiro, isGerente, isAdmin]);
+
+  const funcionariosDaMinhaEquipe = useMemo(() => {
+    if (!minhaEquipe) return funcionarios;
+    return funcionarios.filter(f => f.equipe === minhaEquipe);
+  }, [funcionarios, minhaEquipe]);
+
+  const episFiltradosParaNotificacao = useMemo(() => {
+    if (isGerente || isAdmin) return epis;
+    const idsFuncs = new Set(funcionariosDaMinhaEquipe.map(f => f.id));
+    return epis.filter(e => idsFuncs.has(e.colaboradorId) || funcionariosDaMinhaEquipe.some(f => f.nomeGuerra === e.colaborador));
+  }, [epis, isGerente, isAdmin, funcionariosDaMinhaEquipe]);
+
+  const notificacoes = useMemo(() => {
+    const vencidos: { epi: EPI; func: Bombeiro | undefined }[] = [];
+    const criticos: { epi: EPI; func: Bombeiro | undefined }[] = [];
+    const atencao: { epi: EPI; func: Bombeiro | undefined }[] = [];
+
+    episFiltradosParaNotificacao.forEach(epi => {
+      if (epi.status === 'devolvido' || !epi.dataValidade) return;
+      const prioridade = getPrioridade(epi.dataValidade);
+      const func = funcionarios.find(f => f.id === epi.colaboradorId || f.nomeGuerra === epi.colaborador);
+      if (prioridade === 'vencido') vencidos.push({ epi, func });
+      else if (prioridade === 'critico') criticos.push({ epi, func });
+      else if (prioridade === 'atencao') atencao.push({ epi, func });
+    });
+
+    return { vencidos, criticos, atencao };
+  }, [episFiltradosParaNotificacao, funcionarios]);
+
+  const deveMostrarNotificacao = useMemo(() => {
+    if (!isGerente && !isAdmin && !meuBombeiro) return false;
+    if (notificacoes.vencidos.length === 0 && notificacoes.criticos.length === 0 && notificacoes.atencao.length === 0) return false;
+    const controle = getControleNotificacao(username);
+    if (!controle) return true;
+    const tempoDecorrido = Date.now() - new Date(controle.ultima).getTime();
+    return tempoDecorrido >= INTERVALO_NOTIFICACAO_MS;
+  }, [username, isGerente, isAdmin, meuBombeiro, notificacoes]);
+
+  const dismissNotificacao = useCallback(() => {
+    setControleNotificacao(username);
+    setShowNotificacoes(false);
+  }, [username]);
+
+  useEffect(() => {
+    if (deveMostrarNotificacao) setShowNotificacoes(true);
+  }, [deveMostrarNotificacao]);
+
+  const filtradas = useMemo(() => {
+    if (!termo) return epis;
+    const t = termo.toLowerCase();
+    return epis.filter(e =>
+      e.nome.toLowerCase().includes(t) ||
+      e.colaborador.toLowerCase().includes(t) ||
+      e.descricao.toLowerCase().includes(t) ||
+      e.fornecedor.toLowerCase().includes(t)
+    );
+  }, [epis, termo]);
+
+  const funcionariosFiltrados = useMemo(() => {
+    let lista = funcionarios;
+    if (minhaEquipe) lista = lista.filter(f => f.equipe === minhaEquipe);
+    if (filtroEquipe) lista = lista.filter(f => f.equipe === filtroEquipe);
+    if (filtroFuncao) lista = lista.filter(f => f.cargo === filtroFuncao);
+    if (termo) {
+      const t = termo.toLowerCase();
+      lista = lista.filter(f =>
+        f.nomeGuerra.toLowerCase().includes(t) ||
+        f.nomeCompleto.toLowerCase().includes(t)
+      );
+    }
+    if (filtroValidade) {
+      lista = lista.filter(f => {
+        const episDoFunc = epis.filter(e => (e.colaboradorId === f.id || e.colaborador === f.nomeGuerra) && e.status !== 'devolvido');
+        return episDoFunc.some(e => {
+          const p = getPrioridade(e.dataValidade);
+          return (filtroValidade === 'vencido' && p === 'vencido') ||
+                 (filtroValidade === 'critico' && p === 'critico') ||
+                 (filtroValidade === 'atencao' && p === 'atencao');
+        });
+      });
+    }
+    return lista;
+  }, [funcionarios, filtroEquipe, filtroFuncao, termo, filtroValidade, epis, minhaEquipe]);
+
+  const episEntregues = useMemo(() => {
+    let lista = filtradas.filter(e => e.status !== 'devolvido');
+    if (minhaEquipe) {
+      const idsFuncs = new Set(funcionarios.filter(f => f.equipe === minhaEquipe).map(f => f.id));
+      lista = lista.filter(e => idsFuncs.has(e.colaboradorId) || funcionarios.some(f => f.nomeGuerra === e.colaborador && f.equipe === minhaEquipe));
+    }
+    return lista;
+  }, [filtradas, minhaEquipe, funcionarios]);
+
+  const estoqueComValidade = useMemo(() => {
+    return estoque.map(e => ({
+      ...e,
+      dataValidadeCalculada: e.dataValidade || calcularDataValidade(e.dataFabricacao, e.tempoValidadeMeses),
     }));
+  }, [estoque]);
+
+  async function handlePagarEpiDireto(itemEstoque: EPIEstoque, bombeiro: Bombeiro) {
+    const hoje = new Date().toISOString().split('T')[0];
+    const nomeLogado = user?.pessoa?.nomeGuerra || user?.name || username;
+    await criarEPI({
+      nome: itemEstoque.nome,
+      descricao: itemEstoque.descricao,
+      colaborador: bombeiro.nomeGuerra,
+      colaboradorId: bombeiro.id,
+      entreguePor: nomeLogado,
+      ca: itemEstoque.ca,
+      dataPagamento: hoje,
+      dataValidade: itemEstoque.dataValidade || calcularDataValidade(itemEstoque.dataFabricacao, itemEstoque.tempoValidadeMeses),
+      fornecedor: itemEstoque.fornecedor,
+      notas: itemEstoque.notas,
+      dataFabricacao: itemEstoque.dataFabricacao,
+      tamanho: itemEstoque.tamanho,
+      numeroSerie: itemEstoque.numeroSerie,
+      estado: itemEstoque.estado,
+      createdBy: username,
+    });
+    await baixarEstoque(itemEstoque.id);
+    await carregar();
   }
 
+  async function handleDevolverEpi(epiId: string) {
+    const epi = epis.find(e => e.id === epiId);
+    if (!epi) return;
+    const estoqueItem = estoque.find(e =>
+      e.nome === epi.nome && e.ca === epi.ca && e.fornecedor === epi.fornecedor
+    );
+    const { atualizarEPI, devolverEPI } = await import('../../services/epiService');
+    await devolverEPI(epiId);
+    if (estoqueItem && (epi.estado === 'Novo' || epi.estado === 'Bom' || epi.estado === 'Regular')) {
+      await reporEstoque(estoqueItem.id);
+    }
+    await carregar();
+  }
+
+  async function handleExcluirEstoque(id: string) {
+    await excluirEstoque(id);
+    setConfirmDeleteEstoque(null);
+    await carregar();
+  }
+
+  async function handleExcluirEpi(id: string) {
+    const { excluirEPI } = await import('../../services/epiService');
+    await excluirEPI(id);
+    setConfirmDeleteEpi(null);
+    await carregar();
+  }
+
+  const equipes = useMemo(() => [...new Set(funcionarios.map(f => f.equipe))].sort(), [funcionarios]);
+  const cargos = useMemo(() => [...new Set(funcionarios.map(f => f.cargo))].sort(), [funcionarios]);
+
   return (
-    <tr className="bg-aviation-50/50 dark:bg-aviation-900/10">
-      <td className="px-3 py-3" colSpan={8}>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div>
-            <label className={label}>Nome do EPI *</label>
-            <select value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} className={input}>
-              <option value="">Selecione</option>
-              {CATEGORIAS_EPI.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className={label}>Descrição</label>
-            <input value={form.descricao} onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))} className={input} placeholder="Ex: Capacete Classe B" />
-          </div>
-          <div>
-            <label className={label}>Colaborador (Recebedor) *</label>
-            <select value={form.colaboradorId} onChange={e => handleColaboradorChange(e.target.value)} className={input}>
-              <option value="">Selecione o funcionário</option>
-              {funcionarios.map(f => (
-                <option key={f.id} value={f.id}>{f.nomeGuerra} — {f.nomeCompleto}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className={label}>Entregue Por *</label>
-            <input value={form.entreguePor} onChange={e => setForm(f => ({ ...f, entreguePor: e.target.value }))} className={input} placeholder="Nome de quem entregou" />
-          </div>
-          <div>
-            <label className={label}>Certificado de Aprovação (CA) *</label>
-            <input value={form.ca} onChange={e => setForm(f => ({ ...f, ca: e.target.value }))} className={input} placeholder="Nº do CA" />
-          </div>
-          <div>
-            <label className={label}>Fornecedor</label>
-            <input value={form.fornecedor} onChange={e => setForm(f => ({ ...f, fornecedor: e.target.value }))} className={input} />
-          </div>
-          <div>
-            <label className={label}>Data de Pagamento</label>
-            <input type="date" value={form.dataPagamento} readOnly className={input + ' cursor-not-allowed bg-graphite-50/80 font-medium dark:bg-surface-card'} />
-          </div>
-          <div>
-            <label className={label}>Data de Validade *</label>
-            <input type="date" value={form.dataValidade} onChange={e => setForm(f => ({ ...f, dataValidade: e.target.value }))} className={input} />
-          </div>
-          <div className="sm:col-span-2 lg:col-span-4">
-            <label className={label}>Notas</label>
-            <input value={form.notas} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))} className={input} placeholder="Observações" />
+    <PageContainer>
+      <PageTitle icon={HardHat} title="EPIs" />
+
+      {deveMostrarNotificacao && showNotificacoes && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-lg max-h-[80vh] overflow-y-auto rounded-2xl bg-white/95 p-6 shadow-xl backdrop-blur-sm dark:bg-surface-elevated/95">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Bell className="h-5 w-5 text-aviation-600 dark:text-aviation-400" />
+                <h3 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">Notificações de Vencimento</h3>
+              </div>
+              <button onClick={dismissNotificacao} className="rounded-lg p-1 text-graphite-400 hover:bg-graphite-100 dark:hover:bg-surface-hover">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {notificacoes.vencidos.length > 0 && (
+              <div className="mb-4">
+                <h4 className="flex items-center gap-2 text-sm font-bold text-red-600 dark:text-red-400 mb-2">
+                  <span className="h-3 w-3 rounded-full bg-red-500" /> Vencidos ({notificacoes.vencidos.length})
+                </h4>
+                <div className="space-y-1">
+                  {notificacoes.vencidos.map(({ epi, func }) => (
+                    <div key={epi.id} className="rounded-lg bg-red-50 p-2 text-xs dark:bg-red-900/20">
+                      <span className="font-bold text-red-700 dark:text-red-400">{epi.nome}</span>
+                      <span className="text-red-600 dark:text-red-400"> — {func?.nomeGuerra || epi.colaborador}</span>
+                      <span className="text-red-500 dark:text-red-400 ml-1">{getDiasParaVencerLabel(epi.dataValidade)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {notificacoes.criticos.length > 0 && (
+              <div className="mb-4">
+                <h4 className="flex items-center gap-2 text-sm font-bold text-orange-600 dark:text-orange-400 mb-2">
+                  <span className="h-3 w-3 rounded-full bg-orange-500" /> Vence em até 40 dias ({notificacoes.criticos.length})
+                </h4>
+                <div className="space-y-1">
+                  {notificacoes.criticos.map(({ epi, func }) => (
+                    <div key={epi.id} className="rounded-lg bg-orange-50 p-2 text-xs dark:bg-orange-900/20">
+                      <span className="font-bold text-orange-700 dark:text-orange-400">{epi.nome}</span>
+                      <span className="text-orange-600 dark:text-orange-400"> — {func?.nomeGuerra || epi.colaborador}</span>
+                      <span className="text-orange-500 dark:text-orange-400 ml-1">{getDiasParaVencerLabel(epi.dataValidade)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {notificacoes.atencao.length > 0 && (
+              <div className="mb-4">
+                <h4 className="flex items-center gap-2 text-sm font-bold text-yellow-600 dark:text-yellow-400 mb-2">
+                  <span className="h-3 w-3 rounded-full bg-yellow-500" /> Vence em até 1 ano ({notificacoes.atencao.length})
+                </h4>
+                <div className="space-y-1">
+                  {notificacoes.atencao.map(({ epi, func }) => (
+                    <div key={epi.id} className="rounded-lg bg-yellow-50 p-2 text-xs dark:bg-yellow-900/20">
+                      <span className="font-bold text-yellow-700 dark:text-yellow-400">{epi.nome}</span>
+                      <span className="text-yellow-600 dark:text-yellow-400"> — {func?.nomeGuerra || epi.colaborador}</span>
+                      <span className="text-yellow-500 dark:text-yellow-400 ml-1">{getDiasParaVencerLabel(epi.dataValidade)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end mt-4">
+              <button onClick={dismissNotificacao}
+                className="rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2 text-sm font-medium text-white shadow-lg transition-all hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
+                Entendi
+              </button>
+            </div>
           </div>
         </div>
-        <div className="mt-3 flex justify-end gap-2">
-          <button onClick={onCancel} className="rounded-lg border border-graphite-300/60 bg-white/80 px-3 py-1.5 text-xs font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card/80 dark:text-graphite-200">Cancelar</button>
-          <button onClick={() => onSave(form)} disabled={!form.nome || !form.colaboradorId || !form.entreguePor || !form.ca || !form.dataValidade}
-            className="flex items-center gap-1 rounded-lg bg-gradient-to-r from-aviation-600 to-aviation-700 px-3 py-1.5 text-xs font-medium text-white shadow-md transition-all hover:from-aviation-500 hover:to-aviation-600 disabled:opacity-50 disabled:cursor-not-allowed">
-            <Save className="h-3.5 w-3.5" /> Salvar
+      )}
+
+      <div className="mb-4 flex gap-1 rounded-xl border border-graphite-200/60 bg-white/60 p-1 backdrop-blur-sm dark:border-border-dark dark:bg-surface-card">
+        <button onClick={() => setTab('funcionarios')}
+          className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
+            tab === 'funcionarios'
+              ? 'bg-aviation-100 text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-400'
+              : 'text-graphite-500 hover:bg-graphite-100 hover:text-graphite-700 dark:text-graphite-400 dark:hover:bg-surface-hover'
+          }`}>
+          <User className="h-4 w-4" /> Funcionários
+        </button>
+        <button onClick={() => setTab('epis')}
+          className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
+            tab === 'epis'
+              ? 'bg-aviation-100 text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-400'
+              : 'text-graphite-500 hover:bg-graphite-100 hover:text-graphite-700 dark:text-graphite-400 dark:hover:bg-surface-hover'
+          }`}>
+          <HardHat className="h-4 w-4" /> EPIs
+        </button>
+      </div>
+
+      {tab === 'funcionarios' && (
+        <div className="mb-4 flex flex-wrap gap-3">
+          <select value={filtroEquipe} onChange={e => setFiltroEquipe(e.target.value)}
+            className="rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2 text-sm dark:border-border-dark dark:bg-surface-card dark:text-graphite-100">
+            <option value="">Todas as Equipes</option>
+            {equipes.map(eq => <option key={eq} value={eq}>{eq}</option>)}
+          </select>
+          <select value={filtroFuncao} onChange={e => setFiltroFuncao(e.target.value)}
+            className="rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2 text-sm dark:border-border-dark dark:bg-surface-card dark:text-graphite-100">
+            <option value="">Todas as Funções</option>
+            {cargos.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <select value={filtroValidade} onChange={e => setFiltroValidade(e.target.value)}
+            className="rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2 text-sm dark:border-border-dark dark:bg-surface-card dark:text-graphite-100">
+            <option value="">Todas as Validades</option>
+            <option value="vencido">Com EPI Vencido</option>
+            <option value="critico">Com EPI a Vencer (até 40 dias)</option>
+            <option value="atencao">Com EPI a Vencer (até 1 ano)</option>
+          </select>
+        </div>
+      )}
+
+      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite-400" />
+          <input type="text" value={termo} onChange={e => setTermo(e.target.value)}
+            placeholder={tab === 'funcionarios' ? 'Pesquisar por nome...' : 'Pesquisar por nome, responsável...'}
+            className="w-full rounded-xl border border-graphite-300/60 bg-white/70 py-2.5 pl-10 pr-4 text-sm text-graphite-900 placeholder-graphite-400 outline-none transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated" />
+        </div>
+        {canManage && tab === 'epis' && (
+          <button onClick={() => { setEditandoEstoque(null); setFormEstoqueOpen(true); }}
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
+            <Plus className="h-4 w-4" /> Cadastrar EPI no Estoque
           </button>
+        )}
+      </div>
+
+      {tab === 'funcionarios' && (
+        <div className="space-y-2">
+          {funcionariosFiltrados.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300/60 bg-white/50 p-12 text-center backdrop-blur-sm dark:border-border-dark dark:bg-surface-card">
+              <User className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
+              <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhum funcionário encontrado</h3>
+            </div>
+          ) : (
+            funcionariosFiltrados.map(func => (
+              <FichaFuncionario
+                key={func.id}
+                funcionario={func}
+                epis={epis}
+                canManage={canManage}
+                onPagar={(b) => setPagarEpiState({ bombeiro: b })}
+                onDevolver={(b) => setDevolverEpiState({ bombeiro: b })}
+                onExcluir={(id) => setConfirmDeleteEpi(id)}
+              />
+            ))
+          )}
         </div>
-      </td>
-    </tr>
+      )}
+
+      {tab === 'epis' && (
+        <div className="space-y-6">
+          {estoqueComValidade.length > 0 && (
+            <div>
+              <h3 className="flex items-center gap-2 mb-3 text-sm font-bold text-graphite-700 dark:text-graphite-300">
+                <Package className="h-4 w-4" /> Estoque de EPIs
+              </h3>
+              <div className="overflow-x-auto rounded-2xl border border-graphite-200/60 bg-white/80 backdrop-blur-sm dark:border-border-dark dark:bg-surface-card">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-graphite-200 bg-graphite-50 text-left dark:border-border-dark dark:bg-surface-card">
+                      <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">EPI</th>
+                      <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">CA</th>
+                      <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Qtd</th>
+                      <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Tamanho</th>
+                      <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Estado</th>
+                      <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Fabricação</th>
+                      <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Validade</th>
+                      <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Status</th>
+                      {canManage && <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Ações</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {estoqueComValidade.map(e => {
+                      const validadeLabel = getLabelValidade(e.dataValidadeCalculada);
+                      const estadoOpt = ESTADO_CONSERVACAO_OPTIONS.find(o => o.value === e.estado);
+                      return (
+                        <tr key={e.id} className="border-b border-graphite-100 transition-colors hover:bg-aviation-50/50 dark:border-border-dark dark:hover:bg-aviation-900/20">
+                          <td className="px-4 py-3">
+                            <div>
+                              <p className="font-bold text-graphite-900 dark:text-graphite-100">{e.nome}</p>
+                              {e.descricao && <p className="text-xs text-graphite-500 dark:text-graphite-400">{e.descricao}</p>}
+                              {e.numeroSerie && <p className="text-[10px] text-graphite-400">Série: {e.numeroSerie}</p>}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 font-mono text-xs text-graphite-700 dark:text-graphite-300">{e.ca}</td>
+                          <td className="px-4 py-3">
+                            <span className={`text-xs font-bold ${e.quantidade <= 2 ? 'text-red-500' : 'text-graphite-700 dark:text-graphite-300'}`}>
+                              {e.quantidade}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-graphite-700 dark:text-graphite-300">{e.tamanho || '—'}</td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${estadoOpt?.color || ''}`}>
+                              {estadoOpt?.label || e.estado}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 font-mono text-xs text-graphite-700 dark:text-graphite-300">
+                            {e.dataFabricacao ? new Date(e.dataFabricacao + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}
+                          </td>
+                          <td className="px-4 py-3 font-mono text-xs text-graphite-700 dark:text-graphite-300">
+                            {e.dataValidadeCalculada ? new Date(e.dataValidadeCalculada + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-1.5">
+                              <span className={`h-2 w-2 rounded-full ${validadeLabel.bolinha}`} />
+                              <span className={`text-[10px] font-medium ${validadeLabel.cor}`}>{validadeLabel.label}</span>
+                            </div>
+                          </td>
+                          {canManage && (
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-1">
+                                <button onClick={() => { setEditandoEstoque(e); setFormEstoqueOpen(true); }} title="Editar"
+                                  className="rounded-lg p-1 text-graphite-400 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover">
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </button>
+                                <button onClick={() => setConfirmDeleteEstoque(e.id)} title="Excluir"
+                                  className="rounded-lg p-1 text-alert-red hover:bg-red-50 dark:hover:bg-red-900/20">
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          <div>
+            <h3 className="flex items-center gap-2 mb-3 text-sm font-bold text-graphite-700 dark:text-graphite-300">
+              <Eye className="h-4 w-4" /> EPIs Entregues
+            </h3>
+            {episEntregues.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300/60 bg-white/50 p-12 text-center backdrop-blur-sm dark:border-border-dark dark:bg-surface-card">
+                <HardHat className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
+                <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhum EPI entregue</h3>
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-2xl border border-graphite-200/60 bg-white/80 backdrop-blur-sm dark:border-border-dark dark:bg-surface-card">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-graphite-200 bg-graphite-50 text-left dark:border-border-dark dark:bg-surface-card">
+                      <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">EPI</th>
+                      <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Colaborador</th>
+                      <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Pago por</th>
+                      <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Data Pgto</th>
+                      <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Validade</th>
+                      <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Estado</th>
+                      <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Status</th>
+                      {canManage && <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Ações</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {episEntregues.map(e => {
+                      const validadeLabel = getLabelValidade(e.dataValidade);
+                      const estadoOpt = ESTADO_CONSERVACAO_OPTIONS.find(o => o.value === e.estado);
+                      return (
+                        <tr key={e.id} className="border-b border-graphite-100 transition-colors hover:bg-aviation-50/50 dark:border-border-dark dark:hover:bg-aviation-900/20">
+                          <td className="px-4 py-3">
+                            <div>
+                              <p className="font-bold text-graphite-900 dark:text-graphite-100">{e.nome}</p>
+                              {e.descricao && <p className="text-xs text-graphite-500 dark:text-graphite-400">{e.descricao}</p>}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{e.colaborador}</td>
+                          <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{e.entreguePor}</td>
+                          <td className="px-4 py-3 font-mono text-xs text-graphite-700 dark:text-graphite-300">
+                            {e.dataPagamento ? new Date(e.dataPagamento + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-1.5">
+                              <span className={`h-2 w-2 rounded-full ${validadeLabel.bolinha}`} />
+                              <span className={`text-[10px] font-medium ${validadeLabel.cor}`}>{validadeLabel.label}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${estadoOpt?.color || ''}`}>
+                              {estadoOpt?.label || e.estado}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-medium ${EPI_STATUS_COLORS[e.status]}`}>
+                              {EPI_STATUS_LABELS[e.status]}
+                            </span>
+                          </td>
+                          {canManage && (
+                            <td className="px-4 py-3">
+                              <button onClick={() => setConfirmDeleteEpi(e.id)} title="Excluir"
+                                className="rounded-lg p-1 text-alert-red hover:bg-red-50 dark:hover:bg-red-900/20">
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {formEstoqueOpen && (
+        <FormEstoque
+          item={editandoEstoque || undefined}
+          onSave={async (data) => {
+            if (editandoEstoque) {
+              await atualizarEstoque(editandoEstoque.id, data);
+            } else {
+              await criarEstoque({ ...data, createdBy: username });
+            }
+            setFormEstoqueOpen(false);
+            setEditandoEstoque(null);
+            await carregar();
+          }}
+          onCancel={() => { setFormEstoqueOpen(false); setEditandoEstoque(null); }}
+        />
+      )}
+
+      {pagarEpiState && (
+        <ModalPagarEpi
+          bombeiro={pagarEpiState.bombeiro}
+          estoque={estoqueComValidade}
+          onConfirm={async (item) => {
+            if ((item.estado === 'Ruim' || item.estado === 'Sem uso' || getDiasParaVencer(item.dataValidadeCalculada || item.dataValidade) < 0)) {
+              setConfirmPagar({ estoque: item, bombeiro: pagarEpiState.bombeiro });
+              return;
+            }
+            await handlePagarEpiDireto(item, pagarEpiState.bombeiro);
+            setPagarEpiState(null);
+          }}
+          onCancel={() => setPagarEpiState(null)}
+        />
+      )}
+
+      {confirmPagar && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-sm rounded-2xl bg-white/95 p-6 shadow-xl backdrop-blur-sm dark:bg-surface-elevated/95">
+            <div className="flex items-center gap-2 mb-3">
+              <AlertTriangle className="h-6 w-6 text-red-500" />
+              <h3 className="text-lg font-bold text-red-600 dark:text-red-400">ATENÇÃO</h3>
+            </div>
+            <p className="mb-2 text-sm text-graphite-700 dark:text-graphite-300">
+              <strong>Art. 166 da CLT e NR-6:</strong> A empresa é obrigada a fornecer EPI adequado ao risco e em <strong>perfeito estado de conservação e funcionamento</strong>.
+            </p>
+            <p className="mb-4 text-sm text-graphite-700 dark:text-graphite-300">
+              O EPI selecionado
+              {confirmPagar.estoque.estado === 'Ruim' && ' está em estado <strong>Ruim</strong>'}
+              {confirmPagar.estoque.estado === 'Sem uso' && ' está <strong>Sem condição de uso</strong>'}
+              {getDiasParaVencer(confirmPagar.estoque.dataValidadeCalculada || confirmPagar.estoque.dataValidade) < 0 && ' está <strong>VENCIDO</strong>'}
+              . Tem certeza que deseja continuar?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setConfirmPagar(null)}
+                className="rounded-xl border border-graphite-300/60 bg-white/80 px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card/80 dark:text-graphite-200">
+                Cancelar
+              </button>
+              <button onClick={async () => {
+                await handlePagarEpiDireto(confirmPagar.estoque, confirmPagar.bombeiro);
+                setConfirmPagar(null);
+                setPagarEpiState(null);
+              }}
+                className="rounded-xl bg-gradient-to-r from-red-500 to-red-600 px-4 py-2 text-sm font-medium text-white shadow-lg transition-all hover:from-red-400 hover:to-red-500 active:scale-[0.98]">
+                Confirmar Pagamento
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {devolverEpiState && (
+        <ModalDevolverEpi
+          bombeiro={devolverEpiState.bombeiro}
+          epis={epis}
+          onConfirm={async (epi) => {
+            setConfirmDevolver({ epi, bombeiro: devolverEpiState.bombeiro });
+          }}
+          onCancel={() => setDevolverEpiState(null)}
+        />
+      )}
+
+      {confirmDevolver && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-sm rounded-2xl bg-white/95 p-6 shadow-xl backdrop-blur-sm dark:bg-surface-elevated/95">
+            <h3 className="mb-2 text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar Devolução</h3>
+            <p className="mb-6 text-sm text-graphite-500 dark:text-graphite-400">
+              Devolver o EPI <strong>{confirmDevolver.epi.nome}</strong> de <strong>{confirmDevolver.bombeiro.nomeGuerra}</strong>?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setConfirmDevolver(null)}
+                className="rounded-xl border border-graphite-300/60 bg-white/80 px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card/80 dark:text-graphite-200">
+                Cancelar
+              </button>
+              <button onClick={async () => {
+                await handleDevolverEpi(confirmDevolver.epi.id);
+                setConfirmDevolver(null);
+                setDevolverEpiState(null);
+              }}
+                className="rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2 text-sm font-medium text-white shadow-lg transition-all hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDeleteEstoque && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-sm rounded-2xl bg-white/95 p-6 shadow-xl backdrop-blur-sm dark:bg-surface-elevated/95">
+            <h3 className="mb-2 text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar exclusão</h3>
+            <p className="mb-6 text-sm text-graphite-500 dark:text-graphite-400">Tem certeza que deseja excluir este item do estoque?</p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setConfirmDeleteEstoque(null)}
+                className="rounded-xl border border-graphite-300/60 bg-white/80 px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card/80 dark:text-graphite-200">Cancelar</button>
+              <button onClick={() => handleExcluirEstoque(confirmDeleteEstoque)}
+                className="rounded-xl bg-gradient-to-r from-alert-red to-red-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-red-500/20 transition-all hover:shadow-xl active:scale-[0.98]">Excluir</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDeleteEpi && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-sm rounded-2xl bg-white/95 p-6 shadow-xl backdrop-blur-sm dark:bg-surface-elevated/95">
+            <h3 className="mb-2 text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar exclusão</h3>
+            <p className="mb-6 text-sm text-graphite-500 dark:text-graphite-400">Tem certeza que deseja excluir este EPI?</p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setConfirmDeleteEpi(null)}
+                className="rounded-xl border border-graphite-300/60 bg-white/80 px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card/80 dark:text-graphite-200">Cancelar</button>
+              <button onClick={() => handleExcluirEpi(confirmDeleteEpi)}
+                className="rounded-xl bg-gradient-to-r from-alert-red to-red-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-red-500/20 transition-all hover:shadow-xl active:scale-[0.98]">Excluir</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </PageContainer>
   );
 }
 
-/* ───────── Ficha de EPI por Funcionário ───────── */
+/* ───────── Ficha de Funcionário ───────── */
 
 function FichaFuncionario({
-  funcionario,
-  epis,
-  canManage,
-  onPagar,
-  onEnviarAutentique,
-  onAssinar,
-  onDevolver,
-  onEditar,
-  onExcluir,
+  funcionario, epis, canManage, onPagar, onDevolver, onExcluir,
 }: {
   funcionario: Bombeiro;
   epis: EPI[];
   canManage: boolean;
-  onPagar: (id: string) => void;
-  onEnviarAutentique: (id: string) => void;
-  onAssinar: (id: string) => void;
-  onDevolver: (id: string) => void;
-  onEditar: (epi: EPI) => void;
+  onPagar: (b: Bombeiro) => void;
+  onDevolver: (b: Bombeiro) => void;
   onExcluir: (id: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const episDoFunc = epis.filter(e => e.colaboradorId === funcionario.id || e.colaborador === funcionario.nomeGuerra);
   const ativos = episDoFunc.filter(e => e.status !== 'devolvido');
 
+  const worstPrioridade = useMemo(() => {
+    let worst: 'normal' | 'atencao' | 'critico' | 'vencido' = 'normal';
+    for (const e of ativos) {
+      if (!e.dataValidade) continue;
+      const p = getPrioridade(e.dataValidade);
+      if (p === 'vencido') return 'vencido' as const;
+      if (p === 'critico') worst = 'critico';
+      else if (p === 'atencao' && worst !== 'critico') worst = 'atencao';
+    }
+    return worst;
+  }, [ativos]);
+
+  const prioridadeColors = {
+    normal: '',
+    atencao: 'border-l-4 border-l-yellow-400',
+    critico: 'border-l-4 border-l-orange-400',
+    vencido: 'border-l-4 border-l-red-500',
+  };
+
+  const prioridadeBolinha = {
+    normal: '',
+    atencao: 'bg-yellow-500',
+    critico: 'bg-orange-500',
+    vencido: 'bg-red-500',
+  };
+
   return (
-    <div className="rounded-xl border border-graphite-200/60 bg-white/80 backdrop-blur-sm dark:border-border-dark dark:bg-surface-card">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-graphite-50/80 dark:hover:bg-surface-hover"
-      >
+    <div className={`rounded-xl border border-graphite-200/60 bg-white/80 backdrop-blur-sm dark:border-border-dark dark:bg-surface-card ${prioridadeColors[worstPrioridade]}`}>
+      <button onClick={() => setExpanded(!expanded)}
+        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-graphite-50/80 dark:hover:bg-surface-hover">
+        {worstPrioridade !== 'normal' && (
+          <span className={`h-3 w-3 shrink-0 rounded-full ${prioridadeBolinha[worstPrioridade]}`} />
+        )}
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-aviation-100 text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-400">
           <User className="h-5 w-5" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold text-graphite-900 dark:text-graphite-100 truncate">{funcionario.nomeGuerra}</p>
-          <p className="text-xs text-graphite-500 dark:text-graphite-400 truncate">{funcionario.nomeCompleto} — {funcionario.cargo}</p>
+          <p className="text-xs text-graphite-500 dark:text-graphite-400 truncate">{funcionario.nomeCompleto} — {funcionario.cargo} — {funcionario.equipe}</p>
         </div>
         <div className="flex items-center gap-2">
           {ativos.length > 0 && (
@@ -199,13 +788,16 @@ function FichaFuncionario({
           {episDoFunc.length === 0 ? (
             <p className="py-4 text-center text-xs text-graphite-400">Nenhum EPI registrado para este funcionário.</p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2 mb-3">
               {episDoFunc.map(epi => {
-                const dias = getDiasParaVencer(epi.dataValidade);
+                const validadeLabel = getLabelValidade(epi.dataValidade);
+                const estadoOpt = ESTADO_CONSERVACAO_OPTIONS.find(o => o.value === epi.estado);
                 return (
                   <div key={epi.id} className="flex flex-col gap-2 rounded-lg border border-graphite-100 bg-graphite-50/50 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-border-dark dark:bg-surface-card">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <HardHat className="h-4 w-4 shrink-0 text-graphite-400" />
+                      <div className="flex items-center gap-1.5">
+                        <span className={`h-2.5 w-2.5 rounded-full ${validadeLabel.bolinha}`} />
+                      </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-sm font-bold text-graphite-900 dark:text-graphite-100">{epi.nome}</span>
@@ -213,60 +805,37 @@ function FichaFuncionario({
                         </div>
                         <div className="mt-0.5 flex items-center gap-3 flex-wrap text-[10px] text-graphite-500 dark:text-graphite-400">
                           <span>CA: {epi.ca}</span>
-                          <span>Validade: {new Date(epi.dataValidade + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
-                          <span className={dias < 0 ? 'text-red-500 font-bold' : dias <= 30 ? 'text-red-500' : dias <= 150 ? 'text-yellow-600 dark:text-yellow-400' : ''}>
-                            {dias < 0 ? 'Vencido' : `${dias} dias`}
-                          </span>
+                          {epi.tamanho && <span>Tam: {epi.tamanho}</span>}
+                          <span className={validadeLabel.cor}>{validadeLabel.label}</span>
                           {epi.dataPagamento && <span>Pago: {new Date(epi.dataPagamento + 'T00:00:00').toLocaleDateString('pt-BR')}</span>}
-                          {epi.dataAssinatura && <span>Assinado: {new Date(epi.dataAssinatura + 'T00:00:00').toLocaleDateString('pt-BR')}</span>}
-                          {epi.dataDevolucao && <span>Devolvido: {new Date(epi.dataDevolucao + 'T00:00:00').toLocaleDateString('pt-BR')}</span>}
+                        </div>
+                        <div className="mt-0.5 flex items-center gap-3 flex-wrap text-[10px]">
+                          {estadoOpt && (
+                            <span className={`inline-flex rounded-full px-2 py-0.5 font-medium ${estadoOpt.color}`}>
+                              {estadoOpt.label}
+                            </span>
+                          )}
+                          <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${EPI_STATUS_COLORS[epi.status]}`}>
+                            {EPI_STATUS_LABELS[epi.status]}
+                          </span>
                         </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${EPI_STATUS_COLORS[epi.status]}`}>
-                        {EPI_STATUS_LABELS[epi.status]}
-                      </span>
-                      {canManage && (
-                        <>
-                          {epi.status === 'entregue' && (
-                            <button onClick={() => onPagar(epi.id)} title="Marcar como Pago"
-                              className="flex items-center gap-1 rounded-lg bg-amber-100 px-2 py-1 text-[10px] font-bold text-amber-700 transition-all hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50">
-                              <DollarSign className="h-3 w-3" /> Pagar
-                            </button>
-                          )}
-                          {epi.status === 'pago' && (
-                            <button onClick={() => onEnviarAutentique(epi.id)} title="Enviar para Autentique"
-                              className="flex items-center gap-1 rounded-lg bg-purple-100 px-2 py-1 text-[10px] font-bold text-purple-700 transition-all hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:hover:bg-purple-900/50">
-                              <Send className="h-3 w-3" /> Autentique
-                            </button>
-                          )}
-                          {epi.status === 'enviado_autentique' && (
-                            <button onClick={() => onAssinar(epi.id)} title="Marcar como Assinado"
-                              className="flex items-center gap-1 rounded-lg bg-green-100 px-2 py-1 text-[10px] font-bold text-green-700 transition-all hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50">
-                              <CheckCircle2 className="h-3 w-3" /> Assinado
-                            </button>
-                          )}
-                          {epi.status !== 'devolvido' && (
-                            <button onClick={() => onDevolver(epi.id)} title="Devolver EPI"
-                              className="flex items-center gap-1 rounded-lg bg-graphite-100 px-2 py-1 text-[10px] font-bold text-graphite-600 transition-all hover:bg-graphite-200 dark:bg-graphite-700 dark:text-graphite-300 dark:hover:bg-graphite-600">
-                              <RotateCcw className="h-3 w-3" /> Devolver
-                            </button>
-                          )}
-                          <button onClick={() => onEditar(epi)} title="Editar"
-                            className="rounded-lg p-1 text-graphite-400 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover">
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
-                          <button onClick={() => onExcluir(epi.id)} title="Excluir"
-                            className="rounded-lg p-1 text-alert-red hover:bg-red-50 dark:hover:bg-red-900/20">
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </>
-                      )}
                     </div>
                   </div>
                 );
               })}
+            </div>
+          )}
+          {canManage && (
+            <div className="flex gap-2">
+              <button onClick={() => onPagar(funcionario)}
+                className="flex items-center gap-1 rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-700 transition-all hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50">
+                <DollarSign className="h-3.5 w-3.5" /> Pagar EPI
+              </button>
+              <button onClick={() => onDevolver(funcionario)}
+                className="flex items-center gap-1 rounded-lg bg-graphite-100 px-3 py-1.5 text-xs font-bold text-graphite-600 transition-all hover:bg-graphite-200 dark:bg-graphite-700 dark:text-graphite-300 dark:hover:bg-graphite-600">
+                <RotateCcw className="h-3.5 w-3.5" /> Devolver EPI
+              </button>
             </div>
           )}
         </div>
@@ -275,351 +844,295 @@ function FichaFuncionario({
   );
 }
 
-/* ───────── Página principal ───────── */
+/* ───────── Formulário de Estoque ───────── */
 
-export function EPIs() {
-  const { user } = useAuth();
-  const username = user?.username || '';
-  const [role, setRole] = useState<'admin' | 'gerente' | 'chefe'>('chefe');
-  useEffect(() => { (async () => { setRole(await getUserRole(username)); })(); }, [username]);
-  const isAdmin = role === 'admin';
-  const isGerente = role === 'gerente';
-  const canManage = isAdmin;
+function FormEstoque({
+  item, onSave, onCancel,
+}: {
+  item?: EPIEstoque;
+  onSave: (data: Omit<EPIEstoque, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) => void;
+  onCancel: () => void;
+}) {
+  const hoje = new Date().toISOString().split('T')[0];
+  const [form, setForm] = useState(item ? {
+    nome: item.nome, descricao: item.descricao, ca: item.ca, fornecedor: item.fornecedor,
+    quantidade: item.quantidade, dataFabricacao: item.dataFabricacao, tempoValidadeMeses: item.tempoValidadeMeses,
+    tamanho: item.tamanho, numeroSerie: item.numeroSerie, estado: item.estado, notas: item.notas,
+  } : {
+    nome: '', descricao: '', ca: '', fornecedor: '', quantidade: 1,
+    dataFabricacao: hoje, tempoValidadeMeses: 12, tamanho: '', numeroSerie: '',
+    estado: 'Novo' as EstadoConservacao, notas: '',
+  });
 
-  const [tab, setTab] = useState<Tab>('funcionarios');
-  const [epis, setEpis] = useState<EPI[]>([]);
-  const [funcionarios, setFuncionarios] = useState<Bombeiro[]>([]);
-  const [termo, setTermo] = useState('');
-  const [formOpen, setFormOpen] = useState(false);
-  const [editando, setEditando] = useState<EPI | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const input = 'w-full rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2 text-sm backdrop-blur-sm transition-all duration-200 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50';
+  const label = 'block mb-1 text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400';
 
-  async function carregar() {
-    const [episData, funcsData] = await Promise.all([listarEPIs(), listarBombeiros()]);
-    setEpis(episData);
-    setFuncionarios(funcsData);
-  }
-  useEffect(() => { carregar(); }, []);
-
-  const filtradas = useMemo(() => {
-    if (!termo) return epis;
-    const t = termo.toLowerCase();
-    return epis.filter(e =>
-      e.nome.toLowerCase().includes(t) ||
-      e.colaborador.toLowerCase().includes(t) ||
-      e.descricao.toLowerCase().includes(t) ||
-      e.fornecedor.toLowerCase().includes(t)
-    );
-  }, [epis, termo]);
-
-  const funcionariosFiltrados = useMemo(() => {
-    if (!termo) return funcionarios;
-    const t = termo.toLowerCase();
-    return funcionarios.filter(f =>
-      f.nomeGuerra.toLowerCase().includes(t) ||
-      f.nomeCompleto.toLowerCase().includes(t) ||
-      f.cargo.toLowerCase().includes(t) ||
-      f.equipe.toLowerCase().includes(t)
-    );
-  }, [funcionarios, termo]);
-
-  const episProximosVencer = useMemo(() => {
-    if (!isGerente && !isAdmin) return [];
-    return epis.filter(e => {
-      const dias = getDiasParaVencer(e.dataValidade);
-      return dias >= 0 && dias <= 150 && e.status !== 'devolvido';
-    });
-  }, [epis, isGerente, isAdmin]);
-
-  async function handleSave(data: Omit<EPI, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'status' | 'dataEnvioAutentique' | 'dataAssinatura' | 'dataDevolucao'>) {
-    if (editando && editando.id) {
-      await atualizarEPI(editando.id, data);
-    } else {
-      await criarEPI({ ...data, createdBy: username });
-    }
-    await carregar();
-    setEditando(null);
-    setFormOpen(false);
-  }
-
-  async function handleDelete(id: string) {
-    await excluirEPI(id);
-    setConfirmDelete(null);
-    await carregar();
-  }
-
-  async function handlePagar(id: string) {
-    await pagarEPI(id);
-    await carregar();
-  }
-
-  async function handleEnviarAutentique(id: string) {
-    await enviarAutentiqueEPI(id);
-    await carregar();
-  }
-
-  async function handleAssinar(id: string) {
-    await assinarEPI(id);
-    await carregar();
-  }
-
-  async function handleDevolver(id: string) {
-    await devolverEPI(id);
-    await carregar();
-  }
+  const dataValidadeCalculada = calcularDataValidade(form.dataFabricacao, form.tempoValidadeMeses);
+  const tamanhosDisponiveis = TAMANHOS_EPI[form.nome] || ['Único'];
 
   return (
-    <PageContainer>
-      <PageTitle icon={HardHat} title="EPIs" />
-
-      {/* Notificação EPIs próximos ao vencimento */}
-      {episProximosVencer.length > 0 && (
-        <div className="mb-6 rounded-2xl border border-yellow-300/60 bg-yellow-50/80 p-4 backdrop-blur-sm dark:border-yellow-700/40 dark:bg-yellow-900/20">
-          <div className="flex items-start gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-yellow-100 dark:bg-yellow-900/40">
-              <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-yellow-800 dark:text-yellow-300">
-                EPIs Próximos ao Vencimento ({episProximosVencer.length})
-              </h3>
-              <p className="mt-0.5 text-xs text-yellow-600 dark:text-yellow-400">
-                Os seguintes EPIs vencem nos próximos 5 meses:
-              </p>
-              <div className="mt-2 space-y-1">
-                {episProximosVencer.map(e => {
-                  const dias = getDiasParaVencer(e.dataValidade);
-                  return (
-                    <div key={e.id} className="flex items-center gap-2 text-xs">
-                      <Clock className="h-3 w-3 shrink-0 text-yellow-500" />
-                      <span className="font-medium text-yellow-800 dark:text-yellow-300">{e.nome}</span>
-                      <span className="text-yellow-600 dark:text-yellow-400">— {e.colaborador}</span>
-                      <span className="text-yellow-500 dark:text-yellow-500">
-                        ({dias === 0 ? 'vence hoje' : dias === 1 ? 'vence amanhã' : `${dias} dias restantes`})
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Tabs */}
-      <div className="mb-4 flex gap-1 rounded-xl border border-graphite-200/60 bg-white/60 p-1 backdrop-blur-sm dark:border-border-dark dark:bg-surface-card">
-        <button
-          onClick={() => setTab('funcionarios')}
-          className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
-            tab === 'funcionarios'
-              ? 'bg-aviation-100 text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-400'
-              : 'text-graphite-500 hover:bg-graphite-100 hover:text-graphite-700 dark:text-graphite-400 dark:hover:bg-surface-hover'
-          }`}
-        >
-          <User className="h-4 w-4" /> Funcionários
-        </button>
-        <button
-          onClick={() => setTab('epis')}
-          className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
-            tab === 'epis'
-              ? 'bg-aviation-100 text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-400'
-              : 'text-graphite-500 hover:bg-graphite-100 hover:text-graphite-700 dark:text-graphite-400 dark:hover:bg-surface-hover'
-          }`}
-        >
-          <HardHat className="h-4 w-4" /> Todos os EPIs
-        </button>
-      </div>
-
-      {/* Barra de busca e botão incluir */}
-      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite-400" />
-          <input
-            type="text"
-            value={termo}
-            onChange={e => setTermo(e.target.value)}
-            placeholder={tab === 'funcionarios' ? 'Pesquisar por nome, equipe, cargo...' : 'Pesquisar por nome, responsável, fornecedor...'}
-            className="w-full rounded-xl border border-graphite-300/60 bg-white/70 py-2.5 pl-10 pr-4 text-sm text-graphite-900 placeholder-graphite-400 outline-none transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated"
-          />
-        </div>
-        {canManage && tab === 'epis' && (
-          <button
-            onClick={() => { setEditando(null); setFormOpen(true); }}
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]"
-          >
-            <Plus className="h-4 w-4" /> Incluir EPI
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white/95 p-6 shadow-xl backdrop-blur-sm dark:bg-surface-elevated/95">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">{item ? 'Editar EPI' : 'Cadastrar EPI no Estoque'}</h3>
+          <button onClick={onCancel} className="rounded-lg p-1 text-graphite-400 hover:bg-graphite-100 dark:hover:bg-surface-hover">
+            <X className="h-4 w-4" />
           </button>
-        )}
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div>
+            <label className={label}>Categoria *</label>
+            <select value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value, tamanho: '' }))} className={input}>
+              <option value="">Selecione</option>
+              {CATEGORIAS_EPI.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className={label}>Descrição</label>
+            <input value={form.descricao} onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))} className={input} placeholder="Modelo específico" />
+          </div>
+          <div>
+            <label className={label}>CA *</label>
+            <input value={form.ca} onChange={e => setForm(f => ({ ...f, ca: e.target.value }))} className={input} placeholder="Nº do CA" />
+          </div>
+          <div>
+            <label className={label}>Fornecedor</label>
+            <input value={form.fornecedor} onChange={e => setForm(f => ({ ...f, fornecedor: e.target.value }))} className={input} />
+          </div>
+          <div>
+            <label className={label}>Quantidade *</label>
+            <input type="number" min={0} value={form.quantidade} onChange={e => setForm(f => ({ ...f, quantidade: parseInt(e.target.value) || 0 }))} className={input} />
+          </div>
+          <div>
+            <label className={label}>Data de Fabricação *</label>
+            <input type="date" value={form.dataFabricacao} onChange={e => setForm(f => ({ ...f, dataFabricacao: e.target.value }))} className={input} />
+          </div>
+          <div>
+            <label className={label}>Validade (meses) *</label>
+            <input type="number" min={1} value={form.tempoValidadeMeses} onChange={e => setForm(f => ({ ...f, tempoValidadeMeses: parseInt(e.target.value) || 0 }))} className={input} />
+          </div>
+          <div>
+            <label className={label}>Data Validade (auto)</label>
+            <input type="date" value={dataValidadeCalculada} readOnly className={input + ' cursor-not-allowed bg-graphite-50/80 font-medium dark:bg-surface-card'} />
+          </div>
+          <div>
+            <label className={label}>Tamanho/Numeração</label>
+            <select value={form.tamanho} onChange={e => setForm(f => ({ ...f, tamanho: e.target.value }))} className={input}>
+              <option value="">Selecione</option>
+              {tamanhosDisponiveis.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className={label}>Nº Série</label>
+            <input value={form.numeroSerie} onChange={e => setForm(f => ({ ...f, numeroSerie: e.target.value }))} className={input} placeholder="Opcional" />
+          </div>
+          <div>
+            <label className={label}>Estado de Conservação *</label>
+            <select value={form.estado} onChange={e => setForm(f => ({ ...f, estado: e.target.value as EstadoConservacao }))} className={input}>
+              {ESTADO_CONSERVACAO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+          <div className="sm:col-span-2 lg:col-span-3">
+            <label className={label}>Notas</label>
+            <input value={form.notas} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))} className={input} placeholder="Observações" />
+          </div>
+        </div>
+
+        <div className="mt-4 flex justify-end gap-2">
+          <button onClick={onCancel} className="rounded-lg border border-graphite-300/60 bg-white/80 px-4 py-2 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card/80 dark:text-graphite-200">Cancelar</button>
+          <button onClick={() => onSave({ ...form, dataValidade: dataValidadeCalculada })}
+            disabled={!form.nome || !form.ca || form.quantidade <= 0 || !form.dataFabricacao || form.tempoValidadeMeses <= 0}
+            className="flex items-center gap-1 rounded-lg bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2 text-sm font-medium text-white shadow-md transition-all hover:from-aviation-500 hover:to-aviation-600 disabled:opacity-50 disabled:cursor-not-allowed">
+            <Save className="h-4 w-4" /> Salvar
+          </button>
+        </div>
       </div>
+    </div>
+  );
+}
 
-      {/* Formulário inline */}
-      {formOpen && (
-        <div className="mb-4 overflow-hidden rounded-2xl border border-aviation-200/60 bg-white/90 shadow-lg backdrop-blur-sm dark:border-aviation-700/40 dark:bg-surface-card/90">
-          <div className="flex items-center justify-between border-b border-graphite-200/60 px-4 py-3 dark:border-border-dark">
-            <h3 className="text-sm font-bold text-graphite-900 dark:text-graphite-100">{editando ? 'Editar EPI' : 'Novo EPI'}</h3>
-            <button onClick={() => { setFormOpen(false); setEditando(null); }} className="rounded-lg p-1 text-graphite-400 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover">
-              <X className="h-4 w-4" />
+/* ───────── Modal Pagar EPI ───────── */
+
+function ModalPagarEpi({
+  bombeiro, estoque, onConfirm, onCancel,
+}: {
+  bombeiro: Bombeiro;
+  estoque: (EPIEstoque & { dataValidadeCalculada: string })[];
+  onConfirm: (item: EPIEstoque & { dataValidadeCalculada: string }) => void;
+  onCancel: () => void;
+}) {
+  const [busca, setBusca] = useState('');
+  const [selecionado, setSelecionado] = useState<string | null>(null);
+
+  const categoriasDisponiveis = useMemo(() => {
+    const cats = new Set(estoque.filter(e => e.quantidade > 0).map(e => e.nome));
+    return [...cats].sort();
+  }, [estoque]);
+
+  const [catFiltro, setCatFiltro] = useState<string | null>(null);
+
+  const itensFiltrados = useMemo(() => {
+    let lista = estoque.filter(e => e.quantidade > 0);
+    if (catFiltro) lista = lista.filter(e => e.nome === catFiltro);
+    if (busca) {
+      const t = busca.toLowerCase();
+      lista = lista.filter(e =>
+        e.nome.toLowerCase().includes(t) ||
+        e.descricao.toLowerCase().includes(t) ||
+        e.ca.toLowerCase().includes(t) ||
+        e.fornecedor.toLowerCase().includes(t)
+      );
+    }
+    return lista;
+  }, [estoque, catFiltro, busca]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="w-full max-w-lg max-h-[80vh] overflow-y-auto rounded-2xl bg-white/95 p-6 shadow-xl backdrop-blur-sm dark:bg-surface-elevated/95">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">
+            Pagar EPI para {bombeiro.nomeGuerra}
+          </h3>
+          <button onClick={onCancel} className="rounded-lg p-1 text-graphite-400 hover:bg-graphite-100 dark:hover:bg-surface-hover">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          <button onClick={() => setCatFiltro(null)}
+            className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${!catFiltro ? 'bg-aviation-100 text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-400' : 'bg-graphite-100 text-graphite-600 hover:bg-graphite-200 dark:bg-graphite-700 dark:text-graphite-300'}`}>
+            Todos
+          </button>
+          {categoriasDisponiveis.map(cat => (
+            <button key={cat} onClick={() => setCatFiltro(cat === catFiltro ? null : cat)}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${catFiltro === cat ? 'bg-aviation-100 text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-400' : 'bg-graphite-100 text-graphite-600 hover:bg-graphite-200 dark:bg-graphite-700 dark:text-graphite-300'}`}>
+              {cat}
             </button>
-          </div>
-          <div className="p-4">
-            <EPIFormInline epi={editando || undefined} funcionarios={funcionarios} onSave={handleSave} onCancel={() => { setFormOpen(false); setEditando(null); }} />
-          </div>
+          ))}
         </div>
-      )}
 
-      {/* Tab: Funcionários */}
-      {tab === 'funcionarios' && (
+        <div className="relative mb-3">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite-400" />
+          <input type="text" value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar..."
+            className="w-full rounded-xl border border-graphite-300/60 bg-white/70 py-2 pl-10 pr-4 text-sm dark:border-border-dark dark:bg-surface-card dark:text-graphite-100" />
+        </div>
+
+        <div className="space-y-2 max-h-60 overflow-y-auto">
+          {itensFiltrados.length === 0 ? (
+            <p className="py-4 text-center text-sm text-graphite-400">Nenhum EPI disponível em estoque</p>
+          ) : (
+            itensFiltrados.map(item => {
+              const validadeLabel = getLabelValidade(item.dataValidadeCalculada || item.dataValidade);
+              const estadoOpt = ESTADO_CONSERVACAO_OPTIONS.find(o => o.value === item.estado);
+              const isSelected = selecionado === item.id;
+              return (
+                <div key={item.id}
+                  onClick={() => setSelecionado(isSelected ? null : item.id)}
+                  className={`rounded-xl border p-3 cursor-pointer transition-all ${isSelected ? 'border-aviation-500 bg-aviation-50/50 dark:border-aviation-400 dark:bg-aviation-900/10' : 'border-graphite-200 hover:border-graphite-300 dark:border-border-dark dark:hover:border-graphite-600'}`}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-bold text-graphite-900 dark:text-graphite-100">{item.nome}</p>
+                      {item.descricao && <p className="text-xs text-graphite-500 dark:text-graphite-400">{item.descricao}</p>}
+                      <div className="mt-1 flex items-center gap-2 flex-wrap text-[10px] text-graphite-500">
+                        <span>CA: {item.ca}</span>
+                        {item.tamanho && <span>Tam: {item.tamanho}</span>}
+                        <span>Qtd: {item.quantidade}</span>
+                        <div className="flex items-center gap-1">
+                          <span className={`h-2 w-2 rounded-full ${validadeLabel.bolinha}`} />
+                          <span className={validadeLabel.cor}>{validadeLabel.label}</span>
+                        </div>
+                        {estadoOpt && <span className={`rounded-full px-1.5 py-0.5 font-medium ${estadoOpt.color}`}>{estadoOpt.label}</span>}
+                      </div>
+                    </div>
+                    {isSelected && <CheckCircle2 className="h-5 w-5 text-aviation-600 dark:text-aviation-400" />}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        <div className="mt-4 flex justify-end gap-2">
+          <button onClick={onCancel} className="rounded-lg border border-graphite-300/60 bg-white/80 px-4 py-2 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card/80 dark:text-graphite-200">Cancelar</button>
+          <button onClick={() => {
+            const item = itensFiltrados.find(e => e.id === selecionado);
+            if (item) onConfirm(item);
+          }} disabled={!selecionado}
+            className="flex items-center gap-1 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-2 text-sm font-medium text-white shadow-md transition-all hover:from-amber-400 hover:to-amber-500 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]">
+            <DollarSign className="h-4 w-4" /> Pagar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ───────── Modal Devolver EPI ───────── */
+
+function ModalDevolverEpi({
+  bombeiro, epis, onConfirm, onCancel,
+}: {
+  bombeiro: Bombeiro;
+  epis: EPI[];
+  onConfirm: (epi: EPI) => void;
+  onCancel: () => void;
+}) {
+  const [selecionado, setSelecionado] = useState<string | null>(null);
+
+  const episAtivos = useMemo(() => {
+    return epis.filter(e =>
+      (e.colaboradorId === bombeiro.id || e.colaborador === bombeiro.nomeGuerra) &&
+      e.status !== 'devolvido'
+    );
+  }, [epis, bombeiro]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="w-full max-w-md max-h-[80vh] overflow-y-auto rounded-2xl bg-white/95 p-6 shadow-xl backdrop-blur-sm dark:bg-surface-elevated/95">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">
+            Devolver EPI — {bombeiro.nomeGuerra}
+          </h3>
+          <button onClick={onCancel} className="rounded-lg p-1 text-graphite-400 hover:bg-graphite-100 dark:hover:bg-surface-hover">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
         <div className="space-y-2">
-          {funcionariosFiltrados.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300/60 bg-white/50 p-12 text-center backdrop-blur-sm dark:border-border-dark dark:bg-surface-card">
-              <User className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
-              <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhum funcionário encontrado</h3>
-            </div>
+          {episAtivos.length === 0 ? (
+            <p className="py-4 text-center text-sm text-graphite-400">Nenhum EPI ativo para devolver</p>
           ) : (
-            funcionariosFiltrados.map(func => (
-              <FichaFuncionario
-                key={func.id}
-                funcionario={func}
-                epis={epis}
-                canManage={canManage}
-                onPagar={handlePagar}
-                onEnviarAutentique={handleEnviarAutentique}
-                onAssinar={handleAssinar}
-                onDevolver={handleDevolver}
-                onEditar={(e) => { setEditando(e); setFormOpen(true); }}
-                onExcluir={(id) => { setConfirmDelete(id); }}
-              />
-            ))
+            episAtivos.map(epi => {
+              const isSelected = selecionado === epi.id;
+              return (
+                <div key={epi.id} onClick={() => setSelecionado(isSelected ? null : epi.id)}
+                  className={`rounded-xl border p-3 cursor-pointer transition-all ${isSelected ? 'border-aviation-500 bg-aviation-50/50 dark:border-aviation-400 dark:bg-aviation-900/10' : 'border-graphite-200 hover:border-graphite-300 dark:border-border-dark'}`}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-bold text-graphite-900 dark:text-graphite-100">{epi.nome}</p>
+                      <p className="text-xs text-graphite-500">CA: {epi.ca} | {EPI_STATUS_LABELS[epi.status]}</p>
+                    </div>
+                    {isSelected && <CheckCircle2 className="h-5 w-5 text-aviation-600 dark:text-aviation-400" />}
+                  </div>
+                </div>
+              );
+            })
           )}
         </div>
-      )}
 
-      {/* Tab: Todos os EPIs */}
-      {tab === 'epis' && (
-        <>
-          {filtradas.length === 0 && !formOpen ? (
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300/60 bg-white/50 p-12 text-center backdrop-blur-sm dark:border-border-dark dark:bg-surface-card">
-              <HardHat className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
-              <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhum EPI cadastrado</h3>
-              <p className="text-sm text-graphite-400">
-                {canManage ? 'Clique em "Incluir EPI" para cadastrar o primeiro.' : 'Nenhum EPI encontrado no sistema.'}
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto rounded-2xl border border-graphite-200/60 bg-white/80 backdrop-blur-sm dark:border-border-dark dark:bg-surface-card">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-graphite-200 bg-graphite-50 text-left dark:border-border-dark dark:bg-surface-card">
-                    <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">EPI</th>
-                    <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">CA</th>
-                    <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Colaborador</th>
-                    <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Pagamento</th>
-                    <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Validade</th>
-                    <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Dias</th>
-                    <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Status EPI</th>
-                    <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Status</th>
-                    {canManage && <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Ações</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtradas.map(e => {
-                    const dias = getDiasParaVencer(e.dataValidade);
-                    const validade = getStatusValidade(e.dataValidade);
-                    return (
-                      <tr key={e.id} className="border-b border-graphite-100 transition-colors hover:bg-aviation-50/50 dark:border-border-dark dark:hover:bg-aviation-900/20">
-                        <td className="px-4 py-3">
-                          <div>
-                            <p className="font-bold text-graphite-900 dark:text-graphite-100">{e.nome}</p>
-                            {e.descricao && <p className="text-xs text-graphite-500 dark:text-graphite-400">{e.descricao}</p>}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 font-mono text-xs text-graphite-700 dark:text-graphite-300">{e.ca}</td>
-                        <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{e.colaborador}</td>
-                        <td className="px-4 py-3 font-mono text-xs text-graphite-700 dark:text-graphite-300">
-                          {e.dataPagamento ? new Date(e.dataPagamento + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}
-                        </td>
-                        <td className="px-4 py-3 font-mono text-xs text-graphite-700 dark:text-graphite-300">
-                          {new Date(e.dataValidade + 'T00:00:00').toLocaleDateString('pt-BR')}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`text-xs font-medium ${dias < 0 ? 'text-red-500' : dias <= 30 ? 'text-red-500' : dias <= 150 ? 'text-yellow-600 dark:text-yellow-400' : 'text-graphite-600 dark:text-graphite-400'}`}>
-                            {dias < 0 ? 'Vencido' : `${dias} dias`}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-medium ${validade.color}`}>
-                            {validade.label}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-medium ${EPI_STATUS_COLORS[e.status]}`}>
-                            {EPI_STATUS_LABELS[e.status]}
-                          </span>
-                        </td>
-                        {canManage && (
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-1">
-                              {e.status === 'entregue' && (
-                                <button onClick={() => handlePagar(e.id)} title="Pagar"
-                                  className="rounded-lg bg-amber-100 p-1 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400">
-                                  <DollarSign className="h-3.5 w-3.5" />
-                                </button>
-                              )}
-                              {e.status === 'pago' && (
-                                <button onClick={() => handleEnviarAutentique(e.id)} title="Enviar Autentique"
-                                  className="rounded-lg bg-purple-100 p-1 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400">
-                                  <Send className="h-3.5 w-3.5" />
-                                </button>
-                              )}
-                              {e.status === 'enviado_autentique' && (
-                                <button onClick={() => handleAssinar(e.id)} title="Assinado"
-                                  className="rounded-lg bg-green-100 p-1 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400">
-                                  <CheckCircle2 className="h-3.5 w-3.5" />
-                                </button>
-                              )}
-                              {e.status !== 'devolvido' && (
-                                <button onClick={() => handleDevolver(e.id)} title="Devolver"
-                                  className="rounded-lg bg-graphite-100 p-1 text-graphite-600 hover:bg-graphite-200 dark:bg-graphite-700 dark:text-graphite-300">
-                                  <RotateCcw className="h-3.5 w-3.5" />
-                                </button>
-                              )}
-                              <button onClick={() => { setEditando(e); setFormOpen(true); }} title="Editar"
-                                className="rounded-lg p-1 text-graphite-400 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover">
-                                <Pencil className="h-4 w-4" />
-                              </button>
-                              <button onClick={() => setConfirmDelete(e.id)} title="Excluir"
-                                className="rounded-lg p-1 text-alert-red hover:bg-red-50 dark:hover:bg-red-900/20">
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </td>
-                        )}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* Modal de confirmação de exclusão */}
-      {confirmDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-sm rounded-2xl bg-white/95 p-6 shadow-xl shadow-black/5 backdrop-blur-sm dark:bg-surface-elevated/95 dark:shadow-black/20">
-            <h3 className="mb-2 text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar exclusão</h3>
-            <p className="mb-6 text-sm text-graphite-500 dark:text-graphite-400">Tem certeza que deseja excluir este EPI?</p>
-            <div className="flex justify-end gap-3">
-              <button onClick={() => setConfirmDelete(null)}
-                className="rounded-xl border border-graphite-300/60 bg-white/80 px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card/80 dark:text-graphite-200">Cancelar</button>
-              <button onClick={() => handleDelete(confirmDelete)}
-                className="rounded-xl bg-gradient-to-r from-alert-red to-red-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-red-500/20 transition-all hover:shadow-xl hover:shadow-red-500/30 active:scale-[0.98]">Excluir</button>
-            </div>
-          </div>
+        <div className="mt-4 flex justify-end gap-2">
+          <button onClick={onCancel} className="rounded-lg border border-graphite-300/60 bg-white/80 px-4 py-2 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card/80 dark:text-graphite-200">Cancelar</button>
+          <button onClick={() => {
+            const epi = episAtivos.find(e => e.id === selecionado);
+            if (epi) onConfirm(epi);
+          }} disabled={!selecionado}
+            className="flex items-center gap-1 rounded-lg bg-gradient-to-r from-graphite-500 to-graphite-600 px-4 py-2 text-sm font-medium text-white shadow-md transition-all hover:from-graphite-400 hover:to-graphite-500 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]">
+            <RotateCcw className="h-4 w-4" /> Devolver
+          </button>
         </div>
-      )}
-    </PageContainer>
+      </div>
+    </div>
   );
 }
 
