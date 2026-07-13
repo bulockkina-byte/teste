@@ -84,7 +84,6 @@ export async function atualizarDocumento(id: string, updates: Partial<Document>)
 }
 
 export async function excluirDocumento(id: string): Promise<boolean> {
-  const db = getDb();
 
   await excluirPdf(id);
 

@@ -9,7 +9,7 @@ import { PageTitle } from '../../components/layout/PageTitle';
 import { useAuth } from '../../context/AuthContext';
 import { listarBombeiros, listarAtivos } from '../../services/bombeiroService';
 import { STATUS_FERIAS, STATUS_FERIAS_COLORS, FUNCOES_SUBSTITUICAO } from '../../types/ferias';
-import type { Ferias, StatusFerias, AlertaVencimento } from '../../types/ferias';
+import type { Ferias as FeriasData, StatusFerias, AlertaVencimento } from '../../types/ferias';
 import type { Bombeiro, Cargo, Equipe } from '../../types/bombeiro';
 import { EQUIPE_OPTIONS } from '../../types/bombeiro';
 import {
@@ -53,8 +53,8 @@ function FeriasForm({
   onSave,
   onCancel,
 }: {
-  ferias?: Ferias;
-  onSave: (data: Omit<Ferias, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) => void;
+  ferias?: FeriasData;
+  onSave: (data: Omit<FeriasData, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) => void;
   onCancel: () => void;
 }) {
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
@@ -224,9 +224,9 @@ function FeriasForm({
 function VisaoGeral({
   ferias, isAdmin, onEdit, onDelete, onOpenForm,
 }: {
-  ferias: Ferias[];
+  ferias: FeriasData[];
   isAdmin: boolean;
-  onEdit: (f: Ferias) => void;
+  onEdit: (f: FeriasData) => void;
   onDelete: (id: string) => void;
   onOpenForm: () => void;
 }) {
@@ -436,7 +436,7 @@ function VisaoGeral({
 
 /* ───────── Tab: Escala por Equipe ───────── */
 
-function EscalaEquipe({ ferias }: { ferias: Ferias[] }) {
+function EscalaEquipe({ ferias }: { ferias: FeriasData[] }) {
   const [equipeSel, setEquipeSel] = useState<Equipe>('Alfa');
   const [anoSel, setAnoSel] = useState(new Date().getFullYear().toString());
 
@@ -523,7 +523,7 @@ function EscalaEquipe({ ferias }: { ferias: Ferias[] }) {
 
 /* ───────── Tab: Substituições ───────── */
 
-function SubstituicoesTab({ ferias }: { ferias: Ferias[] }) {
+function SubstituicoesTab({ ferias }: { ferias: FeriasData[] }) {
   const [equipeSel, setEquipeSel] = useState<Equipe>('Alfa');
   const [substituicoes, setSubstituicoes] = useState<SubstituicaoAtiva[]>([]);
   const [formFeriasId, setFormFeriasId] = useState('');
@@ -688,12 +688,12 @@ function SubstituicoesTab({ ferias }: { ferias: Ferias[] }) {
 
 /* ───────── Tab: Alertas ───────── */
 
-function AlertasTab({ ferias: _ferias }: { ferias: Ferias[] }) {
+function AlertasTab({ ferias: _ferias }: { ferias: FeriasData[] }) {
   const [filtroMeses, setFiltroMeses] = useState<3 | 6 | 12>(6);
   const [alertas, setAlertas] = useState<AlertaVencimento[]>([]);
 
   useEffect(() => {
-    setAlertas(alertasVencimento(filtroMeses));
+    alertasVencimento(filtroMeses).then(setAlertas);
   }, [filtroMeses]);
 
   const corBarra = (nivel: AlertaVencimento['nivel']) => {
@@ -771,15 +771,15 @@ export function Ferias() {
   const { user, effectiveRole } = useAuth();
   const isAdmin = effectiveRole === 'admin_master' || effectiveRole === 'admin';
 
-  const [ferias, setFerias] = useState<Ferias[]>([]);
+  const [ferias, setFerias] = useState<FeriasData[]>([]);
   const [tab, setTab] = useState<TabKey>('visao');
   const [formOpen, setFormOpen] = useState(false);
-  const [editando, setEditando] = useState<Ferias | null>(null);
+  const [editando, setEditando] = useState<FeriasData | null>(null);
 
   function carregar() { setFerias(listarFerias()); }
   useEffect(() => { carregar(); }, []);
 
-  function handleSave(data: Omit<Ferias, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) {
+  function handleSave(data: Omit<FeriasData, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) {
     if (editando) {
       atualizarFerias(editando.id, data);
     } else {

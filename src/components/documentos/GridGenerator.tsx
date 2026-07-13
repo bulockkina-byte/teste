@@ -65,7 +65,7 @@ const PRESETS: Record<string, Partial<GradeConfig>> = {
   },
 };
 
-export function GridGenerator({ onBack, onSaveAsTemplate, isAdmin }: Props) {
+export function GridGenerator({ onBack, onSaveAsTemplate: _onSaveAsTemplate, isAdmin: _isAdmin }: Props) {
   const [titulo, setTitulo] = useState('');
   const [subtitulo, setSubtitulo] = useState('');
   const [colunas, setColunas] = useState<{ label: string; width: number }[]>([
@@ -80,12 +80,12 @@ export function GridGenerator({ onBack, onSaveAsTemplate, isAdmin }: Props) {
   const [margemBaixo, setMargemBaixo] = useState(40);
   const [fontSizeTitulo, setFontSizeTitulo] = useState(16);
   const [fontSizeCabecalho, setFontSizeCabecalho] = useState(10);
-  const [fontSizeCelula, setFontSizeCelula] = useState(10);
+  const [fontSizeCelula, _setFontSizeCelula] = useState(10);
   const [larguraPagina, setLarguraPagina] = useState(595);
   const [alturaPagina, setAlturaPagina] = useState(842);
   const [corLinhas, setCorLinhas] = useState('#000000');
   const [espessuraLinhas, setEspessuraLinhas] = useState(1);
-  const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
+  const [previewBlob, setPreviewBlob] = useState<ArrayBuffer | null>(null);
   const [generating, setGenerating] = useState(false);
 
   function buildConfig(): GradeConfig {
@@ -101,7 +101,8 @@ export function GridGenerator({ onBack, onSaveAsTemplate, isAdmin }: Props) {
     setGenerating(true);
     try {
       const blob = await gerarGrade(buildConfig());
-      setPreviewBlob(blob);
+      const arrayBuffer = await blob.arrayBuffer();
+      setPreviewBlob(arrayBuffer);
     } catch {
       console.error('Erro ao gerar preview');
     } finally {
@@ -307,7 +308,7 @@ export function GridGenerator({ onBack, onSaveAsTemplate, isAdmin }: Props) {
         <div className="rounded-xl border border-graphite-200 bg-white p-4 dark:border-graphite-700 dark:bg-graphite-800">
           <h3 className="mb-3 text-sm font-semibold text-graphite-700 dark:text-graphite-300">Preview</h3>
           <div className="max-h-[600px] overflow-auto rounded-lg border border-graphite-200 dark:border-graphite-700">
-            <PdfPreview pdfData={previewBlob} />
+            <PdfPreview pdfData={previewBlob} fields={[]} />
           </div>
         </div>
       )}

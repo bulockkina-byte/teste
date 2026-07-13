@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { X, User, Link, Unlink } from 'lucide-react';
+import { X, User, Unlink } from 'lucide-react';
 import type { UserRole } from '../../context/AuthContext';
 import { ROLE_LABELS, cargoParaUserRole, apocParaUserRole } from '../../context/AuthContext';
 import { Autocomplete } from '../../components/documentos/Autocomplete';

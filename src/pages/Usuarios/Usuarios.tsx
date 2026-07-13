@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { UserCog, Search, Plus, Pencil, Trash2, Lock, User, ShieldCheck, ShieldOff } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { UserCog, Search, Plus, Pencil, Trash2, Lock, ShieldCheck, ShieldOff } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { useAuth } from '../../context/AuthContext';
@@ -13,7 +13,6 @@ import {
   criarUsuario,
   atualizarUsuario,
   excluirUsuario,
-  type Usuario,
 } from '../../services/usuarioService';
 import type { Bombeiro } from '../../types/bombeiro';
 import type { APOC } from '../../types/apoc';

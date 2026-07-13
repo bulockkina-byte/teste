@@ -1,5 +1,4 @@
 import { PDFDocument, PDFTextField, PDFCheckBox, PDFDropdown, StandardFonts, rgb } from 'pdf-lib';
-import type { DocumentField } from '../types/document';
 
 export async function lerCamposPdf(pdfBytes: ArrayBuffer): Promise<string[]> {
   const pdfDoc = await PDFDocument.load(pdfBytes);
@@ -52,7 +51,7 @@ export async function preencherPdf(
         value = `${d}/${m}/${y}`;
       }
 
-      const page = pages[pos.page - 1] || pages[0];
+      const page = pages[(pos.page ?? 1) - 1] || pages[0];
       const { height: pageHeight } = page.getSize();
       const fontSize = pos.font_size || 10;
       const VIEWPORT_SCALE = 1.5;

@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   RefreshCw, Plus, ArrowLeft, FileText, Loader2,
-  Download, Save, ChevronDown, ChevronUp, Filter,
-  AlertTriangle, AlertCircle, Edit, Trash2, Eye,
+  Save, ChevronDown, ChevronUp, Filter,
+  AlertTriangle, AlertCircle, Edit, Trash2, Eye, CheckCircle,
 } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
@@ -206,6 +206,8 @@ export function Trocas() {
         template_pdf_url: null,
         active: true,
         template_pdf_pages: 0, template_pdf_width: 0, template_pdf_height: 0,
+        source_module: null,
+        created_by: null,
       });
       await criarCamposEmLote(doc.id, template.fields.map((tf, i) => ({
         document_id: doc.id,
@@ -396,7 +398,6 @@ export function Trocas() {
         field_type: f.field_type,
         page: f.page,
       })));
-      const nome = `Troca_${formData.nome_solicitante || 'doc'}_${new Date().toISOString().slice(0, 10)}.pdf`;
       const url = URL.createObjectURL(pdfBlob);
       window.open(url, '_blank');
       const docFills = await listarPreenchimentos(doc.id);

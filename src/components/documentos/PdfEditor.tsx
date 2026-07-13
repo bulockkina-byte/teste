@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Type, Minus, Square, Eraser, Save, ArrowLeft,
   Undo2, Redo2, MousePointer,

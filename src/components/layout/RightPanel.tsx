@@ -3,7 +3,7 @@ import {
   X, Bell, MessageCircle, Users, Send, Search, ArrowLeft,
   CheckCheck, Trash2, User, MessageSquare,
 } from 'lucide-react';
-import { useAuth, type UserRole } from '../../context/AuthContext';
+import { useAuth, type UserRole, ROLE_LABELS } from '../../context/AuthContext';
 import { listarBombeiros } from '../../services/bombeiroService';
 import {
   mensagensGerais, conversaCom, enviarMensagem, marcarLida, contarNaoLidas,

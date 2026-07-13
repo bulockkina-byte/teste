@@ -3,7 +3,7 @@ import {
   FileText, Plus, Search, Eye, Loader2,
   ChevronDown, ChevronUp, Edit3, CheckCircle,
   Trash2, Download, Upload, Shield, Save, ArrowLeft,
-  AlertTriangle, Package, Link, Grid,
+  AlertTriangle, Package, Link,
 } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
@@ -16,7 +16,7 @@ import {
   listarDocumentos, buscarDocumento, criarDocumento, atualizarDocumento,
   excluirDocumento, criarCampo, criarCamposEmLote, atualizarCampo, excluirCampo,
   criarSignatario, excluirSignatario,
-  criarPreenchimento, listarPreenchimentos,
+  criarPreenchimento,
   uploadPDF, getPdfBlob, sincronizarCamposTemplate,
   listarPdfsStorage,
 } from '../../services/documentoService';
@@ -38,11 +38,11 @@ export function Documentos() {
   const [selectedDoc, setSelectedDoc] = useState<DocumentWithFields | null>(null);
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [view, setView] = useState<View>('list');
   const [expandedFill, setExpandedFill] = useState<string | null>(null);
-  const [fills, setFills] = useState<DocumentFill[]>([]);
+  const [fills] = useState<DocumentFill[]>([]);
 
   // Admin
   const [newDocName, setNewDocName] = useState('');
@@ -68,7 +68,7 @@ export function Documentos() {
   // Preview modal
   const [previewDoc, setPreviewDoc] = useState<DocumentWithFields | null>(null);
   const [previewPdfData, setPreviewPdfData] = useState<ArrayBuffer | null>(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewLoading] = useState(false);
 
   // Vincular dropdown
   const [vincularOpen, setVincularOpen] = useState<string | null>(null);
@@ -145,20 +145,6 @@ export function Documentos() {
   }
 
   // ═══ DOCUMENTO ═══
-  async function selectDocument(doc: Document) {
-    try {
-      const full = await buscarDocumento(doc.id);
-      setSelectedDoc(full);
-      setFormData({});
-      await loadPdfData(full);
-      const docFills = await listarPreenchimentos(doc.id);
-      setFills(docFills);
-      setView('fill');
-    } catch {
-      setNotifPopup({ msg: 'Erro inesperado ao abrir documento. Contate o administrador.', type: 'error' });
-    }
-  }
-
   async function openManage(doc: Document) {
     try {
       const full = await buscarDocumento(doc.id);
@@ -196,31 +182,6 @@ export function Documentos() {
       setView('manage');
     } catch {
       setNotifPopup({ msg: 'Erro inesperado ao abrir configuracao. Contate o administrador.', type: 'error' });
-    }
-  }
-
-  async function openPreview(doc: Document) {
-    try {
-      const full = await buscarDocumento(doc.id);
-      if (!full) return;
-      setPreviewDoc(full);
-      setPreviewLoading(true);
-      if (full.template_pdf_url) {
-        const blob = await getPdfBlob(full.template_pdf_url);
-        if (blob) {
-          const buf = await blob.arrayBuffer();
-          setPreviewPdfData(buf);
-        } else {
-          setPreviewPdfData(null);
-        }
-      } else {
-        setPreviewPdfData(null);
-      }
-    } catch {
-      setNotifPopup({ msg: 'Erro inesperado ao carregar preview. Contate o administrador.', type: 'error' });
-      setPreviewPdfData(null);
-    } finally {
-      setPreviewLoading(false);
     }
   }
 
@@ -862,10 +823,6 @@ export function Documentos() {
     const trayFields = allFields.filter(f => f.x === 0 && f.y === 0);
     const signers = [...selectedDoc.document_signers].sort((a, b) => a.order_index - b.order_index);
     const selectedField = allFields.find(f => f.id === selectedFieldId) || null;
-    const allFuncionarios = [
-      ...bombeirosList.map(b => ({ nome: b.nomeCompleto, funcao: b.cargo, email: b.email })),
-      ...apocsList.map(a => ({ nome: a.nomeCompleto, funcao: 'APOC', email: a.email })),
-    ];
 
     return (
       <>

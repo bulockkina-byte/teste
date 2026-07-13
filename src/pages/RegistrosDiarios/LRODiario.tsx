@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   FileSpreadsheet, Plus, Save, Eye, Pencil, Copy, Printer, Trash2, ChevronDown, ChevronUp, Truck,
 } from 'lucide-react';
@@ -9,6 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import { listarLROs, criarLRO, atualizarLRO, excluirLRO } from '../../services/lroService';
 import { listarBombeiros } from '../../services/bombeiroService';
 import { listarViaturas } from '../../services/viaturaService';
+import type { Viatura } from '../../types/viatura';
 import { EQUIPES, EPR_OPTIONS, CRS_SITUACOES, FUNCOES_CARGO } from '../../types/lro';
 import type { LRO, VeiculoState, VeiculoRTState, CRSState } from '../../types/lro';
 
@@ -52,7 +53,7 @@ function emptyLRO(): Omit<LRO, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'> {
 
 function ViaturasCCISection() {
   const [expanded, setExpanded] = useState(false);
-  const viaturas = useMemo(() => listarViaturas().filter(v => v.tipo === 'CCI'), []);
+  const viaturas = useMemo(() => listarViaturas().filter((v: Viatura) => v.tipo === 'CCI'), []);
 
   if (viaturas.length === 0) return null;
 
@@ -68,7 +69,7 @@ function ViaturasCCISection() {
       </legend>
       {expanded && (
         <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
-          {viaturas.map(v => (
+          {viaturas.map((v: Viatura) => (
             <div key={v.id} className="flex items-center gap-3 rounded-xl border border-graphite-200/60 bg-white/70 px-3 py-2 dark:border-border-dark dark:bg-surface-card">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-aviation-100 text-xs font-bold text-aviation-700 dark:bg-aviation-900/40 dark:text-aviation-300">
                 {v.prefixo.slice(-2)}

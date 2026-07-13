@@ -6,7 +6,6 @@ import {
   buscarUsuarioPorUsername,
   criarUsuario,
   atualizarUsuario,
-  type Usuario as UsuarioSupabase,
 } from '../services/usuarioService';
 
 export type UserRole = 'admin_master' | 'admin' | 'gerente' | 'chefe' | 'lider';

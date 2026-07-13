@@ -44,7 +44,7 @@ export const apocApi = baseApi.injectEndpoints({
         const list = getAll();
         const novo: APOC = {
           ...data,
-          funcao: 'MOTIVA',
+          funcao: 'MOTIVA' as import('../../types/apoc').FuncaoAPOC,
           id: crypto.randomUUID(),
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -63,7 +63,7 @@ export const apocApi = baseApi.injectEndpoints({
         list[idx] = {
           ...list[idx],
           ...data,
-          funcao: 'MOTIVA',
+          funcao: 'MOTIVA' as import('../../types/apoc').FuncaoAPOC,
           updatedAt: new Date().toISOString(),
         };
         saveAll(list);
