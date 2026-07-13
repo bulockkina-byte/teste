@@ -186,3 +186,5 @@ export function APOCs() {
     </PageContainer>
   );
 }
+
+export default APOCs;

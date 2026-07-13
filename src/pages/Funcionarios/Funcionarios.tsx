@@ -7,6 +7,7 @@ import { listarAPOCs, buscarAPOC } from '../../services/apocService';
 import type { Bombeiro } from '../../types/bombeiro';
 import type { APOC } from '../../types/apoc';
 import { CARGO_OPTIONS, EQUIPE_OPTIONS } from '../../types/bombeiro';
+import { useDebounce } from '../../hooks/useDebounce';
 
 type Tab = 'todos' | 'bombeiros' | 'apoc';
 
@@ -163,6 +164,8 @@ export function Funcionarios() {
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
   const [apocs, setApocs] = useState<APOC[]>([]);
 
+  const debouncedTermo = useDebounce(termo, 400);
+
   useEffect(() => {
     async function load() {
       setAllBombeiros(await listarBombeiros());
@@ -179,24 +182,24 @@ export function Funcionarios() {
 
   useEffect(() => {
     async function load() {
-      let lista = termo ? await buscarBombeiro(termo) : allBombeiros;
+      let lista = debouncedTermo ? await buscarBombeiro(debouncedTermo) : allBombeiros;
       if (filterEquipe) lista = lista.filter(b => b.equipe === filterEquipe);
       if (filterCargo) lista = lista.filter(b => b.cargo === filterCargo);
       setBombeiros(lista);
     }
     load();
-  }, [termo, filterEquipe, filterCargo, allBombeiros]);
+  }, [debouncedTermo, filterEquipe, filterCargo, allBombeiros]);
 
   useEffect(() => {
     async function load() {
-      if (!termo) {
+      if (!debouncedTermo) {
         setApocs(allApocs);
         return;
       }
-      setApocs(await buscarAPOC(termo));
+      setApocs(await buscarAPOC(debouncedTermo));
     }
     load();
-  }, [termo, allApocs]);
+  }, [debouncedTermo, allApocs]);
 
   const filteredBombeiros = tab === 'apoc' ? [] : bombeiros;
   const filteredApocs = tab === 'bombeiros' ? [] : apocs;
@@ -422,3 +425,5 @@ export function Funcionarios() {
     </PageContainer>
   );
 }
+
+export default Funcionarios;

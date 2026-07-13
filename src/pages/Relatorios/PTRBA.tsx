@@ -15,3 +15,5 @@ export function PTRBA() {
     </PageContainer>
   );
 }
+
+export default PTRBA;

@@ -15,3 +15,5 @@ export function OrdemServico() {
     </PageContainer>
   );
 }
+
+export default OrdemServico;

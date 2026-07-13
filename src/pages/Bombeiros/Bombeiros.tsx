@@ -7,6 +7,7 @@ import { listarBombeiros, buscarBombeiro, criarBombeiro, atualizarBombeiro, excl
 import type { Bombeiro } from '../../types/bombeiro';
 import { CARGO_OPTIONS, EQUIPE_OPTIONS } from '../../types/bombeiro';
 import { BombeiroForm } from './BombeiroForm';
+import { useDebounce } from '../../hooks/useDebounce';
 
 export function Bombeiros() {
   const { user } = useAuth();
@@ -37,12 +38,14 @@ export function Bombeiros() {
   const [editando, setEditando] = useState<Bombeiro | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
+  const debouncedTermo = useDebounce(termo, 400);
+
   useEffect(() => {
     carregar();
-  }, [termo, filterEquipe, filterCargo]);
+  }, [debouncedTermo, filterEquipe, filterCargo]);
 
   async function carregar() {
-    let lista = termo ? await buscarBombeiro(termo) : await listarBombeiros();
+    let lista = debouncedTermo ? await buscarBombeiro(debouncedTermo) : await listarBombeiros();
     if (filterEquipe) lista = lista.filter(b => b.equipe === filterEquipe);
     if (filterCargo) lista = lista.filter(b => b.cargo === filterCargo);
     setBombeiros(lista);
@@ -237,3 +240,5 @@ export function Bombeiros() {
     </PageContainer>
   );
 }
+
+export default Bombeiros;

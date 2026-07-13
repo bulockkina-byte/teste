@@ -15,3 +15,5 @@ export function BONA() {
     </PageContainer>
   );
 }
+
+export default BONA;

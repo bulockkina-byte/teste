@@ -2,6 +2,12 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { substituicaoPorSubstituto } from '../services/substituicaoService';
 import { listarBombeiros } from '../services/bombeiroService';
 import { listarAPOCs } from '../services/apocService';
+import {
+  buscarUsuarioPorUsername,
+  criarUsuario,
+  atualizarUsuario,
+  type Usuario as UsuarioSupabase,
+} from '../services/usuarioService';
 
 export type UserRole = 'admin_master' | 'admin' | 'gerente' | 'chefe' | 'lider';
 
@@ -131,6 +137,32 @@ function seedAdmin() {
   }
 
   if (changed) localStorage.setItem(USERS_KEY, JSON.stringify(users));
+
+  syncSeedsToSupabase(users).catch(() => {});
+}
+
+async function syncSeedsToSupabase(users: Record<string, StoredUser>) {
+  const seedUsernames = ['serra', 'admin'];
+  for (const uname of seedUsernames) {
+    const local = users[uname];
+    if (!local) continue;
+    try {
+      const existing = await buscarUsuarioPorUsername(uname);
+      if (!existing) {
+        await criarUsuario({
+          username: uname,
+          name: local.name,
+          password: local.password,
+          role: local.role,
+        });
+      } else if (existing.password !== local.password || existing.role !== local.role) {
+        await atualizarUsuario(uname, {
+          password: local.password,
+          role: local.role,
+        });
+      }
+    } catch { /* ignore - Supabase offline */ }
+  }
 }
 
 const ROLE_HIERARQUIA: UserRole[] = ['admin_master', 'admin', 'gerente', 'chefe', 'lider'];
@@ -193,8 +225,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (username: string, password: string) => {
     await new Promise(r => setTimeout(r, 600));
-    const users = getStoredUsers();
-    const stored = users[username];
+    let users = getStoredUsers();
+    let stored = users[username];
+
+    if (!stored || stored.password !== password) {
+      try {
+        const remote = await buscarUsuarioPorUsername(username);
+        if (remote && remote.password === password) {
+          stored = {
+            name: remote.name,
+            password: remote.password,
+            role: remote.role,
+            previousRole: remote.previousRole,
+            personId: remote.personId,
+            personType: remote.personType,
+          };
+          users[username] = stored;
+          localStorage.setItem(USERS_KEY, JSON.stringify(users));
+        }
+      } catch { /* ignore - Supabase offline */ }
+    }
+
     if (!stored || stored.password !== password) {
       throw new Error('Usuário ou senha inválidos.');
     }
@@ -243,25 +294,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } catch { /* ignore - fallback to basic user data */ }
     } else {
-      const bombeiros = await listarBombeiros();
-      const bombeiro = bombeiros.find(b => b.nomeCompleto === stored.name || b.email === username);
-      if (bombeiro) {
-        userData.name = bombeiro.nomeCompleto;
-        userData.pessoa = {
-          nomeGuerra: bombeiro.nomeGuerra,
-          foto: bombeiro.foto || undefined,
-          funcao: bombeiro.cargo,
-          personType: 'bombeiro',
-        };
-        const substituicao = substituicaoPorSubstituto(bombeiro.id);
-        if (substituicao) {
-          const subRole = cargoParaUserRole(substituicao.funcaoSubstituicao);
-          if (subRole) {
-            userData.substituindoDe = substituicao.funcionarioNome;
-            userData.substituindoFuncao = subRole;
+      try {
+        const bombeiros = await listarBombeiros();
+        const bombeiro = bombeiros.find(b => b.nomeCompleto === stored.name || b.email === username);
+        if (bombeiro) {
+          userData.name = bombeiro.nomeCompleto;
+          userData.pessoa = {
+            nomeGuerra: bombeiro.nomeGuerra,
+            foto: bombeiro.foto || undefined,
+            funcao: bombeiro.cargo,
+            personType: 'bombeiro',
+          };
+          const substituicao = substituicaoPorSubstituto(bombeiro.id);
+          if (substituicao) {
+            const subRole = cargoParaUserRole(substituicao.funcaoSubstituicao);
+            if (subRole) {
+              userData.substituindoDe = substituicao.funcionarioNome;
+              userData.substituindoFuncao = subRole;
+            }
           }
         }
-      }
+      } catch { /* ignore - Supabase offline or table missing */ }
     }
 
     setUser(userData);
@@ -276,6 +329,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     users[username] = { name, password, role, personId, personType };
     localStorage.setItem(USERS_KEY, JSON.stringify(users));
+    try {
+      const existing = await buscarUsuarioPorUsername(username);
+      if (!existing) {
+        await criarUsuario({ username, name, password, role, personId, personType });
+      }
+    } catch { /* ignore - Supabase offline */ }
   }, []);
 
   const logout = useCallback(() => {
@@ -303,8 +362,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return user.role;
   }, [user]);
 
+  const contextValue = useMemo(() => ({
+    user,
+    isAuthenticated: !!user,
+    effectiveRole,
+    login,
+    register,
+    logout,
+  }), [user, effectiveRole, login, register, logout]);
+
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, effectiveRole, login, register, logout }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

@@ -467,3 +467,5 @@ export function LROOcorrencias() {
     </PageContainer>
   );
 }
+
+export default LROOcorrencias;

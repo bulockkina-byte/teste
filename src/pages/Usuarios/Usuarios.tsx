@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { UserCog, Search, Plus, Pencil, Trash2, Lock, User, Shield, ShieldOff } from 'lucide-react';
+import { UserCog, Search, Plus, Pencil, Trash2, Lock, User, ShieldCheck, ShieldOff } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { useAuth } from '../../context/AuthContext';
@@ -8,6 +8,13 @@ import type { StoredUser } from '../../context/AuthContext';
 import { UsuarioForm } from './UsuarioForm';
 import { listarAtivos } from '../../services/bombeiroService';
 import { listarAPOCs } from '../../services/apocService';
+import {
+  listarUsuarios as listarUsuariosDb,
+  criarUsuario,
+  atualizarUsuario,
+  excluirUsuario,
+  type Usuario,
+} from '../../services/usuarioService';
 import type { Bombeiro } from '../../types/bombeiro';
 import type { APOC } from '../../types/apoc';
 import { CARGO_OPTIONS } from '../../types/bombeiro';
@@ -15,7 +22,7 @@ import { FUNCAO_APOC_OPTIONS } from '../../types/apoc';
 
 const USERS_KEY = 'sescinc-users';
 
-function listarUsuarios(): Record<string, StoredUser> {
+function getLocalUsers(): Record<string, StoredUser> {
   try {
     return JSON.parse(localStorage.getItem(USERS_KEY) || '{}');
   } catch {
@@ -23,7 +30,7 @@ function listarUsuarios(): Record<string, StoredUser> {
   }
 }
 
-function salvarUsuarios(data: Record<string, StoredUser>) {
+function saveLocalUsers(data: Record<string, StoredUser>) {
   localStorage.setItem(USERS_KEY, JSON.stringify(data));
 }
 
@@ -63,23 +70,45 @@ export function Usuarios() {
     return apocs.find(a => a.id === data.personId) || null;
   }
 
-  function carregar() {
-    const all = listarUsuarios();
-    const entries = Object.entries(all);
-    if (termo) {
-      const t = termo.toLowerCase();
-      setUsuarios(entries.filter(([u, d]) =>
-        u.includes(t) || d.name.toLowerCase().includes(t) || (ROLE_LABELS[d.role] || '').toLowerCase().includes(t) || (d.previousRole ? (ROLE_LABELS[d.previousRole] || '').toLowerCase().includes(t) : false)
-      ));
-    } else {
-      setUsuarios(entries);
+  async function carregar() {
+    try {
+      const remote = await listarUsuariosDb();
+      const entries: [string, StoredUser][] = remote.map(u => [
+        u.username,
+        { name: u.name, password: u.password, role: u.role, previousRole: u.previousRole, personId: u.personId, personType: u.personType },
+      ]);
+      const localUsers = getLocalUsers();
+      for (const [uname, data] of entries) {
+        localUsers[uname] = data;
+      }
+      saveLocalUsers(localUsers);
+
+      if (termo) {
+        const t = termo.toLowerCase();
+        setUsuarios(entries.filter(([u, d]) =>
+          u.includes(t) || d.name.toLowerCase().includes(t) || (ROLE_LABELS[d.role] || '').toLowerCase().includes(t) || (d.previousRole ? (ROLE_LABELS[d.previousRole] || '').toLowerCase().includes(t) : false)
+        ));
+      } else {
+        setUsuarios(entries);
+      }
+    } catch {
+      const all = getLocalUsers();
+      const entries = Object.entries(all);
+      if (termo) {
+        const t = termo.toLowerCase();
+        setUsuarios(entries.filter(([u, d]) =>
+          u.includes(t) || d.name.toLowerCase().includes(t) || (ROLE_LABELS[d.role] || '').toLowerCase().includes(t) || (d.previousRole ? (ROLE_LABELS[d.previousRole] || '').toLowerCase().includes(t) : false)
+        ));
+      } else {
+        setUsuarios(entries);
+      }
     }
   }
 
   useEffect(() => { carregar(); }, [termo]);
 
-  function handleSave(data: { username: string; name: string; password: string; role: UserRole; personId?: string; personType?: 'bombeiro' | 'apoc' }) {
-    const all = listarUsuarios();
+  async function handleSave(data: { username: string; name: string; password: string; role: UserRole; personId?: string; personType?: 'bombeiro' | 'apoc' }) {
+    const all = getLocalUsers();
 
     if (editando) {
       const prev = all[editando.username];
@@ -101,7 +130,7 @@ export function Usuarios() {
         ? prev.role
         : (data.role !== 'admin' ? undefined : prev.previousRole);
 
-      all[data.username] = {
+      const updatedData: StoredUser = {
         name: data.name,
         password: data.password || prev.password,
         role: data.role,
@@ -109,7 +138,24 @@ export function Usuarios() {
         personId: data.personId,
         personType: data.personType,
       };
+      all[data.username] = updatedData;
       if (data.username !== editando.username) delete all[editando.username];
+      saveLocalUsers(all);
+
+      try {
+        if (data.username !== editando.username) {
+          await excluirUsuario(editando.username);
+        }
+        await atualizarUsuario(data.username, {
+          username: data.username,
+          name: data.name,
+          password: updatedData.password,
+          role: data.role,
+          previousRole,
+          personId: data.personId,
+          personType: data.personType,
+        });
+      } catch { /* ignore - Supabase offline */ }
     } else {
       if (data.role === 'admin_master') {
         return;
@@ -118,18 +164,70 @@ export function Usuarios() {
         return;
       }
       all[data.username] = { name: data.name, password: data.password, role: data.role, personId: data.personId, personType: data.personType };
+      saveLocalUsers(all);
+
+      try {
+        await criarUsuario({
+          username: data.username,
+          name: data.name,
+          password: data.password,
+          role: data.role,
+          personId: data.personId,
+          personType: data.personType,
+        });
+      } catch { /* ignore - Supabase offline */ }
     }
-    salvarUsuarios(all);
     setFormOpen(false);
     setEditando(null);
     carregar();
   }
 
-  function handleDelete(username: string) {
-    const all = listarUsuarios();
+  async function handleDelete(username: string) {
+    const all = getLocalUsers();
     delete all[username];
-    salvarUsuarios(all);
+    saveLocalUsers(all);
+
+    try {
+      await excluirUsuario(username);
+    } catch { /* ignore - Supabase offline */ }
+
     setConfirmDelete(null);
+    carregar();
+  }
+
+  async function handleToggleAdmin(username: string) {
+    const all = getLocalUsers();
+    const target = all[username];
+    if (!target) return;
+
+    if (target.role === 'admin_master') return;
+
+    let newRole: UserRole;
+    let newPreviousRole: UserRole | undefined;
+
+    if (target.role === 'admin') {
+      newRole = target.previousRole || 'lider';
+      newPreviousRole = undefined;
+    } else {
+      newRole = 'admin';
+      newPreviousRole = target.role;
+    }
+
+    all[username] = { ...target, role: newRole, previousRole: newPreviousRole };
+    saveLocalUsers(all);
+
+    try {
+      await atualizarUsuario(username, {
+        username,
+        name: target.name,
+        password: target.password,
+        role: newRole,
+        previousRole: newPreviousRole,
+        personId: target.personId,
+        personType: target.personType,
+      });
+    } catch { /* ignore - Supabase offline */ }
+
     carregar();
   }
 
@@ -203,14 +301,11 @@ export function Usuarios() {
                 const isTargetAdmin = data.role === 'admin';
                 const isSelf = username === user?.username;
 
-                const displayRoles: UserRole[] = [];
+                let displayRole: UserRole;
                 if (isTargetAdmin && !isViewerDev && !isSelf) {
-                  if (data.previousRole) displayRoles.push(data.previousRole);
+                  displayRole = data.previousRole || 'lider';
                 } else {
-                  displayRoles.push(data.role);
-                  if (isTargetAdmin && data.previousRole && (isViewerDev || isSelf)) {
-                    displayRoles.push(data.previousRole);
-                  }
+                  displayRole = data.role;
                 }
 
                 return (
@@ -235,12 +330,15 @@ export function Usuarios() {
                   <td className="px-4 py-3 font-mono text-xs text-graphite-600 dark:text-graphite-400">{username}</td>
                   <td className="px-4 py-3">
                     <div className="flex flex-col gap-1">
-                      {displayRoles.map(r => (
-                        <span key={r} className={`inline-flex w-fit rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${ROLE_BADGE[r] || ROLE_BADGE.chefe}`}>
-                          {ROLE_LABELS[r] || r}
+                      <span className={`inline-flex w-fit rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${ROLE_BADGE[displayRole] || ROLE_BADGE.chefe}`}>
+                        {ROLE_LABELS[displayRole] || displayRole}
+                      </span>
+                      {isTargetAdmin && (isViewerDev || isSelf) && data.previousRole && (
+                        <span className={`inline-flex w-fit rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${ROLE_BADGE[data.previousRole] || ROLE_BADGE.chefe}`}>
+                          {ROLE_LABELS[data.previousRole] || data.previousRole}
                         </span>
-                      ))}
-                      {personCargo && (
+                      )}
+                      {personCargo && displayRole !== 'admin' && (
                         <span className="text-[11px] text-graphite-500 dark:text-graphite-400">{personCargo}</span>
                       )}
                     </div>
@@ -250,13 +348,32 @@ export function Usuarios() {
                       {data.role !== 'admin_master' && (
                         <>
                           {data.role === 'admin' && user?.role !== 'admin_master' ? null : (
-                            <button
-                              onClick={() => { setEditando({ username, name: data.name, role: data.role, previousRole: data.previousRole, personId: data.personId, personType: data.personType }); setFormOpen(true); }}
-                              className="rounded-xl p-1.5 text-graphite-400 transition-all hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover dark:hover:text-graphite-300"
-                              title="Editar"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </button>
+                            <>
+                              <button
+                                onClick={() => { setEditando({ username, name: data.name, role: data.role, previousRole: data.previousRole, personId: data.personId, personType: data.personType }); setFormOpen(true); }}
+                                className="rounded-xl p-1.5 text-graphite-400 transition-all hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover dark:hover:text-graphite-300"
+                                title="Editar"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </button>
+                              {data.role !== 'admin' ? (
+                                <button
+                                  onClick={() => handleToggleAdmin(username)}
+                                  className="rounded-xl p-1.5 text-amber-500 transition-all hover:bg-amber-50 hover:text-amber-700 dark:hover:bg-amber-900/20 dark:hover:text-amber-400"
+                                  title="Tornar Administrador"
+                                >
+                                  <ShieldCheck className="h-4 w-4" />
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleToggleAdmin(username)}
+                                  className="rounded-xl p-1.5 text-graphite-400 transition-all hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover dark:hover:text-graphite-300"
+                                  title="Remover Admin"
+                                >
+                                  <ShieldOff className="h-4 w-4" />
+                                </button>
+                              )}
+                            </>
                           )}
                           {user?.role === 'admin_master' ? (
                             <button
@@ -315,3 +432,5 @@ export function Usuarios() {
     </PageContainer>
   );
 }
+
+export default Usuarios;

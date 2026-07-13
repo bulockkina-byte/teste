@@ -15,3 +15,5 @@ export function Configuracoes() {
     </PageContainer>
   );
 }
+
+export default Configuracoes;

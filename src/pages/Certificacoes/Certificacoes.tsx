@@ -416,3 +416,5 @@ export function Certificacoes() {
     </PageContainer>
   );
 }
+
+export default Certificacoes;

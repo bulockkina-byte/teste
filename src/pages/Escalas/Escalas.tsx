@@ -51,3 +51,5 @@ export function Escalas() {
     </PageContainer>
   );
 }
+
+export default Escalas;

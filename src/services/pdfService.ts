@@ -113,7 +113,7 @@ export async function gerarGrade(config: GradeConfig): Promise<Blob> {
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-  const page = pdfDoc.addPage([config.larguraPagina, config.alturaPagina]);
+  let page = pdfDoc.addPage([config.larguraPagina, config.alturaPagina]);
   const { width: pageW, height: pageH } = page.getSize();
 
   const cor = hexToRgb(config.corLinhas || '#000000');
@@ -215,7 +215,7 @@ export async function gerarGrade(config: GradeConfig): Promise<Blob> {
     if (cursorY < marginB && row < config.numLinhas - 1) {
       cursorY = pageH - marginT;
       const newPage = pdfDoc.addPage([config.larguraPagina, config.alturaPagina]);
-      (page as any) = newPage;
+      page = newPage;
     }
   }
 

@@ -663,3 +663,5 @@ export function Ocorrencias() {
     </PageContainer>
   );
 }
+
+export default Ocorrencias;

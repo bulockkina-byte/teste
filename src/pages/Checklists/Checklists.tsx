@@ -15,3 +15,5 @@ export function Checklists() {
     </PageContainer>
   );
 }
+
+export default Checklists;

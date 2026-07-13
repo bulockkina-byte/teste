@@ -759,3 +759,5 @@ export function PTRBADiario() {
     </PageContainer>
   );
 }
+
+export default PTRBADiario;

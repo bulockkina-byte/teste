@@ -1027,3 +1027,5 @@ export function Trocas() {
     </PageContainer>
   );
 }
+
+export default Trocas;

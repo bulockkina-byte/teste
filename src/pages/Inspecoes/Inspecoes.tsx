@@ -15,3 +15,5 @@ export function Inspecoes() {
     </PageContainer>
   );
 }
+
+export default Inspecoes;

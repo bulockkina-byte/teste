@@ -15,3 +15,5 @@ export function Treinamentos() {
     </PageContainer>
   );
 }
+
+export default Treinamentos;

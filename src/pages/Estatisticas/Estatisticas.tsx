@@ -826,3 +826,5 @@ export function Estatisticas() {
     </PageContainer>
   );
 }
+
+export default Estatisticas;

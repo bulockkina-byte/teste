@@ -15,3 +15,5 @@ export function AgentesExtintores() {
     </PageContainer>
   );
 }
+
+export default AgentesExtintores;

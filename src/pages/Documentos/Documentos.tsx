@@ -1461,3 +1461,5 @@ export function Documentos() {
 
   return null;
 }
+
+export default Documentos;

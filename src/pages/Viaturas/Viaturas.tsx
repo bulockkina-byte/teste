@@ -99,3 +99,5 @@ export function Viaturas() {
     </PageContainer>
   );
 }
+
+export default Viaturas;

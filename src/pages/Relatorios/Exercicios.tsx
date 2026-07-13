@@ -15,3 +15,5 @@ export function Exercicios() {
     </PageContainer>
   );
 }
+
+export default Exercicios;

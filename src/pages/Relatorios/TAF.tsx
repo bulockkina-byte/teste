@@ -15,3 +15,5 @@ export function TAF() {
     </PageContainer>
   );
 }
+
+export default TAF;

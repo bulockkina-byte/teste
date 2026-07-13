@@ -15,3 +15,5 @@ export function TPEPR() {
     </PageContainer>
   );
 }
+
+export default TPEPR;

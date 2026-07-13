@@ -833,3 +833,5 @@ export function Ferias() {
     </PageContainer>
   );
 }
+
+export default Ferias;

@@ -984,3 +984,5 @@ export function LRODiario() {
     </PageContainer>
   );
 }
+
+export default LRODiario;

@@ -1,40 +1,19 @@
+import { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { Layout } from '../components/layout/Layout';
 import { Dashboard } from '../pages/Dashboard/Dashboard';
-import { Ocorrencias } from '../pages/Ocorrencias/Ocorrencias';
-import { Inspecoes } from '../pages/Inspecoes/Inspecoes';
-import { Viaturas } from '../pages/Viaturas/Viaturas';
-import { EPIs } from '../pages/EPIs/EPIs';
-import { Checklists } from '../pages/Checklists/Checklists';
-import { Documentos } from '../pages/Documentos/Documentos';
-import { Escalas } from '../pages/Escalas/Escalas';
-import { Treinamentos } from '../pages/Treinamentos/Treinamentos';
-import { Certificacoes } from '../pages/Certificacoes/Certificacoes';
-import { Funcionarios } from '../pages/Funcionarios/Funcionarios';
-import { Estatisticas } from '../pages/Estatisticas/Estatisticas';
-import { LRO } from '../pages/Relatorios/LRO';
-import { BONA } from '../pages/Relatorios/BONA';
-import { PTRBA } from '../pages/Relatorios/PTRBA';
-import { Exercicios } from '../pages/Relatorios/Exercicios';
-import { TAF } from '../pages/Relatorios/TAF';
-import { TPEPR } from '../pages/Relatorios/TPEPR';
-import { OrdemServico } from '../pages/Relatorios/OrdemServico';
-import { Trocas } from '../pages/Relatorios/Trocas';
-import { Configuracoes } from '../pages/Configuracoes/Configuracoes';
-import { Perfil } from '../pages/Perfil/Perfil';
 import { Login } from '../pages/Login/Login';
 import { AuthGuard } from '../components/layout/AuthGuard';
+import { Loading } from '../components/ui/Loading';
 
-import { Bombeiros } from '../pages/Bombeiros/Bombeiros';
-import { Usuarios } from '../pages/Usuarios/Usuarios';
-import { Equipamentos } from '../pages/Equipamentos/Equipamentos';
-import { AgentesExtintores } from '../pages/AgentesExtintores/AgentesExtintores';
-import { Hidrantes } from '../pages/Hidrantes/Hidrantes';
-import { APOCs } from '../pages/APOC/APOCs';
-import { Ferias } from '../pages/Ferias/Ferias';
-import { LRODiario } from '../pages/RegistrosDiarios/LRODiario';
-import { PTRBADiario } from '../pages/RegistrosDiarios/PTRBADiario';
-import { LROOcorrencias } from '../pages/RegistrosDiarios/LROOcorrencias';
+function lazyPage(factory: () => Promise<{ default: React.ComponentType }>) {
+  const Lazy = lazy(factory);
+  return (
+    <Suspense fallback={<Loading />}>
+      <Lazy />
+    </Suspense>
+  );
+}
 
 export const router = createBrowserRouter([
   {
@@ -50,42 +29,42 @@ export const router = createBrowserRouter([
     ),
     children: [
       { index: true, element: <Dashboard /> },
-      { path: 'cadastro/bombeiros', element: <Bombeiros /> },
-      { path: 'cadastro/apoc', element: <APOCs /> },
-      { path: 'cadastro/equipamentos', element: <Equipamentos /> },
-      { path: 'cadastro/extintores', element: <AgentesExtintores /> },
-      { path: 'cadastro/hidrantes', element: <Hidrantes /> },
-      { path: 'cadastro/viaturas', element: <Viaturas /> },
-      { path: 'cadastro/ferias', element: <Ferias /> },
-      { path: 'cadastro/documentos', element: <Documentos /> },
-      { path: 'ocorrencias', element: <Ocorrencias /> },
-      { path: 'inspecoes', element: <Inspecoes /> },
-      { path: 'viaturas', element: <Viaturas /> },
-      { path: 'epis', element: <EPIs /> },
-      { path: 'checklists', element: <Checklists /> },
-      { path: 'documentos', element: <Documentos /> },
-      { path: 'documentos/trocas', element: <Trocas /> },
-      { path: 'escalas', element: <Escalas /> },
-      { path: 'treinamentos', element: <Treinamentos /> },
-      { path: 'treinamentos/tp-epr', element: <TPEPR /> },
-      { path: 'treinamentos/taf', element: <TAF /> },
-      { path: 'certificacoes', element: <Certificacoes /> },
-      { path: 'funcionarios', element: <Funcionarios /> },
-      { path: 'estatisticas', element: <Estatisticas /> },
-      { path: 'registros-diarios/lro', element: <LRODiario /> },
-      { path: 'registros-diarios/ptr-ba', element: <PTRBADiario /> },
-      { path: 'registros-diarios/lro-ocorrencias', element: <LROOcorrencias /> },
-      { path: 'relatorios/lro', element: <LRO /> },
-      { path: 'relatorios/bona', element: <BONA /> },
-      { path: 'relatorios/ptr-ba', element: <PTRBA /> },
-      { path: 'relatorios/exercicios', element: <Exercicios /> },
-      { path: 'relatorios/exercicios/taf', element: <TAF /> },
-      { path: 'relatorios/exercicios/tp-epr', element: <TPEPR /> },
-      { path: 'relatorios/ordem-servico', element: <OrdemServico /> },
-      { path: 'relatorios/trocas', element: <Trocas /> },
-      { path: 'configuracoes', element: <Configuracoes /> },
-      { path: 'usuarios', element: <Usuarios /> },
-      { path: 'perfil', element: <Perfil /> },
+      { path: 'cadastro/bombeiros', element: lazyPage(() => import('../pages/Bombeiros/Bombeiros')) },
+      { path: 'cadastro/apoc', element: lazyPage(() => import('../pages/APOC/APOCs')) },
+      { path: 'cadastro/equipamentos', element: lazyPage(() => import('../pages/Equipamentos/Equipamentos')) },
+      { path: 'cadastro/extintores', element: lazyPage(() => import('../pages/AgentesExtintores/AgentesExtintores')) },
+      { path: 'cadastro/hidrantes', element: lazyPage(() => import('../pages/Hidrantes/Hidrantes')) },
+      { path: 'cadastro/viaturas', element: lazyPage(() => import('../pages/Viaturas/Viaturas')) },
+      { path: 'cadastro/ferias', element: lazyPage(() => import('../pages/Ferias/Ferias')) },
+      { path: 'cadastro/documentos', element: lazyPage(() => import('../pages/Documentos/Documentos')) },
+      { path: 'ocorrencias', element: lazyPage(() => import('../pages/Ocorrencias/Ocorrencias')) },
+      { path: 'inspecoes', element: lazyPage(() => import('../pages/Inspecoes/Inspecoes')) },
+      { path: 'viaturas', element: lazyPage(() => import('../pages/Viaturas/Viaturas')) },
+      { path: 'epis', element: lazyPage(() => import('../pages/EPIs/EPIs')) },
+      { path: 'checklists', element: lazyPage(() => import('../pages/Checklists/Checklists')) },
+      { path: 'documentos', element: lazyPage(() => import('../pages/Documentos/Documentos')) },
+      { path: 'documentos/trocas', element: lazyPage(() => import('../pages/Relatorios/Trocas')) },
+      { path: 'escalas', element: lazyPage(() => import('../pages/Escalas/Escalas')) },
+      { path: 'treinamentos', element: lazyPage(() => import('../pages/Treinamentos/Treinamentos')) },
+      { path: 'treinamentos/tp-epr', element: lazyPage(() => import('../pages/Relatorios/TPEPR')) },
+      { path: 'treinamentos/taf', element: lazyPage(() => import('../pages/Relatorios/TAF')) },
+      { path: 'certificacoes', element: lazyPage(() => import('../pages/Certificacoes/Certificacoes')) },
+      { path: 'funcionarios', element: lazyPage(() => import('../pages/Funcionarios/Funcionarios')) },
+      { path: 'estatisticas', element: lazyPage(() => import('../pages/Estatisticas/Estatisticas')) },
+      { path: 'registros-diarios/lro', element: lazyPage(() => import('../pages/RegistrosDiarios/LRODiario')) },
+      { path: 'registros-diarios/ptr-ba', element: lazyPage(() => import('../pages/RegistrosDiarios/PTRBADiario')) },
+      { path: 'registros-diarios/lro-ocorrencias', element: lazyPage(() => import('../pages/RegistrosDiarios/LROOcorrencias')) },
+      { path: 'relatorios/lro', element: lazyPage(() => import('../pages/Relatorios/LRO')) },
+      { path: 'relatorios/bona', element: lazyPage(() => import('../pages/Relatorios/BONA')) },
+      { path: 'relatorios/ptr-ba', element: lazyPage(() => import('../pages/Relatorios/PTRBA')) },
+      { path: 'relatorios/exercicios', element: lazyPage(() => import('../pages/Relatorios/Exercicios')) },
+      { path: 'relatorios/exercicios/taf', element: lazyPage(() => import('../pages/Relatorios/TAF')) },
+      { path: 'relatorios/exercicios/tp-epr', element: lazyPage(() => import('../pages/Relatorios/TPEPR')) },
+      { path: 'relatorios/ordem-servico', element: lazyPage(() => import('../pages/Relatorios/OrdemServico')) },
+      { path: 'relatorios/trocas', element: lazyPage(() => import('../pages/Relatorios/Trocas')) },
+      { path: 'configuracoes', element: lazyPage(() => import('../pages/Configuracoes/Configuracoes')) },
+      { path: 'usuarios', element: lazyPage(() => import('../pages/Usuarios/Usuarios')) },
+      { path: 'perfil', element: lazyPage(() => import('../pages/Perfil/Perfil')) },
       { path: 'sair', element: <Navigate to="/login" replace /> },
     ],
   },

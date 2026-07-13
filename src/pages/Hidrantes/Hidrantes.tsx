@@ -15,3 +15,5 @@ export function Hidrantes() {
     </PageContainer>
   );
 }
+
+export default Hidrantes;

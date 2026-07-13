@@ -348,3 +348,5 @@ export function EPIs() {
     </PageContainer>
   );
 }
+
+export default EPIs;

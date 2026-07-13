@@ -15,3 +15,5 @@ export function LRO() {
     </PageContainer>
   );
 }
+
+export default LRO;

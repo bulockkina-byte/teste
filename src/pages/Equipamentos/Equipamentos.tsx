@@ -15,3 +15,5 @@ export function Equipamentos() {
     </PageContainer>
   );
 }
+
+export default Equipamentos;
