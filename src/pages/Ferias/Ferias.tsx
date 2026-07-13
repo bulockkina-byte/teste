@@ -1052,12 +1052,14 @@ function TabEscalaAnual() {
   const [selectedEquipe, setSelectedEquipe] = useState<Equipe | ''>('');
   const [escala, setEscala] = useState<EscalaFerias | null>(null);
   const [itens, setItens] = useState<EscalaFeriasItem[]>([]);
+  const [feriasGozo, setFeriasGozo] = useState<FeriasGozo[]>([]);
   const [ano, setAno] = useState(new Date().getFullYear());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const [editingMonth, setEditingMonth] = useState<number | null>(null);
   const [formFuncId, setFormFuncId] = useState('');
+  const [formPeriodo, setFormPeriodo] = useState<number>(0);
   const [formSubId, setFormSubId] = useState('');
   const [formFuncaoSub, setFormFuncaoSub] = useState<Cargo | ''>('');
   const [formFeirista, setFormFeirista] = useState('');
@@ -1070,12 +1072,31 @@ function TabEscalaAnual() {
     [bombeiros, activeEquipe],
   );
 
+  const feiristas = useMemo(
+    () => bombeiros.filter(b => b.equipe === 'Feirista'),
+    [bombeiros],
+  );
+
+  const formFuncPeriodos = useMemo(() => {
+    if (!formFuncId) return [];
+    const b = bombeiros.find(x => x.id === formFuncId);
+    if (!b) return [];
+    const allPeriodos = calcularPeriodosAquisitivos(b.dataAdmissao);
+    const gozos = feriasGozo.filter(g => g.funcionarioId === b.id);
+    return allPeriodos.filter(p => {
+      if (p.status === 'Vencido') return false;
+      const gozo = gozos.find(g => g.periodoNumero === p.numero);
+      return !gozo;
+    });
+  }, [formFuncId, bombeiros, feriasGozo]);
+
   const equipes: Equipe[] = ['Alfa', 'Bravo', 'Charlie', 'Delta'];
 
   useEffect(() => {
     (async () => {
-      const all = await listarAtivos();
+      const [all, gozos] = await Promise.all([listarAtivos(), listarFeriasGozo()]);
       setBombeiros(all);
+      setFeriasGozo(gozos);
       if (user) {
         const me = all.find(b => b.nomeCompleto === user.name);
         setMyBombeiro(me || null);
@@ -1142,6 +1163,7 @@ function TabEscalaAnual() {
       funcaoSubstituicao: formFuncaoSub,
       feiristaId: formFeirista,
       feiristaNome: feirista?.nomeCompleto || '',
+      periodoNumero: formPeriodo,
     };
 
     setSaving(true);
@@ -1237,6 +1259,7 @@ function TabEscalaAnual() {
 
   function resetForm() {
     setFormFuncId('');
+    setFormPeriodo(0);
     setFormSubId('');
     setFormFuncaoSub('');
     setFormFeirista('');
@@ -1246,6 +1269,7 @@ function TabEscalaAnual() {
     const existing = itens.find(i => i.escalaId === escala?.id && i.mes === mes);
     if (existing) {
       setFormFuncId(existing.funcionarioId);
+      setFormPeriodo(existing.periodoNumero || 0);
       setFormSubId(existing.substitutoId);
       setFormFuncaoSub(existing.funcaoSubstituicao as Cargo || '');
       setFormFeirista(existing.feiristaId || '');
@@ -1396,13 +1420,33 @@ function TabEscalaAnual() {
                     <div className="mt-3 space-y-3 rounded-xl border border-graphite-200 bg-white p-4 dark:border-border-dark dark:bg-surface-hover">
                       <div>
                         <label className={labelCls}>Funcionario em Gozo *</label>
-                        <select value={formFuncId} onChange={e => setFormFuncId(e.target.value)} className={selectCls}>
+                        <select value={formFuncId} onChange={e => { setFormFuncId(e.target.value); setFormPeriodo(0); }} className={selectCls}>
                           <option value="" className={optionCls}>Selecione</option>
                           {teamMembers.map(m => (
                             <option key={m.id} value={m.id} className={optionCls}>{m.nomeCompleto} ({ABBR_CARGO[m.cargo] || m.cargo})</option>
                           ))}
                         </select>
                       </div>
+
+                      {formFuncId && formFuncPeriodos.length > 0 && (
+                        <div>
+                          <label className={labelCls}>Periodo Aquisitivo *</label>
+                          <select value={formPeriodo} onChange={e => setFormPeriodo(Number(e.target.value))} className={selectCls}>
+                            <option value={0} className={optionCls}>Selecione o periodo</option>
+                            {formFuncPeriodos.map(p => (
+                              <option key={p.numero} value={p.numero} className={optionCls}>
+                                Periodo {p.numero}: {fmt(p.dataInicio)} - {fmt(p.dataFim)} ({p.diasDireito} dias)
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      {formFuncId && formFuncPeriodos.length === 0 && (
+                        <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-3 dark:border-yellow-700 dark:bg-yellow-900/20">
+                          <p className="text-xs font-semibold text-yellow-700 dark:text-yellow-300">Nenhum periodo disponivel para este funcionario.</p>
+                        </div>
+                      )}
 
                       <div className="grid grid-cols-2 gap-3">
                         <div>
@@ -1439,14 +1483,14 @@ function TabEscalaAnual() {
                         <label className={labelCls}>Feirista</label>
                         <select value={formFeirista} onChange={e => setFormFeirista(e.target.value)} className={selectCls}>
                           <option value="" className={optionCls}>Nenhum</option>
-                          {teamMembers.filter(m => m.id !== formFuncId).map(m => (
-                            <option key={m.id} value={m.id} className={optionCls}>{m.nomeCompleto} ({ABBR_CARGO[m.cargo] || m.cargo})</option>
+                          {feiristas.map(m => (
+                            <option key={m.id} value={m.id} className={optionCls}>{m.nomeCompleto}</option>
                           ))}
                         </select>
                       </div>
 
                       <div className="flex gap-2">
-                        <button onClick={() => handleSaveItem(mesNum)} disabled={!formFuncId || saving} className="flex items-center gap-1 rounded-lg bg-gradient-to-r from-aviation-600 to-aviation-700 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-all hover:shadow-md disabled:opacity-50">
+                        <button onClick={() => handleSaveItem(mesNum)} disabled={!formFuncId || !formPeriodo || saving} className="flex items-center gap-1 rounded-lg bg-gradient-to-r from-aviation-600 to-aviation-700 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-all hover:shadow-md disabled:opacity-50">
                           <Save className="h-3.5 w-3.5" /> {saving ? 'Salvando...' : 'Salvar'}
                         </button>
                         <button onClick={() => { setEditingMonth(null); resetForm(); }} className="rounded-lg border border-graphite-300 bg-white px-3 py-1.5 text-xs font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-300">

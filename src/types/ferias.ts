@@ -85,6 +85,7 @@ export interface EscalaFeriasItem {
   funcaoSubstituicao: Cargo | '';
   feiristaId: string;
   feiristaNome: string;
+  periodoNumero: number;
   createdAt: string;
 }
 
