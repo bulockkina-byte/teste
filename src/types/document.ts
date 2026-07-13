@@ -43,7 +43,8 @@ export type DataSource =
   | 'gerente.nome'
   | 'gerente.funcao'
   | 'data_atual'
-  | 'hora_atual';
+  | 'hora_atual'
+  | 'autentique_assinatura';
 
 export const DATA_SOURCE_LABELS: Record<DataSource, string> = {
   manual: 'Preenchimento manual',
@@ -63,6 +64,7 @@ export const DATA_SOURCE_LABELS: Record<DataSource, string> = {
   'gerente.funcao': 'Função do Gerente',
   data_atual: 'Data Atual',
   hora_atual: 'Hora Atual',
+  autentique_assinatura: 'Data Assinatura (Autentique)',
 };
 
 export const DATA_SOURCE_GROUPS = [
@@ -85,6 +87,10 @@ export const DATA_SOURCE_GROUPS = [
   {
     label: 'Sistema',
     sources: ['data_atual', 'hora_atual'] as DataSource[],
+  },
+  {
+    label: 'Autentique',
+    sources: ['autentique_assinatura'] as DataSource[],
   },
 ];
 

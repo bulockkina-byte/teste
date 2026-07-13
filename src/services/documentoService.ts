@@ -84,10 +84,16 @@ export async function atualizarDocumento(id: string, updates: Partial<Document>)
 }
 
 export async function excluirDocumento(id: string): Promise<boolean> {
+  const db = getDb();
 
   await excluirPdf(id);
 
-  await atualizarDocumento(id, { template_pdf_url: null });
+  await db.from('document_fills').delete().eq('document_id', id);
+  await db.from('document_fields').delete().eq('document_id', id);
+  await db.from('document_signers').delete().eq('document_id', id);
+
+  const { error } = await db.from('documents').delete().eq('id', id);
+  if (error) handleSupabaseError(error);
 
   return true;
 }

@@ -507,10 +507,60 @@ export function Documentos() {
         order_index: selectedDoc.document_signers.length + 1,
         required: true,
       });
+
+      const roleSlug = signerRole.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_');
+      const existingNames = new Set(selectedDoc.document_fields.map(f => f.field_name));
+
+      const personFields: Omit<DocumentField, 'id' | 'created_at'>[] = [];
+      const baseIdx = selectedDoc.document_fields.length;
+
+      const fieldsToCreate = [
+        { suffix: `nome_${roleSlug}`, label: `Nome Completo (${signerRole})`, type: 'text' as const, src: 'manual' as const, sig: false, ro: false, w: 200, h: 20 },
+        { suffix: `cpf_${roleSlug}`, label: `CPF (${signerRole})`, type: 'text' as const, src: 'manual' as const, sig: false, ro: false, w: 120, h: 20 },
+        { suffix: `email_${roleSlug}`, label: `Email (${signerRole})`, type: 'text' as const, src: 'manual' as const, sig: false, ro: false, w: 200, h: 20 },
+        { suffix: `assinatura_${roleSlug}`, label: `Assinatura ${signerRole}`, type: 'signature' as const, src: 'manual' as const, sig: true, ro: false, w: 150, h: 30 },
+        { suffix: `data_autentique_${roleSlug}`, label: `Data Assinatura ${signerRole}`, type: 'date' as const, src: 'autentique_assinatura' as const, sig: false, ro: true, w: 100, h: 18 },
+      ];
+
+      let idx = baseIdx;
+      for (const f of fieldsToCreate) {
+        if (!existingNames.has(f.suffix)) {
+          personFields.push({
+            document_id: selectedDoc.id,
+            field_name: f.suffix,
+            field_label: f.label,
+            field_type: f.type,
+            required: f.sig,
+            placeholder: null,
+            options: null,
+            order_index: idx++,
+            page: 1,
+            x: 0,
+            y: 0,
+            width: f.w,
+            height: f.h,
+            font_size: 10,
+            data_source: f.src,
+            is_signature: f.sig,
+            signer_role: f.sig ? signerRole : null,
+            read_only: f.ro,
+            conditional_on: null,
+          });
+        }
+      }
+
+      if (personFields.length > 0) {
+        await criarCamposEmLote(selectedDoc.id, personFields);
+      }
+
       const full = await buscarDocumento(selectedDoc.id);
       setSelectedDoc(full);
       setSignerName('');
       setSignerRole('');
+      if (personFields.length > 0) {
+        setNotifPopup({ msg: `${personFields.length} campo(s) criado(s) na bandeja para "${signerRole}"`, type: 'success' });
+        setActiveTab('tray');
+      }
     } catch {
       setNotifPopup({ msg: 'Erro inesperado ao adicionar signatario. Contate o administrador.', type: 'error' });
     }
@@ -601,6 +651,13 @@ export function Documentos() {
       const [depFieldName, depValue] = field.conditional_on.split('=');
       const depData = formData[depFieldName] || '';
       if (depData !== depValue) return null;
+    }
+
+    if (field.data_source === 'autentique_assinatura') {
+      return (
+        <input type="text" value="Preenchido pelo Autentique apos assinatura" readOnly
+          className={readonlyBase + ' italic'} />
+      );
     }
 
     if (field.read_only) {
@@ -1053,6 +1110,7 @@ export function Documentos() {
                   onCommitField={handleFieldCommit}
                   onAddField={handleFieldAdd}
                   onDropFromTray={handleDropFromTray}
+                  onReturnToTray={handleReturnToTray}
                   documentId={selectedDoc.id}
                 />
               </div>
@@ -1062,15 +1120,15 @@ export function Documentos() {
                 <div className="flex h-full flex-col overflow-hidden">
                   {/* Tabs */}
                   <div className="flex border-b border-graphite-200 dark:border-graphite-700">
-                    <button onClick={() => { setActiveTab('props'); setSelectedFieldId('_props_'); }}
+                    <button onClick={() => setActiveTab('props')}
                       className={`flex-1 px-3 py-2.5 text-xs font-medium ${activeTab === 'props' ? 'border-b-2 border-aviation-600 text-aviation-600' : 'text-graphite-500 hover:text-graphite-700'}`}>
                       Campo
                     </button>
-                    <button onClick={() => { setActiveTab('signers'); setSelectedFieldId('_signers_'); }}
+                    <button onClick={() => setActiveTab('signers')}
                       className={`flex-1 px-3 py-2.5 text-xs font-medium ${activeTab === 'signers' ? 'border-b-2 border-aviation-600 text-aviation-600' : 'text-graphite-500 hover:text-graphite-700'}`}>
                       Signatários ({signers.length})
                     </button>
-                    <button onClick={() => { setActiveTab('tray'); setSelectedFieldId('_tray_'); }}
+                    <button onClick={() => setActiveTab('tray')}
                       className={`flex-1 px-3 py-2.5 text-xs font-medium ${activeTab === 'tray' ? 'border-b-2 border-aviation-600 text-aviation-600' : 'text-graphite-500 hover:text-graphite-700'}`}>
                       Bandeja ({trayFields.length})
                     </button>
@@ -1214,8 +1272,9 @@ export function Documentos() {
   if (view === 'fill' && selectedDoc) {
     const fields = [...selectedDoc.document_fields].sort((a, b) => a.order_index - b.order_index);
     const signers = [...selectedDoc.document_signers].sort((a, b) => a.order_index - b.order_index);
-    const manualFields = fields.filter(f => !f.is_signature && f.field_type !== 'line');
+    const manualFields = fields.filter(f => !f.is_signature && f.field_type !== 'line' && f.data_source !== 'autentique_assinatura');
     const signatureFields = fields.filter(f => f.is_signature);
+    const autentiqueFields = fields.filter(f => f.data_source === 'autentique_assinatura');
 
     return (
       <>
@@ -1254,6 +1313,23 @@ export function Documentos() {
                   <div key={field.id} className="rounded-lg border border-purple-200 bg-purple-50/50 p-3 dark:border-purple-700 dark:bg-purple-900/20">
                     <span className="text-sm font-medium text-purple-700 dark:text-purple-300">✎ {field.field_label}</span>
                     {field.signer_role && <span className="ml-2 text-xs text-purple-500">({field.signer_role})</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {autentiqueFields.length > 0 && (
+              <div className="mt-6 space-y-3 border-t border-graphite-100 pt-4 dark:border-graphite-700">
+                <h4 className="text-sm font-semibold text-graphite-700 dark:text-graphite-300">
+                  Datas de Assinatura (Autentique)
+                </h4>
+                <p className="text-xs text-graphite-500 dark:text-graphite-400">
+                  Estes campos serao preenchidos automaticamente pelo Autentique apos cada assinatura.
+                </p>
+                {autentiqueFields.map(field => (
+                  <div key={field.id} className="flex items-center gap-2 rounded-lg border border-graphite-200 bg-graphite-50 p-3 dark:border-graphite-700 dark:bg-graphite-800/50">
+                    <span className="text-sm text-graphite-700 dark:text-graphite-300">{field.field_label}</span>
+                    <span className="rounded bg-graphite-200 px-2 py-0.5 text-xs text-graphite-500 dark:bg-graphite-700 dark:text-graphite-400">Aguardando assinatura</span>
                   </div>
                 ))}
               </div>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { Package } from 'lucide-react';
 import pdfjsLib from '../../lib/pdfjs-setup';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import type { DocumentField } from '../../types/document';
@@ -12,6 +13,7 @@ interface Props {
   onCommitField?: (id: string, updates: Partial<DocumentField>) => void;
   onAddField: (field: Omit<DocumentField, 'id' | 'created_at'>) => void;
   onDropFromTray?: (fieldId: string, x: number, y: number, page: number) => void;
+  onReturnToTray?: (fieldId: string) => void;
   documentId: string;
 }
 
@@ -47,6 +49,7 @@ export function PdfFieldEditor({
   onCommitField,
   onAddField,
   onDropFromTray,
+  onReturnToTray,
   documentId,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -356,6 +359,15 @@ export function PdfFieldEditor({
 
                   {isSelected && (
                     <>
+                      {onReturnToTray && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onReturnToTray(field.id); }}
+                          className="absolute -top-5 right-0 z-10 flex items-center gap-1 rounded bg-graphite-700 px-2 py-0.5 text-[10px] font-medium text-white shadow-lg hover:bg-graphite-600"
+                          title="Devolver à Bandeja"
+                        >
+                          <Package className="h-3 w-3" /> Bandeja
+                        </button>
+                      )}
                       <div className="absolute -bottom-1.5 -right-1.5 h-3 w-3 cursor-se-resize rounded-sm border border-white bg-aviation-500" onMouseDown={(e) => handleResizeMouseDown(e, field.id, 'se')} />
                       <div className="absolute -bottom-1.5 -left-1.5 h-3 w-3 cursor-sw-resize rounded-sm border border-white bg-aviation-500" onMouseDown={(e) => handleResizeMouseDown(e, field.id, 'sw')} />
                       <div className="absolute -top-1.5 -right-1.5 h-3 w-3 cursor-ne-resize rounded-sm border border-white bg-aviation-500" onMouseDown={(e) => handleResizeMouseDown(e, field.id, 'ne')} />

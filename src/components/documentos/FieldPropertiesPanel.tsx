@@ -115,9 +115,14 @@ export function FieldPropertiesPanel({ field, onUpdate, onDelete, onReturnToTray
               </optgroup>
             ))}
           </select>
-          {field.data_source !== 'manual' && (
+          {field.data_source !== 'manual' && field.data_source !== 'autentique_assinatura' && (
             <p className="mt-1 text-xs text-aviation-600">
               Será preenchido automaticamente com os dados do funcionário selecionado
+            </p>
+          )}
+          {field.data_source === 'autentique_assinatura' && (
+            <p className="mt-1 text-xs text-purple-600">
+              Será preenchido automaticamente pelo Autentique após a assinatura
             </p>
           )}
         </div>

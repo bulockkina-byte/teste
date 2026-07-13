@@ -298,7 +298,10 @@ export function Usuarios() {
 
                 const isViewerDev = user?.role === 'admin_master';
                 const isTargetAdmin = data.role === 'admin';
+                const isTargetDev = data.role === 'admin_master';
                 const isSelf = username === user?.username;
+
+                if (isTargetDev && !isViewerDev) return null;
 
                 let displayRole: UserRole;
                 if (isTargetAdmin && !isViewerDev && !isSelf) {

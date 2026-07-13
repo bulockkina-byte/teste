@@ -29,7 +29,7 @@ interface Props {
   onClose: () => void;
 }
 
-const ALL_ROLES: UserRole[] = ['admin_master', 'admin', 'gerente', 'chefe', 'lider'];
+const ALL_ROLES: UserRole[] = ['gerente', 'chefe', 'lider'];
 
 interface PersonOption {
   id: string;
@@ -211,10 +211,7 @@ export function UsuarioForm({ user, isProtected = false, currentUserRole, curren
             <select value={role} onChange={e => setRole(e.target.value as UserRole)}
               disabled={isProtected}
               className={input + (isProtected ? ' cursor-not-allowed opacity-60' : '')}>
-              {ALL_ROLES
-                .filter(r => r !== 'admin_master')
-                .filter(r => r !== 'admin' || currentUserRole === 'admin_master')
-                .map(r => (
+              {ALL_ROLES.map(r => (
                 <option key={r} value={r}>{ROLE_LABELS[r]}</option>
               ))}
             </select>
