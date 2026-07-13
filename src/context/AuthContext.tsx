@@ -231,6 +231,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const login = useCallback(async (username: string, password: string) => {
+    const ATTEMPTS_KEY = 'sescinc-login-attempts';
+    const MAX_ATTEMPTS = 5;
+    const BLOCK_MINUTES = 15;
+
+    let attempts: Record<string, { count: number; firstAttempt: string }> = {};
+    try { attempts = JSON.parse(localStorage.getItem(ATTEMPTS_KEY) || '{}'); } catch { /* ignore */ }
+
+    const userAttempts = attempts[username];
+    if (userAttempts && userAttempts.count >= MAX_ATTEMPTS) {
+      const elapsed = Date.now() - new Date(userAttempts.firstAttempt).getTime();
+      const remaining = BLOCK_MINUTES * 60 * 1000 - elapsed;
+      if (remaining > 0) {
+        const mins = Math.ceil(remaining / 60000);
+        throw new Error(`Conta bloqueada por ${mins} minuto(s) devido a múltiplas tentativas inválidas.`);
+      }
+      delete attempts[username];
+    }
+
     await new Promise(r => setTimeout(r, 600));
     let users = getStoredUsers();
     let stored = users[username];
@@ -254,8 +272,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (!stored || stored.password !== password) {
-      throw new Error('Usuário ou senha inválidos.');
+      const now = new Date().toISOString();
+      if (!attempts[username]) attempts[username] = { count: 0, firstAttempt: now };
+      attempts[username].count++;
+      if (attempts[username].count === 1) attempts[username].firstAttempt = now;
+      localStorage.setItem(ATTEMPTS_KEY, JSON.stringify(attempts));
+      const tentativasRestantes = MAX_ATTEMPTS - attempts[username].count;
+      throw new Error(`Usuário ou senha inválidos. ${tentativasRestantes > 0 ? `${tentativasRestantes} tentativa(s) restante(s).` : 'Conta bloqueada por 15 minutos.'}`);
     }
+
+    delete attempts[username];
+    localStorage.setItem(ATTEMPTS_KEY, JSON.stringify(attempts));
 
     const userData: User = {
       name: stored.name,

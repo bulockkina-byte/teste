@@ -6,6 +6,7 @@ import { useAuth, ROLE_LABELS, type UserRole } from '../../context/AuthContext';
 import { Autocomplete } from '../../components/documentos/Autocomplete';
 import { listarAtivos } from '../../services/bombeiroService';
 import { listarAPOCs } from '../../services/apocService';
+import { atualizarUsuario } from '../../services/usuarioService';
 import type { Bombeiro } from '../../types/bombeiro';
 import type { APOC } from '../../types/apoc';
 import { CARGO_OPTIONS } from '../../types/bombeiro';
@@ -121,6 +122,25 @@ export function Perfil() {
         stored.name = linkedPerson.nomeCompleto;
       }
       localStorage.setItem(USERS_KEY, JSON.stringify(users));
+      try {
+        await atualizarUsuario(user.username, { name: stored.name, password: stored.password, role: stored.role, personId: stored.personId, personType: stored.personType });
+      } catch { /* ignore */ }
+      const sessionKey = 'sescinc-session';
+      const session = JSON.parse(localStorage.getItem(sessionKey) || '{}');
+      if (session.username === user.username) {
+        session.name = stored.name;
+        if (personId && personType && linkedPerson) {
+          session.pessoa = {
+            nomeGuerra: linkedPerson.nomeGuerra,
+            funcao: linkedPerson.cargo || linkedPerson.funcao || '',
+            foto: '',
+            personType: linkedPerson.type,
+          };
+        } else {
+          session.pessoa = undefined;
+        }
+        localStorage.setItem(sessionKey, JSON.stringify(session));
+      }
       setNotif({ msg: 'Vinculo atualizado com sucesso!', type: 'success' });
       setTimeout(() => setNotif(null), 3000);
     } catch {
@@ -163,6 +183,7 @@ export function Perfil() {
     try {
       stored.password = newPassword;
       localStorage.setItem(USERS_KEY, JSON.stringify(users));
+      try { await atualizarUsuario(user.username, { password: newPassword }); } catch { /* ignore */ }
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');

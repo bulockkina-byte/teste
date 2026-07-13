@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   Calendar, Shield, Users, Plus, Trash2, FileText, Radio,
   ChevronDown, ChevronUp, Save, Eye, Pencil, Copy, Printer,
-  RotateCcw, AlertTriangle, X as XIcon,
+  AlertTriangle, X as XIcon,
   ArrowRightLeft, ArrowRight,
 } from 'lucide-react';
 import { SearchSelect } from '../../components/ui/SearchSelect';
@@ -577,7 +577,6 @@ export function EscalaDiariaView() {
   const [visualizando, setVisualizando] = useState<EscalaDiaria | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [filtroEquipe, setFiltroEquipe] = useState('');
-  const [autoFillMsg, setAutoFillMsg] = useState<string | null>(null);
 
   const escalasFiltradas = filtroEquipe ? escalas.filter(e => e.equipe === filtroEquipe) : escalas;
 
@@ -627,10 +626,6 @@ export function EscalaDiariaView() {
     carregar();
   }
 
-  function handleAutoFill() {
-    setAutoFillMsg('Função em desenvolvimento');
-    setTimeout(() => setAutoFillMsg(null), 2000);
-  }
 
   if (mode === 'form') {
     return (
@@ -665,10 +660,6 @@ export function EscalaDiariaView() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={handleAutoFill}
-            className="flex items-center gap-2 rounded-xl border border-aviation-300 bg-aviation-50 px-4 py-2.5 text-sm font-medium text-aviation-700 transition-all hover:bg-aviation-100 dark:border-aviation-700 dark:bg-aviation-900/20 dark:text-aviation-300 dark:hover:bg-aviation-900/40">
-            <RotateCcw className="h-4 w-4" /> Puxar Escala Automática
-          </button>
           <button onClick={() => { setEditando(null); setMode('form'); }}
             className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
             <Plus className="h-4 w-4" /> Nova Escala Diária
@@ -714,12 +705,6 @@ export function EscalaDiariaView() {
               </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {autoFillMsg && (
-        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl bg-graphite-900 px-5 py-3 text-sm font-medium text-white shadow-xl dark:bg-graphite-100 dark:text-graphite-900">
-          {autoFillMsg}
         </div>
       )}
     </div>

@@ -462,7 +462,7 @@ export function EscalaMensal() {
 
       {/* Setup mode */}
       {mode === 'setup' && (
-    <div className="space-y-6 overflow-x-hidden">
+    <div className="space-y-6 pb-60">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
             <div>
               <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Equipe <span className="text-red-500">*</span></label>
