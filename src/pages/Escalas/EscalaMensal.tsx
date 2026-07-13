@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Calendar, Eye } from 'lucide-react';
+import { Calendar, Eye, RotateCcw } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { listarEscalas } from '../../services/escalaService';
 import type { EscalaDiaria } from '../../types/escala';
@@ -18,6 +18,12 @@ export function EscalaMensal() {
   const escalas = isAdmin ? todas : todas.filter(e => e.createdBy === username);
 
   const [visualizando, setVisualizando] = useState<EscalaDiaria | null>(null);
+  const [autoFillMsg, setAutoFillMsg] = useState<string | null>(null);
+
+  function handleAutoFill() {
+    setAutoFillMsg('Funcao em desenvolvimento');
+    setTimeout(() => setAutoFillMsg(null), 2000);
+  }
 
   if (visualizando) {
     return (
@@ -119,8 +125,12 @@ export function EscalaMensal() {
 
   return (
     <div>
-      <div className="mb-4">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-graphite-500 dark:text-graphite-400">{escalas.length} escala(s) registrada(s)</p>
+        <button onClick={handleAutoFill}
+          className="flex items-center gap-2 rounded-xl border border-aviation-300 bg-aviation-50 px-4 py-2.5 text-sm font-medium text-aviation-700 transition-all hover:bg-aviation-100 dark:border-aviation-700 dark:bg-aviation-900/20 dark:text-aviation-300 dark:hover:bg-aviation-900/40">
+          <RotateCcw className="h-4 w-4" /> Puxar Escala Automática
+        </button>
       </div>
       <div className="space-y-2">
         {escalas.map(e => (
@@ -139,6 +149,12 @@ export function EscalaMensal() {
           </div>
         ))}
       </div>
+
+      {autoFillMsg && (
+        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl bg-graphite-900 px-5 py-3 text-sm font-medium text-white shadow-xl dark:bg-graphite-100 dark:text-graphite-900">
+          {autoFillMsg}
+        </div>
+      )}
     </div>
   );
 }

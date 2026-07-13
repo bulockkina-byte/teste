@@ -2,7 +2,7 @@
 import {
   CalendarDays, Plus, Search, Pencil, Trash2, X, Save, User,
   Calendar, Clock, ChevronDown, ChevronRight, Users, AlertTriangle,
-  ArrowRightLeft, Check, Send, RotateCcw,
+  ArrowRightLeft, Check, Send,
   BarChart3, FileText, CheckCircle2, XCircle, Eye,
 } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
@@ -1053,6 +1053,7 @@ function TabEscalaAnual() {
   const [saving, setSaving] = useState(false);
 
   const [editingMonth, setEditingMonth] = useState<number | null>(null);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [formFuncId, setFormFuncId] = useState('');
   const [formPeriodo, setFormPeriodo] = useState<number>(0);
   const [formDias, setFormDias] = useState<number>(30);
@@ -1134,6 +1135,7 @@ function TabEscalaAnual() {
         setItens([]);
       }
       setEditingMonth(null);
+      setEditingItemId(null);
     })();
   }, [activeEquipe, ano]);
 
@@ -1161,7 +1163,6 @@ function TabEscalaAnual() {
     const member = teamMembers.find(b => b.id === formFuncId);
     const sub = teamMembers.find(b => b.id === formSubId);
     const feirista = feiristas.find(b => b.id === formFeirista);
-    const existing = itens.find(i => i.escalaId === escala.id && i.mes === mes);
 
     const dataFim = new Date(formDataInicio);
     dataFim.setDate(dataFim.getDate() + formDias - 1);
@@ -1184,29 +1185,28 @@ function TabEscalaAnual() {
     };
 
     setSaving(true);
-    if (existing) {
-      await atualizarItemEscala(existing.id, data);
+    if (editingItemId) {
+      await atualizarItemEscala(editingItemId, data);
     } else {
       await criarItemEscala(data);
     }
     const it = await listarItensEscala(escala.id);
     setItens(it);
     setEditingMonth(null);
+    setEditingItemId(null);
     resetForm();
     setSaving(false);
   }
 
-  async function handleDeleteItem(mes: number) {
+  async function handleDeleteItem(itemId: string) {
     if (!escala) return;
-    const existing = itens.find(i => i.escalaId === escala.id && i.mes === mes);
-    if (existing) {
-      setSaving(true);
-      await excluirItemEscala(existing.id);
-      const it = await listarItensEscala(escala.id);
-      setItens(it);
-      setSaving(false);
-    }
+    setSaving(true);
+    await excluirItemEscala(itemId);
+    const it = await listarItensEscala(escala.id);
+    setItens(it);
+    setSaving(false);
     setEditingMonth(null);
+    setEditingItemId(null);
     resetForm();
   }
 
@@ -1229,52 +1229,6 @@ function TabEscalaAnual() {
     setSaving(false);
   }
 
-  async function handleAutoFill() {
-    if (!escala || !activeEquipe) return;
-    setSaving(true);
-
-    const gozos = await listarFeriasGozo();
-    const teamIds = new Set(teamMembers.map(m => m.id));
-    const anoStr = ano.toString();
-
-    const relevantGozos = gozos.filter(g =>
-      teamIds.has(g.funcionarioId) && g.dataInicio.startsWith(anoStr),
-    );
-
-    const gozosByMonth = new Map<number, FeriasGozo>();
-    for (const g of relevantGozos) {
-      const month = new Date(g.dataInicio + 'T00:00:00').getMonth() + 1;
-      if (!gozosByMonth.has(month)) gozosByMonth.set(month, g);
-    }
-
-    for (const [month, gozo] of gozosByMonth) {
-      const existingItem = itens.find(i => i.escalaId === escala.id && i.mes === month);
-      if (!existingItem) {
-        const member = teamMembers.find(m => m.id === gozo.funcionarioId);
-        await criarItemEscala({
-          escalaId: escala.id,
-          mes: month,
-          funcionarioId: gozo.funcionarioId,
-          funcionarioNome: gozo.funcionarioNome,
-          funcao: member?.cargo || 'BA-2',
-          dias: gozo.dias,
-          dataInicio: gozo.dataInicio,
-          dataFim: gozo.dataFim,
-          substitutoId: gozo.substitutoId || '',
-          substitutoNome: gozo.substitutoNome || '',
-          funcaoSubstituicao: gozo.funcaoSubstituicao || '',
-          feiristaId: '',
-          feiristaNome: '',
-          periodoNumero: gozo.periodoNumero,
-        });
-      }
-    }
-
-    const it = await listarItensEscala(escala.id);
-    setItens(it);
-    setSaving(false);
-  }
-
   function resetForm() {
     setFormFuncId('');
     setFormPeriodo(0);
@@ -1285,7 +1239,13 @@ function TabEscalaAnual() {
   }
 
   function startEditMonth(mes: number) {
-    const existing = itens.find(i => i.escalaId === escala?.id && i.mes === mes);
+    resetForm();
+    setEditingItemId(null);
+    setEditingMonth(mes);
+  }
+
+  function startEditExistingItem(mes: number, itemId: string) {
+    const existing = itens.find(i => i.id === itemId);
     if (existing) {
       setFormFuncId(existing.funcionarioId);
       setFormPeriodo(existing.periodoNumero || 0);
@@ -1296,6 +1256,7 @@ function TabEscalaAnual() {
     } else {
       resetForm();
     }
+    setEditingItemId(itemId);
     setEditingMonth(mes);
   }
 
@@ -1331,8 +1292,10 @@ function TabEscalaAnual() {
     );
   }
 
-  const canEdit = escala?.status === 'Rascunho' || escala?.status === 'Rejeitado';
-  const canDelete = escala?.status === 'Rascunho';
+  const canEditBase = escala?.status === 'Rascunho' || escala?.status === 'Rejeitado';
+  const isFeiristaTeam = activeEquipe === 'Feirista';
+  const canEdit = canEditBase && (!isFeiristaTeam || isAdmin);
+  const canDelete = escala?.status === 'Rascunho' && (!isFeiristaTeam || isAdmin);
   const canSend = escala?.status === 'Rascunho' || escala?.status === 'Rejeitado';
 
   return (
@@ -1373,6 +1336,16 @@ function TabEscalaAnual() {
         </div>
       )}
 
+      {isFeiristaTeam && !isAdmin && (
+        <div className="mb-6 rounded-xl border border-orange-300 bg-orange-50 p-4 dark:border-orange-700 dark:bg-orange-900/20">
+          <div className="flex items-center gap-2 mb-1">
+            <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+            <span className="text-sm font-bold text-orange-700 dark:text-orange-300">Restricao de Acesso</span>
+          </div>
+          <p className="text-sm text-orange-800 dark:text-orange-200">Somente gerente/admin pode gerenciar ferias da equipe Feirista</p>
+        </div>
+      )}
+
       {!escala && (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">
           <CalendarDays className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
@@ -1401,40 +1374,57 @@ function TabEscalaAnual() {
           <div className="space-y-2">
             {MESES.map((mes, idx) => {
               const mesNum = idx + 1;
-              const item = itens.find(i => i.escalaId === escala.id && i.mes === mesNum);
+              const mesItems = itens.filter(i => i.escalaId === escala.id && i.mes === mesNum);
               const isEditing = editingMonth === mesNum;
+              const hasItems = mesItems.length > 0;
 
               return (
-                <div key={mesNum} className={`rounded-2xl border p-4 transition-all dark:bg-surface-card ${item ? 'border-aviation-200 bg-aviation-50/50 dark:border-aviation-800 dark:bg-aviation-900/10' : 'border-graphite-200 bg-white dark:border-border-dark'}`}>
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <span className="w-24 text-sm font-bold text-graphite-900 dark:text-graphite-100">{mes}</span>
-                      {item ? (
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-graphite-800 dark:text-graphite-200 truncate">{item.funcionarioNome}</p>
-                          <div className="flex items-center gap-2 text-xs text-graphite-500 dark:text-graphite-400">
-                            <span>{fmt(item.dataInicio)} - {fmt(item.dataFim)} ({item.dias}d)</span>
-                            {item.substitutoNome && <span className="text-aviation-600 dark:text-aviation-400">Sub: {item.substitutoNome}</span>}
-                            {item.feiristaNome && <span className="text-orange-600 dark:text-orange-400">Feirista: {item.feiristaNome}</span>}
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-graphite-400 dark:text-graphite-500">Sem alocacao</span>
-                      )}
-                    </div>
+                <div key={mesNum} className={`rounded-2xl border p-4 transition-all dark:bg-surface-card ${hasItems ? 'border-aviation-200 bg-aviation-50/50 dark:border-aviation-800 dark:bg-aviation-900/10' : 'border-graphite-200 bg-white dark:border-border-dark'}`}>
+                  <div className="flex items-center justify-between gap-3 mb-2">
+                    <span className="text-sm font-bold text-graphite-900 dark:text-graphite-100">{mes}</span>
                     {canEdit && (
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => startEditMonth(mesNum)} className="rounded-lg p-1.5 text-graphite-400 hover:bg-graphite-100 dark:hover:bg-surface-hover">
-                          <Pencil className="h-4 w-4" />
-                        </button>
-                        {item && (
-                          <button onClick={() => handleDeleteItem(mesNum)} className="rounded-lg p-1.5 text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
+                      <button onClick={() => startEditMonth(mesNum)} className="flex items-center gap-1 rounded-lg bg-aviation-100 px-2.5 py-1 text-xs font-medium text-aviation-700 transition-colors hover:bg-aviation-200 dark:bg-aviation-900/30 dark:text-aviation-300 dark:hover:bg-aviation-900/50">
+                        <Plus className="h-3.5 w-3.5" /> Adicionar pessoa
+                      </button>
                     )}
                   </div>
+
+                  {!hasItems && !isEditing && (
+                    <p className="text-xs text-graphite-400 dark:text-graphite-500">Sem alocacao</p>
+                  )}
+
+                  {mesItems.map(item => (
+                    <div key={item.id} className="mb-2 rounded-xl border border-graphite-200 bg-white p-3 shadow-sm last:mb-0 dark:border-border-dark dark:bg-surface-hover">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-graphite-800 dark:text-graphite-200 truncate">{item.funcionarioNome} ({item.dias}d)</p>
+                          <div className="flex items-center gap-2 text-xs text-graphite-500 dark:text-graphite-400">
+                            <span>{fmt(item.dataInicio)} - {fmt(item.dataFim)}</span>
+                          </div>
+                          {(item.substitutoNome || item.feiristaNome) && (
+                            <div className="mt-1 flex flex-wrap gap-2">
+                              {item.substitutoNome && (
+                                <span className="text-aviation-600 dark:text-aviation-400">Sub: {item.substitutoNome}</span>
+                              )}
+                              {item.feiristaNome && (
+                                <span className="text-orange-600 dark:text-orange-400">Feirista: {item.feiristaNome}</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        {canEdit && (
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button onClick={() => startEditExistingItem(mesNum, item.id)} className="rounded-lg p-1.5 text-graphite-400 hover:bg-graphite-100 dark:hover:bg-surface-hover">
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                            <button onClick={() => handleDeleteItem(item.id)} className="rounded-lg p-1.5 text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
 
                   {isEditing && (
                     <div className="mt-3 space-y-3 rounded-xl border border-graphite-200 bg-white p-4 dark:border-border-dark dark:bg-surface-hover">
@@ -1539,7 +1529,7 @@ function TabEscalaAnual() {
                         <button onClick={() => handleSaveItem(mesNum)} disabled={!formFuncId || !formPeriodo || !formDataInicio || saving} className="flex items-center gap-1 rounded-lg bg-gradient-to-r from-aviation-600 to-aviation-700 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-all hover:shadow-md disabled:opacity-50">
                           <Save className="h-3.5 w-3.5" /> {saving ? 'Salvando...' : 'Salvar'}
                         </button>
-                        <button onClick={() => { setEditingMonth(null); resetForm(); }} className="rounded-lg border border-graphite-300 bg-white px-3 py-1.5 text-xs font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-300">
+                        <button onClick={() => { setEditingMonth(null); setEditingItemId(null); resetForm(); }} className="rounded-lg border border-graphite-300 bg-white px-3 py-1.5 text-xs font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-300">
                           Cancelar
                         </button>
                       </div>
@@ -1553,9 +1543,6 @@ function TabEscalaAnual() {
           <div className="mt-6 flex flex-wrap gap-3">
             {canEdit && (
               <>
-                <button onClick={handleAutoFill} disabled={saving} className="flex items-center gap-2 rounded-xl border border-aviation-300 bg-aviation-50 px-4 py-2.5 text-sm font-medium text-aviation-700 transition-all hover:bg-aviation-100 dark:border-aviation-700 dark:bg-aviation-900/20 dark:text-aviation-300 dark:hover:bg-aviation-900/40">
-                  <RotateCcw className="h-4 w-4" /> Puxar Escala Automatica
-                </button>
                 {canSend && (
                   <button onClick={handleSendApproval} disabled={saving} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
                     <Send className="h-4 w-4" /> Enviar para Aprovacao
