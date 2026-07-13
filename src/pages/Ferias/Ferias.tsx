@@ -1325,7 +1325,7 @@ function TabEscalaAnual() {
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">
           <CalendarDays className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
           <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhuma escala para {ano}</h3>
-          <p className="mb-4 text-sm text-graphite-400 dark:text-graphite-500">Equipe {myBombeiro.equipe}</p>
+          <p className="mb-4 text-sm text-graphite-400 dark:text-graphite-500">Equipe {activeEquipe}</p>
           <button onClick={handleCreateEscala} disabled={saving} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
             <Plus className="h-4 w-4" /> Criar Escala Anual
           </button>
