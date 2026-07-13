@@ -65,7 +65,7 @@ async function calcularAlertasFerias(): Promise<Omit<Notificacao, 'id' | 'lida' 
 
 async function calcularAlertasEPI(): Promise<Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[]> {
   const alertas: Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[] = [];
-  const epis = listarEPIs();
+  const epis = await listarEPIs();
   const bombeiros = await listarAtivos();
 
   for (const epi of epis) {

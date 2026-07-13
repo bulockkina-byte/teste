@@ -128,12 +128,17 @@ CREATE TABLE IF NOT EXISTS epis (
   nome TEXT NOT NULL DEFAULT '',
   descricao TEXT NOT NULL DEFAULT '',
   colaborador TEXT NOT NULL DEFAULT '',
+  colaborador_id TEXT NOT NULL DEFAULT '',
   entregue_por TEXT NOT NULL DEFAULT '',
   ca TEXT NOT NULL DEFAULT '',
   data_pagamento TEXT NOT NULL DEFAULT '',
   data_validade TEXT NOT NULL DEFAULT '',
   fornecedor TEXT NOT NULL DEFAULT '',
   notas TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'entregue',
+  data_envio_autentique TEXT NOT NULL DEFAULT '',
+  data_assinatura TEXT NOT NULL DEFAULT '',
+  data_devolucao TEXT NOT NULL DEFAULT '',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
