@@ -213,9 +213,7 @@ export function Funcionarios() {
 
   useEffect(() => {
     async function load() {
-      try {
-        setAllSubstituicoes(await listarSubstituicoesTemporarias());
-      } catch { /* ignore */ }
+      setAllSubstituicoes(await listarSubstituicoesTemporarias());
     }
     load();
   }, []);
