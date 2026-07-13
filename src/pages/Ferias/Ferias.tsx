@@ -121,7 +121,6 @@ function monthEnd(year: number, month: number): string {
 
 function calcularStats(bombeiros: Bombeiro[], feriasGozo: FeriasGozo[]): DashboardStats {
   const anoAtual = new Date().getFullYear();
-  const hoje = new Date();
   const comDireitoSet = new Set<string>();
   const emGozoSet = new Set<string>();
   const planejadasSet = new Set<string>();
