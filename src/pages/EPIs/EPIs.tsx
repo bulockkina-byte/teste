@@ -386,7 +386,7 @@ export function EPIs() {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite-400" />
           <input type="text" value={termo} onChange={e => setTermo(e.target.value)}
             placeholder={tab === 'funcionarios' ? 'Pesquisar por nome...' : 'Pesquisar por nome, responsável...'}
-            className="w-full rounded-xl border border-graphite-300/60 bg-white/70 py-2.5 pl-10 pr-4 text-sm text-graphite-900 placeholder-graphite-400 outline-none transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated" />
+            className="w-full rounded-xl border border-graphite-300/60 bg-white/70 py-2.5 pl-10 pr-4 text-sm text-graphite-900 placeholder-graphite-400 outline-none transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:placeholder-graphite-500 dark:hover:border-border-dark dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated dark:focus:ring-aviation-400/10 dark:scheme-dark" />
         </div>
         {canManage && tab === 'epis' && (
           <button onClick={() => { setEditandoEstoque(null); setFormEstoqueOpen(true); }}
@@ -859,7 +859,7 @@ function FormEstoque({
     estado: 'Novo' as EstadoConservacao, notas: '',
   });
 
-  const input = 'w-full rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2 text-sm backdrop-blur-sm transition-all duration-200 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:scheme-dark';
+  const input = 'w-full rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2 text-sm backdrop-blur-sm transition-all duration-200 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 placeholder-graphite-400 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:placeholder-graphite-500 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated dark:focus:ring-aviation-400/10 dark:scheme-dark';
   const label = 'block mb-1 text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400';
 
   const dataValidadeFinal = calcularDataValidade(form.dataFabricacao, form.tempoValidadeMeses);
@@ -1010,7 +1010,7 @@ function ModalPagarEpi({
         <div className="relative mb-3">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite-400" />
           <input type="text" value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar..."
-            className="w-full rounded-xl border border-graphite-300/60 bg-white/70 py-2 pl-10 pr-4 text-sm dark:border-border-dark dark:bg-surface-card dark:text-graphite-100" />
+            className="w-full rounded-xl border border-graphite-300/60 bg-white/70 py-2 pl-10 pr-4 text-sm placeholder-graphite-400 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:placeholder-graphite-500 dark:scheme-dark" />
         </div>
 
         <div className="space-y-2 max-h-60 overflow-y-auto">
