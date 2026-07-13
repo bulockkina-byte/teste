@@ -1265,16 +1265,26 @@ function TabEscalaAnual() {
     );
   }
 
+  if (!activeEquipe && !loading && isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">
+        <CalendarDays className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
+        <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Selecione uma equipe</h3>
+        <p className="mb-4 text-sm text-graphite-400 dark:text-graphite-500">Escolha a equipe para gerenciar a escala.</p>
+        <select value={selectedEquipe} onChange={e => setSelectedEquipe(e.target.value as Equipe)} className={`${selectCls} !w-auto`}>
+          <option value="" className={optionCls}>Escolha a equipe</option>
+          {equipes.map(eq => <option key={eq} value={eq} className={optionCls}>{eq}</option>)}
+        </select>
+      </div>
+    );
+  }
+
   if (!activeEquipe && !loading) {
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">
         <AlertTriangle className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
-        <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">
-          {isAdmin ? 'Selecione uma equipe' : 'Registro de bombeiro nao encontrado'}
-        </h3>
-        <p className="text-sm text-graphite-400 dark:text-graphite-500">
-          {isAdmin ? 'Escolha a equipe para gerenciar a escala.' : 'Nao foi possivel vincular seu usuario a um bombeiro.'}
-        </p>
+        <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Registro de bombeiro nao encontrado</h3>
+        <p className="text-sm text-graphite-400 dark:text-graphite-500">Nao foi possivel vincular seu usuario a um bombeiro.</p>
       </div>
     );
   }
@@ -1531,16 +1541,27 @@ function TabMinhaEquipe() {
     );
   }
 
+  if (!activeEquipe && !loading && isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">
+        <Users className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
+        <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Selecione uma equipe</h3>
+        <div className="mt-4">
+          <select value={selectedEquipe} onChange={e => setSelectedEquipe(e.target.value as Equipe)} className={selectCls}>
+            <option value="" className={optionCls}>Escolha a equipe</option>
+            {equipes.map(eq => <option key={eq} value={eq} className={optionCls}>{eq}</option>)}
+          </select>
+        </div>
+      </div>
+    );
+  }
+
   if (!activeEquipe && !loading) {
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">
         <AlertTriangle className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
-        <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">
-          {isAdmin ? 'Selecione uma equipe' : 'Registro de bombeiro nao encontrado'}
-        </h3>
-        <p className="text-sm text-graphite-400 dark:text-graphite-500">
-          {isAdmin ? 'Escolha a equipe para visualizar.' : 'Nao foi possivel vincular seu usuario a um bombeiro.'}
-        </p>
+        <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Registro de bombeiro nao encontrado</h3>
+        <p className="text-sm text-graphite-400 dark:text-graphite-500">Nao foi possivel vincular seu usuario a um bombeiro.</p>
       </div>
     );
   }
