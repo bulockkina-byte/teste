@@ -362,21 +362,21 @@ export function EPIs() {
       {tab === 'funcionarios' && (
         <div className="mb-4 flex flex-wrap gap-3">
           <select value={filtroEquipe} onChange={e => setFiltroEquipe(e.target.value)}
-            className="rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2 text-sm dark:border-border-dark dark:bg-surface-card dark:text-graphite-100">
+            className="rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2 text-sm dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:scheme-dark">
             <option value="">Todas as Equipes</option>
-            {equipes.map(eq => <option key={eq} value={eq}>{eq}</option>)}
+            {equipes.map(eq => <option key={eq} value={eq} className="dark:bg-graphite-700 dark:text-graphite-100">{eq}</option>)}
           </select>
           <select value={filtroFuncao} onChange={e => setFiltroFuncao(e.target.value)}
-            className="rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2 text-sm dark:border-border-dark dark:bg-surface-card dark:text-graphite-100">
+            className="rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2 text-sm dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:scheme-dark">
             <option value="">Todas as Funções</option>
-            {cargos.map(c => <option key={c} value={c}>{c}</option>)}
+            {cargos.map(c => <option key={c} value={c} className="dark:bg-graphite-700 dark:text-graphite-100">{c}</option>)}
           </select>
           <select value={filtroValidade} onChange={e => setFiltroValidade(e.target.value)}
-            className="rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2 text-sm dark:border-border-dark dark:bg-surface-card dark:text-graphite-100">
+            className="rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2 text-sm dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:scheme-dark">
             <option value="">Todas as Validades</option>
-            <option value="vencido">Com EPI Vencido</option>
-            <option value="critico">Com EPI a Vencer (até 40 dias)</option>
-            <option value="atencao">Com EPI a Vencer (até 1 ano)</option>
+            <option value="vencido" className="dark:bg-graphite-700 dark:text-graphite-100">Com EPI Vencido</option>
+            <option value="critico" className="dark:bg-graphite-700 dark:text-graphite-100">Com EPI a Vencer (até 40 dias)</option>
+            <option value="atencao" className="dark:bg-graphite-700 dark:text-graphite-100">Com EPI a Vencer (até 1 ano)</option>
           </select>
         </div>
       )}
@@ -859,7 +859,7 @@ function FormEstoque({
     estado: 'Novo' as EstadoConservacao, notas: '',
   });
 
-  const input = 'w-full rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2 text-sm backdrop-blur-sm transition-all duration-200 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50';
+  const input = 'w-full rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2 text-sm backdrop-blur-sm transition-all duration-200 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:scheme-dark';
   const label = 'block mb-1 text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400';
 
   const dataValidadeFinal = calcularDataValidade(form.dataFabricacao, form.tempoValidadeMeses);
@@ -880,7 +880,7 @@ function FormEstoque({
             <label className={label}>Categoria *</label>
             <select value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value, tamanho: '' }))} className={input}>
               <option value="">Selecione</option>
-              {CATEGORIAS_EPI.map(c => <option key={c} value={c}>{c}</option>)}
+              {CATEGORIAS_EPI.map(c => <option key={c} value={c} className="dark:bg-graphite-700 dark:text-graphite-100">{c}</option>)}
             </select>
           </div>
           <div>
@@ -915,7 +915,7 @@ function FormEstoque({
             <label className={label}>Tamanho/Numeração</label>
             <select value={form.tamanho} onChange={e => setForm(f => ({ ...f, tamanho: e.target.value }))} className={input}>
               <option value="">Selecione</option>
-              {tamanhosDisponiveis.map(t => <option key={t} value={t}>{t}</option>)}
+              {tamanhosDisponiveis.map(t => <option key={t} value={t} className="dark:bg-graphite-700 dark:text-graphite-100">{t}</option>)}
             </select>
           </div>
           <div>
@@ -925,7 +925,7 @@ function FormEstoque({
           <div>
             <label className={label}>Estado de Conservação *</label>
             <select value={form.estado} onChange={e => setForm(f => ({ ...f, estado: e.target.value as EstadoConservacao }))} className={input}>
-              {ESTADO_CONSERVACAO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              {ESTADO_CONSERVACAO_OPTIONS.map(o => <option key={o.value} value={o.value} className="dark:bg-graphite-700 dark:text-graphite-100">{o.label}</option>)}
             </select>
           </div>
           <div className="sm:col-span-2 lg:col-span-3">
