@@ -203,7 +203,7 @@ export function EPIs() {
   const estoqueComValidade = useMemo(() => {
     return estoque.map(e => ({
       ...e,
-      _dataValidadeCalc: e.dataValidade || calcularDataValidade(e.dataFabricacao, e.tempoValidadeMeses),
+      dataValidadeFinal: e.dataValidade || calcularDataValidade(e.dataFabricacao, e.tempoValidadeMeses),
     }));
   }, [estoque]);
 
@@ -442,7 +442,7 @@ export function EPIs() {
                   </thead>
                   <tbody>
                     {estoqueComValidade.map(e => {
-                      const validadeLabel = getLabelValidade(e._dataValidadeCalc);
+                      const validadeLabel = getLabelValidade(e.dataValidadeFinal);
                       const estadoOpt = ESTADO_CONSERVACAO_OPTIONS.find(o => o.value === e.estado);
                       return (
                         <tr key={e.id} className="border-b border-graphite-100 transition-colors hover:bg-aviation-50/50 dark:border-border-dark dark:hover:bg-aviation-900/20">
@@ -469,7 +469,7 @@ export function EPIs() {
                             {e.dataFabricacao ? new Date(e.dataFabricacao + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}
                           </td>
                           <td className="px-4 py-3 font-mono text-xs text-graphite-700 dark:text-graphite-300">
-                            {e._dataValidadeCalc ? new Date(e._dataValidadeCalc + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}
+                            {e.dataValidadeFinal ? new Date(e.dataValidadeFinal + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1.5">
@@ -598,7 +598,7 @@ export function EPIs() {
           bombeiro={pagarEpiState.bombeiro}
           estoque={estoqueComValidade}
           onConfirm={async (item) => {
-            if ((item.estado === 'Ruim' || item.estado === 'Sem uso' || getDiasParaVencer(item._dataValidadeCalc) < 0)) {
+            if ((item.estado === 'Ruim' || item.estado === 'Sem uso' || getDiasParaVencer(item.dataValidadeFinal) < 0)) {
               setConfirmPagar({ estoque: item, bombeiro: pagarEpiState.bombeiro });
               return;
             }
@@ -623,7 +623,7 @@ export function EPIs() {
               O EPI selecionado
               {confirmPagar.estoque.estado === 'Ruim' && ' está em estado <strong>Ruim</strong>'}
               {confirmPagar.estoque.estado === 'Sem uso' && ' está <strong>Sem condição de uso</strong>'}
-              {getDiasParaVencer(confirmPagar.estoque._dataValidadeCalc) < 0 && ' está <strong>VENCIDO</strong>'}
+              {getDiasParaVencer(confirmPagar.estoque.dataValidade || calcularDataValidade(confirmPagar.estoque.dataFabricacao, confirmPagar.estoque.tempoValidadeMeses)) < 0 && ' está <strong>VENCIDO</strong>'}
               . Tem certeza que deseja continuar?
             </p>
             <div className="flex justify-end gap-3">
@@ -862,7 +862,7 @@ function FormEstoque({
   const input = 'w-full rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2 text-sm backdrop-blur-sm transition-all duration-200 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50';
   const label = 'block mb-1 text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400';
 
-  const _dataValidadeCalc = calcularDataValidade(form.dataFabricacao, form.tempoValidadeMeses);
+  const dataValidadeFinal = calcularDataValidade(form.dataFabricacao, form.tempoValidadeMeses);
   const tamanhosDisponiveis = TAMANHOS_EPI[form.nome] || ['Único'];
 
   return (
@@ -909,7 +909,7 @@ function FormEstoque({
           </div>
           <div>
             <label className={label}>Data Validade (auto)</label>
-            <input type="date" value={_dataValidadeCalc} readOnly className={input + ' cursor-not-allowed bg-graphite-50/80 font-medium dark:bg-surface-card'} />
+            <input type="date" value={dataValidadeFinal} readOnly className={input + ' cursor-not-allowed bg-graphite-50/80 font-medium dark:bg-surface-card'} />
           </div>
           <div>
             <label className={label}>Tamanho/Numeração</label>
@@ -936,7 +936,7 @@ function FormEstoque({
 
         <div className="mt-4 flex justify-end gap-2">
           <button onClick={onCancel} className="rounded-lg border border-graphite-300/60 bg-white/80 px-4 py-2 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card/80 dark:text-graphite-200">Cancelar</button>
-          <button onClick={() => onSave({ ...form, dataValidade: _dataValidadeCalc })}
+          <button onClick={() => onSave({ ...form, dataValidade: dataValidadeFinal })}
             disabled={!form.nome || !form.ca || form.quantidade <= 0 || !form.dataFabricacao || form.tempoValidadeMeses <= 0}
             className="flex items-center gap-1 rounded-lg bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2 text-sm font-medium text-white shadow-md transition-all hover:from-aviation-500 hover:to-aviation-600 disabled:opacity-50 disabled:cursor-not-allowed">
             <Save className="h-4 w-4" /> Salvar
@@ -953,8 +953,8 @@ function ModalPagarEpi({
   bombeiro, estoque, onConfirm, onCancel,
 }: {
   bombeiro: Bombeiro;
-  estoque: (EPIEstoque & { _dataValidadeCalc: string })[];
-  onConfirm: (item: EPIEstoque & { _dataValidadeCalc: string }) => void;
+  estoque: (EPIEstoque & { dataValidadeFinal: string })[];
+  onConfirm: (item: EPIEstoque & { dataValidadeFinal: string }) => void;
   onCancel: () => void;
 }) {
   const [busca, setBusca] = useState('');
@@ -1018,7 +1018,7 @@ function ModalPagarEpi({
             <p className="py-4 text-center text-sm text-graphite-400">Nenhum EPI disponível em estoque</p>
           ) : (
             itensFiltrados.map(item => {
-              const validadeLabel = getLabelValidade(item._dataValidadeCalc);
+              const validadeLabel = getLabelValidade(item.dataValidadeFinal);
               const estadoOpt = ESTADO_CONSERVACAO_OPTIONS.find(o => o.value === item.estado);
               const isSelected = selecionado === item.id;
               return (
