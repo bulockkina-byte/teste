@@ -145,9 +145,7 @@ function calcularStats(bombeiros: Bombeiro[], feriasGozo: FeriasGozo[]): Dashboa
       } else {
         if (p.status === 'Disponivel') {
           comDireitoSet.add(b.id);
-          const vencDate = new Date(p.dataVencimento + 'T00:00:00');
-          const diffDays = Math.ceil((vencDate.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
-          if (diffDays <= 90 && diffDays > 0) paraVencerSet.add(b.id);
+          paraVencerSet.add(b.id);
         } else if (p.status === 'Vencido') {
           vencidasSet.add(b.id);
         }
