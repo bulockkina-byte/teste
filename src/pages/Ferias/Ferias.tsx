@@ -1048,9 +1048,11 @@ function TabEscalaGeral() {
 // -- Tab Escala Anual (Chefe de Equipe) ------------------------------------------
 
 function TabEscalaAnual() {
-  const { user } = useAuth();
+  const { effectiveRole, user } = useAuth();
+  const isAdmin = effectiveRole === 'admin_master' || effectiveRole === 'admin' || effectiveRole === 'gerente';
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
   const [myBombeiro, setMyBombeiro] = useState<Bombeiro | null>(null);
+  const [selectedEquipe, setSelectedEquipe] = useState<Equipe | ''>('');
   const [escala, setEscala] = useState<EscalaFerias | null>(null);
   const [itens, setItens] = useState<EscalaFeriasItem[]>([]);
   const [ano, setAno] = useState(new Date().getFullYear());
@@ -1064,10 +1066,14 @@ function TabEscalaAnual() {
   const [formFeirista, setFormFeirista] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  const activeEquipe = isAdmin ? (selectedEquipe || '') : (myBombeiro?.equipe || '');
+
   const teamMembers = useMemo(
-    () => myBombeiro ? bombeiros.filter(b => b.equipe === myBombeiro.equipe) : [],
-    [bombeiros, myBombeiro],
+    () => activeEquipe ? bombeiros.filter(b => b.equipe === activeEquipe) : [],
+    [bombeiros, activeEquipe],
   );
+
+  const equipes: Equipe[] = ['Alfa', 'Bravo', 'Charlie', 'Delta'];
 
   useEffect(() => {
     (async () => {
@@ -1076,15 +1082,16 @@ function TabEscalaAnual() {
       if (user) {
         const me = all.find(b => b.nomeCompleto === user.name);
         setMyBombeiro(me || null);
+        if (!isAdmin && me) setSelectedEquipe(me.equipe);
       }
       setLoading(false);
     })();
-  }, [user]);
+  }, [user, isAdmin]);
 
   useEffect(() => {
-    if (!myBombeiro) return;
+    if (!activeEquipe) return;
     (async () => {
-      const escs = await listarEscalas(myBombeiro.equipe, ano);
+      const escs = await listarEscalas(activeEquipe, ano);
       if (escs.length > 0) {
         const e = escs[0];
         setEscala(e);
@@ -1096,15 +1103,15 @@ function TabEscalaAnual() {
       }
       setEditingMonth(null);
     })();
-  }, [myBombeiro, ano]);
+  }, [activeEquipe, ano]);
 
   async function handleCreateEscala() {
-    if (!myBombeiro || !user) return;
+    if (!activeEquipe || !user) return;
     setSaving(true);
     const e = await criarEscala({
-      equipe: myBombeiro.equipe,
+      equipe: activeEquipe,
       ano,
-      chefeId: myBombeiro.id,
+      chefeId: myBombeiro?.id || user.name,
       chefeNome: user.name,
       status: 'Rascunho',
       observacoesRejeicao: '',
@@ -1186,7 +1193,7 @@ function TabEscalaAnual() {
   }
 
   async function handleAutoFill() {
-    if (!escala || !myBombeiro) return;
+    if (!escala || !activeEquipe) return;
     setSaving(true);
 
     const gozos = await listarFeriasGozo();
@@ -1258,12 +1265,16 @@ function TabEscalaAnual() {
     );
   }
 
-  if (!myBombeiro) {
+  if (!activeEquipe && !loading) {
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">
         <AlertTriangle className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
-        <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Registro de bombeiro nao encontrado</h3>
-        <p className="text-sm text-graphite-400 dark:text-graphite-500">Nao foi possivel vincular seu usuario a um bombeiro.</p>
+        <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">
+          {isAdmin ? 'Selecione uma equipe' : 'Registro de bombeiro nao encontrado'}
+        </h3>
+        <p className="text-sm text-graphite-400 dark:text-graphite-500">
+          {isAdmin ? 'Escolha a equipe para gerenciar a escala.' : 'Nao foi possivel vincular seu usuario a um bombeiro.'}
+        </p>
       </div>
     );
   }
@@ -1275,6 +1286,15 @@ function TabEscalaAnual() {
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center gap-3">
+        {isAdmin && (
+          <div>
+            <label className={labelCls}>Equipe</label>
+            <select value={selectedEquipe} onChange={e => setSelectedEquipe(e.target.value as Equipe)} className={`${selectCls} !w-auto`}>
+              <option value="" className={optionCls}>Selecione a equipe</option>
+              {equipes.map(eq => <option key={eq} value={eq} className={optionCls}>{eq}</option>)}
+            </select>
+          </div>
+        )}
         <div>
           <label className={labelCls}>Ano</label>
           <select value={ano} onChange={e => setAno(Number(e.target.value))} className={`${selectCls} !w-auto`}>
@@ -1472,25 +1492,35 @@ function TabEscalaAnual() {
 // -- Tab Minha Equipe (Chefe) ----------------------------------------------------
 
 function TabMinhaEquipe() {
-  const { user } = useAuth();
+  const { effectiveRole, user } = useAuth();
+  const isAdmin = effectiveRole === 'admin_master' || effectiveRole === 'admin' || effectiveRole === 'gerente';
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
   const [feriasGozo, setFeriasGozo] = useState<FeriasGozo[]>([]);
   const [myBombeiro, setMyBombeiro] = useState<Bombeiro | null>(null);
+  const [selectedEquipe, setSelectedEquipe] = useState<Equipe | ''>('');
   const [loading, setLoading] = useState(true);
+
+  const equipes: Equipe[] = ['Alfa', 'Bravo', 'Charlie', 'Delta'];
 
   useEffect(() => {
     (async () => {
       const [all, gozos] = await Promise.all([listarAtivos(), listarFeriasGozo()]);
       setBombeiros(all);
       setFeriasGozo(gozos);
-      if (user) setMyBombeiro(all.find(b => b.nomeCompleto === user.name) || null);
+      if (user) {
+        const me = all.find(b => b.nomeCompleto === user.name);
+        setMyBombeiro(me || null);
+        if (me && !isAdmin) setSelectedEquipe(me.equipe);
+      }
       setLoading(false);
     })();
-  }, [user]);
+  }, [user, isAdmin]);
+
+  const activeEquipe = isAdmin ? selectedEquipe : (myBombeiro?.equipe || '');
 
   const teamMembers = useMemo(
-    () => myBombeiro ? bombeiros.filter(b => b.equipe === myBombeiro.equipe) : [],
-    [bombeiros, myBombeiro],
+    () => activeEquipe ? bombeiros.filter(b => b.equipe === activeEquipe) : [],
+    [bombeiros, activeEquipe],
   );
 
   if (loading) {
@@ -1501,22 +1531,35 @@ function TabMinhaEquipe() {
     );
   }
 
-  if (!myBombeiro) {
+  if (!activeEquipe && !loading) {
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">
         <AlertTriangle className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
-        <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Registro de bombeiro nao encontrado</h3>
-        <p className="text-sm text-graphite-400 dark:text-graphite-500">Nao foi possivel vincular seu usuario a um bombeiro.</p>
+        <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">
+          {isAdmin ? 'Selecione uma equipe' : 'Registro de bombeiro nao encontrado'}
+        </h3>
+        <p className="text-sm text-graphite-400 dark:text-graphite-500">
+          {isAdmin ? 'Escolha a equipe para visualizar.' : 'Nao foi possivel vincular seu usuario a um bombeiro.'}
+        </p>
       </div>
     );
   }
 
   return (
     <div>
+      {isAdmin && (
+        <div className="mb-4">
+          <label className={labelCls}>Equipe</label>
+          <select value={selectedEquipe} onChange={e => setSelectedEquipe(e.target.value as Equipe)} className={`${selectCls} !w-auto`}>
+            <option value="" className={optionCls}>Selecione a equipe</option>
+            {equipes.map(eq => <option key={eq} value={eq} className={optionCls}>{eq}</option>)}
+          </select>
+        </div>
+      )}
       <div className="mb-4 flex items-center gap-2">
         <Users className="h-4 w-4 text-aviation-600 dark:text-aviation-400" />
         <h3 className="text-sm font-bold text-graphite-900 dark:text-graphite-100">
-          Equipe {myBombeiro.equipe} - {teamMembers.length} membros
+          Equipe {activeEquipe} - {teamMembers.length} membros
         </h3>
       </div>
 
@@ -1598,6 +1641,8 @@ export function Ferias() {
     { key: 'bombeiros', label: 'Bombeiros', icon: Users },
     { key: 'aprovacoes', label: 'Aprovacoes', icon: FileText },
     { key: 'escala-geral', label: 'Escala Geral', icon: Eye },
+    { key: 'escala', label: 'Escala Anual', icon: CalendarDays },
+    { key: 'equipe', label: 'Minha Equipe', icon: Users },
   ] as const;
 
   const chefeTabs = [
