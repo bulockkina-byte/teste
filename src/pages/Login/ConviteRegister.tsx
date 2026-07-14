@@ -24,8 +24,7 @@ export function ConviteRegister() {
 
   useEffect(() => {
     if (codigo) {
-      const valido = validarConvite(codigo.toUpperCase());
-      setConviteValido(!!valido);
+      validarConvite(codigo.toUpperCase()).then(c => setConviteValido(!!c));
     }
   }, [codigo]);
 
@@ -47,7 +46,7 @@ export function ConviteRegister() {
     setLoading(true);
     try {
       await register(name, username, password, 'lider');
-      if (codigo) usarConvite(codigo.toUpperCase(), username);
+      if (codigo) await usarConvite(codigo.toUpperCase(), username);
       setSuccesso(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao cadastrar.');

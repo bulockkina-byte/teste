@@ -116,11 +116,12 @@ export function Usuarios() {
   }
 
   useEffect(() => { carregar(); }, [termo]);
-  useEffect(() => { setConvites(listarConvites()); }, []);
+  useEffect(() => { listarConvites().then(setConvites); }, []);
 
-  function handleGerarConvite() {
-    const convite = criarConvite();
-    setConvites(listarConvites());
+  async function handleGerarConvite() {
+    const convite = await criarConvite();
+    const lista = await listarConvites();
+    setConvites(lista);
     const url = `${window.location.origin}/cadastro/convite/${convite.codigo}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopiado(convite.codigo);

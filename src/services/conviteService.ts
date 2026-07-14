@@ -1,3 +1,6 @@
+import { supabase } from '../lib/supabase';
+
+const TABLE = 'convites';
 const CONVITES_KEY = 'sescinc-convites';
 
 export interface Convite {
@@ -6,6 +9,11 @@ export interface Convite {
   createdAt: string;
   usadoEm?: string;
   registradoPor?: string;
+}
+
+function getDb() {
+  if (!supabase) throw new Error('Supabase não configurado.');
+  return supabase;
 }
 
 function gerarCodigo(): string {
@@ -17,7 +25,7 @@ function gerarCodigo(): string {
   return codigo;
 }
 
-function getConvites(): Record<string, Convite> {
+function fallbackGet(): Record<string, Convite> {
   try {
     return JSON.parse(localStorage.getItem(CONVITES_KEY) || '{}');
   } catch {
@@ -25,39 +33,105 @@ function getConvites(): Record<string, Convite> {
   }
 }
 
-function saveConvites(convites: Record<string, Convite>) {
+function fallbackSave(convites: Record<string, Convite>) {
   localStorage.setItem(CONVITES_KEY, JSON.stringify(convites));
 }
 
-export function criarConvite(): Convite {
-  const convites = getConvites();
+export async function criarConvite(createdBy?: string): Promise<Convite> {
   let codigo = gerarCodigo();
-  while (convites[codigo]) codigo = gerarCodigo();
   const convite: Convite = { codigo, usado: false, createdAt: new Date().toISOString() };
-  convites[codigo] = convite;
-  saveConvites(convites);
+
+  try {
+    const db = getDb();
+    let attempts = 0;
+    while (attempts < 5) {
+      const { error } = await db.from(TABLE).insert({
+        codigo,
+        usado: false,
+        created_by: createdBy || null,
+      });
+      if (!error) break;
+      if (error.code === '23505') {
+        attempts++;
+        codigo = gerarCodigo();
+        convite.codigo = codigo;
+      } else {
+        throw error;
+      }
+    }
+  } catch {
+    const convites = fallbackGet();
+    let codigo = gerarCodigo();
+    while (convites[codigo]) codigo = gerarCodigo();
+    convite.codigo = codigo;
+    convites[codigo] = convite;
+    fallbackSave(convites);
+  }
+
   return convite;
 }
 
-export function validarConvite(codigo: string): Convite | null {
-  const convites = getConvites();
-  const convite = convites[codigo];
-  if (!convite || convite.usado) return null;
-  return convite;
-}
-
-export function usarConvite(codigo: string, registradoPor: string): void {
-  const convites = getConvites();
-  if (convites[codigo]) {
-    convites[codigo].usado = true;
-    convites[codigo].usadoEm = new Date().toISOString();
-    convites[codigo].registradoPor = registradoPor;
-    saveConvites(convites);
+export async function validarConvite(codigo: string): Promise<Convite | null> {
+  try {
+    const db = getDb();
+    const { data, error } = await db
+      .from(TABLE)
+      .select('*')
+      .eq('codigo', codigo)
+      .single();
+    if (error || !data) return null;
+    if (data.usado) return null;
+    return {
+      codigo: data.codigo,
+      usado: data.usado,
+      createdAt: data.created_at,
+      usadoEm: data.usado_em,
+      registradoPor: data.registrado_por,
+    };
+  } catch {
+    const convites = fallbackGet();
+    const convite = convites[codigo];
+    if (!convite || convite.usado) return null;
+    return convite;
   }
 }
 
-export function listarConvites(): Convite[] {
-  return Object.values(getConvites()).sort((a, b) =>
-    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
+export async function usarConvite(codigo: string, registradoPor: string): Promise<void> {
+  try {
+    const db = getDb();
+    await db
+      .from(TABLE)
+      .update({ usado: true, usado_em: new Date().toISOString(), registrado_por: registradoPor })
+      .eq('codigo', codigo);
+  } catch {
+    const convites = fallbackGet();
+    if (convites[codigo]) {
+      convites[codigo].usado = true;
+      convites[codigo].usadoEm = new Date().toISOString();
+      convites[codigo].registradoPor = registradoPor;
+      fallbackSave(convites);
+    }
+  }
+}
+
+export async function listarConvites(): Promise<Convite[]> {
+  try {
+    const db = getDb();
+    const { data, error } = await db
+      .from(TABLE)
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data || []).map((r: any) => ({
+      codigo: r.codigo,
+      usado: r.usado,
+      createdAt: r.created_at,
+      usadoEm: r.usado_em,
+      registradoPor: r.registrado_por,
+    }));
+  } catch {
+    return Object.values(fallbackGet()).sort((a, b) =>
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }
 }

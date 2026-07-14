@@ -183,7 +183,7 @@ export function Perfil() {
     try {
       stored.password = newPassword;
       localStorage.setItem(USERS_KEY, JSON.stringify(users));
-      try { await atualizarUsuario(user.username, { password: newPassword }); } catch { /* ignore */ }
+      await atualizarUsuario(user.username, { password: newPassword });
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
