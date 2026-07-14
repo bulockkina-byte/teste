@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { Layout } from '../components/layout/Layout';
 import { Dashboard } from '../pages/Dashboard/Dashboard';
 import { Login } from '../pages/Login/Login';
+import { ConviteRegister } from '../pages/Login/ConviteRegister';
 import { AuthGuard } from '../components/layout/AuthGuard';
 import { Loading } from '../components/ui/Loading';
 
@@ -19,6 +20,10 @@ export const router = createBrowserRouter([
   {
     path: '/login',
     element: <Login />,
+  },
+  {
+    path: '/cadastro/convite/:codigo',
+    element: <ConviteRegister />,
   },
   {
     path: '/',

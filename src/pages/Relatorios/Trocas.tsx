@@ -35,6 +35,29 @@ const MAX_TROCAS_PER_MONTH = 3;
 
 const template = DOCUMENT_TEMPLATES[0];
 
+const CHECK_FIELD_OVERRIDES = new Map<string, { font_size: number; width: number; height: number }>(
+  template.fields
+    .filter(f => f.field_name.startsWith('check_'))
+    .map(f => [f.field_name, { font_size: f.font_size, width: f.width, height: f.height }])
+);
+
+function fieldPositionsFromDoc(doc: DocumentWithFields) {
+  return doc.document_fields.map(f => {
+    const override = CHECK_FIELD_OVERRIDES.get(f.field_name);
+    return {
+      field_name: f.field_name,
+      x: f.x,
+      y: f.y,
+      width: override?.width ?? f.width,
+      height: override?.height ?? f.height,
+      font_size: override?.font_size ?? f.font_size,
+      is_signature: f.is_signature,
+      field_type: f.field_type,
+      page: f.page,
+    };
+  });
+}
+
 function templateFieldsToDocFields(fields: TemplateFieldDef[]): DocumentField[] {
   return fields.map((tf, i) => ({
     id: `tpl_${i}`,
@@ -486,30 +509,20 @@ export function Trocas() {
       }
 
       if (formData.troca_emergencial === 'SIM') {
-        dadosStr.check_troca_sim = 'V';
+        dadosStr.check_troca_sim = '✓ Sim';
         dadosStr.check_troca_nao = '';
       } else if (formData.troca_emergencial === 'NAO') {
         dadosStr.check_troca_sim = '';
-        dadosStr.check_troca_nao = 'V';
+        dadosStr.check_troca_nao = '✓ Não';
       }
       if (formData.deferido_indeferido === 'DEFERIDO') {
-        dadosStr.check_deferido = 'V';
+        dadosStr.check_deferido = '✓ Deferido';
         dadosStr.check_indeferido = '';
       } else if (formData.deferido_indeferido === 'INDEFERIDO') {
         dadosStr.check_deferido = '';
-        dadosStr.check_indeferido = 'V';
+        dadosStr.check_indeferido = '✓ Indeferido';
       }
-      const pdfBlob = await preencherPdf(pdfBytes, dadosStr, doc.document_fields.map(f => ({
-        field_name: f.field_name,
-        x: f.x,
-        y: f.y,
-        width: f.width,
-        height: f.height,
-        font_size: f.font_size,
-        is_signature: f.is_signature,
-        field_type: f.field_type,
-        page: f.page,
-      })));
+      const pdfBlob = await preencherPdf(pdfBytes, dadosStr, fieldPositionsFromDoc(doc));
       const docFills = await listarPreenchimentos(doc.id);
       setFills(docFills);
       setEditingFillId(null);
@@ -548,14 +561,11 @@ export function Trocas() {
         const cargoLabel = CARGO_OPTIONS.find(c => c.value === dadosStr.funcao_solicitante)?.label;
         if (cargoLabel) dadosStr.funcao_solicitante = cargoLabel;
       }
-      if (formData.troca_emergencial === 'SIM') { dadosStr.check_troca_sim = 'V'; dadosStr.check_troca_nao = ''; }
-      else if (formData.troca_emergencial === 'NAO') { dadosStr.check_troca_sim = ''; dadosStr.check_troca_nao = 'V'; }
-      if (formData.deferido_indeferido === 'DEFERIDO') { dadosStr.check_deferido = 'V'; dadosStr.check_indeferido = ''; }
-      else if (formData.deferido_indeferido === 'INDEFERIDO') { dadosStr.check_deferido = ''; dadosStr.check_indeferido = 'V'; }
-      const pdfBlob = await preencherPdf(pdfBytes, dadosStr, doc.document_fields.map(f => ({
-        field_name: f.field_name, x: f.x, y: f.y, width: f.width, height: f.height,
-        font_size: f.font_size, is_signature: f.is_signature, field_type: f.field_type, page: f.page,
-      })));
+      if (formData.troca_emergencial === 'SIM') { dadosStr.check_troca_sim = '✓ Sim'; dadosStr.check_troca_nao = ''; }
+      else if (formData.troca_emergencial === 'NAO') { dadosStr.check_troca_sim = ''; dadosStr.check_troca_nao = '✓ Não'; }
+      if (formData.deferido_indeferido === 'DEFERIDO') { dadosStr.check_deferido = '✓ Deferido'; dadosStr.check_indeferido = ''; }
+      else if (formData.deferido_indeferido === 'INDEFERIDO') { dadosStr.check_deferido = ''; dadosStr.check_indeferido = '✓ Indeferido'; }
+      const pdfBlob = await preencherPdf(pdfBytes, dadosStr, fieldPositionsFromDoc(doc));
       const url = URL.createObjectURL(pdfBlob);
       setPreviewPdfUrl(url);
       setShowPdfPreview(true);
@@ -589,14 +599,11 @@ export function Trocas() {
         const cargoLabel = CARGO_OPTIONS.find(c => c.value === dadosStr.funcao_solicitante)?.label;
         if (cargoLabel) dadosStr.funcao_solicitante = cargoLabel;
       }
-      if (data.troca_emergencial === 'SIM') { dadosStr.check_troca_sim = 'V'; dadosStr.check_troca_nao = ''; }
-      else if (data.troca_emergencial === 'NAO') { dadosStr.check_troca_sim = ''; dadosStr.check_troca_nao = 'V'; }
-      if (data.deferido_indeferido === 'DEFERIDO') { dadosStr.check_deferido = 'V'; dadosStr.check_indeferido = ''; }
-      else if (data.deferido_indeferido === 'INDEFERIDO') { dadosStr.check_deferido = ''; dadosStr.check_indeferido = 'V'; }
-      const pdfBlob = await preencherPdf(pdfBytes, dadosStr, templateDoc.document_fields.map(f => ({
-        field_name: f.field_name, x: f.x, y: f.y, width: f.width, height: f.height,
-        font_size: f.font_size, is_signature: f.is_signature, field_type: f.field_type, page: f.page,
-      })));
+      if (data.troca_emergencial === 'SIM') { dadosStr.check_troca_sim = '✓ Sim'; dadosStr.check_troca_nao = ''; }
+      else if (data.troca_emergencial === 'NAO') { dadosStr.check_troca_sim = ''; dadosStr.check_troca_nao = '✓ Não'; }
+      if (data.deferido_indeferido === 'DEFERIDO') { dadosStr.check_deferido = '✓ Deferido'; dadosStr.check_indeferido = ''; }
+      else if (data.deferido_indeferido === 'INDEFERIDO') { dadosStr.check_deferido = ''; dadosStr.check_indeferido = '✓ Indeferido'; }
+      const pdfBlob = await preencherPdf(pdfBytes, dadosStr, fieldPositionsFromDoc(templateDoc));
       const url = URL.createObjectURL(pdfBlob);
       window.open(url, '_blank');
     } catch {

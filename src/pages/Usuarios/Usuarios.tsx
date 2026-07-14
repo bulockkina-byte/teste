@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { UserCog, Search, Plus, Pencil, Trash2, Lock, ShieldCheck, ShieldOff } from 'lucide-react';
+import { UserCog, Search, Plus, Pencil, Trash2, Lock, ShieldCheck, ShieldOff, Link2, Copy, CheckCheck, Sparkles } from 'lucide-react';
+import { criarConvite, listarConvites, type Convite } from '../../services/conviteService';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { useAuth } from '../../context/AuthContext';
@@ -50,6 +51,8 @@ export function Usuarios() {
   const [formOpen, setFormOpen] = useState(false);
   const [editando, setEditando] = useState<{ username: string; name: string; role?: UserRole; previousRole?: UserRole; personId?: string; personType?: 'bombeiro' | 'apoc' } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [convites, setConvites] = useState<Convite[]>([]);
+  const [copiado, setCopiado] = useState<string | null>(null);
 
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
   const [apocs, setApocs] = useState<APOC[]>([]);
@@ -113,6 +116,25 @@ export function Usuarios() {
   }
 
   useEffect(() => { carregar(); }, [termo]);
+  useEffect(() => { setConvites(listarConvites()); }, []);
+
+  function handleGerarConvite() {
+    const convite = criarConvite();
+    setConvites(listarConvites());
+    const url = `${window.location.origin}/cadastro/convite/${convite.codigo}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiado(convite.codigo);
+      setTimeout(() => setCopiado(null), 3000);
+    });
+  }
+
+  function handleCopiarLink(codigo: string) {
+    const url = `${window.location.origin}/cadastro/convite/${codigo}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiado(codigo);
+      setTimeout(() => setCopiado(null), 3000);
+    });
+  }
 
   async function handleSave(data: { username: string; name: string; password: string; role: UserRole; personId?: string; personType?: 'bombeiro' | 'apoc' }) {
     const all = getLocalUsers();
@@ -392,6 +414,92 @@ export function Usuarios() {
           </table>
         </div>
       )}
+
+      <div className="mt-8 rounded-2xl border border-graphite-200 bg-white p-5 dark:border-border-dark dark:bg-surface-card">
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-100 dark:bg-purple-900/30">
+              <Link2 className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-graphite-900 dark:text-graphite-100">Convites</h3>
+              <p className="text-xs text-graphite-500">Links de acesso para novos usuários</p>
+            </div>
+          </div>
+          <button
+            onClick={handleGerarConvite}
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-purple-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-xl hover:from-purple-500 hover:to-purple-600 active:scale-[0.98]"
+          >
+            <Sparkles className="h-4 w-4" /> Gerar Convite
+          </button>
+        </div>
+
+        {convites.length === 0 ? (
+          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-graphite-300 bg-graphite-50/50 py-8 text-center dark:border-border-dark dark:bg-surface-hover/30">
+            <Link2 className="mb-3 h-8 w-8 text-graphite-300 dark:text-graphite-600" />
+            <p className="text-sm text-graphite-500 dark:text-graphite-400">Nenhum convite gerado ainda.</p>
+            <p className="text-xs text-graphite-400 dark:text-graphite-500">Clique em "Gerar Convite" para criar um link de acesso.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {convites.map(c => (
+              <div
+                key={c.codigo}
+                className={`flex items-center justify-between rounded-xl border px-4 py-3 transition-all ${
+                  c.usado
+                    ? 'border-green-200 bg-green-50/50 dark:border-green-800/30 dark:bg-green-900/10'
+                    : 'border-graphite-200 bg-white dark:border-border-dark dark:bg-surface-card'
+                }`}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                    c.usado ? 'bg-green-100 dark:bg-green-900/30' : 'bg-purple-100 dark:bg-purple-900/30'
+                  }`}>
+                    {c.usado
+                      ? <CheckCheck className="h-4 w-4 text-green-600 dark:text-green-400" />
+                      : <Link2 className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                    }
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-mono text-sm font-bold tracking-wider text-graphite-900 dark:text-graphite-100">
+                      {c.codigo}
+                    </p>
+                    <p className="text-xs text-graphite-500">
+                      {c.usado
+                        ? `Usado em ${new Date(c.usadoEm!).toLocaleDateString('pt-BR')} por ${c.registradoPor}`
+                        : `Criado em ${new Date(c.createdAt).toLocaleDateString('pt-BR')}`
+                      }
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {c.usado ? (
+                    <span className="rounded-full bg-green-100 px-3 py-1 text-[11px] font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                      Utilizado
+                    </span>
+                  ) : (
+                    <>
+                      <span className="rounded-full bg-purple-100 px-3 py-1 text-[11px] font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                        Ativo
+                      </span>
+                      <button
+                        onClick={() => handleCopiarLink(c.codigo)}
+                        className="flex items-center gap-1.5 rounded-lg border border-graphite-200 bg-white px-3 py-1.5 text-xs font-medium text-graphite-600 transition-all hover:bg-graphite-50 dark:border-border-dark dark:bg-surface-card dark:hover:bg-surface-hover"
+                      >
+                        {copiado === c.codigo ? (
+                          <><CheckCheck className="h-3.5 w-3.5 text-green-500" /> Copiado</>
+                        ) : (
+                          <><Copy className="h-3.5 w-3.5" /> Copiar Link</>
+                        )}
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {formOpen && (
         <UsuarioForm

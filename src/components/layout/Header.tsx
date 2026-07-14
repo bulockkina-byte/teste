@@ -130,7 +130,7 @@ export function Header() {
               <p className="text-[10px] font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400">
                 {displayRole}
               </p>
-              {cargoLabel && user?.role !== 'desenvolvedor' && (
+              {cargoLabel && (
                 <p className="text-[10px] uppercase text-graphite-500 dark:text-graphite-400">
                   {cargoLabel}
                 </p>
@@ -163,7 +163,7 @@ export function Header() {
                     <div className="min-w-0">
                       <p className="text-sm font-bold text-graphite-900 dark:text-graphite-100 truncate">{displayName}</p>
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400">{displayRole}</p>
-                      {cargoLabel && user?.role !== 'desenvolvedor' && (
+                      {cargoLabel && (
                         <p className="text-[10px] uppercase text-graphite-500 dark:text-graphite-400">{cargoLabel}</p>
                       )}
                       {fullName && fullName !== displayName && (

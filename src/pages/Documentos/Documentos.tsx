@@ -3,7 +3,7 @@ import {
   FileText, Plus, Search, Eye, Loader2,
   ChevronDown, ChevronUp, Edit3, CheckCircle,
   Trash2, Download, Upload, Shield, Save, ArrowLeft,
-  AlertTriangle, Package, Link,
+  AlertTriangle, Package, Link, X,
 } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
@@ -69,6 +69,8 @@ export function Documentos() {
   const [previewDoc, setPreviewDoc] = useState<DocumentWithFields | null>(null);
   const [previewPdfData, setPreviewPdfData] = useState<ArrayBuffer | null>(null);
   const [previewLoading] = useState(false);
+  const [showFilledPreview, setShowFilledPreview] = useState(false);
+  const [filledPreviewUrl, setFilledPreviewUrl] = useState('');
 
   // Vincular dropdown
   const [vincularOpen, setVincularOpen] = useState<string | null>(null);
@@ -606,6 +608,51 @@ export function Documentos() {
     return true;
   }
 
+  function gerarDadosAleatorios(doc: DocumentWithFields): Record<string, string> {
+    const dados: Record<string, string> = {};
+    doc.document_fields.forEach(f => {
+      if (f.is_signature) return;
+      const fn = f.field_name;
+      if (fn.startsWith('check_')) { dados[fn] = ''; return; }
+      switch (f.field_type) {
+        case 'date': dados[fn] = '2026-07-14'; break;
+        case 'number': dados[fn] = '123'; break;
+        case 'checkbox': dados[fn] = f.options?.[0] || 'SIM'; break;
+        case 'select': dados[fn] = f.options?.[0] || 'Opcao'; break;
+        case 'textarea': dados[fn] = 'Texto de exemplo para visualizacao de layout do documento.'; break;
+        default:
+          if (fn.includes('nome')) dados[fn] = 'Nome Exemplo';
+          else if (fn.includes('cpf')) dados[fn] = '123.456.789-00';
+          else if (fn.includes('email')) dados[fn] = 'exemplo@email.com';
+          else if (fn.includes('funcao') || fn.includes('cargo')) dados[fn] = 'Funcao Exemplo';
+          else if (fn.includes('data')) dados[fn] = '2026-07-14';
+          else dados[fn] = 'Exemplo ' + fn;
+      }
+    });
+    return dados;
+  }
+
+  async function handleVisualizarDoc() {
+    if (!selectedDoc || !selectedDoc.template_pdf_url || !pdfData) {
+      setNotifPopup({ msg: 'Envie um PDF template primeiro.', type: 'error' });
+      setTimeout(() => setNotifPopup(null), 3000);
+      return;
+    }
+    try {
+      const dadosStr = gerarDadosAleatorios(selectedDoc);
+      const pdfBlob = await preencherPdf(pdfData, dadosStr, selectedDoc.document_fields.map(f => ({
+        field_name: f.field_name, x: f.x, y: f.y, width: f.width, height: f.height,
+        font_size: f.font_size, is_signature: f.is_signature, field_type: f.field_type, page: f.page,
+      })));
+      const url = URL.createObjectURL(pdfBlob);
+      setFilledPreviewUrl(url);
+      setShowFilledPreview(true);
+    } catch {
+      setNotifPopup({ msg: 'Erro ao gerar visualizacao.', type: 'error' });
+      setTimeout(() => setNotifPopup(null), 3000);
+    }
+  }
+
   async function handleGerarPdf() {
     if (!selectedDoc || !validateForm()) return;
     setSaving(true);
@@ -1001,6 +1048,10 @@ export function Documentos() {
             <PageTitle icon={Edit3} title={selectedDoc.name} />
 
             <div className="ml-auto flex items-center gap-2">
+              <button onClick={handleVisualizarDoc}
+                className="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700">
+                <Eye className="h-3 w-3" /> Visualizar
+              </button>
               <button onClick={async () => {
                 if (!selectedDoc) return;
                 try {
@@ -1438,6 +1489,23 @@ export function Documentos() {
                   Confirmar
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {showFilledPreview && filledPreviewUrl && (
+          <div className="fixed inset-0 z-50 flex flex-col bg-white dark:bg-graphite-900">
+            <div className="flex items-center justify-between border-b border-graphite-200 px-6 py-3 dark:border-graphite-700">
+              <h2 className="text-lg font-semibold text-graphite-900 dark:text-graphite-100">
+                Visualizar Documento Preenchido
+              </h2>
+              <button onClick={() => { setShowFilledPreview(false); URL.revokeObjectURL(filledPreviewUrl); setFilledPreviewUrl(''); }}
+                className="rounded-lg border border-graphite-200 p-2 text-graphite-600 hover:bg-graphite-50 dark:border-graphite-600 dark:text-graphite-300 dark:hover:bg-graphite-700">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="flex-1 bg-graphite-100 dark:bg-graphite-800">
+              <iframe src={filledPreviewUrl} className="h-full w-full" title="Preview" />
             </div>
           </div>
         )}

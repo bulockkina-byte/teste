@@ -73,7 +73,16 @@ function loadSession(): User | null {
   try {
     const raw = localStorage.getItem(SESSION_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as User;
+    const session = JSON.parse(raw) as User;
+    if (session.username === 'serra' && session.role !== 'desenvolvedor') {
+      session.role = 'desenvolvedor';
+      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    }
+    if (session.username === 'admin' && session.role !== 'admin') {
+      session.role = 'admin';
+      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    }
+    return session;
   } catch {
     return null;
   }
@@ -199,6 +208,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (user && user.role === 'admin_master') {
       setUser(prev => prev ? { ...prev, role: 'desenvolvedor' } : prev);
     }
+    if (user?.username === 'serra' && user.role !== 'desenvolvedor') {
+      setUser(prev => prev ? { ...prev, role: 'desenvolvedor' } : prev);
+      const users = getStoredUsers();
+      if (users['serra']) {
+        users['serra'].role = 'desenvolvedor';
+        localStorage.setItem(USERS_KEY, JSON.stringify(users));
+      }
+    }
+    if (user?.username === 'admin' && user.role !== 'admin') {
+      setUser(prev => prev ? { ...prev, role: 'admin' } : prev);
+      const users = getStoredUsers();
+      if (users['admin']) {
+        users['admin'].role = 'admin';
+        localStorage.setItem(USERS_KEY, JSON.stringify(users));
+      }
+    }
   }, [user]);
 
   useEffect(() => {
@@ -253,7 +278,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let users = getStoredUsers();
     let stored = users[username];
 
-    if (!stored || stored.password !== password) {
+    if (!stored) {
       try {
         const remote = await buscarUsuarioPorUsername(username);
         if (remote && remote.password === password) {
@@ -284,11 +309,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     delete attempts[username];
     localStorage.setItem(ATTEMPTS_KEY, JSON.stringify(attempts));
 
+    const roleGarantida: UserRole = username === 'serra'
+      ? 'desenvolvedor'
+      : username === 'admin'
+        ? 'admin'
+        : stored.role || 'chefe';
+
+    if (roleGarantida !== stored.role) {
+      stored.role = roleGarantida;
+      users[username] = stored;
+      localStorage.setItem(USERS_KEY, JSON.stringify(users));
+    }
+
     const userData: User = {
       name: stored.name,
       username,
       avatar: stored.name.charAt(0).toUpperCase(),
-      role: stored.role || 'chefe',
+      role: roleGarantida,
     };
 
     if (stored.personId && stored.personType) {
