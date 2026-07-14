@@ -94,7 +94,7 @@ export function Login() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-black transition-all duration-200 hover:text-gray-600 dark:hover:text-graphite-300"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-black transition-all duration-200 hover:text-gray-600"
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -102,7 +102,7 @@ export function Login() {
               </div>
 
               {error && (
-                <div className="animate-slideUp rounded-xl bg-red-50 px-4 py-3 text-sm text-alert-red dark:bg-red-900/20">
+                <div className="animate-slideUp rounded-xl bg-red-50 px-4 py-3 text-sm text-alert-red">
                   {error}
                 </div>
               )}
