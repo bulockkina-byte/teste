@@ -205,7 +205,7 @@ export const DOCUMENT_TEMPLATES: DocumentTemplate[] = [
       },
       {
         field_name: 'check_troca_sim',
-        field_label: 'V SIM',
+        field_label: '✓ Sim',
         field_type: 'text',
         required: false,
         placeholder: null,
@@ -221,7 +221,7 @@ export const DOCUMENT_TEMPLATES: DocumentTemplate[] = [
       },
       {
         field_name: 'check_troca_nao',
-        field_label: 'V NAO',
+        field_label: '✓ Não',
         field_type: 'text',
         required: false,
         placeholder: null,
@@ -237,7 +237,7 @@ export const DOCUMENT_TEMPLATES: DocumentTemplate[] = [
       },
       {
         field_name: 'check_deferido',
-        field_label: 'V DEFERIDO',
+        field_label: '✓ Deferido',
         field_type: 'text',
         required: false,
         placeholder: null,
@@ -253,7 +253,7 @@ export const DOCUMENT_TEMPLATES: DocumentTemplate[] = [
       },
       {
         field_name: 'check_indeferido',
-        field_label: 'V INDEFERIDO',
+        field_label: '✓ Indeferido',
         field_type: 'text',
         required: false,
         placeholder: null,

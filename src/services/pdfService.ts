@@ -58,7 +58,15 @@ export async function preencherPdf(
       const pdfX = pos.x / VIEWPORT_SCALE;
       const pdfY = pageHeight - (pos.y / VIEWPORT_SCALE) - fontSize - 2;
 
-      page.drawText(value, { x: pdfX + 2, y: pdfY, size: fontSize, font, color: rgb(0, 0, 0) });
+      if (value === 'V' && pos.field_name.startsWith('check_')) {
+        const cs = fontSize * 0.5;
+        const cx = pdfX + 2;
+        const cy = pdfY + cs * 0.2;
+        page.drawLine({ start: { x: cx, y: cy + cs * 0.5 }, end: { x: cx + cs * 0.4, y: cy }, thickness: fontSize * 0.12, color: rgb(0, 0, 0) });
+        page.drawLine({ start: { x: cx + cs * 0.4, y: cy }, end: { x: cx + cs, y: cy + cs * 0.7 }, thickness: fontSize * 0.12, color: rgb(0, 0, 0) });
+      } else {
+        page.drawText(value, { x: pdfX + 2, y: pdfY, size: fontSize, font, color: rgb(0, 0, 0) });
+      }
     }
   }
 
