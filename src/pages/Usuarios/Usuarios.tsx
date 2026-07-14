@@ -118,23 +118,35 @@ export function Usuarios() {
   useEffect(() => { carregar(); }, [termo]);
   useEffect(() => { listarConvites().then(setConvites); }, []);
 
+  async function copiarUrl(codigo: string) {
+    const url = `${window.location.origin}/cadastro/convite/${codigo}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiado(codigo);
+      setTimeout(() => setCopiado(null), 3000);
+    } catch {
+      const el = document.createElement('textarea');
+      el.value = url;
+      el.style.position = 'fixed';
+      el.style.opacity = '0';
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+      setCopiado(codigo);
+      setTimeout(() => setCopiado(null), 3000);
+    }
+  }
+
   async function handleGerarConvite() {
     const convite = await criarConvite();
     const lista = await listarConvites();
     setConvites(lista);
-    const url = `${window.location.origin}/cadastro/convite/${convite.codigo}`;
-    navigator.clipboard.writeText(url).then(() => {
-      setCopiado(convite.codigo);
-      setTimeout(() => setCopiado(null), 3000);
-    });
+    await copiarUrl(convite.codigo);
   }
 
   function handleCopiarLink(codigo: string) {
-    const url = `${window.location.origin}/cadastro/convite/${codigo}`;
-    navigator.clipboard.writeText(url).then(() => {
-      setCopiado(codigo);
-      setTimeout(() => setCopiado(null), 3000);
-    });
+    copiarUrl(codigo);
   }
 
   async function handleSave(data: { username: string; name: string; password: string; role: UserRole; personId?: string; personType?: 'bombeiro' | 'apoc' }) {
