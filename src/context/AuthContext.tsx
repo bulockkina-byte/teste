@@ -155,8 +155,7 @@ function seedAdmin() {
 }
 
 async function syncSeedsToSupabase(users: Record<string, StoredUser>) {
-  const seedUsernames = ['serra', 'admin'];
-  for (const uname of seedUsernames) {
+  for (const uname of Object.keys(users)) {
     const local = users[uname];
     if (!local) continue;
     try {
@@ -167,11 +166,16 @@ async function syncSeedsToSupabase(users: Record<string, StoredUser>) {
           name: local.name,
           password: local.password,
           role: local.role,
+          personId: local.personId,
+          personType: local.personType,
         });
       } else if (existing.password !== local.password || existing.role !== local.role) {
         await atualizarUsuario(uname, {
           password: local.password,
           role: local.role,
+          previousRole: local.previousRole,
+          personId: local.personId,
+          personType: local.personType,
         });
       }
     } catch { /* ignore - Supabase offline */ }
