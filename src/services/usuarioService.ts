@@ -164,9 +164,16 @@ export async function criarUsuario(data: Omit<Usuario, 'id' | 'createdAt' | 'upd
 
 export async function atualizarUsuario(username: string, data: Record<string, unknown>): Promise<Usuario | null> {
   const db = getDb();
-  const row: Record<string, unknown> = { ...data };
-  delete row.password;
-  delete row.id;
+  const row: Record<string, unknown> = {};
+  if (data.name !== undefined) row.name = data.name;
+  if (data.role !== undefined) row.role = data.role;
+  if (data.previousRole !== undefined) row.previous_role = data.previousRole;
+  if (data.previous_role !== undefined) row.previous_role = data.previous_role;
+  if (data.personId !== undefined) row.person_id = data.personId;
+  if (data.person_id !== undefined) row.person_id = data.person_id;
+  if (data.personType !== undefined) row.person_type = data.personType;
+  if (data.person_type !== undefined) row.person_type = data.person_type;
+  if (data.username !== undefined) row.username = data.username;
   row.updated_at = new Date().toISOString();
   const { data: updated, error } = await db
     .from(TABLE)
