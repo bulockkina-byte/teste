@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { UserCog, Search, Plus, Pencil, Trash2, Lock, ShieldCheck, ShieldOff, Link2, Copy, CheckCheck, Sparkles, AlertTriangle, LinkIcon, CheckCircle2, AlertCircle } from 'lucide-react';
+import { UserCog, Search, Plus, Pencil, Trash2, Lock, ShieldCheck, ShieldOff, Link2, Copy, CheckCheck, Sparkles, AlertTriangle, LinkIcon, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
 import { criarConvite, listarConvites, type Convite } from '../../services/conviteService';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
@@ -91,6 +91,13 @@ export function Usuarios() {
         localUsers[uname] = data;
       }
       saveLocalUsers(localUsers);
+
+      const remoteNames = new Set(entries.map(([u]) => u));
+      for (const [uname, data] of Object.entries(localUsers)) {
+        if (!remoteNames.has(uname)) {
+          entries.push([uname, migrarRole(data)]);
+        }
+      }
 
       if (termo) {
         const t = termo.toLowerCase();
@@ -501,22 +508,28 @@ export function Usuarios() {
           </div>
         ) : (
           <div className="space-y-2">
-            {convites.map(c => (
+            {convites.map(c => {
+              const expirado = !c.usado && new Date(c.expiresAt).getTime() < Date.now();
+              return (
               <div
                 key={c.codigo}
                 className={`flex items-center justify-between rounded-xl border px-4 py-3 transition-all ${
                   c.usado
                     ? 'border-green-200 bg-green-50/50 dark:border-green-800/30 dark:bg-green-900/10'
-                    : 'border-graphite-200 bg-white dark:border-border-dark dark:bg-surface-card'
+                    : expirado
+                      ? 'border-red-200 bg-red-50/50 dark:border-red-800/30 dark:bg-red-900/10'
+                      : 'border-graphite-200 bg-white dark:border-border-dark dark:bg-surface-card'
                 }`}
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-                    c.usado ? 'bg-green-100 dark:bg-green-900/30' : 'bg-purple-100 dark:bg-purple-900/30'
+                    c.usado ? 'bg-green-100 dark:bg-green-900/30' : expirado ? 'bg-red-100 dark:bg-red-900/30' : 'bg-purple-100 dark:bg-purple-900/30'
                   }`}>
                     {c.usado
                       ? <CheckCheck className="h-4 w-4 text-green-600 dark:text-green-400" />
-                      : <Link2 className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                      : expirado
+                        ? <Clock className="h-4 w-4 text-red-500 dark:text-red-400" />
+                        : <Link2 className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                     }
                   </div>
                   <div className="min-w-0">
@@ -526,7 +539,9 @@ export function Usuarios() {
                     <p className="text-xs text-graphite-500">
                       {c.usado
                         ? `Usado em ${new Date(c.usadoEm!).toLocaleDateString('pt-BR')} por ${c.registradoPor}`
-                        : `Criado em ${new Date(c.createdAt).toLocaleDateString('pt-BR')}`
+                        : expirado
+                          ? `Expirou em ${new Date(c.expiresAt).toLocaleDateString('pt-BR')} às ${new Date(c.expiresAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+                          : `Expira em ${new Date(c.expiresAt).toLocaleDateString('pt-BR')} às ${new Date(c.expiresAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
                       }
                     </p>
                   </div>
@@ -535,6 +550,10 @@ export function Usuarios() {
                   {c.usado ? (
                     <span className="rounded-full bg-green-100 px-3 py-1 text-[11px] font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
                       Utilizado
+                    </span>
+                  ) : expirado ? (
+                    <span className="rounded-full bg-red-100 px-3 py-1 text-[11px] font-medium text-red-600 dark:bg-red-900/30 dark:text-red-400">
+                      Expirado
                     </span>
                   ) : (
                     <>
@@ -555,7 +574,8 @@ export function Usuarios() {
                   )}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
