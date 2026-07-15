@@ -4,7 +4,7 @@ import { criarConvite, listarConvites, type Convite } from '../../services/convi
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { useAuth } from '../../context/AuthContext';
-import { ROLE_LABELS, type UserRole } from '../../context/AuthContext';
+import { ROLE_LABELS, cargoParaUserRole, apocParaUserRole, type UserRole } from '../../context/AuthContext';
 import type { StoredUser } from '../../context/AuthContext';
 import { UsuarioForm } from './UsuarioForm';
 import { listarAtivos } from '../../services/bombeiroService';
@@ -337,6 +337,12 @@ export function Usuarios() {
                     ? FUNCAO_APOC_OPTIONS.find(f => f.value === (person as APOC).funcao)?.label
                     : undefined;
 
+                const personRole = person && 'cargo' in person && person.cargo
+                  ? cargoParaUserRole(person.cargo)
+                  : person && 'funcao' in person && person.funcao
+                    ? apocParaUserRole(person.funcao)
+                    : undefined;
+
                 const isViewerDev = user?.role === 'desenvolvedor';
                 const isTargetAdmin = data.role === 'admin';
                 const isTargetDev = data.role === 'desenvolvedor';
@@ -383,6 +389,11 @@ export function Usuarios() {
                       {data.role === 'admin' && data.previousRole && (
                         <span className={`inline-flex w-fit rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${ROLE_BADGE[data.previousRole] || ROLE_BADGE.chefe}`}>
                           {ROLE_LABELS[data.previousRole] || data.previousRole}
+                        </span>
+                      )}
+                      {data.role === 'desenvolvedor' && personRole && (
+                        <span className={`inline-flex w-fit rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${ROLE_BADGE[personRole] || ROLE_BADGE.chefe}`}>
+                          {ROLE_LABELS[personRole] || personRole}
                         </span>
                       )}
                       {!data.personId && (
