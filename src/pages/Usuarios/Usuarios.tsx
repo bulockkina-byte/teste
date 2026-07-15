@@ -386,12 +386,12 @@ export function Usuarios() {
                       <span className={`inline-flex w-fit rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${ROLE_BADGE[displayRole] || ROLE_BADGE.chefe}`}>
                         {ROLE_LABELS[displayRole] || displayRole}
                       </span>
-                      {data.previousRole && (
+                      {data.role === 'admin' && data.previousRole && (
                         <span className={`inline-flex w-fit rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${ROLE_BADGE[data.previousRole] || ROLE_BADGE.chefe}`}>
                           {ROLE_LABELS[data.previousRole] || data.previousRole}
                         </span>
                       )}
-                      {!data.previousRole && personRole && personRole !== data.role && (
+                      {data.role === 'desenvolvedor' && personRole && (
                         <span className={`inline-flex w-fit rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${ROLE_BADGE[personRole] || ROLE_BADGE.chefe}`}>
                           {ROLE_LABELS[personRole] || personRole}
                         </span>
