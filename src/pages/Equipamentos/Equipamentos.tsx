@@ -80,7 +80,7 @@ export function Equipamentos() {
   const debouncedTermo = useDebounce(termo, 400);
   const debouncedPessoa = useDebounce(buscaPessoa, 300);
 
-  useEffect(() => { setLista(listarEquipamentos()); }, []);
+  useEffect(() => { listarEquipamentos().then(setLista); }, []);
 
   useEffect(() => {
     Promise.all([listarAtivos(), listarAPOCs()]).then(([b, a]) => {
@@ -126,12 +126,12 @@ export function Equipamentos() {
     setSaving(true);
     try {
       if (editando) {
-        atualizarEquipamento(editando.id, form);
+        await atualizarEquipamento(editando.id, form);
       } else {
-        criarEquipamento({ ...form, createdBy: user?.username || '' });
+        await criarEquipamento({ ...form, createdBy: user?.username || '' });
       }
       setFormOpen(false);
-      setLista(listarEquipamentos());
+      setLista(await listarEquipamentos());
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Erro ao salvar');
     } finally {
@@ -139,10 +139,10 @@ export function Equipamentos() {
     }
   }
 
-  function handleDelete(id: string) {
-    excluirEquipamento(id);
+  async function handleDelete(id: string) {
+    await excluirEquipamento(id);
     setConfirmDelete(null);
-    setLista(listarEquipamentos());
+    setLista(await listarEquipamentos());
   }
 
   function updateField<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
@@ -178,26 +178,26 @@ export function Equipamentos() {
     return lista.filter(p => p.nome.toLowerCase().includes(t) || p.funcao.toLowerCase().includes(t));
   }, [bombeiros, apocs, debouncedPessoa]);
 
-  function handleLinkPerson(person: PersonLink) {
+  async function handleLinkPerson(person: PersonLink) {
     if (!linkModal) return;
-    atualizarEquipamento(linkModal.id, {
+    await atualizarEquipamento(linkModal.id, {
       responsavel: person.nome,
       responsavelId: person.id,
       responsavelTipo: person.tipo,
     });
-    setLista(listarEquipamentos());
+    setLista(await listarEquipamentos());
     setLinkModal(null);
     setBuscaPessoa('');
   }
 
-  function handleUnlinkPerson() {
+  async function handleUnlinkPerson() {
     if (!linkModal) return;
-    atualizarEquipamento(linkModal.id, {
+    await atualizarEquipamento(linkModal.id, {
       responsavel: '',
       responsavelId: undefined,
       responsavelTipo: undefined,
     });
-    setLista(listarEquipamentos());
+    setLista(await listarEquipamentos());
     setLinkModal(null);
   }
 

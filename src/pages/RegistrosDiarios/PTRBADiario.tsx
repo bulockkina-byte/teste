@@ -614,8 +614,8 @@ export function PTRBADiario() {
     return true;
   });
 
-  function carregar() {
-    const todas = listarPTRBs();
+  async function carregar() {
+    const todas = await listarPTRBs();
     if (isAdmin || isGerente) {
       setPtrbs(todas);
     } else if (userEquipe) {
@@ -627,12 +627,12 @@ export function PTRBADiario() {
 
   useEffect(() => { carregar(); }, [isAdmin, isGerente, username, userEquipe]);
 
-  function handleSave(data: Omit<PTRB, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) {
+  async function handleSave(data: Omit<PTRB, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) {
     let saved: PTRB | null;
     if (editando && editando.id) {
-      saved = atualizarPTRB(editando.id, data);
+      saved = await atualizarPTRB(editando.id, data);
     } else {
-      saved = criarPTRB({ ...data, createdBy: username });
+      saved = await criarPTRB({ ...data, createdBy: username });
     }
     setEditando(null);
     carregar();

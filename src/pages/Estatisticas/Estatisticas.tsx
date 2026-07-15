@@ -122,9 +122,15 @@ function MiniBar({ label, value, max, color }: { label: string; value: number; m
 
 function TabVisaoGeral() {
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
+  const [ocorrencias, setOcorrencias] = useState<any[]>([]);
+  const [ptrbs, setPtrbs] = useState<any[]>([]);
+  const [certsCount, setCertsCount] = useState(0);
+  const [subsCount, setSubsCount] = useState(0);
   useEffect(() => { listarAtivos().then(setBombeiros); }, []);
-
-  const ocorrencias = useMemo(() => listarOcorrencias(), []);
+  useEffect(() => { listarOcorrencias().then(setOcorrencias); }, []);
+  useEffect(() => { listarPTRBs().then(setPtrbs); }, []);
+  useEffect(() => { listarCertificacoes().then(c => setCertsCount(c.length)); }, []);
+  useEffect(() => { listarSubstituicoesTemporarias().then(s => { if (Array.isArray(s)) setSubsCount(s.filter((x: any) => x.status === 'Pendente').length); }); }, []);
   const feriasGozo = useMemo(() => {
     try { return JSON.parse(localStorage.getItem('sescinc-ferias-gozo') || '[]'); } catch { return []; }
   }, []) as any[];
@@ -153,7 +159,6 @@ function TabVisaoGeral() {
     const mapO: Record<string, number> = {}; meses.forEach(m => mapO[m] = 0);
     const mapT: Record<string, number> = {}; meses.forEach(m => mapT[m] = 0);
     ocorrencias.forEach(o => { const k = chaveMes(o.data); if (k in mapO) mapO[k]++; });
-    const ptrbs = listarPTRBs();
     ptrbs.forEach(p => { const k = chaveMes(p.data); if (k in mapT) mapT[k]++; });
     return meses.map(m => ({ mes: m, Ocorrências: mapO[m], Treinamentos: mapT[m] }));
   }, [ocorrencias]);
@@ -171,9 +176,9 @@ function TabVisaoGeral() {
         <StatCard icon={Users} label="Efetivo Total" value={bombeiros.length} sub={`${stats.porEquipe.length} equipes`} trend="up" color="bg-gradient-to-br from-blue-500 to-blue-700" />
         <StatCard icon={AlertTriangle} label="Ocorrências (mês)" value={stats.ocorrenciasMes} sub={`${ocorrencias.length} total`} color="bg-gradient-to-br from-red-500 to-red-700" />
         <StatCard icon={Calendar} label="Em Férias" value={stats.emFerias} color="bg-gradient-to-br from-amber-500 to-amber-700" />
-        <StatCard icon={Activity} label="Certificações" value={useMemo(() => listarCertificacoes().length, [])} color="bg-gradient-to-br from-emerald-500 to-emerald-700" />
+        <StatCard icon={Activity} label="Certificações" value={certsCount} color="bg-gradient-to-br from-emerald-500 to-emerald-700" />
         <StatCard icon={Truck} label="Viaturas CCI" value={useMemo(() => { try { return JSON.parse(localStorage.getItem('sescinc-viaturas') || '[]').length; } catch { return 0; }}, [])} color="bg-gradient-to-br from-cyan-500 to-cyan-700" />
-        <StatCard icon={Clock} label="Substituições" value={useMemo(() => { const s = listarSubstituicoesTemporarias() as any; return Array.isArray(s) ? s.filter((x: any) => x.status === 'Pendente').length : 0; }, [])} color="bg-gradient-to-br from-purple-500 to-purple-700" />
+        <StatCard icon={Clock} label="Substituições" value={subsCount} color="bg-gradient-to-br from-purple-500 to-purple-700" />
       </div>
 
       {/* Charts Row 1 */}
@@ -253,9 +258,10 @@ function TabVisaoGeral() {
 // ═══════════════════════════════════════════════════════════
 
 function TabTreinamentos() {
-  const ptrbs = useMemo(() => listarPTRBs(), []);
+  const [ptrbs, setPtrbs] = useState<any[]>([]);
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
   useEffect(() => { listarAtivos().then(setBombeiros); }, []);
+  useEffect(() => { listarPTRBs().then(setPtrbs); }, []);
   const [periodo, setPeriodo] = useState<1 | 3 | 6 | 12>(6);
 
   const filtrados = useMemo(() => {
@@ -411,9 +417,10 @@ function TabTreinamentos() {
 // ═══════════════════════════════════════════════════════════
 
 function TabCertificacoes() {
-  const certs = useMemo(() => listarCertificacoes(), []);
+  const [certs, setCerts] = useState<any[]>([]);
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
   useEffect(() => { listarAtivos().then(setBombeiros); }, []);
+  useEffect(() => { listarCertificacoes().then(setCerts); }, []);
   const agora = new Date();
 
   const stats = useMemo(() => {
@@ -536,10 +543,12 @@ function TabCertificacoes() {
 // ═══════════════════════════════════════════════════════════
 
 function TabDesempenho() {
-  const ptrbs = useMemo(() => listarPTRBs(), []);
-  const ocorrencias = useMemo(() => listarOcorrencias(), []);
+  const [ptrbs, setPtrbs] = useState<any[]>([]);
+  const [ocorrencias, setOcorrencias] = useState<any[]>([]);
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
   useEffect(() => { listarAtivos().then(setBombeiros); }, []);
+  useEffect(() => { listarPTRBs().then(setPtrbs); }, []);
+  useEffect(() => { listarOcorrencias().then(setOcorrencias); }, []);
 
   const meses = getMeses();
 

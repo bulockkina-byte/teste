@@ -580,8 +580,8 @@ export function EscalaDiariaView() {
 
   const escalasFiltradas = filtroEquipe ? escalas.filter(e => e.equipe === filtroEquipe) : escalas;
 
-  function carregar() {
-    const todas = listarEscalas();
+  async function carregar() {
+    const todas = await listarEscalas();
     if (isAdmin) {
       setEscalas(todas);
     } else {
@@ -591,12 +591,12 @@ export function EscalaDiariaView() {
 
   useEffect(() => { carregar(); }, [isAdmin, username]);
 
-  function handleSave(data: Omit<EscalaDiaria, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) {
+  async function handleSave(data: Omit<EscalaDiaria, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) {
     let saved: EscalaDiaria | null;
     if (editando && editando.id) {
-      saved = atualizarEscala(editando.id, data);
+      saved = await atualizarEscala(editando.id, data);
     } else {
-      saved = criarEscala({ ...data, createdBy: username });
+      saved = await criarEscala({ ...data, createdBy: username });
     }
     setEditando(null);
     carregar();
@@ -620,8 +620,8 @@ export function EscalaDiariaView() {
     setMode('form');
   }
 
-  function handleDelete(id: string) {
-    excluirEscala(id);
+  async function handleDelete(id: string) {
+    await excluirEscala(id);
     setConfirmDelete(null);
     carregar();
   }

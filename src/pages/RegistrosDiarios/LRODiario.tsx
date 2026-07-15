@@ -823,8 +823,8 @@ export function LRODiario() {
   const ANOS = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
   const inputClass = 'rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated';
 
-  function carregar() {
-    const atuais = listarLROs();
+  async function carregar() {
+    const atuais = await listarLROs();
     if (isAdmin || isGerente) {
       setLros(atuais);
     } else if (userEquipe) {
@@ -850,12 +850,12 @@ export function LRODiario() {
     filtradas = filtradas.filter(e => e.equipe === filtroEquipe);
   }
 
-  function handleSave(data: Omit<LRO, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>, stayInForm = false) {
+  async function handleSave(data: Omit<LRO, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>, stayInForm = false) {
     let saved: LRO | null;
     if (editando && editando.id) {
-      saved = atualizarLRO(editando.id, data);
+      saved = await atualizarLRO(editando.id, data);
     } else {
-      saved = criarLRO({ ...data, createdBy: username });
+      saved = await criarLRO({ ...data, createdBy: username });
     }
     carregar();
     if (saved && stayInForm) {

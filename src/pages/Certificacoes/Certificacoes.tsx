@@ -581,7 +581,7 @@ export function Certificacoes() {
       }
     })();
   }, [isChefe, user?.username]);
-  function carregar() { setCertNR(listarCertificacoes()); setCertCurso(listarCertificacoesCursos()); }
+  async function carregar() { setCertNR(await listarCertificacoes()); setCertCurso(await listarCertificacoesCursos()); }
   useEffect(() => { carregar(); }, []);
 
   const filtrados = useMemo(() => {
@@ -643,7 +643,7 @@ export function Certificacoes() {
                     <button onClick={() => setFormNR(null)} className="rounded-lg p-1 text-graphite-400 hover:bg-graphite-100 dark:hover:bg-surface-hover"><X className="h-4 w-4" /></button>
                   </div>
                   <div className="p-4">
-                    <NRFormInline funcionarioId={b.id} funcionarioNome={b.nomeCompleto} onSave={d => { criarCertificacao(d); carregar(); setFormNR(null); }} onCancel={() => setFormNR(null)} />
+                    <NRFormInline funcionarioId={b.id} funcionarioNome={b.nomeCompleto} onSave={async d => { await criarCertificacao(d); carregar(); setFormNR(null); }} onCancel={() => setFormNR(null)} />
                   </div>
                 </div>
               )}
@@ -654,7 +654,7 @@ export function Certificacoes() {
                     <button onClick={() => setFormCurso(null)} className="rounded-lg p-1 text-graphite-400 hover:bg-graphite-100 dark:hover:bg-surface-hover"><X className="h-4 w-4" /></button>
                   </div>
                   <div className="p-4">
-                    <CursoFormInline funcionarioId={b.id} funcionarioNome={b.nomeCompleto} onSave={d => { criarCertificacaoCurso(d); carregar(); setFormCurso(null); }} onCancel={() => setFormCurso(null)} />
+                    <CursoFormInline funcionarioId={b.id} funcionarioNome={b.nomeCompleto} onSave={async d => { await criarCertificacaoCurso(d); carregar(); setFormCurso(null); }} onCancel={() => setFormCurso(null)} />
                   </div>
                 </div>
               )}

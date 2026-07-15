@@ -10,7 +10,7 @@ import { listarOcorrencias, criarOcorrencia, atualizarOcorrencia, excluirOcorren
 import { CATEGORIAS_OCORRENCIA, STATUS_OCORRENCIA, EQUIPES } from '../../types/ocorrencia';
 import type { Ocorrencia } from '../../types/ocorrencia';
 
-const STORAGE = 'sescinc-lro-ocorrencias';
+
 
 function emptyOcorrencia(): Omit<Ocorrencia, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'> {
   return {
@@ -344,7 +344,7 @@ export function LROOcorrencias() {
   const ANOS = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
   const inputClass = 'rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated';
 
-  function carregar() { setOcorrencias(listarOcorrencias(STORAGE)); }
+  async function carregar() { setOcorrencias(await listarOcorrencias()); }
   useEffect(() => { carregar(); }, []);
 
   const filtradas = useMemo(() => {
@@ -367,19 +367,19 @@ export function LROOcorrencias() {
     return list;
   }, [ocorrencias, canFilterTeam, userEquipe, filtroEquipe, filtroAno, filtroMes]);
 
-  function handleSave(data: Omit<Ocorrencia, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) {
+  async function handleSave(data: Omit<Ocorrencia, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) {
     if (editando && editando.id) {
-      atualizarOcorrencia(editando.id, data, STORAGE);
+      await atualizarOcorrencia(editando.id, data);
     } else {
-      criarOcorrencia({ ...data, createdBy: username }, STORAGE);
+      await criarOcorrencia({ ...data, createdBy: username });
     }
     carregar();
     setEditando(null);
     setMode('list');
   }
 
-  function handleDelete(id: string) {
-    excluirOcorrencia(id, STORAGE);
+  async function handleDelete(id: string) {
+    await excluirOcorrencia(id);
     setConfirmDelete(null);
     carregar();
   }

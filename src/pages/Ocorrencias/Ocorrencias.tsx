@@ -498,7 +498,7 @@ export function Ocorrencias() {
   const ANOS = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
   const inputClass = 'rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all duration-200 hover:border-graphite-400 focus:border-aviation-500 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:hover:border-graphite-500 dark:focus:border-aviation-400 dark:focus:bg-surface-elevated dark:focus:ring-aviation-400/10 dark:placeholder:text-graphite-500';
 
-  function carregar() { setOcorrencias(listarOcorrencias()); }
+  async function carregar() { setOcorrencias(await listarOcorrencias()); }
   useEffect(() => { carregar(); }, []);
 
   const filtradas = useMemo(() => {
@@ -524,12 +524,12 @@ export function Ocorrencias() {
     return list;
   }, [ocorrencias, canFilterTeam, userEquipe, filtroEquipe, filtroTipo, filtroAno, filtroMes]);
 
-  function handleSave(data: Omit<Ocorrencia, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>, stayInForm = false) {
+  async function handleSave(data: Omit<Ocorrencia, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>, stayInForm = false) {
     let saved: Ocorrencia | null;
     if (savedId) {
-      saved = atualizarOcorrencia(savedId, data);
+      saved = await atualizarOcorrencia(savedId, data);
     } else {
-      saved = criarOcorrencia({ ...data, createdBy: username });
+      saved = await criarOcorrencia({ ...data, createdBy: username });
       if (saved) setSavedId(saved.id);
     }
     carregar();
