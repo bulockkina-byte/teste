@@ -85,7 +85,7 @@ export function ConviteRegister() {
     setError('');
     setLoading(true);
     try {
-      await register(username, username, password, 'lider');
+      await register(username, username, password, 'sem_funcao');
       if (codigo) {
         try { await usarConvite(codigo.toUpperCase(), username); } catch { console.warn('Convite nao foi marcado como usado. Admin pode reutilizar.'); }
       }

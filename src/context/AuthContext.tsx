@@ -9,7 +9,7 @@ import {
   atualizarUsuario,
 } from '../services/usuarioService';
 
-export type UserRole = 'desenvolvedor' | 'admin' | 'gerente' | 'chefe' | 'lider';
+export type UserRole = 'desenvolvedor' | 'admin' | 'gerente' | 'chefe' | 'lider' | 'sem_funcao';
 
 export const ROLE_LABELS: Record<UserRole, string> = {
   desenvolvedor: 'Desenvolvedor',
@@ -17,6 +17,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   gerente: 'Gerente da Seção de Combate a Incêndio',
   chefe: 'Chefe de Equipe',
   lider: 'Líder de Resgate',
+  sem_funcao: 'Sem Função Atribuída',
 };
 
 export interface PessoaVinculada {
@@ -95,7 +96,7 @@ function clearSession() {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   isAuthenticated: false,
-  effectiveRole: 'chefe',
+  effectiveRole: 'sem_funcao',
   login: async () => {},
   register: async () => {},
   logout: () => {},
@@ -148,7 +149,7 @@ async function syncSeedsToSupabase(users: Record<string, StoredUser>) {
   }
 }
 
-const ROLE_HIERARQUIA: UserRole[] = ['desenvolvedor', 'admin', 'gerente', 'chefe', 'lider'];
+const ROLE_HIERARQUIA: UserRole[] = ['desenvolvedor', 'admin', 'gerente', 'chefe', 'lider', 'sem_funcao'];
 
 function cargoParaUserRole(cargo: string): UserRole | null {
   if (cargo === 'GS') return 'gerente';
@@ -262,7 +263,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ? 'desenvolvedor'
       : username === 'admin'
         ? 'admin'
-        : remote.role || 'chefe';
+        : remote.role || 'sem_funcao';
 
     const userData: User = {
       name: remote.name,
@@ -367,7 +368,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const effectiveRole = useMemo(() => {
-    if (!user) return 'chefe';
+    if (!user) return 'sem_funcao';
     if (user.substituindoFuncao) {
       const userIdx = ROLE_HIERARQUIA.indexOf(user.role);
       const subIdx = ROLE_HIERARQUIA.indexOf(user.substituindoFuncao);

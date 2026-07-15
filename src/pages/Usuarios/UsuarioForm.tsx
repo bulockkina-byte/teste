@@ -207,6 +207,18 @@ export function UsuarioForm({ user, onSave, onClose }: Props) {
               className={input} />
           </div>
 
+          <div>
+            <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Função *</label>
+            <select value={role} onChange={e => setRole(e.target.value as UserRole)}
+              className={input}>
+              <option value="sem_funcao">Sem Função Atribuída</option>
+              <option value="lider">Líder de Resgate</option>
+              <option value="chefe">Chefe de Equipe</option>
+              <option value="gerente">Gerente da Seção de Combate a Incêndio</option>
+              <option value="admin">Administrador</option>
+            </select>
+          </div>
+
           {erro && <p className="text-sm text-alert-red dark:text-red-400">{erro}</p>}
 
           <div className="flex justify-end gap-3 pt-2">
