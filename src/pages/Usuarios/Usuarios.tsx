@@ -11,9 +11,10 @@ import { listarAtivos } from '../../services/bombeiroService';
 import { listarAPOCs } from '../../services/apocService';
 import {
   listarUsuarios as listarUsuariosDb,
-  criarUsuario,
+  criarUsuarioComHash,
   atualizarUsuario,
   excluirUsuario,
+  atualizarSenha,
 } from '../../services/usuarioService';
 import type { Bombeiro } from '../../types/bombeiro';
 import type { APOC } from '../../types/apoc';
@@ -98,7 +99,7 @@ export function Usuarios() {
       const remote = await listarUsuariosDb();
       const entries: [string, StoredUser][] = remote.map(u => [
         u.username,
-        migrarRole({ name: u.name, password: u.password, role: u.role as UserRole, previousRole: u.previousRole as UserRole | undefined, personId: u.personId, personType: u.personType }),
+        migrarRole({ name: u.name, role: u.role as UserRole, previousRole: u.previousRole as UserRole | undefined, personId: u.personId, personType: u.personType }),
       ]);
       if (termo) {
         const t = termo.toLowerCase();
@@ -174,14 +175,15 @@ export function Usuarios() {
           await excluirUsuario(editando.username);
         }
         await atualizarUsuario(data.username, {
-          username: data.username,
           name: data.name,
-          password: data.password,
           role: data.role,
           previousRole,
           personId: data.personId,
           personType: data.personType,
         });
+        if (data.password) {
+          await atualizarSenha(data.username, data.password);
+        }
       } else {
         if (data.role === 'desenvolvedor' && user?.role !== 'desenvolvedor') {
           setMensagem({ tipo: 'erro', texto: 'Apenas desenvolvedores podem atribuir o papel de desenvolvedor.' });
@@ -191,7 +193,7 @@ export function Usuarios() {
           setMensagem({ tipo: 'erro', texto: 'Apenas desenvolvedores podem criar administradores.' });
           return;
         }
-        await criarUsuario({
+        await criarUsuarioComHash({
           username: data.username,
           name: data.name,
           password: data.password,
@@ -244,6 +246,7 @@ export function Usuarios() {
       }
 
       await atualizarUsuario(username, {
+        name: target.name,
         role: newRole,
         previousRole: newPreviousRole,
       });

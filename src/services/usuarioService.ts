@@ -18,7 +18,6 @@ export interface Usuario {
   id: string;
   username: string;
   name: string;
-  password: string;
   role: UserRole;
   previousRole?: UserRole;
   personId?: string;
@@ -32,7 +31,6 @@ function rowToUsuario(row: Record<string, unknown>): Usuario {
     id: row.id as string,
     username: row.username as string,
     name: row.name as string,
-    password: row.password as string,
     role: row.role as UserRole,
     previousRole: row.previous_role as UserRole | undefined,
     personId: row.person_id as string | undefined,
@@ -46,7 +44,6 @@ function usuarioToRow(data: Partial<Usuario>): Record<string, unknown> {
   const row: Record<string, unknown> = {};
   if (data.username !== undefined) row.username = data.username;
   if (data.name !== undefined) row.name = data.name;
-  if (data.password !== undefined) row.password = data.password;
   if (data.role !== undefined) row.role = data.role;
   if (data.previousRole !== undefined) row.previous_role = data.previousRole;
   if (data.personId !== undefined) row.person_id = data.personId;
@@ -79,17 +76,98 @@ export async function buscarUsuarioPorUsername(username: string): Promise<Usuari
   return data ? rowToUsuario(data) : null;
 }
 
-export async function criarUsuario(data: Omit<Usuario, 'id' | 'createdAt' | 'updatedAt'>): Promise<Usuario> {
+export async function verificarSenha(username: string, password: string): Promise<Usuario | null> {
+  try {
+    const db = getDb();
+    const { data, error } = await db.rpc('verificar_senha', {
+      p_username: username,
+      p_password: password,
+    });
+    if (error) throw error;
+    if (!data) return null;
+    return {
+      id: data.id,
+      username: data.username,
+      name: data.name,
+      role: data.role,
+      previousRole: data.previousRole,
+      personId: data.personId,
+      personType: data.personType,
+      createdAt: data.createdAt,
+      updatedAt: data.updatedAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function criarUsuarioComHash(data: {
+  username: string;
+  name: string;
+  password: string;
+  role: UserRole;
+  previousRole?: string;
+  personId?: string;
+  personType?: string;
+}): Promise<Usuario | null> {
+  try {
+    const db = getDb();
+    const { data: result, error } = await db.rpc('criar_usuario_com_hash', {
+      p_username: data.username,
+      p_name: data.name,
+      p_password: data.password,
+      p_role: data.role,
+      p_previous_role: data.previousRole || null,
+      p_person_id: data.personId || null,
+      p_person_type: data.personType || null,
+    });
+    if (error) throw error;
+    if (!result) return null;
+    return {
+      id: result.id,
+      username: result.username,
+      name: result.name,
+      role: result.role,
+      previousRole: result.previousRole,
+      personId: result.personId,
+      personType: result.personType,
+      createdAt: result.createdAt,
+      updatedAt: result.updatedAt,
+    };
+  } catch (err) {
+    handleSupabaseError(err);
+  }
+}
+
+export async function atualizarSenha(username: string, password: string): Promise<boolean> {
+  try {
+    const db = getDb();
+    const { data, error } = await db.rpc('atualizar_senha', {
+      p_username: username,
+      p_password: password,
+    });
+    if (error) throw error;
+    return !!data;
+  } catch {
+    return false;
+  }
+}
+
+export async function criarUsuario(data: Omit<Usuario, 'id' | 'createdAt' | 'updatedAt'> & { password: string }): Promise<Usuario> {
   const db = getDb();
   const row = usuarioToRow(data);
+  row.password = '';
   const { data: created, error } = await db.from(TABLE).insert(row).select().single();
   if (error) handleSupabaseError(error);
   return rowToUsuario(created);
 }
 
-export async function atualizarUsuario(username: string, data: Partial<Usuario>): Promise<Usuario | null> {
+export async function atualizarUsuario(username: string, data: Record<string, unknown>): Promise<Usuario | null> {
   const db = getDb();
-  const row = usuarioToRow(data);
+  const row: Record<string, unknown> = { ...data };
+  delete row.password;
+  delete row.id;
+  row.updated_at = new Date().toISOString();
   const { data: updated, error } = await db
     .from(TABLE)
     .update(row)

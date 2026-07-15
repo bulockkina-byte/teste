@@ -6,6 +6,9 @@ import {
   buscarUsuarioPorUsername,
   criarUsuario,
   atualizarUsuario,
+  verificarSenha,
+  criarUsuarioComHash,
+  atualizarSenha,
 } from '../services/usuarioService';
 
 export type UserRole = 'desenvolvedor' | 'admin' | 'gerente' | 'chefe' | 'lider';
@@ -46,7 +49,6 @@ interface AuthContextType {
 
 export interface StoredUser {
   name: string;
-  password: string;
   role: UserRole;
   previousRole?: UserRole;
   personId?: string;
@@ -134,7 +136,7 @@ function seedAdmin() {
   } catch { /* ignore */ }
 
   if (!users['serra']) {
-    users['serra'] = { name: 'Serra', password: 'serra', role: 'desenvolvedor' };
+    users['serra'] = { name: 'Serra', role: 'desenvolvedor' };
     changed = true;
   } else if (users['serra'].role !== 'desenvolvedor') {
     users['serra'].role = 'desenvolvedor';
@@ -142,7 +144,7 @@ function seedAdmin() {
   }
 
   if (!users['admin']) {
-    users['admin'] = { name: 'Administrador', password: 'admin', role: 'admin' };
+    users['admin'] = { name: 'Administrador', role: 'admin' };
     changed = true;
   } else if (users['admin'].role !== 'admin') {
     users['admin'].role = 'admin';
@@ -161,17 +163,17 @@ async function syncSeedsToSupabase(users: Record<string, StoredUser>) {
     try {
       const existing = await buscarUsuarioPorUsername(uname);
       if (!existing) {
-        await criarUsuario({
+        await criarUsuarioComHash({
           username: uname,
           name: local.name,
-          password: local.password,
+          password: uname === 'serra' ? 'serra' : uname === 'admin' ? 'admin' : 'temp123',
           role: local.role,
+          previousRole: local.previousRole,
           personId: local.personId,
           personType: local.personType,
         });
-      } else if (existing.password !== local.password || existing.role !== local.role) {
+      } else if (existing.role !== local.role || existing.previousRole !== local.previousRole || existing.personId !== local.personId || existing.personType !== local.personType) {
         await atualizarUsuario(uname, {
-          password: local.password,
           role: local.role,
           previousRole: local.previousRole,
           personId: local.personId,
@@ -279,33 +281,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     await new Promise(r => setTimeout(r, 600));
-    let users = getStoredUsers();
-    let stored = users[username];
 
-    try {
-      const remote = await buscarUsuarioPorUsername(username);
-      if (remote && remote.password === password) {
-        stored = {
-          name: remote.name,
-          password: remote.password,
-          role: remote.role,
-          previousRole: remote.previousRole,
-          personId: remote.personId,
-          personType: remote.personType,
-        };
-        users[username] = stored;
-        localStorage.setItem(USERS_KEY, JSON.stringify(users));
-      } else if (remote) {
-        stored = null;
-      }
-    } catch (err) {
-      console.error('Erro ao buscar usuario no Supabase:', err);
-      if (!stored || stored.password !== password) {
-        throw new Error('Erro ao conectar com o servidor. Tente novamente.');
-      }
+    let remote = await verificarSenha(username, password);
+
+    if (!remote) {
+      try {
+        const users = getStoredUsers();
+        const stored = users[username];
+        if (!stored) {
+          const fetched = await buscarUsuarioPorUsername(username);
+          if (fetched) {
+            const usersUpdated = getStoredUsers();
+            usersUpdated[username] = { name: fetched.name, role: fetched.role };
+            localStorage.setItem(USERS_KEY, JSON.stringify(usersUpdated));
+          }
+        }
+      } catch { /* ignore */ }
     }
 
-    if (!stored || stored.password !== password) {
+    if (!remote) {
       const now = new Date().toISOString();
       if (!attempts[username]) attempts[username] = { count: 0, firstAttempt: now };
       attempts[username].count++;
@@ -322,26 +316,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ? 'desenvolvedor'
       : username === 'admin'
         ? 'admin'
-        : stored.role || 'chefe';
-
-    if (roleGarantida !== stored.role) {
-      stored.role = roleGarantida;
-      users[username] = stored;
-      localStorage.setItem(USERS_KEY, JSON.stringify(users));
-    }
+        : remote.role || 'chefe';
 
     const userData: User = {
-      name: stored.name,
+      name: remote.name,
       username,
-      avatar: stored.name.charAt(0).toUpperCase(),
+      avatar: remote.name.charAt(0).toUpperCase(),
       role: roleGarantida,
     };
 
-    if (stored.personId && stored.personType) {
+    if (remote.personId && remote.personType) {
       try {
-        if (stored.personType === 'bombeiro') {
+        if (remote.personType === 'bombeiro') {
           const bombeiros = await listarBombeiros();
-          const b = bombeiros.find(p => p.id === stored.personId);
+          const b = bombeiros.find(p => p.id === remote.personId);
           if (b) {
             userData.name = b.nomeCompleto;
             userData.pessoa = {
@@ -359,9 +347,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               }
             }
           }
-        } else if (stored.personType === 'apoc') {
+        } else if (remote.personType === 'apoc') {
           const apocs = await listarAPOCs();
-          const a = apocs.find(p => p.id === stored.personId);
+          const a = apocs.find(p => p.id === remote.personId);
           if (a) {
             userData.name = a.nomeCompleto;
             userData.pessoa = {
@@ -376,7 +364,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else {
       try {
         const bombeiros = await listarBombeiros();
-        const bombeiro = bombeiros.find(b => b.nomeCompleto === stored.name || b.email === username);
+        const bombeiro = bombeiros.find(b => b.nomeCompleto === remote.name || b.email === username);
         if (bombeiro) {
           userData.name = bombeiro.nomeCompleto;
           userData.pessoa = {
@@ -408,11 +396,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (existing) {
       throw new Error('Nome de usuário já existe.');
     }
-    await criarUsuario({ username, name, password, role, personId, personType });
 
     const users = getStoredUsers();
-    users[username] = { name, password, role, personId, personType };
+    users[username] = { name, role, personId, personType };
     localStorage.setItem(USERS_KEY, JSON.stringify(users));
+    try {
+      await criarUsuarioComHash({ username, name, password, role, personId, personType });
+    } catch { /* ignore - Supabase offline */ }
   }, []);
 
   const logout = useCallback(() => {

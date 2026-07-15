@@ -6,7 +6,7 @@ import { useAuth, ROLE_LABELS, type UserRole } from '../../context/AuthContext';
 import { Autocomplete } from '../../components/documentos/Autocomplete';
 import { listarAtivos } from '../../services/bombeiroService';
 import { listarAPOCs } from '../../services/apocService';
-import { atualizarUsuario, buscarUsuarioPorUsername } from '../../services/usuarioService';
+import { atualizarUsuario, atualizarSenha, verificarSenha, buscarUsuarioPorUsername } from '../../services/usuarioService';
 import type { Bombeiro } from '../../types/bombeiro';
 import type { APOC } from '../../types/apoc';
 import { CARGO_OPTIONS } from '../../types/bombeiro';
@@ -123,7 +123,7 @@ export function Perfil() {
       }
       localStorage.setItem(USERS_KEY, JSON.stringify(users));
       try {
-        await atualizarUsuario(user.username, { name: stored.name, password: stored.password, role: stored.role, personId: stored.personId, personType: stored.personType });
+        await atualizarUsuario(user.username, { name: stored.name, role: stored.role, personId: stored.personId, personType: stored.personType });
       } catch { /* ignore */ }
       const sessionKey = 'sescinc-session';
       const session = JSON.parse(localStorage.getItem(sessionKey) || '{}');
@@ -171,27 +171,16 @@ export function Perfil() {
       return;
     }
 
+    const senhaValida = await verificarSenha(user.username, currentPassword);
+    if (!senhaValida) {
+      setNotif({ msg: 'Senha atual incorreta.', type: 'error' });
+      setTimeout(() => setNotif(null), 3000);
+      return;
+    }
+
     setSaving(true);
     try {
-      const remote = await buscarUsuarioPorUsername(user.username);
-      if (!remote) {
-        setNotif({ msg: 'Usuario nao encontrado no servidor.', type: 'error' });
-        setTimeout(() => setNotif(null), 3000);
-        setSaving(false);
-        return;
-      }
-      if (remote.password !== currentPassword) {
-        setNotif({ msg: 'Senha atual incorreta.', type: 'error' });
-        setTimeout(() => setNotif(null), 3000);
-        setSaving(false);
-        return;
-      }
-      await atualizarUsuario(user.username, { password: newPassword });
-      const users = getStoredUsers();
-      if (users[user.username]) {
-        users[user.username].password = newPassword;
-        localStorage.setItem(USERS_KEY, JSON.stringify(users));
-      }
+      await atualizarSenha(user.username, newPassword);
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
