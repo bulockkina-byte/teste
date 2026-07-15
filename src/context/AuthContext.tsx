@@ -278,25 +278,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let users = getStoredUsers();
     let stored = users[username];
 
-    if (!stored) {
-      try {
-        const remote = await buscarUsuarioPorUsername(username);
-        if (remote && remote.password === password) {
-          stored = {
-            name: remote.name,
-            password: remote.password,
-            role: remote.role,
-            previousRole: remote.previousRole,
-            personId: remote.personId,
-            personType: remote.personType,
-          };
-          users[username] = stored;
-          localStorage.setItem(USERS_KEY, JSON.stringify(users));
-        }
-      } catch (err) {
-        console.error('Erro ao buscar usuário no Supabase:', err);
-        throw new Error('Erro ao conectar com o servidor. Tente novamente.');
+    try {
+      const remote = await buscarUsuarioPorUsername(username);
+      if (remote && remote.password === password) {
+        stored = {
+          name: remote.name,
+          password: remote.password,
+          role: remote.role,
+          previousRole: remote.previousRole,
+          personId: remote.personId,
+          personType: remote.personType,
+        };
+        users[username] = stored;
+        localStorage.setItem(USERS_KEY, JSON.stringify(users));
+      } else if (remote) {
+        stored = null;
       }
+    } catch (err) {
+      console.error('Erro ao buscar usuario no Supabase:', err);
+      throw new Error('Erro ao conectar com o servidor. Tente novamente.');
     }
 
     if (!stored || stored.password !== password) {
@@ -397,23 +397,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = useCallback(async (name: string, username: string, password: string, role: UserRole, personId?: string, personType?: 'bombeiro' | 'apoc') => {
     await new Promise(r => setTimeout(r, 600));
-    const users = getStoredUsers();
-    if (users[username]) {
+
+    const existing = await buscarUsuarioPorUsername(username);
+    if (existing) {
       throw new Error('Nome de usuário já existe.');
     }
+    await criarUsuario({ username, name, password, role, personId, personType });
+
+    const users = getStoredUsers();
     users[username] = { name, password, role, personId, personType };
     localStorage.setItem(USERS_KEY, JSON.stringify(users));
-
-    try {
-      const existing = await buscarUsuarioPorUsername(username);
-      if (existing) {
-        throw new Error('Nome de usuário já existe.');
-      }
-      await criarUsuario({ username, name, password, role, personId, personType });
-    } catch (err) {
-      if (err instanceof Error && err.message === 'Nome de usuário já existe.') throw err;
-      console.warn('Cadastro realizado localmente. Servidor indisponível — será sincronizado quando a conexão for restaurada.');
-    }
   }, []);
 
   const logout = useCallback(() => {

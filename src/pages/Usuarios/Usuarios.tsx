@@ -20,20 +20,6 @@ import type { APOC } from '../../types/apoc';
 import { CARGO_OPTIONS } from '../../types/bombeiro';
 import { FUNCAO_APOC_OPTIONS } from '../../types/apoc';
 
-const USERS_KEY = 'sescinc-users';
-
-function getLocalUsers(): Record<string, StoredUser> {
-  try {
-    return JSON.parse(localStorage.getItem(USERS_KEY) || '{}');
-  } catch {
-    return {};
-  }
-}
-
-function saveLocalUsers(data: Record<string, StoredUser>) {
-  localStorage.setItem(USERS_KEY, JSON.stringify(data));
-}
-
 const ROLE_BADGE: Record<string, string> = {
   desenvolvedor: 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400',
   admin: 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400',
@@ -41,6 +27,34 @@ const ROLE_BADGE: Record<string, string> = {
   chefe: 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400',
   lider: 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400',
 };
+
+function CountdownTimer({ expiresAt }: { expiresAt: string }) {
+  const [remaining, setRemaining] = useState(() => Math.max(0, new Date(expiresAt).getTime() - Date.now()));
+
+  useEffect(() => {
+    if (remaining <= 0) return;
+    const id = setInterval(() => {
+      const diff = Math.max(0, new Date(expiresAt).getTime() - Date.now());
+      setRemaining(diff);
+      if (diff <= 0) clearInterval(id);
+    }, 1000);
+    return () => clearInterval(id);
+  }, [expiresAt, remaining]);
+
+  if (remaining <= 0) return <span className="text-[11px] font-bold text-red-500">Expirado</span>;
+
+  const h = Math.floor(remaining / 3600000);
+  const m = Math.floor((remaining % 3600000) / 60000);
+  const s = Math.floor((remaining % 60000) / 1000);
+  const totalMin = h * 60 + m;
+  const urgent = totalMin < 30;
+
+  return (
+    <span className={`font-mono text-xs font-bold tabular-nums ${urgent ? 'text-red-500 animate-pulse' : totalMin < 60 ? 'text-amber-500' : 'text-graphite-500 dark:text-graphite-400'}`}>
+      {h > 0 ? `${h}h ` : ''}{String(m).padStart(2, '0')}m {String(s).padStart(2, '0')}s
+    </span>
+  );
+}
 
 export function Usuarios() {
   const { user } = useAuth();
@@ -86,19 +100,6 @@ export function Usuarios() {
         u.username,
         migrarRole({ name: u.name, password: u.password, role: u.role as UserRole, previousRole: u.previousRole as UserRole | undefined, personId: u.personId, personType: u.personType }),
       ]);
-      const localUsers = getLocalUsers();
-      for (const [uname, data] of entries) {
-        localUsers[uname] = data;
-      }
-      saveLocalUsers(localUsers);
-
-      const remoteNames = new Set(entries.map(([u]) => u));
-      for (const [uname, data] of Object.entries(localUsers)) {
-        if (!remoteNames.has(uname)) {
-          entries.push([uname, migrarRole(data)]);
-        }
-      }
-
       if (termo) {
         const t = termo.toLowerCase();
         setUsuarios(entries.filter(([u, d]) =>
@@ -107,19 +108,11 @@ export function Usuarios() {
       } else {
         setUsuarios(entries);
       }
-    } catch {
-      const all = getLocalUsers();
-      const entries = Object.entries(all).map(([u, d]) => [u, migrarRole(d)] as [string, StoredUser]);
-      const migrated = Object.fromEntries(entries);
-      saveLocalUsers(migrated);
-      if (termo) {
-        const t = termo.toLowerCase();
-        setUsuarios(entries.filter(([u, d]) =>
-          u.includes(t) || d.name.toLowerCase().includes(t) || (ROLE_LABELS[d.role] || '').toLowerCase().includes(t) || (d.previousRole ? (ROLE_LABELS[d.previousRole] || '').toLowerCase().includes(t) : false)
-        ));
-      } else {
-        setUsuarios(entries);
-      }
+    } catch (err) {
+      console.error('Erro ao carregar usuarios:', err);
+      setUsuarios([]);
+      setMensagem({ tipo: 'erro', texto: 'Erro ao conectar com o servidor. Verifique sua conexao.' });
+      setTimeout(() => setMensagem(null), 5000);
     }
   }
 
@@ -158,75 +151,46 @@ export function Usuarios() {
   }
 
   async function handleSave(data: { username: string; name: string; password: string; role: UserRole; personId?: string; personType?: 'bombeiro' | 'apoc' }) {
-    const all = getLocalUsers();
+    try {
+      if (editando) {
+        if (data.role === 'desenvolvedor' && user?.role !== 'desenvolvedor') {
+          setMensagem({ tipo: 'erro', texto: 'Apenas desenvolvedores podem atribuir o papel de desenvolvedor.' });
+          return;
+        }
+        if (editando.role === 'desenvolvedor' && user?.role !== 'desenvolvedor') {
+          setMensagem({ tipo: 'erro', texto: 'Apenas desenvolvedores podem editar desenvolvedores.' });
+          return;
+        }
+        if (data.role === 'admin' && user?.role !== 'desenvolvedor') {
+          setMensagem({ tipo: 'erro', texto: 'Apenas desenvolvedores podem editar administradores.' });
+          return;
+        }
 
-    if (editando) {
-      const prev = all[editando.username];
-      if (!prev) {
-        setMensagem({ tipo: 'erro', texto: 'Usuário não encontrado.' });
-        return;
-      }
+        const previousRole = (data.role === 'admin' && editando.role !== 'admin')
+          ? editando.role
+          : (data.role !== 'admin' ? undefined : editando.previousRole);
 
-      if (data.role === 'desenvolvedor' && user?.role !== 'desenvolvedor') {
-        setMensagem({ tipo: 'erro', texto: 'Apenas desenvolvedores podem atribuir o papel de desenvolvedor.' });
-        return;
-      }
-
-      if (prev.role === 'desenvolvedor' && user?.role !== 'desenvolvedor') {
-        setMensagem({ tipo: 'erro', texto: 'Apenas desenvolvedores podem editar desenvolvedores.' });
-        return;
-      }
-
-      if (data.role === 'admin' && user?.role !== 'desenvolvedor') {
-        setMensagem({ tipo: 'erro', texto: 'Apenas desenvolvedores podem editar administradores.' });
-        return;
-      }
-
-      const previousRole = (data.role === 'admin' && prev.role !== 'admin')
-        ? prev.role
-        : (data.role !== 'admin' ? undefined : prev.previousRole);
-
-      const updatedData: StoredUser = {
-        name: data.name,
-        password: data.password || prev.password,
-        role: data.role,
-        previousRole,
-        personId: data.personId,
-        personType: data.personType,
-      };
-      all[data.username] = updatedData;
-      if (data.username !== editando.username) delete all[editando.username];
-      saveLocalUsers(all);
-
-      try {
         if (data.username !== editando.username) {
           await excluirUsuario(editando.username);
         }
         await atualizarUsuario(data.username, {
           username: data.username,
           name: data.name,
-          password: updatedData.password,
+          password: data.password,
           role: data.role,
           previousRole,
           personId: data.personId,
           personType: data.personType,
         });
-      } catch {
-        console.warn('Alteração salva localmente. Servidor indisponível — será sincronizado quando a conexão for restaurada.');
-      }
-    } else {
-      if (data.role === 'desenvolvedor' && user?.role !== 'desenvolvedor') {
-        setMensagem({ tipo: 'erro', texto: 'Apenas desenvolvedores podem atribuir o papel de desenvolvedor.' });
-        return;
-      }
-      if (data.role === 'admin' && user?.role !== 'desenvolvedor') {
-        setMensagem({ tipo: 'erro', texto: 'Apenas desenvolvedores podem criar administradores.' });
-        return;
-      }
-      all[data.username] = { name: data.name, password: data.password, role: data.role, personId: data.personId, personType: data.personType };
-      saveLocalUsers(all);
-
-      try {
+      } else {
+        if (data.role === 'desenvolvedor' && user?.role !== 'desenvolvedor') {
+          setMensagem({ tipo: 'erro', texto: 'Apenas desenvolvedores podem atribuir o papel de desenvolvedor.' });
+          return;
+        }
+        if (data.role === 'admin' && user?.role !== 'desenvolvedor') {
+          setMensagem({ tipo: 'erro', texto: 'Apenas desenvolvedores podem criar administradores.' });
+          return;
+        }
         await criarUsuario({
           username: data.username,
           name: data.name,
@@ -235,61 +199,61 @@ export function Usuarios() {
           personId: data.personId,
           personType: data.personType,
         });
-      } catch {
-        console.warn('Usuário criado localmente. Servidor indisponível — será sincronizado quando a conexão for restaurada.');
       }
+      setFormOpen(false);
+      setEditando(null);
+      setMensagem({ tipo: 'sucesso', texto: editando ? 'Usuario atualizado com sucesso!' : 'Usuario criado com sucesso!' });
+      setTimeout(() => setMensagem(null), 4000);
+      carregar();
+    } catch (err) {
+      console.error('Erro ao salvar usuario:', err);
+      setMensagem({ tipo: 'erro', texto: 'Erro ao salvar. Verifique sua conexao.' });
+      setTimeout(() => setMensagem(null), 4000);
     }
-    setFormOpen(false);
-    setEditando(null);
-    setMensagem({ tipo: 'sucesso', texto: editando ? 'Usuário atualizado com sucesso!' : 'Usuário criado com sucesso!' });
-    setTimeout(() => setMensagem(null), 4000);
-    carregar();
   }
 
   async function handleDelete(username: string) {
-    const all = getLocalUsers();
-    delete all[username];
-    saveLocalUsers(all);
-
     try {
       await excluirUsuario(username);
-    } catch { /* ignore - Supabase offline */ }
-
-    setConfirmDelete(null);
-    carregar();
+      setConfirmDelete(null);
+      carregar();
+    } catch (err) {
+      console.error('Erro ao excluir usuario:', err);
+      setMensagem({ tipo: 'erro', texto: 'Erro ao excluir. Verifique sua conexao.' });
+      setTimeout(() => setMensagem(null), 4000);
+    }
   }
 
   async function handleToggleAdmin(username: string) {
-    const all = getLocalUsers();
-    const target = all[username];
-    if (!target) return;
-
-    if (target.role === 'desenvolvedor') return;
-
-    let newRole: UserRole;
-    let newPreviousRole: UserRole | undefined;
-
-    if (target.role === 'admin') {
-      newRole = target.previousRole || 'lider';
-      newPreviousRole = undefined;
-    } else {
-      newRole = 'admin';
-      newPreviousRole = target.role;
-    }
-
-    all[username] = { ...target, role: newRole, previousRole: newPreviousRole };
-    saveLocalUsers(all);
-
     try {
-      await atualizarUsuario(username, {
-        ...all[username],
-        username,
-      });
-    } catch {
-      console.warn('Alteração salva localmente. Servidor indisponível — será sincronizado quando a conexão for restaurada.');
-    }
+      const remote = await listarUsuariosDb();
+      const target = remote.find(u => u.username === username);
+      if (!target) return;
 
-    carregar();
+      if (target.role === 'desenvolvedor') return;
+
+      let newRole: UserRole;
+      let newPreviousRole: UserRole | undefined;
+
+      if (target.role === 'admin') {
+        newRole = (target.previousRole as UserRole) || 'lider';
+        newPreviousRole = undefined;
+      } else {
+        newRole = 'admin';
+        newPreviousRole = target.role as UserRole;
+      }
+
+      await atualizarUsuario(username, {
+        role: newRole,
+        previousRole: newPreviousRole,
+      });
+
+      carregar();
+    } catch (err) {
+      console.error('Erro ao alterar role:', err);
+      setMensagem({ tipo: 'erro', texto: 'Erro ao alterar permissao. Verifique sua conexao.' });
+      setTimeout(() => setMensagem(null), 4000);
+    }
   }
 
   if (!isAdmin) {
@@ -540,8 +504,8 @@ export function Usuarios() {
                       {c.usado
                         ? `Usado em ${new Date(c.usadoEm!).toLocaleDateString('pt-BR')} por ${c.registradoPor}`
                         : expirado
-                          ? `Expirou em ${new Date(c.expiresAt).toLocaleDateString('pt-BR')} às ${new Date(c.expiresAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
-                          : `Expira em ${new Date(c.expiresAt).toLocaleDateString('pt-BR')} às ${new Date(c.expiresAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+                          ? `Expirou`
+                          : `Criado em ${new Date(c.createdAt).toLocaleDateString('pt-BR')}`
                       }
                     </p>
                   </div>
@@ -557,6 +521,7 @@ export function Usuarios() {
                     </span>
                   ) : (
                     <>
+                      <CountdownTimer expiresAt={c.expiresAt} />
                       <span className="rounded-full bg-purple-100 px-3 py-1 text-[11px] font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
                         Ativo
                       </span>

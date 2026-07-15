@@ -171,22 +171,13 @@ export function Perfil() {
       return;
     }
 
-    const users = getStoredUsers();
-    const stored = users[user.username];
-    if (!stored || stored.password !== currentPassword) {
-      setNotif({ msg: 'Senha atual incorreta.', type: 'error' });
-      setTimeout(() => setNotif(null), 3000);
-      return;
-    }
-
     setSaving(true);
     try {
-      stored.password = newPassword;
-      localStorage.setItem(USERS_KEY, JSON.stringify(users));
-      try {
-        await atualizarUsuario(user.username, { password: newPassword });
-      } catch (err) {
-        console.warn('Senha atualizada localmente. Erro ao sincronizar no servidor:', err);
+      await atualizarUsuario(user.username, { password: newPassword });
+      const users = getStoredUsers();
+      if (users[user.username]) {
+        users[user.username].password = newPassword;
+        localStorage.setItem(USERS_KEY, JSON.stringify(users));
       }
       setCurrentPassword('');
       setNewPassword('');
@@ -195,7 +186,7 @@ export function Perfil() {
       setTimeout(() => setNotif(null), 3000);
     } catch (err) {
       console.error('Erro ao alterar senha:', err);
-      setNotif({ msg: 'Erro ao alterar senha.', type: 'error' });
+      setNotif({ msg: 'Erro ao alterar senha. Verifique sua conexao.', type: 'error' });
       setTimeout(() => setNotif(null), 3000);
     } finally {
       setSaving(false);

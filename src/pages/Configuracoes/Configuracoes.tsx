@@ -90,7 +90,7 @@ export function Configuracoes() {
           <div className="space-y-3 text-sm">
             <div className="flex justify-between rounded-xl bg-graphite-50 px-4 py-3 dark:bg-surface-hover">
               <span className="text-graphite-600 dark:text-graphite-400">Versão</span>
-              <span className="font-bold text-graphite-900 dark:text-graphite-100">1.0.0</span>
+              <span className="font-bold text-graphite-900 dark:text-graphite-100">v{__APP_VERSION__}</span>
             </div>
             <div className="flex justify-between rounded-xl bg-graphite-50 px-4 py-3 dark:bg-surface-hover">
               <span className="text-graphite-600 dark:text-graphite-400">Ambiente</span>
