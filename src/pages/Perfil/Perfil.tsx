@@ -6,7 +6,7 @@ import { useAuth, ROLE_LABELS, type UserRole } from '../../context/AuthContext';
 import { Autocomplete } from '../../components/documentos/Autocomplete';
 import { listarAtivos } from '../../services/bombeiroService';
 import { listarAPOCs } from '../../services/apocService';
-import { atualizarUsuario, atualizarSenha, verificarSenha, buscarUsuarioPorUsername } from '../../services/usuarioService';
+import { atualizarUsuario, atualizarSenha, verificarSenha } from '../../services/usuarioService';
 import type { Bombeiro } from '../../types/bombeiro';
 import type { APOC } from '../../types/apoc';
 import { CARGO_OPTIONS } from '../../types/bombeiro';

@@ -4,11 +4,9 @@ import { listarBombeiros } from '../services/bombeiroService';
 import { listarAPOCs } from '../services/apocService';
 import {
   buscarUsuarioPorUsername,
-  criarUsuario,
-  atualizarUsuario,
   verificarSenha,
   criarUsuarioComHash,
-  atualizarSenha,
+  atualizarUsuario,
 } from '../services/usuarioService';
 
 export type UserRole = 'desenvolvedor' | 'admin' | 'gerente' | 'chefe' | 'lider';
