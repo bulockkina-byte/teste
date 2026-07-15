@@ -183,13 +183,18 @@ export function Perfil() {
     try {
       stored.password = newPassword;
       localStorage.setItem(USERS_KEY, JSON.stringify(users));
-      await atualizarUsuario(user.username, { password: newPassword });
+      try {
+        await atualizarUsuario(user.username, { password: newPassword });
+      } catch (err) {
+        console.warn('Senha atualizada localmente. Erro ao sincronizar no servidor:', err);
+      }
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
       setNotif({ msg: 'Senha alterada com sucesso!', type: 'success' });
       setTimeout(() => setNotif(null), 3000);
-    } catch {
+    } catch (err) {
+      console.error('Erro ao alterar senha:', err);
       setNotif({ msg: 'Erro ao alterar senha.', type: 'error' });
       setTimeout(() => setNotif(null), 3000);
     } finally {
