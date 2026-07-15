@@ -27,6 +27,7 @@ const ROLE_BADGE: Record<string, string> = {
   gerente: 'bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400',
   chefe: 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400',
   lider: 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400',
+  bombeiro: 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400',
 };
 
 function CountdownTimer({ expiresAt }: { expiresAt: string }) {

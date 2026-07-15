@@ -9,7 +9,7 @@ import {
   atualizarUsuario,
 } from '../services/usuarioService';
 
-export type UserRole = 'desenvolvedor' | 'admin' | 'gerente' | 'chefe' | 'lider' | 'sem_funcao';
+export type UserRole = 'desenvolvedor' | 'admin' | 'gerente' | 'chefe' | 'lider' | 'bombeiro' | 'sem_funcao';
 
 export const ROLE_LABELS: Record<UserRole, string> = {
   desenvolvedor: 'Desenvolvedor',
@@ -17,6 +17,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   gerente: 'Gerente da Seção de Combate a Incêndio',
   chefe: 'Chefe de Equipe',
   lider: 'Líder de Resgate',
+  bombeiro: 'Bombeiro de Aeródromo',
   sem_funcao: 'Sem Função Atribuída',
 };
 
@@ -150,7 +151,7 @@ async function syncSeedsToSupabase(users: Record<string, StoredUser>) {
   }
 }
 
-const ROLE_HIERARQUIA: UserRole[] = ['desenvolvedor', 'admin', 'gerente', 'chefe', 'lider', 'sem_funcao'];
+const ROLE_HIERARQUIA: UserRole[] = ['desenvolvedor', 'admin', 'gerente', 'chefe', 'lider', 'bombeiro', 'sem_funcao'];
 
 function apocParaUserRole(funcao: string): UserRole {
   if (funcao === 'supervisor') return 'gerente';
@@ -160,12 +161,12 @@ function apocParaUserRole(funcao: string): UserRole {
 export function cargoParaUserRole(cargo: string): UserRole {
   if (cargo === 'GS') return 'gerente';
   if (cargo === 'BA-CE') return 'chefe';
-  if (cargo === 'OC') return 'chefe';
   if (cargo === 'BA-LR') return 'lider';
-  if (cargo === 'BA-MC') return 'lider';
-  if (cargo === 'BA-2') return 'lider';
-  if (cargo === 'BA-RE') return 'lider';
-  return 'chefe';
+  if (cargo === 'BA-MC') return 'bombeiro';
+  if (cargo === 'BA-2') return 'bombeiro';
+  if (cargo === 'BA-RE') return 'bombeiro';
+  if (cargo === 'OC') return 'bombeiro';
+  return 'bombeiro';
 }
 
 export { apocParaUserRole };
