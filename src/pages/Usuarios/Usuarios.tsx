@@ -348,7 +348,9 @@ export function Usuarios() {
                 const isTargetDev = data.role === 'desenvolvedor';
                 const isSelf = username === user?.username;
 
-                const displayRole = data.role;
+                const displayRole: UserRole = isTargetAdmin && !isViewerDev && !isSelf
+                  ? (data.previousRole as UserRole) || 'sem_funcao'
+                  : data.role;
 
                 const canEditThis = isTargetDev ? isViewerDev : (isViewerDev || (!isSelf && data.role !== 'admin'));
                 const canDeleteThis = isTargetDev ? isViewerDev : (isViewerDev || (!isSelf && data.role !== 'admin'));
@@ -386,7 +388,7 @@ export function Usuarios() {
                       <span className={`inline-flex w-fit rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${ROLE_BADGE[displayRole] || ROLE_BADGE.chefe}`}>
                         {ROLE_LABELS[displayRole] || displayRole}
                       </span>
-                      {data.role === 'admin' && data.previousRole && (
+                      {data.role === 'admin' && data.previousRole && (isViewerDev || isSelf) && (
                         <span className={`inline-flex w-fit rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${ROLE_BADGE[data.previousRole] || ROLE_BADGE.chefe}`}>
                           {ROLE_LABELS[data.previousRole] || data.previousRole}
                         </span>
