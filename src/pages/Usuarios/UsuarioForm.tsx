@@ -103,7 +103,6 @@ export function UsuarioForm({ user, onSave, onClose }: Props) {
     if (!person) return;
 
     setName(person.nomeCompleto);
-    setUsername(person.nomeGuerra);
     setPersonId(person.id);
     setPersonType(person.type);
 
