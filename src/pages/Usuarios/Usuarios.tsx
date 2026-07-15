@@ -385,7 +385,7 @@ export function Usuarios() {
                       <span className={`inline-flex w-fit rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${ROLE_BADGE[displayRole] || ROLE_BADGE.chefe}`}>
                         {ROLE_LABELS[displayRole] || displayRole}
                       </span>
-                      {!data.personId && displayRole !== 'admin' && displayRole !== 'desenvolvedor' && (
+                      {!data.personId && (
                         <span className="flex items-center gap-1 text-[11px] text-amber-500 dark:text-amber-400">
                           <LinkIcon className="h-3 w-3" />
                           Não vinculado
