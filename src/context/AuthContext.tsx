@@ -123,6 +123,7 @@ function seedAdmin() {
 
 async function syncSeedsToSupabase(users: Record<string, StoredUser>) {
   for (const uname of Object.keys(users)) {
+    if (uname === 'admin_master') continue;
     const local = users[uname];
     if (!local) continue;
     try {
