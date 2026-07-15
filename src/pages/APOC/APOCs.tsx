@@ -9,7 +9,7 @@ import type { APOC } from '../../types/apoc';
 
 export function APOCs() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin' || user?.role === 'admin_master';
+  const isAdmin = user?.role === 'admin' || user?.role === 'desenvolvedor';
 
   const [apocs, setApocs] = useState<APOC[]>([]);
   const [termo, setTermo] = useState('');

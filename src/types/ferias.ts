@@ -86,6 +86,10 @@ export interface EscalaFeriasItem {
   feiristaId: string;
   feiristaNome: string;
   periodoNumero: number;
+  rejeitado: boolean;
+  motivoRejeicao: string;
+  rejeitadoPor: string;
+  rejeitadoEm: string;
   createdAt: string;
 }
 
@@ -145,6 +149,7 @@ export const FUNCOES_SUBSTITUICAO: { value: Cargo; label: string }[] = [
 export function calcularPeriodosAquisitivos(dataAdmissao: string): PeriodoAquisitivo[] {
   if (!dataAdmissao) return [];
   const admissao = new Date(dataAdmissao + 'T00:00:00');
+  if (isNaN(admissao.getTime())) return [];
   const hoje = new Date();
   const periodos: PeriodoAquisitivo[] = [];
   let numero = 1;

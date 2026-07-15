@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { UserCog, Search, Plus, Pencil, Trash2, Lock, ShieldCheck, ShieldOff } from 'lucide-react';
+import { UserCog, Search, Plus, Pencil, Trash2, Lock, ShieldCheck, ShieldOff, Link2, Copy, CheckCheck, Sparkles, AlertTriangle, LinkIcon, CheckCircle2, AlertCircle } from 'lucide-react';
+import { criarConvite, listarConvites, type Convite } from '../../services/conviteService';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { useAuth } from '../../context/AuthContext';
@@ -34,7 +35,7 @@ function saveLocalUsers(data: Record<string, StoredUser>) {
 }
 
 const ROLE_BADGE: Record<string, string> = {
-  admin_master: 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400',
+  desenvolvedor: 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400',
   admin: 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400',
   gerente: 'bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400',
   chefe: 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400',
@@ -43,13 +44,16 @@ const ROLE_BADGE: Record<string, string> = {
 
 export function Usuarios() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin' || user?.role === 'admin_master';
+  const isAdmin = user?.role === 'admin' || user?.role === 'desenvolvedor';
 
   const [usuarios, setUsuarios] = useState<[string, StoredUser][]>([]);
   const [termo, setTermo] = useState('');
   const [formOpen, setFormOpen] = useState(false);
   const [editando, setEditando] = useState<{ username: string; name: string; role?: UserRole; previousRole?: UserRole; personId?: string; personType?: 'bombeiro' | 'apoc' } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [convites, setConvites] = useState<Convite[]>([]);
+  const [copiado, setCopiado] = useState<string | null>(null);
+  const [mensagem, setMensagem] = useState<{ tipo: 'sucesso' | 'erro'; texto: string } | null>(null);
 
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
   const [apocs, setApocs] = useState<APOC[]>([]);
@@ -69,12 +73,18 @@ export function Usuarios() {
     return apocs.find(a => a.id === data.personId) || null;
   }
 
+  function migrarRole(d: StoredUser): StoredUser {
+    if (d.role === 'admin_master' as string) d.role = 'desenvolvedor' as UserRole;
+    if (d.previousRole === 'admin_master' as string) d.previousRole = 'desenvolvedor' as UserRole;
+    return d;
+  }
+
   async function carregar() {
     try {
       const remote = await listarUsuariosDb();
       const entries: [string, StoredUser][] = remote.map(u => [
         u.username,
-        { name: u.name, password: u.password, role: u.role, previousRole: u.previousRole, personId: u.personId, personType: u.personType },
+        migrarRole({ name: u.name, password: u.password, role: u.role as UserRole, previousRole: u.previousRole as UserRole | undefined, personId: u.personId, personType: u.personType }),
       ]);
       const localUsers = getLocalUsers();
       for (const [uname, data] of entries) {
@@ -92,7 +102,9 @@ export function Usuarios() {
       }
     } catch {
       const all = getLocalUsers();
-      const entries = Object.entries(all);
+      const entries = Object.entries(all).map(([u, d]) => [u, migrarRole(d)] as [string, StoredUser]);
+      const migrated = Object.fromEntries(entries);
+      saveLocalUsers(migrated);
       if (termo) {
         const t = termo.toLowerCase();
         setUsuarios(entries.filter(([u, d]) =>
@@ -105,23 +117,61 @@ export function Usuarios() {
   }
 
   useEffect(() => { carregar(); }, [termo]);
+  useEffect(() => { listarConvites().then(setConvites); }, []);
+
+  async function copiarUrl(codigo: string) {
+    const url = `${window.location.origin}/cadastro/convite/${codigo}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiado(codigo);
+      setTimeout(() => setCopiado(null), 3000);
+    } catch {
+      const el = document.createElement('textarea');
+      el.value = url;
+      el.style.position = 'fixed';
+      el.style.opacity = '0';
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+      setCopiado(codigo);
+      setTimeout(() => setCopiado(null), 3000);
+    }
+  }
+
+  async function handleGerarConvite() {
+    const convite = await criarConvite();
+    const lista = await listarConvites();
+    setConvites(lista);
+    await copiarUrl(convite.codigo);
+  }
+
+  function handleCopiarLink(codigo: string) {
+    copiarUrl(codigo);
+  }
 
   async function handleSave(data: { username: string; name: string; password: string; role: UserRole; personId?: string; personType?: 'bombeiro' | 'apoc' }) {
     const all = getLocalUsers();
 
     if (editando) {
       const prev = all[editando.username];
-      if (!prev) return;
-
-      if (prev.role === 'admin_master') {
+      if (!prev) {
+        setMensagem({ tipo: 'erro', texto: 'Usuário não encontrado.' });
         return;
       }
 
-      if (data.role === 'admin_master') {
+      if (data.role === 'desenvolvedor' && user?.role !== 'desenvolvedor') {
+        setMensagem({ tipo: 'erro', texto: 'Apenas desenvolvedores podem atribuir o papel de desenvolvedor.' });
         return;
       }
 
-      if (data.role === 'admin' && user?.role !== 'admin_master') {
+      if (prev.role === 'desenvolvedor' && user?.role !== 'desenvolvedor') {
+        setMensagem({ tipo: 'erro', texto: 'Apenas desenvolvedores podem editar desenvolvedores.' });
+        return;
+      }
+
+      if (data.role === 'admin' && user?.role !== 'desenvolvedor') {
+        setMensagem({ tipo: 'erro', texto: 'Apenas desenvolvedores podem editar administradores.' });
         return;
       }
 
@@ -154,12 +204,16 @@ export function Usuarios() {
           personId: data.personId,
           personType: data.personType,
         });
-      } catch { /* ignore - Supabase offline */ }
+      } catch {
+        console.warn('Alteração salva localmente. Servidor indisponível — será sincronizado quando a conexão for restaurada.');
+      }
     } else {
-      if (data.role === 'admin_master') {
+      if (data.role === 'desenvolvedor' && user?.role !== 'desenvolvedor') {
+        setMensagem({ tipo: 'erro', texto: 'Apenas desenvolvedores podem atribuir o papel de desenvolvedor.' });
         return;
       }
-      if (data.role === 'admin' && user?.role !== 'admin_master') {
+      if (data.role === 'admin' && user?.role !== 'desenvolvedor') {
+        setMensagem({ tipo: 'erro', texto: 'Apenas desenvolvedores podem criar administradores.' });
         return;
       }
       all[data.username] = { name: data.name, password: data.password, role: data.role, personId: data.personId, personType: data.personType };
@@ -174,10 +228,14 @@ export function Usuarios() {
           personId: data.personId,
           personType: data.personType,
         });
-      } catch { /* ignore - Supabase offline */ }
+      } catch {
+        console.warn('Usuário criado localmente. Servidor indisponível — será sincronizado quando a conexão for restaurada.');
+      }
     }
     setFormOpen(false);
     setEditando(null);
+    setMensagem({ tipo: 'sucesso', texto: editando ? 'Usuário atualizado com sucesso!' : 'Usuário criado com sucesso!' });
+    setTimeout(() => setMensagem(null), 4000);
     carregar();
   }
 
@@ -199,7 +257,7 @@ export function Usuarios() {
     const target = all[username];
     if (!target) return;
 
-    if (target.role === 'admin_master') return;
+    if (target.role === 'desenvolvedor') return;
 
     let newRole: UserRole;
     let newPreviousRole: UserRole | undefined;
@@ -217,15 +275,12 @@ export function Usuarios() {
 
     try {
       await atualizarUsuario(username, {
+        ...all[username],
         username,
-        name: target.name,
-        password: target.password,
-        role: newRole,
-        previousRole: newPreviousRole,
-        personId: target.personId,
-        personType: target.personType,
       });
-    } catch { /* ignore - Supabase offline */ }
+    } catch {
+      console.warn('Alteração salva localmente. Servidor indisponível — será sincronizado quando a conexão for restaurada.');
+    }
 
     carregar();
   }
@@ -248,6 +303,17 @@ export function Usuarios() {
       <div className="mb-6 flex items-center justify-between">
         <PageTitle icon={UserCog} title="Usuários" />
       </div>
+
+      {mensagem && (
+        <div className={`mb-4 flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium transition-all ${
+          mensagem.tipo === 'sucesso'
+            ? 'border border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400'
+            : 'border border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400'
+        }`}>
+          {mensagem.tipo === 'sucesso' ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
+          {mensagem.texto}
+        </div>
+      )}
 
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="relative flex-1 max-w-md">
@@ -296,12 +362,10 @@ export function Usuarios() {
                     ? FUNCAO_APOC_OPTIONS.find(f => f.value === (person as APOC).funcao)?.label
                     : undefined;
 
-                const isViewerDev = user?.role === 'admin_master';
+                const isViewerDev = user?.role === 'desenvolvedor';
                 const isTargetAdmin = data.role === 'admin';
-                const isTargetDev = data.role === 'admin_master';
+                const isTargetDev = data.role === 'desenvolvedor';
                 const isSelf = username === user?.username;
-
-                if (isTargetDev && !isViewerDev) return null;
 
                 let displayRole: UserRole;
                 if (isTargetAdmin && !isViewerDev && !isSelf) {
@@ -309,6 +373,10 @@ export function Usuarios() {
                 } else {
                   displayRole = data.role;
                 }
+
+                const canEditThis = isTargetDev ? isViewerDev : (isViewerDev || (!isSelf && data.role !== 'admin'));
+                const canDeleteThis = isTargetDev ? isViewerDev : (isViewerDev || (!isSelf && data.role !== 'admin'));
+                const canToggleAdminThis = isViewerDev && !isTargetDev && !isSelf;
 
                 return (
                 <tr key={username} className="border-b border-graphite-100 transition-colors hover:bg-graphite-50 dark:border-border-dark dark:hover:bg-surface-hover/50">
@@ -318,13 +386,20 @@ export function Usuarios() {
                         {personFoto ? (
                           <img src={personFoto} className="h-full w-full object-cover" alt="" />
                         ) : (
-                          data.name.charAt(0).toUpperCase()
+                          username.charAt(0).toUpperCase()
                         )}
                       </div>
                       <div className="min-w-0">
-                        <p className="font-medium text-graphite-900 dark:text-graphite-100 truncate">{data.name}</p>
-                        {personGuerra && (
+                        <p className="font-medium text-graphite-900 dark:text-graphite-100 truncate">
+                          {data.name && data.name !== username ? data.name : username}
+                        </p>
+                        {personGuerra ? (
                           <p className="text-[11px] text-graphite-500 dark:text-graphite-400 truncate">{personGuerra}</p>
+                        ) : (
+                          <p className="flex items-center gap-1 text-[11px] text-amber-500 dark:text-amber-400">
+                            <AlertTriangle className="h-3 w-3" />
+                            Sem vínculo — aguardando admin
+                          </p>
                         )}
                       </div>
                     </div>
@@ -343,60 +418,53 @@ export function Usuarios() {
                       {personCargo && displayRole !== 'admin' && (
                         <span className="text-[11px] text-graphite-500 dark:text-graphite-400">{personCargo}</span>
                       )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1">
-                      {data.role !== 'admin_master' && (
-                        <>
-                          {data.role === 'admin' && user?.role !== 'admin_master' ? null : (
-                            <>
-                              <button
-                                onClick={() => { setEditando({ username, name: data.name, role: data.role, previousRole: data.previousRole, personId: data.personId, personType: data.personType }); setFormOpen(true); }}
-                                className="rounded-xl p-1.5 text-graphite-400 transition-all hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover dark:hover:text-graphite-300"
-                                title="Editar"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </button>
-                              {data.role !== 'admin' ? (
-                                <button
-                                  onClick={() => handleToggleAdmin(username)}
-                                  className="rounded-xl p-1.5 text-amber-500 transition-all hover:bg-amber-50 hover:text-amber-700 dark:hover:bg-amber-900/20 dark:hover:text-amber-400"
-                                  title="Tornar Administrador"
-                                >
-                                  <ShieldCheck className="h-4 w-4" />
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => handleToggleAdmin(username)}
-                                  className="rounded-xl p-1.5 text-graphite-400 transition-all hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover dark:hover:text-graphite-300"
-                                  title="Remover Admin"
-                                >
-                                  <ShieldOff className="h-4 w-4" />
-                                </button>
-                              )}
-                            </>
-                          )}
-                          {user?.role === 'admin_master' ? (
-                            <button
-                              onClick={() => setConfirmDelete(username)}
-                              className="rounded-xl p-1.5 text-alert-red transition-all hover:bg-red-50 dark:hover:bg-red-900/20"
-                              title="Excluir"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          ) : data.role !== 'admin' ? (
-                            <button
-                              onClick={() => setConfirmDelete(username)}
-                              className="rounded-xl p-1.5 text-alert-red transition-all hover:bg-red-50 dark:hover:bg-red-900/20"
-                              title="Excluir"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          ) : null}
-                        </>
+                      {!data.personId && displayRole !== 'admin' && displayRole !== 'desenvolvedor' && (
+                        <span className="flex items-center gap-1 text-[11px] text-amber-500 dark:text-amber-400">
+                          <LinkIcon className="h-3 w-3" />
+                          Não vinculado
+                        </span>
                       )}
                     </div>
+                  </td>
+                   <td className="px-4 py-3">
+                     <div className="flex items-center gap-1">
+                       {canEditThis && (
+                         <button
+                           onClick={() => { setEditando({ username, name: data.name, role: data.role, previousRole: data.previousRole, personId: data.personId, personType: data.personType }); setFormOpen(true); }}
+                           className="rounded-xl p-1.5 text-graphite-400 transition-all hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover dark:hover:text-graphite-300"
+                           title="Editar"
+                         >
+                           <Pencil className="h-4 w-4" />
+                         </button>
+                       )}
+                       {canToggleAdminThis && data.role !== 'admin' && (
+                         <button
+                           onClick={() => handleToggleAdmin(username)}
+                           className="rounded-xl p-1.5 text-amber-500 transition-all hover:bg-amber-50 hover:text-amber-700 dark:hover:bg-amber-900/20 dark:hover:text-amber-400"
+                           title="Tornar Administrador"
+                         >
+                           <ShieldCheck className="h-4 w-4" />
+                         </button>
+                       )}
+                       {canToggleAdminThis && data.role === 'admin' && (
+                         <button
+                           onClick={() => handleToggleAdmin(username)}
+                           className="rounded-xl p-1.5 text-graphite-400 transition-all hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover dark:hover:text-graphite-300"
+                           title="Remover Admin"
+                         >
+                           <ShieldOff className="h-4 w-4" />
+                         </button>
+                       )}
+                       {canDeleteThis && (
+                         <button
+                           onClick={() => setConfirmDelete(username)}
+                           className="rounded-xl p-1.5 text-alert-red transition-all hover:bg-red-50 dark:hover:bg-red-900/20"
+                           title="Excluir"
+                         >
+                           <Trash2 className="h-4 w-4" />
+                         </button>
+                       )}
+                     </div>
                   </td>
                 </tr>
                 );
@@ -406,12 +474,95 @@ export function Usuarios() {
         </div>
       )}
 
+      <div className="mt-8 rounded-2xl border border-graphite-200 bg-white p-5 dark:border-border-dark dark:bg-surface-card">
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-100 dark:bg-purple-900/30">
+              <Link2 className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-graphite-900 dark:text-graphite-100">Convites</h3>
+              <p className="text-xs text-graphite-500">Links de acesso para novos usuários</p>
+            </div>
+          </div>
+          <button
+            onClick={handleGerarConvite}
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-purple-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-xl hover:from-purple-500 hover:to-purple-600 active:scale-[0.98]"
+          >
+            <Sparkles className="h-4 w-4" /> Gerar Convite
+          </button>
+        </div>
+
+        {convites.length === 0 ? (
+          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-graphite-300 bg-graphite-50/50 py-8 text-center dark:border-border-dark dark:bg-surface-hover/30">
+            <Link2 className="mb-3 h-8 w-8 text-graphite-300 dark:text-graphite-600" />
+            <p className="text-sm text-graphite-500 dark:text-graphite-400">Nenhum convite gerado ainda.</p>
+            <p className="text-xs text-graphite-400 dark:text-graphite-500">Clique em "Gerar Convite" para criar um link de acesso.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {convites.map(c => (
+              <div
+                key={c.codigo}
+                className={`flex items-center justify-between rounded-xl border px-4 py-3 transition-all ${
+                  c.usado
+                    ? 'border-green-200 bg-green-50/50 dark:border-green-800/30 dark:bg-green-900/10'
+                    : 'border-graphite-200 bg-white dark:border-border-dark dark:bg-surface-card'
+                }`}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                    c.usado ? 'bg-green-100 dark:bg-green-900/30' : 'bg-purple-100 dark:bg-purple-900/30'
+                  }`}>
+                    {c.usado
+                      ? <CheckCheck className="h-4 w-4 text-green-600 dark:text-green-400" />
+                      : <Link2 className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                    }
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-mono text-sm font-bold tracking-wider text-graphite-900 dark:text-graphite-100">
+                      {c.codigo}
+                    </p>
+                    <p className="text-xs text-graphite-500">
+                      {c.usado
+                        ? `Usado em ${new Date(c.usadoEm!).toLocaleDateString('pt-BR')} por ${c.registradoPor}`
+                        : `Criado em ${new Date(c.createdAt).toLocaleDateString('pt-BR')}`
+                      }
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {c.usado ? (
+                    <span className="rounded-full bg-green-100 px-3 py-1 text-[11px] font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                      Utilizado
+                    </span>
+                  ) : (
+                    <>
+                      <span className="rounded-full bg-purple-100 px-3 py-1 text-[11px] font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                        Ativo
+                      </span>
+                      <button
+                        onClick={() => handleCopiarLink(c.codigo)}
+                        className="flex items-center gap-1.5 rounded-lg border border-graphite-200 bg-white px-3 py-1.5 text-xs font-medium text-graphite-600 transition-all hover:bg-graphite-50 dark:border-border-dark dark:bg-surface-card dark:hover:bg-surface-hover"
+                      >
+                        {copiado === c.codigo ? (
+                          <><CheckCheck className="h-3.5 w-3.5 text-green-500" /> Copiado</>
+                        ) : (
+                          <><Copy className="h-3.5 w-3.5" /> Copiar Link</>
+                        )}
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {formOpen && (
         <UsuarioForm
           user={editando}
-          isProtected={editando?.role === 'admin_master'}
-          currentUserRole={user?.role}
-          currentUsername={user?.username}
           onSave={handleSave}
           onClose={() => { setFormOpen(false); setEditando(null); }}
         />

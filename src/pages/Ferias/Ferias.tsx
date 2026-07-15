@@ -20,9 +20,9 @@ import type { Bombeiro, Cargo, Equipe } from '../../types/bombeiro';
 import {
   listarFeriasGozo, criarFeriasGozo,
   listarEscalas, obterEscala, criarEscala,
-  excluirEscala, enviarEscala, aprovarEscala, rejeitarEscala,
+  excluirEscala, enviarEscala, aprovarEscala, aprovarEscalaEGerarGozos, rejeitarEscala,
   listarItensEscala, criarItemEscala, atualizarItemEscala,
-  excluirItemEscala,
+  excluirItemEscala, rejeitarItemEscala, aprovarItemEscala,
 } from '../../services/feriasService';
 
 // -- Constants -------------------------------------------------------------------
@@ -37,7 +37,7 @@ const inputCls =
 
 const labelCls = 'block mb-1.5 text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400';
 
-const EQUIPES: Equipe[] = ['Alfa', 'Bravo', 'Charlie', 'Delta'];
+const EQUIPES: Equipe[] = ['Alfa', 'Bravo', 'Charlie', 'Delta', 'Feirista'];
 
 const PERIODO_STATUS_COLORS: Record<string, string> = {
   'Nao Adquirido': 'bg-graphite-100 text-graphite-600 dark:bg-graphite-700 dark:text-graphite-300',
@@ -418,13 +418,18 @@ function PeriodoCard({
         </div>
       )}
 
-      {!periodo.gozo && periodo.status === 'Disponivel' && !editing && (
+      {!periodo.gozo && periodo.status === 'Vencido' && !editing && (
         <button
           onClick={() => setEditing(true)}
           className="mt-3 flex items-center gap-1 rounded-lg bg-aviation-100 px-3 py-1.5 text-xs font-medium text-aviation-700 transition-colors hover:bg-aviation-200 dark:bg-aviation-900/30 dark:text-aviation-300 dark:hover:bg-aviation-900/50"
         >
           <CalendarDays className="h-3.5 w-3.5" /> Preencher Gozo
         </button>
+      )}
+      {!periodo.gozo && periodo.status === 'Disponivel' && !editing && (
+        <p className="mt-3 text-[10px] text-graphite-400 dark:text-graphite-500 italic">
+          Aguardando aprovação da escala anual
+        </p>
       )}
 
       {editing && (
@@ -461,6 +466,7 @@ function TabBombeiros() {
   const [feriasGozo, setFeriasGozo] = useState<FeriasGozo[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [filterEquipe, setFilterEquipe] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -475,15 +481,17 @@ function TabBombeiros() {
   }
 
   const filtered = useMemo(() => {
-    if (!search) return bombeiros;
+    let lista = bombeiros;
+    if (filterEquipe) lista = lista.filter(b => b.equipe === filterEquipe);
+    if (!search) return lista;
     const t = search.toLowerCase();
-    return bombeiros.filter(b =>
+    return lista.filter(b =>
       b.nomeCompleto.toLowerCase().includes(t) ||
       b.nomeGuerra.toLowerCase().includes(t) ||
       b.equipe.toLowerCase().includes(t) ||
       b.cargo.toLowerCase().includes(t)
     );
-  }, [bombeiros, search]);
+  }, [bombeiros, search, filterEquipe]);
 
   const selectedBombeiro = bombeiros.find(b => b.id === selectedId);
   const selectedPeriodos = useMemo(() => {
@@ -525,11 +533,18 @@ function TabBombeiros() {
 
   return (
     <div>
-      <div className="mb-6">
-        <div className="relative max-w-md">
+      <div className="mb-6 flex flex-wrap items-center gap-3">
+        <div className="relative max-w-md flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite-400" />
           <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Pesquisar bombeiro..." className={`${inputCls} !pl-10`} />
         </div>
+        <select value={filterEquipe} onChange={e => setFilterEquipe(e.target.value)}
+          className="rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm dark:border-border-dark dark:bg-surface-card dark:text-graphite-100">
+          <option value="" className={optionCls}>Todas as Equipes</option>
+          {['Alfa','Bravo','Charlie','Delta','Feirista','Embaixador'].map(eq => (
+            <option key={eq} value={eq} className={optionCls}>{eq}</option>
+          ))}
+        </select>
       </div>
 
       {filtered.length === 0 ? (
@@ -580,7 +595,7 @@ function TabBombeiros() {
                       Periodos Aquisitivos - {selectedBombeiro.nomeCompleto}
                     </h4>
                     {selectedPeriodos.length === 0 ? (
-                      <p className="text-sm text-graphite-400 dark:text-graphite-500">Nenhum periodo calculado.</p>
+                      <p className="text-sm text-graphite-400 dark:text-graphite-500">Nenhum período calculado.</p>
                     ) : (
                       <div className="space-y-3">
                         {selectedPeriodos.map(p => (
@@ -610,6 +625,7 @@ function TabAprovacoes() {
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
   const [loading, setLoading] = useState(true);
   const [rejectModal, setRejectModal] = useState<{ id: string; obs: string } | null>(null);
+  const [itemRejectModal, setItemRejectModal] = useState<{ itemId: string; tipo: 'pessoa' | 'periodo' | 'substituto' | 'feirista' | 'geral'; obs: string } | null>(null);
 
   useEffect(() => { loadData(); }, []);
 
@@ -639,7 +655,7 @@ function TabAprovacoes() {
 
   async function handleAprovar(id: string) {
     if (!user) return;
-    await aprovarEscala(id, user.username, user.name);
+    await aprovarEscalaEGerarGozos(id, user.username, user.name);
     await loadData();
     setExpandedId(null);
   }
@@ -652,8 +668,32 @@ function TabAprovacoes() {
     setExpandedId(null);
   }
 
+  async function handleItemReject() {
+    if (!itemRejectModal || !itemRejectModal.obs.trim() || !user) return;
+    await rejeitarItemEscala(itemRejectModal.itemId, itemRejectModal.obs, user.username);
+    const it = await listarItensEscala(expandedId!);
+    setItems(it);
+    setItemRejectModal(null);
+  }
+
+  async function handleItemApprove(itemId: string) {
+    await aprovarItemEscala(itemId);
+    const it = await listarItensEscala(expandedId!);
+    setItems(it);
+  }
+
   function getTeamMembers(equipe: string): Bombeiro[] {
     return bombeiros.filter(b => b.equipe === equipe);
+  }
+
+  function getItemRejectLabel(tipo: string) {
+    switch (tipo) {
+      case 'pessoa': return 'Rejeitar pessoa';
+      case 'periodo': return 'Rejeitar período';
+      case 'substituto': return 'Rejeitar substituto';
+      case 'feirista': return 'Rejeitar feirista';
+      default: return 'Rejeitar item';
+    }
   }
 
   if (loading) {
@@ -707,7 +747,7 @@ function TabAprovacoes() {
                     <div className="mb-4 rounded-xl border border-yellow-300 bg-yellow-50 p-4 dark:border-yellow-700 dark:bg-yellow-900/20">
                       <div className="flex items-center gap-2 mb-1">
                         <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
-                        <span className="text-sm font-bold text-yellow-700 dark:text-yellow-300">Observacoes da Rejeicao</span>
+                        <span className="text-sm font-bold text-yellow-700 dark:text-yellow-300">Observações da Rejeição</span>
                       </div>
                       <p className="text-sm text-yellow-800 dark:text-yellow-200">{esc.observacoesRejeicao}</p>
                     </div>
@@ -728,7 +768,7 @@ function TabAprovacoes() {
                     </div>
                     <div className="rounded-xl bg-graphite-50 p-3 dark:bg-surface-hover">
                       <p className="text-[10px] font-bold uppercase tracking-wider text-graphite-400">Itens</p>
-                      <p className="text-sm font-bold text-graphite-900 dark:text-graphite-100">{items.length}</p>
+                      <p className="text-sm font-bold text-graphite-900 dark:text-graphite-100">{items.filter(i => !i.rejeitado).length} / {items.length}</p>
                     </div>
                   </div>
 
@@ -740,10 +780,10 @@ function TabAprovacoes() {
                           const mesNum = idx + 1;
                           const mesItems = items.filter(i => i.escalaId === esc.id && i.mes === mesNum);
                           return (
-                            <div key={mesNum} className={`rounded-xl border p-2 text-center text-[10px] dark:border-border-dark ${mesItems.length > 0 ? 'border-aviation-300 bg-aviation-50 dark:bg-aviation-900/20' : 'border-graphite-200 bg-graphite-50 dark:bg-surface-hover'}`}>
+                            <div key={mesNum} className={`rounded-xl border p-2 text-center text-[10px] dark:border-border-dark ${mesItems.length > 0 ? (mesItems.some(i => i.rejeitado) ? 'border-yellow-300 bg-yellow-50 dark:bg-yellow-900/20' : 'border-aviation-300 bg-aviation-50 dark:bg-aviation-900/20') : 'border-graphite-200 bg-graphite-50 dark:bg-surface-hover'}`}>
                               <p className="font-bold text-graphite-700 dark:text-graphite-300">{mes.substring(0, 3)}</p>
                               {mesItems.map(mi => (
-                                <p key={mi.id} className="mt-1 text-graphite-600 dark:text-graphite-400 truncate" title={mi.funcionarioNome}>
+                                <p key={mi.id} className={`mt-1 truncate ${mi.rejeitado ? 'text-red-500 line-through dark:text-red-400' : 'text-graphite-600 dark:text-graphite-400'}`} title={mi.funcionarioNome}>
                                   {mi.funcionarioNome.split(' ')[0]}
                                 </p>
                               ))}
@@ -755,10 +795,10 @@ function TabAprovacoes() {
                   )}
 
                   {items.length > 0 && items.filter(i => i.escalaId === esc.id).map(item => (
-                    <div key={item.id} className="mb-3 rounded-xl border border-graphite-200 p-3 dark:border-border-dark dark:bg-surface-hover">
+                    <div key={item.id} className={`mb-3 rounded-xl border p-3 dark:bg-surface-hover ${item.rejeitado ? 'border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900/20' : 'border-graphite-200 dark:border-border-dark'}`}>
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-bold text-graphite-900 dark:text-graphite-100">
+                          <p className={`text-sm font-bold ${item.rejeitado ? 'text-red-700 dark:text-red-300' : 'text-graphite-900 dark:text-graphite-100'}`}>
                             {MESES[item.mes - 1]} - {item.funcionarioNome}
                           </p>
                           <div className="flex items-center gap-3 text-xs text-graphite-500 dark:text-graphite-400">
@@ -767,8 +807,31 @@ function TabAprovacoes() {
                             <span>{item.dias} dias</span>
                           </div>
                         </div>
+                        {esc.status === 'Enviado' && (
+                          <div className="flex shrink-0 items-center gap-1">
+                            {!item.rejeitado ? (
+                              <>
+                                <button onClick={() => setItemRejectModal({ itemId: item.id, tipo: 'pessoa', obs: '' })} className="rounded-lg px-2 py-1 text-[10px] font-medium text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20" title="Rejeitar pessoa">
+                                  Rejeitar
+                                </button>
+                              </>
+                            ) : (
+                              <button onClick={() => handleItemApprove(item.id)} className="rounded-lg px-2 py-1 text-[10px] font-medium text-green-600 transition-colors hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-900/20">
+                                Aprovar
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      {(item.substitutoNome || item.feiristaNome) && (
+
+                      {item.rejeitado && item.motivoRejeicao && (
+                        <div className="mt-2 rounded-lg border border-red-200 bg-red-100/50 px-3 py-2 dark:border-red-700 dark:bg-red-900/10">
+                          <p className="text-[10px] font-bold text-red-600 dark:text-red-400">Rejeitado por {item.rejeitadoPor}:</p>
+                          <p className="text-xs text-red-700 dark:text-red-300">{item.motivoRejeicao}</p>
+                        </div>
+                      )}
+
+                      {(item.substitutoNome || item.feiristaNome) && !item.rejeitado && (
                         <div className="mt-2 flex flex-wrap gap-2">
                           {item.substitutoNome && (
                             <span className="inline-flex items-center gap-1 rounded-full bg-aviation-100 px-2 py-0.5 text-[10px] font-semibold text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-300">
@@ -800,10 +863,10 @@ function TabAprovacoes() {
                   {esc.status === 'Enviado' && (
                     <div className="flex items-center gap-3 border-t border-graphite-200 pt-4 dark:border-border-dark">
                       <button onClick={() => handleAprovar(esc.id)} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-green-600 to-green-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-green-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
-                        <Check className="h-4 w-4" /> Aprovar
+                        <Check className="h-4 w-4" /> Aprovar Tudo
                       </button>
                       <button onClick={() => setRejectModal({ id: esc.id, obs: '' })} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-red-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
-                        <XCircle className="h-4 w-4" /> Rejeitar
+                        <XCircle className="h-4 w-4" /> Rejeitar Tudo
                       </button>
                     </div>
                   )}
@@ -829,7 +892,7 @@ function TabAprovacoes() {
                 value={rejectModal.obs}
                 onChange={e => setRejectModal(m => m ? { ...m, obs: e.target.value } : null)}
                 rows={4}
-                placeholder="Descreva o motivo da rejeicao..."
+                placeholder="Descreva o motivo da rejeição..."
                 className={`${inputCls} resize-none`}
               />
             </div>
@@ -844,6 +907,54 @@ function TabAprovacoes() {
           </div>
         </div>
       )}
+
+      {itemRejectModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl dark:bg-surface-elevated">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">Rejeitar Item da Escala</h2>
+              <button onClick={() => setItemRejectModal(null)} className="rounded-xl p-1 text-graphite-400 hover:bg-graphite-100 dark:hover:bg-surface-hover">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="mb-4">
+              <label className={labelCls}>O que deseja rejeitar?</label>
+              <div className="flex flex-wrap gap-2">
+                {([
+                  { tipo: 'pessoa' as const, label: 'Pessoa', desc: 'Rejeitar apenas esta pessoa neste período' },
+                  { tipo: 'periodo' as const, label: 'Período', desc: 'Rejeitar este período de férias' },
+                  { tipo: 'substituto' as const, label: 'Substituto', desc: 'Rejeitar o substituto indicado' },
+                  { tipo: 'feirista' as const, label: 'Feirista', desc: 'Rejeitar o feirista indicado' },
+                ] as const).map(opt => (
+                  <button key={opt.tipo} onClick={() => setItemRejectModal(m => m ? { ...m, tipo: opt.tipo } : null)}
+                    className={`rounded-xl border px-3 py-2 text-left transition-all ${itemRejectModal.tipo === opt.tipo ? 'border-red-400 bg-red-50 dark:border-red-600 dark:bg-red-900/20' : 'border-graphite-300 bg-white hover:border-graphite-400 dark:border-border-dark dark:bg-surface-card'}`}>
+                    <p className={`text-sm font-bold ${itemRejectModal.tipo === opt.tipo ? 'text-red-700 dark:text-red-300' : 'text-graphite-900 dark:text-graphite-100'}`}>{opt.label}</p>
+                    <p className="text-[10px] text-graphite-500 dark:text-graphite-400">{opt.desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="mb-4">
+              <label className={labelCls}>Motivo da rejeição *</label>
+              <textarea
+                value={itemRejectModal.obs}
+                onChange={e => setItemRejectModal(m => m ? { ...m, obs: e.target.value } : null)}
+                rows={3}
+                placeholder={`Descreva o motivo para rejeitar ${getItemRejectLabel(itemRejectModal.tipo).toLowerCase()}...`}
+                className={`${inputCls} resize-none`}
+              />
+            </div>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setItemRejectModal(null)} className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">
+                Cancelar
+              </button>
+              <button onClick={handleItemReject} disabled={!itemRejectModal.obs.trim()} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-red-500/20 transition-all hover:shadow-xl disabled:opacity-50 active:scale-[0.98]">
+                <XCircle className="h-4 w-4" /> {getItemRejectLabel(itemRejectModal.tipo)}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -851,12 +962,15 @@ function TabAprovacoes() {
 // -- Tab Escala Geral (Admin / Gerente) ------------------------------------------
 
 function TabEscalaGeral() {
+  const { effectiveRole } = useAuth();
+  const podeExcluir = effectiveRole === 'desenvolvedor' || effectiveRole === 'admin';
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
   const [escalas, setEscalas] = useState<EscalaFerias[]>([]);
   const [itemsByEscala, setItemsByEscala] = useState<Map<string, EscalaFeriasItem[]>>(new Map());
   const [ano, setAno] = useState(new Date().getFullYear());
   const [expandedEquipe, setExpandedEquipe] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [confirmDeleteEscala, setConfirmDeleteEscala] = useState<string | null>(null);
 
   useEffect(() => { loadData(); }, [ano]);
 
@@ -885,6 +999,12 @@ function TabEscalaGeral() {
     }
     return map;
   }, [escalas]);
+
+  async function handleDeleteEscalaGeral(id: string) {
+    await excluirEscala(id);
+    setConfirmDeleteEscala(null);
+    await loadData();
+  }
 
   if (loading) {
     return (
@@ -937,22 +1057,32 @@ function TabEscalaGeral() {
               {isExpanded && (
                 <div className="border-t border-graphite-200 px-5 py-5 dark:border-border-dark">
                   {esc && (
-                    <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                      <div className="rounded-xl bg-graphite-50 p-3 dark:bg-surface-hover">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-graphite-400">Chefe</p>
-                        <p className="text-sm font-bold text-graphite-900 dark:text-graphite-100">{esc.chefeNome}</p>
+                    <div className="mb-4">
+                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                        <div className="rounded-xl bg-graphite-50 p-3 dark:bg-surface-hover">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-graphite-400">Chefe</p>
+                          <p className="text-sm font-bold text-graphite-900 dark:text-graphite-100">{esc.chefeNome}</p>
+                        </div>
+                        <div className="rounded-xl bg-graphite-50 p-3 dark:bg-surface-hover">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-graphite-400">Status</p>
+                          <p className="text-sm font-bold text-graphite-900 dark:text-graphite-100">{esc.status}</p>
+                        </div>
+                        <div className="rounded-xl bg-graphite-50 p-3 dark:bg-surface-hover">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-graphite-400">Itens</p>
+                          <p className="text-sm font-bold text-graphite-900 dark:text-graphite-100">{items.length}</p>
+                        </div>
+                        <div className="rounded-xl bg-graphite-50 p-3 dark:bg-surface-hover">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-graphite-400">Enviado</p>
+                          <p className="text-sm font-bold text-graphite-900 dark:text-graphite-100">{esc.enviadoEm ? fmt(esc.enviadoEm) : '-'}</p>
+                        </div>
                       </div>
-                      <div className="rounded-xl bg-graphite-50 p-3 dark:bg-surface-hover">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-graphite-400">Status</p>
-                        <p className="text-sm font-bold text-graphite-900 dark:text-graphite-100">{esc.status}</p>
-                      </div>
-                      <div className="rounded-xl bg-graphite-50 p-3 dark:bg-surface-hover">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-graphite-400">Itens</p>
-                        <p className="text-sm font-bold text-graphite-900 dark:text-graphite-100">{items.length}</p>
-                      </div>
-                      <div className="rounded-xl bg-graphite-50 p-3 dark:bg-surface-hover">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-graphite-400">Enviado</p>
-                        <p className="text-sm font-bold text-graphite-900 dark:text-graphite-100">{esc.enviadoEm ? fmt(esc.enviadoEm) : '-'}</p>
+                      <div className="mt-3 flex justify-end">
+                        {podeExcluir && (
+                          <button onClick={() => setConfirmDeleteEscala(esc.id)}
+                            className="flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-medium text-red-700 hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
+                            <Trash2 className="h-3 w-3" /> Excluir
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}
@@ -1014,7 +1144,7 @@ function TabEscalaGeral() {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-sm text-graphite-400 dark:text-graphite-500">Nenhuma alocacao para esta equipe neste ano.</p>
+                    <p className="text-sm text-graphite-400 dark:text-graphite-500">Nenhuma alocação para esta equipe neste ano.</p>
                   )}
 
                   <div className="mt-4">
@@ -1041,7 +1171,7 @@ function TabEscalaGeral() {
 
 function TabEscalaAnual() {
   const { effectiveRole, user } = useAuth();
-  const isAdmin = effectiveRole === 'admin_master' || effectiveRole === 'admin' || effectiveRole === 'gerente';
+  const isAdmin = effectiveRole === 'desenvolvedor' || effectiveRole === 'admin' || effectiveRole === 'gerente';
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
   const [myBombeiro, setMyBombeiro] = useState<Bombeiro | null>(null);
   const [selectedEquipe, setSelectedEquipe] = useState<Equipe | ''>('');
@@ -1105,7 +1235,7 @@ function TabEscalaAnual() {
     return func?.cargo || '';
   }, [formSubId, formFuncId, bombeiros]);
 
-  const equipes: Equipe[] = ['Alfa', 'Bravo', 'Charlie', 'Delta'];
+  const equipes: Equipe[] = ['Alfa', 'Bravo', 'Charlie', 'Delta', 'Feirista'];
 
   useEffect(() => {
     (async () => {
@@ -1286,8 +1416,8 @@ function TabEscalaAnual() {
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">
         <AlertTriangle className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
-        <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Registro de bombeiro nao encontrado</h3>
-        <p className="text-sm text-graphite-400 dark:text-graphite-500">Nao foi possivel vincular seu usuario a um bombeiro.</p>
+        <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Registro de bombeiro não encontrado</h3>
+        <p className="text-sm text-graphite-400 dark:text-graphite-500">Não foi possível vincular seu usuário a um bombeiro.</p>
       </div>
     );
   }
@@ -1295,7 +1425,8 @@ function TabEscalaAnual() {
   const canEditBase = escala?.status === 'Rascunho' || escala?.status === 'Rejeitado';
   const isFeiristaTeam = activeEquipe === 'Feirista';
   const canEdit = canEditBase && (!isFeiristaTeam || isAdmin);
-  const canDelete = escala?.status === 'Rascunho' && (!isFeiristaTeam || isAdmin);
+  const canDelete = effectiveRole === 'desenvolvedor' || effectiveRole === 'admin';
+  const canDeleteItem = isAdmin;
   const canSend = escala?.status === 'Rascunho' || escala?.status === 'Rejeitado';
 
   return (
@@ -1330,7 +1461,7 @@ function TabEscalaAnual() {
         <div className="mb-6 rounded-xl border border-yellow-300 bg-yellow-50 p-4 dark:border-yellow-700 dark:bg-yellow-900/20">
           <div className="flex items-center gap-2 mb-1">
             <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
-            <span className="text-sm font-bold text-yellow-700 dark:text-yellow-300">Escalas Rejeitadas - Observacoes</span>
+            <span className="text-sm font-bold text-yellow-700 dark:text-yellow-300">Escalas Rejeitadas - Observações</span>
           </div>
           <p className="text-sm text-yellow-800 dark:text-yellow-200">{escala.observacoesRejeicao}</p>
         </div>
@@ -1417,9 +1548,11 @@ function TabEscalaAnual() {
                             <button onClick={() => startEditExistingItem(mesNum, item.id)} className="rounded-lg p-1.5 text-graphite-400 hover:bg-graphite-100 dark:hover:bg-surface-hover">
                               <Pencil className="h-4 w-4" />
                             </button>
-                            <button onClick={() => handleDeleteItem(item.id)} className="rounded-lg p-1.5 text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">
-                              <Trash2 className="h-4 w-4" />
-                            </button>
+                            {canDeleteItem && (
+                              <button onClick={() => handleDeleteItem(item.id)} className="rounded-lg p-1.5 text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>
@@ -1440,9 +1573,9 @@ function TabEscalaAnual() {
 
                       {formFuncId && formFuncPeriodos.length > 0 && (
                         <div>
-                          <label className={labelCls}>Periodo Aquisitivo *</label>
+                          <label className={labelCls}>Período Aquisitivo *</label>
                           <select value={formPeriodo} onChange={e => setFormPeriodo(Number(e.target.value))} className={selectCls}>
-                            <option value={0} className={optionCls}>Selecione o periodo</option>
+                            <option value={0} className={optionCls}>Selecione o período</option>
                             {formFuncPeriodos.map(p => (
                               <option key={p.numero} value={p.numero} className={optionCls}>
                                 Periodo {p.numero}: {fmt(p.dataInicio)} - {fmt(p.dataFim)} ({p.diasDireito} dias)
@@ -1454,7 +1587,7 @@ function TabEscalaAnual() {
 
                       {formFuncId && formFuncPeriodos.length === 0 && (
                         <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-3 dark:border-yellow-700 dark:bg-yellow-900/20">
-                          <p className="text-xs font-semibold text-yellow-700 dark:text-yellow-300">Nenhum periodo disponivel para este funcionario.</p>
+                          <p className="text-xs font-semibold text-yellow-700 dark:text-yellow-300">Nenhum período disponível para este funcionário.</p>
                         </div>
                       )}
 
@@ -1484,7 +1617,7 @@ function TabEscalaAnual() {
 
                       {formDataInicio && formDias > 0 && (
                         <div className="rounded-lg bg-graphite-50 p-2 text-xs text-graphite-600 dark:bg-surface-card dark:text-graphite-400">
-                          Periodo: {fmt(formDataInicio)} ate {fmt(new Date(new Date(formDataInicio).getTime() + (formDias - 1) * 86400000).toISOString().split('T')[0])}
+                           Período: {fmt(formDataInicio)} até {fmt(new Date(new Date(formDataInicio).getTime() + (formDias - 1) * 86400000).toISOString().split('T')[0])}
                         </div>
                       )}
 
@@ -1501,7 +1634,7 @@ function TabEscalaAnual() {
                       {formSubId && (
                         <div className="rounded-lg bg-graphite-50 p-2 dark:bg-surface-card">
                           <p className="text-xs text-graphite-600 dark:text-graphite-400">
-                            Substituicao automatica: <span className="font-bold text-graphite-900 dark:text-graphite-100">{formSubAutoFuncao ? (ABBR_CARGO[formSubAutoFuncao] || formSubAutoFuncao) : '-'}</span> (mesma funcao do funcionario em gozo)
+                            Substituição automática: <span className="font-bold text-graphite-900 dark:text-graphite-100">{formSubAutoFuncao ? (ABBR_CARGO[formSubAutoFuncao] || formSubAutoFuncao) : '-'}</span> (mesma função do funcionário em gozo)
                           </p>
                         </div>
                       )}
@@ -1545,15 +1678,15 @@ function TabEscalaAnual() {
               <>
                 {canSend && (
                   <button onClick={handleSendApproval} disabled={saving} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
-                    <Send className="h-4 w-4" /> Enviar para Aprovacao
-                  </button>
-                )}
-                {canDelete && (
-                  <button onClick={() => setConfirmDelete(true)} disabled={saving} className="flex items-center gap-2 rounded-xl border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700 transition-all hover:bg-red-100 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400">
-                    <Trash2 className="h-4 w-4" /> Excluir Escala
+                    <Send className="h-4 w-4" /> Enviar para Aprovação
                   </button>
                 )}
               </>
+            )}
+            {canDelete && (
+              <button onClick={() => setConfirmDelete(true)} disabled={saving} className="flex items-center gap-2 rounded-xl border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700 transition-all hover:bg-red-100 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400">
+                <Trash2 className="h-4 w-4" /> Excluir Escala
+              </button>
             )}
           </div>
         </>
@@ -1562,8 +1695,8 @@ function TabEscalaAnual() {
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl dark:bg-surface-elevated">
-            <h3 className="mb-2 text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar exclusao</h3>
-            <p className="mb-6 text-sm text-graphite-500 dark:text-graphite-400">Tem certeza que deseja excluir esta escala? Todos os itens serao removidos.</p>
+            <h3 className="mb-2 text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar exclusão</h3>
+            <p className="mb-6 text-sm text-graphite-500 dark:text-graphite-400">Tem certeza que deseja excluir esta escala? Todos os itens serão removidos.</p>
             <div className="flex justify-end gap-3">
               <button onClick={() => setConfirmDelete(false)} className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">
                 Cancelar
@@ -1583,9 +1716,10 @@ function TabEscalaAnual() {
 
 function TabMinhaEquipe() {
   const { effectiveRole, user } = useAuth();
-  const isAdmin = effectiveRole === 'admin_master' || effectiveRole === 'admin' || effectiveRole === 'gerente';
+  const isAdmin = effectiveRole === 'desenvolvedor' || effectiveRole === 'admin' || effectiveRole === 'gerente';
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
   const [feriasGozo, setFeriasGozo] = useState<FeriasGozo[]>([]);
+  const [allItems, setAllItems] = useState<EscalaFeriasItem[]>([]);
   const [myBombeiro, setMyBombeiro] = useState<Bombeiro | null>(null);
   const [selectedEquipe, setSelectedEquipe] = useState<Equipe | ''>('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -1595,9 +1729,15 @@ function TabMinhaEquipe() {
 
   useEffect(() => {
     (async () => {
-      const [all, gozos] = await Promise.all([listarAtivos(), listarFeriasGozo()]);
+      const [all, gozos, escalas] = await Promise.all([listarAtivos(), listarFeriasGozo(), listarEscalas()]);
       setBombeiros(all);
       setFeriasGozo(gozos);
+      const items: EscalaFeriasItem[] = [];
+      for (const esc of escalas) {
+        const it = await listarItensEscala(esc.id);
+        items.push(...it);
+      }
+      setAllItems(items);
       if (user) {
         const me = all.find(b => b.nomeCompleto === user.name);
         setMyBombeiro(me || null);
@@ -1641,8 +1781,8 @@ function TabMinhaEquipe() {
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">
         <AlertTriangle className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
-        <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Registro de bombeiro nao encontrado</h3>
-        <p className="text-sm text-graphite-400 dark:text-graphite-500">Nao foi possivel vincular seu usuario a um bombeiro.</p>
+        <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Registro de bombeiro não encontrado</h3>
+        <p className="text-sm text-graphite-400 dark:text-graphite-500">Não foi possível vincular seu usuário a um bombeiro.</p>
       </div>
     );
   }
@@ -1717,29 +1857,115 @@ function TabMinhaEquipe() {
               </button>
 
               {isExpanded && (
-                <div className="mt-2 rounded-2xl border border-graphite-200 bg-white p-5 shadow-sm dark:border-border-dark dark:bg-surface-card">
-                  <h4 className="mb-4 text-sm font-bold text-graphite-900 dark:text-graphite-100">
+                <div className="mt-2 rounded-2xl border border-graphite-200 bg-white p-5 shadow-sm dark:border-border-dark dark:bg-surface-card space-y-4">
+                  <h4 className="text-sm font-bold text-graphite-900 dark:text-graphite-100">
                     Periodos Aquisitivos - {m.nomeCompleto}
                   </h4>
                   {periodos.length === 0 ? (
-                    <p className="text-sm text-graphite-400 dark:text-graphite-500">Nenhum periodo calculado.</p>
+                    <p className="text-sm text-graphite-400 dark:text-graphite-500">Nenhum período calculado.</p>
                   ) : (
                     <div className="space-y-2">
                       {periodos.map(p => (
-                        <div key={p.numero} className="flex items-center justify-between gap-3 rounded-xl border border-graphite-200 p-3 dark:border-border-dark dark:bg-surface-hover">
-                          <div className="min-w-0">
-                            <p className="text-xs font-bold text-graphite-900 dark:text-graphite-100">
-                              Periodo {p.numero}: {fmt(p.dataInicio)} - {fmt(p.dataFim)}
-                            </p>
-                            <p className="text-[10px] text-graphite-400 dark:text-graphite-500">
-                              Vence: {fmt(p.dataVencimento)} · {p.diasDireito} dias
-                            </p>
+                        <div key={p.numero} className="rounded-xl border border-graphite-200 p-3 dark:border-border-dark dark:bg-surface-hover">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-graphite-900 dark:text-graphite-100">
+                                Periodo {p.numero}: {fmt(p.dataInicio)} - {fmt(p.dataFim)}
+                              </p>
+                              <p className="text-[10px] text-graphite-400 dark:text-graphite-500">
+                                Vence: {fmt(p.dataVencimento)} · {p.diasDireito} dias
+                              </p>
+                            </div>
+                            <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${PERIODO_STATUS_COLORS[p.status] || ''}`}>
+                              {p.status}
+                            </span>
                           </div>
-                          <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${PERIODO_STATUS_COLORS[p.status] || ''}`}>
-                            {p.status}
-                          </span>
+                          {p.gozo && (
+                            <div className="mt-2 rounded-lg border border-aviation-200 bg-aviation-50 p-2.5 dark:border-aviation-800 dark:bg-aviation-900/20">
+                              <div className="flex items-center gap-2 text-xs">
+                                <CalendarDays className="h-3.5 w-3.5 shrink-0 text-aviation-600 dark:text-aviation-400" />
+                                <span className="font-semibold text-aviation-700 dark:text-aviation-300">
+                                  Gozo: {fmt(p.gozo.dataInicio)} - {fmt(p.gozo.dataFim)} ({p.gozo.dias} dias)
+                                </span>
+                              </div>
+                              {p.gozo.substitutoNome && (
+                                <div className="mt-1.5 flex items-center gap-2 text-xs text-graphite-600 dark:text-graphite-400">
+                                  <ArrowRightLeft className="h-3 w-3 shrink-0 text-orange-500" />
+                                  <span>
+                                    Substituicao: <strong className="text-orange-700 dark:text-orange-300">{p.gozo.substitutoNome}</strong>
+                                    {p.gozo.funcaoSubstituicao ? ` como ${ABBR_CARGO[p.gozo.funcaoSubstituicao] || p.gozo.funcaoSubstituicao}` : ''}
+                                  </span>
+                                </div>
+                              )}
+                              <p className="mt-1 text-[10px] text-graphite-400 dark:text-graphite-500">
+                                Modificado por: {p.gozo.modificadoPor}{p.gozo.bloqueado ? ' · Bloqueado' : ''}
+                              </p>
+                            </div>
+                          )}
                         </div>
                       ))}
+                    </div>
+                  )}
+
+                  {allItems.filter(i => i.funcionarioId === m.id && !i.rejeitado).length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-bold text-graphite-900 dark:text-graphite-100 flex items-center gap-2">
+                        <CalendarDays className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                        Alocacoes na Escala Anual
+                      </h4>
+                      <div className="mt-2 space-y-1.5">
+                        {allItems.filter(i => i.funcionarioId === m.id && !i.rejeitado).sort((a, b) => a.mes - b.mes).map(item => (
+                          <div key={item.id} className="flex items-center gap-3 rounded-xl border border-graphite-200 bg-white p-2.5 dark:border-border-dark dark:bg-surface-hover">
+                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-purple-100 text-[10px] font-bold text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+                              {MESES[item.mes - 1]?.substring(0, 3)}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-semibold text-graphite-800 dark:text-graphite-200 truncate">
+                                {fmt(item.dataInicio)} - {fmt(item.dataFim)} ({item.dias}d)
+                              </p>
+                              {item.substitutoNome && (
+                                <p className="text-[10px] text-orange-600 dark:text-orange-400 flex items-center gap-1">
+                                  <ArrowRightLeft className="h-2.5 w-2.5" />
+                                  Sub: {item.substitutoNome}
+                                  {item.funcaoSubstituicao ? ` (${ABBR_CARGO[item.funcaoSubstituicao] || item.funcaoSubstituicao})` : ''}
+                                </p>
+                              )}
+                              {item.feiristaNome && (
+                                <p className="text-[10px] text-orange-600 dark:text-orange-400 flex items-center gap-1">
+                                  <User className="h-2.5 w-2.5" />
+                                  Feirista: {item.feiristaNome}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {allItems.filter(i => i.substitutoId === m.id && !i.rejeitado).length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-bold text-graphite-900 dark:text-graphite-100 flex items-center gap-2">
+                        <ArrowRightLeft className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                        Substituicoes (como substituto)
+                      </h4>
+                      <div className="mt-2 space-y-1.5">
+                        {allItems.filter(i => i.substitutoId === m.id && !i.rejeitado).sort((a, b) => a.mes - b.mes).map(item => (
+                          <div key={item.id} className="flex items-center gap-3 rounded-xl border border-orange-200 bg-orange-50 p-2.5 dark:border-orange-800 dark:bg-orange-900/10">
+                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-orange-100 text-[10px] font-bold text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
+                              {MESES[item.mes - 1]?.substring(0, 3)}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-semibold text-graphite-800 dark:text-graphite-200 truncate">
+                                Cobrindo: {item.funcionarioNome} ({ABBR_CARGO[item.funcao] || item.funcao})
+                              </p>
+                              <p className="text-[10px] text-graphite-500 dark:text-graphite-400">
+                                {fmt(item.dataInicio)} - {fmt(item.dataFim)} ({item.dias}d)
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1759,11 +1985,435 @@ function TabMinhaEquipe() {
   );
 }
 
+// -- Tab Escala Feiristas --------------------------------------------------------
+
+function TabEscalaFeiristas() {
+  const { effectiveRole } = useAuth();
+  const canManage = effectiveRole === 'desenvolvedor' || effectiveRole === 'admin' || effectiveRole === 'gerente';
+  const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
+  const [escalas, setEscalas] = useState<EscalaFerias[]>([]);
+  const [allItems, setAllItems] = useState<EscalaFeriasItem[]>([]);
+  const [ano, setAno] = useState(new Date().getFullYear());
+  const [loading, setLoading] = useState(true);
+
+  const [formEquipe, setFormEquipe] = useState('');
+  const [formMes, setFormMes] = useState(1);
+  const [formMembro, setFormMembro] = useState('');
+  const [formFeiristaAtivo, setFormFeiristaAtivo] = useState<string | null>(null);
+
+  const feiristas = useMemo(() => bombeiros.filter(b => b.equipe === 'Feirista'), [bombeiros]);
+  const equipes: Equipe[] = ['Alfa', 'Bravo', 'Charlie', 'Delta'];
+
+  async function carregar() {
+    setLoading(true);
+    const all = await listarAtivos();
+    setBombeiros(all);
+    const escs = await listarEscalas(undefined, ano);
+    setEscalas(escs);
+    const items: EscalaFeriasItem[] = [];
+    for (const esc of escs) {
+      const it = await listarItensEscala(esc.id);
+      items.push(...it);
+    }
+    setAllItems(items);
+    setLoading(false);
+  }
+
+  useEffect(() => { carregar(); }, [ano]);
+
+  const membrosSemFeirista = useMemo(() => {
+    if (!formEquipe) return [];
+    const esc = escalas.find(e => e.equipe === formEquipe && e.ano === ano);
+    if (!esc) return [];
+    const members = bombeiros.filter(b => b.equipe === formEquipe);
+    return members.filter(m => {
+      const item = allItems.find(i => i.escalaId === esc.id && i.funcionarioId === m.id && i.mes === formMes);
+      return !item?.feiristaId || item?.rejeitado;
+    });
+  }, [formEquipe, formMes, escalas, allItems, bombeiros, ano]);
+
+  async function handleAddAlocacao(feiristaId: string) {
+    if (!formEquipe || !formMembro) return;
+    const esc = escalas.find(e => e.equipe === formEquipe && e.ano === ano);
+    if (!esc) return;
+    const existing = allItems.find(i =>
+      i.escalaId === esc.id && i.funcionarioId === formMembro && i.mes === formMes
+    );
+    const feirista = feiristas.find(f => f.id === feiristaId);
+    if (!feirista) return;
+
+    if (existing) {
+      await atualizarItemEscala(existing.id, { feiristaId, feiristaNome: feirista.nomeCompleto });
+    } else {
+      await criarItemEscala({
+        escalaId: esc.id,
+        funcionarioId: formMembro,
+        funcionarioNome: bombeiros.find(b => b.id === formMembro)?.nomeCompleto || '',
+        mes: formMes,
+        dataInicio: '',
+        dataFim: '',
+        dias: 30,
+        feiristaId,
+        feiristaNome: feirista.nomeCompleto,
+        rejeitado: false,
+      });
+    }
+    setFormEquipe('');
+    setFormMembro('');
+    await carregar();
+  }
+
+  async function handleRemoveAlocacao(itemId: string) {
+    await atualizarItemEscala(itemId, { feiristaId: null, feiristaNome: null });
+    await carregar();
+  }
+
+  const feiristaAssignments = useMemo(() => {
+    const assignments: Record<string, { equipe: string; mes: number; funcNome: string; item: EscalaFeriasItem }[]> = {};
+    for (const f of feiristas) {
+      assignments[f.id] = [];
+    }
+    for (const item of allItems) {
+      if (item.feiristaId && item.feiristaNome && !item.rejeitado) {
+        const list = assignments[item.feiristaId] || [];
+        const esc = escalas.find(e => e.id === item.escalaId);
+        list.push({ equipe: esc?.equipe || '', mes: item.mes, funcNome: item.funcionarioNome, item });
+        assignments[item.feiristaId] = list;
+      }
+    }
+    return assignments;
+  }, [feiristas, allItems, escalas]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-aviation-500 border-t-transparent" />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="mb-4 flex items-center gap-3">
+        <span className="text-sm font-medium text-graphite-700 dark:text-graphite-300">Ano:</span>
+        <select value={ano} onChange={e => setAno(Number(e.target.value))} className={`${selectCls} !w-auto`}>
+          {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(y => (
+            <option key={y} value={y} className={optionCls}>{y}</option>
+          ))}
+        </select>
+      </div>
+
+      <p className="mb-4 text-sm text-graphite-500 dark:text-graphite-400">
+        <strong className="text-graphite-700 dark:text-graphite-200">{feiristas.length}</strong> feirista(s) · {' '}
+        <strong className="text-orange-700 dark:text-orange-400">{allItems.filter(i => i.feiristaId && !i.rejeitado).length}</strong> alocação(ões) ativa(s)
+      </p>
+
+      {feiristas.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">
+          <Users className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
+          <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhum feirista cadastrado</h3>
+          <p className="text-sm text-graphite-400">Cadastre bombeiros com equipe "Feirista" para gerenciar escala.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {feiristas.map(f => {
+            const assignments = feiristaAssignments[f.id] || [];
+            const grouped: Record<string, typeof assignments> = {};
+            for (const a of assignments) {
+              if (!grouped[a.equipe]) grouped[a.equipe] = [];
+              grouped[a.equipe].push(a);
+            }
+            return (
+              <div key={f.id} className="rounded-2xl border border-graphite-200 bg-white p-4 shadow-sm dark:border-border-dark dark:bg-surface-card">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 text-sm font-bold text-white">
+                    {f.nomeGuerra?.charAt(0)?.toUpperCase() || f.nomeCompleto.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-graphite-900 dark:text-graphite-100">{f.nomeCompleto}</p>
+                    <p className="text-xs text-graphite-500 dark:text-graphite-400">{f.nomeGuerra} · {f.cargo}</p>
+                  </div>
+                  <span className="rounded-full bg-orange-100 px-2.5 py-0.5 text-[10px] font-bold text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
+                    {assignments.length} alocação(ões)
+                  </span>
+                </div>
+
+                {assignments.length > 0 && (
+                  <div className="space-y-2 mb-3">
+                    {Object.entries(grouped).map(([equipe, eqAssignments]) => (
+                      <div key={equipe} className="rounded-xl border border-graphite-100 bg-graphite-50/50 p-3 dark:border-border-dark dark:bg-surface-hover">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-xs font-bold text-graphite-700 dark:text-graphite-300">Equipe {equipe}</p>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {eqAssignments.sort((a, b) => a.mes - b.mes).map((a, idx) => (
+                            <span key={a.item.id || idx} className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-orange-700 dark:bg-orange-900/20 dark:text-orange-300">
+                              {MESES[a.mes - 1].substring(0, 3)} → {a.funcNome.split(' ')[0]}
+                              {canManage && (
+                                <button onClick={() => handleRemoveAlocacao(a.item.id)}
+                                  className="ml-0.5 rounded-full p-0.5 text-orange-500 hover:bg-orange-200 hover:text-orange-800 dark:hover:bg-orange-800/30 dark:hover:text-orange-200">
+                                  <X className="h-3 w-3" />
+                                </button>
+                              )}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {canManage && (
+                  <div className="border-t border-graphite-100 pt-3 dark:border-border-dark">
+                    {formFeiristaAtivo === f.id ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <select value={formEquipe} onChange={e => { setFormEquipe(e.target.value); setFormMembro(''); }}
+                          className="rounded-lg border border-graphite-300 bg-white px-2 py-1 text-[10px] dark:border-border-dark dark:bg-surface-card dark:text-graphite-100">
+                          <option value="" className={optionCls}>Equipe</option>
+                          {equipes.map(eq => <option key={eq} value={eq} className={optionCls}>{eq}</option>)}
+                        </select>
+                        <select value={formMes} onChange={e => setFormMes(Number(e.target.value))}
+                          className="rounded-lg border border-graphite-300 bg-white px-2 py-1 text-[10px] dark:border-border-dark dark:bg-surface-card dark:text-graphite-100">
+                          {MESES.map((m, i) => <option key={i} value={i + 1} className={optionCls}>{m.substring(0, 3)}</option>)}
+                        </select>
+                        <select value={formMembro} onChange={e => setFormMembro(e.target.value)}
+                          className="rounded-lg border border-graphite-300 bg-white px-2 py-1 text-[10px] dark:border-border-dark dark:bg-surface-card dark:text-graphite-100">
+                          <option value="" className={optionCls}>Membro</option>
+                          {membrosSemFeirista.map(m => (
+                            <option key={m.id} value={m.id} className={optionCls}>{m.nomeGuerra}</option>
+                          ))}
+                        </select>
+                        <button onClick={() => handleAddAlocacao(f.id)} disabled={!formEquipe || !formMembro}
+                          className="flex items-center gap-1 rounded-lg bg-orange-500 px-2.5 py-1 text-[10px] font-medium text-white transition-all hover:bg-orange-600 disabled:opacity-40">
+                          <Plus className="h-3 w-3" /> Alocar
+                        </button>
+                        <button onClick={() => { setFormFeiristaAtivo(null); setFormEquipe(''); setFormMembro(''); }}
+                          className="rounded-lg border border-graphite-300 bg-white px-2 py-1 text-[10px] text-graphite-500 dark:border-border-dark dark:bg-surface-card">
+                          Cancelar
+                        </button>
+                      </div>
+                    ) : (
+                      <button onClick={() => { setFormFeiristaAtivo(f.id); setFormEquipe(''); setFormMes(1); setFormMembro(''); }}
+                        className="flex items-center gap-1 text-xs text-aviation-600 hover:text-aviation-700 dark:text-aviation-400">
+                        <Plus className="h-3 w-3" /> Nova Alocação
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// -- Tab Quadro de Efetivos (Gerente) ------------------------------------------------
+
+function TabQuadroEfetivos() {
+  const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
+  const [feriasGozo, setFeriasGozo] = useState<FeriasGozo[]>([]);
+  const [allItems, setAllItems] = useState<EscalaFeriasItem[]>([]);
+  const [ano, setAno] = useState(new Date().getFullYear());
+  const [mesSelecionado, setMesSelecionado] = useState(new Date().getMonth() + 1);
+  const [loading, setLoading] = useState(true);
+
+  const equipes: Equipe[] = ['Alfa', 'Bravo', 'Charlie', 'Delta', 'Feirista'];
+
+  const CARGO_PRIORITY: Record<string, number> = {
+    'BA-CE': 0,
+    'BA-LR': 1,
+    'BA-MC': 2,
+    'BA-2': 3,
+  };
+
+  function sortPorHierarquia(lista: Bombeiro[]): Bombeiro[] {
+    return [...lista].sort((a, b) => (CARGO_PRIORITY[a.cargo] ?? 99) - (CARGO_PRIORITY[b.cargo] ?? 99));
+  }
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const [all, gozos, escalas] = await Promise.all([listarAtivos(), listarFeriasGozo(), listarEscalas()]);
+      setBombeiros(all);
+      setFeriasGozo(gozos);
+      const items: EscalaFeriasItem[] = [];
+      for (const esc of escalas) {
+        const it = await listarItensEscala(esc.id);
+        items.push(...it);
+      }
+      setAllItems(items);
+      setLoading(false);
+    })();
+  }, []);
+
+  function isEmGozo(b: Bombeiro, mes: number, anoRef: number): FeriasGozo | null {
+    const mesInicio = new Date(anoRef, mes - 1, 1);
+    const mesFim = new Date(anoRef, mes, 0);
+    for (const g of feriasGozo) {
+      if (g.funcionarioId !== b.id) continue;
+      if (g.status === 'Gozadas' || g.status === 'Em Gozo' || g.status === 'Programadas') {
+        const gInicio = new Date(g.dataInicio + 'T00:00:00');
+        const gFim = new Date(g.dataFim + 'T00:00:00');
+        if (gInicio <= mesFim && gFim >= mesInicio) return g;
+      }
+    }
+    return null;
+  }
+
+  function getItemSubstituicao(b: Bombeiro, mes: number): EscalaFeriasItem | null {
+    return allItems.find(i =>
+      i.funcionarioId === b.id && i.mes === mes && !i.rejeitado && i.substitutoId
+    ) || null;
+  }
+
+  function getFeiristaDesignado(b: Bombeiro, mes: number): EscalaFeriasItem | null {
+    return allItems.find(i =>
+      i.funcionarioId === b.id && i.mes === mes && !i.rejeitado && i.feiristaId
+    ) || null;
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-aviation-500 border-t-transparent" />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="mb-6 flex flex-wrap items-center gap-3">
+        <div>
+          <label className={labelCls}>Ano</label>
+          <select value={ano} onChange={e => setAno(Number(e.target.value))} className={`${selectCls} !w-auto`}>
+            {getAnos().map(a => <option key={a} value={a} className={optionCls}>{a}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className={labelCls}>Mes</label>
+          <select value={mesSelecionado} onChange={e => setMesSelecionado(Number(e.target.value))} className={`${selectCls} !w-auto`}>
+            {MESES.map((m, idx) => (
+              <option key={idx} value={idx + 1} className={optionCls}>{m}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="mb-4 flex items-center gap-2">
+        <BarChart3 className="h-4 w-4 text-aviation-600 dark:text-aviation-400" />
+        <h3 className="text-sm font-bold text-graphite-900 dark:text-graphite-100">
+          Quadro de Efetivos - {MESES[mesSelecionado - 1]} {ano}
+        </h3>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-4">
+        {equipes.map(eq => {
+          const membros = sortPorHierarquia(bombeiros.filter(b => b.equipe === eq));
+          const emGozo = membros.filter(m => isEmGozo(m, mesSelecionado, ano));
+          const disponiveis = membros.filter(m => !isEmGozo(m, mesSelecionado, ano));
+
+          return (
+            <div key={eq} className="rounded-2xl border border-graphite-200 bg-white shadow-sm dark:border-border-dark dark:bg-surface-card">
+              <div className="flex items-center justify-between border-b border-graphite-200 px-4 py-3 dark:border-border-dark">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-aviation-500 to-aviation-700 text-[10px] font-bold text-white">
+                    {eq.charAt(0)}
+                  </div>
+                  <h4 className="text-sm font-bold text-graphite-900 dark:text-graphite-100">Equipe {eq}</h4>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-bold text-green-700 dark:bg-green-900/20 dark:text-green-400">
+                    {disponiveis.length} efetivo(s)
+                  </span>
+                  {emGozo.length > 0 && (
+                    <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-[10px] font-bold text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400">
+                      {emGozo.length} em gozo
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-3 space-y-1.5">
+                {membros.length === 0 ? (
+                  <p className="py-4 text-center text-xs text-graphite-400 dark:text-graphite-500">Nenhum membro</p>
+                ) : (
+                  <>
+                    {disponiveis.length > 0 && (
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-green-600 dark:text-green-400 px-1">Efetivos</p>
+                        {disponiveis.map(m => {
+                          const item = getItemSubstituicao(m, mesSelecionado);
+                          const feirista = getFeiristaDesignado(m, mesSelecionado);
+                          return (
+                            <div key={m.id} className="flex items-center gap-2.5 rounded-xl border border-green-200 bg-green-50/50 px-3 py-2 dark:border-green-800/30 dark:bg-green-900/10">
+                              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-green-500 to-green-600 text-[10px] font-bold text-white">
+                                {m.foto ? <img src={m.foto} alt="" className="h-full w-full rounded-lg object-cover" /> : m.nomeGuerra.charAt(0)}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-bold text-graphite-900 dark:text-graphite-100 truncate">{m.nomeGuerra}</p>
+                                <p className="text-[10px] text-graphite-500 dark:text-graphite-400">{ABBR_CARGO[m.cargo] || m.cargo}</p>
+                              </div>
+                              {item?.substitutoNome && (
+                                <span className="shrink-0 text-[9px] text-orange-600 dark:text-orange-400">
+                                  Sub: {item.substitutoNome.split(' ')[0]}
+                                </span>
+                              )}
+                              {feirista?.feiristaNome && (
+                                <span className="shrink-0 text-[9px] text-orange-600 dark:text-orange-400">
+                                  F: {feirista.feiristaNome.split(' ')[0]}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {emGozo.length > 0 && (
+                      <div className="space-y-1 mt-2">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-yellow-600 dark:text-yellow-400 px-1">Em Gozo</p>
+                        {emGozo.map(m => {
+                          const gozo = isEmGozo(m, mesSelecionado, ano);
+                          return (
+                            <div key={m.id} className="flex items-center gap-2.5 rounded-xl border border-yellow-200 bg-yellow-50/50 px-3 py-2 opacity-70 dark:border-yellow-800/30 dark:bg-yellow-900/10">
+                              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-yellow-400 to-yellow-500 text-[10px] font-bold text-white">
+                                {m.nomeGuerra.charAt(0)}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-bold text-graphite-700 dark:text-graphite-300 truncate line-through">{m.nomeGuerra}</p>
+                                <p className="text-[10px] text-graphite-500 dark:text-graphite-400">
+                                  {ABBR_CARGO[m.cargo] || m.cargo}
+                                  {gozo && ` · ${fmt(gozo.dataInicio)} - ${fmt(gozo.dataFim)}`}
+                                </p>
+                              </div>
+                              {gozo?.substitutoNome && (
+                                <span className="shrink-0 rounded-full bg-orange-100 px-1.5 py-0.5 text-[9px] font-semibold text-orange-700 dark:bg-orange-900/20 dark:text-orange-300">
+                                  → {gozo.substitutoNome.split(' ')[0]}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // -- Pagina Principal -------------------------------------------------------------
 
 export function Ferias() {
   const { effectiveRole, user } = useAuth();
-  const canManage = effectiveRole === 'admin_master' || effectiveRole === 'admin' || effectiveRole === 'gerente';
+  const canManage = effectiveRole === 'desenvolvedor' || effectiveRole === 'admin' || effectiveRole === 'gerente';
   const [myEquipe, setMyEquipe] = useState<string | null>(null);
   const [resolving, setResolving] = useState(!canManage);
   const [tab, setTab] = useState<string>('');
@@ -1780,10 +2430,12 @@ export function Ferias() {
 
   const adminTabs = [
     { key: 'bombeiros', label: 'Bombeiros', icon: Users },
-    { key: 'aprovacoes', label: 'Aprovacoes', icon: FileText },
+    { key: 'aprovacoes', label: 'Aprovações', icon: FileText },
     { key: 'escala-geral', label: 'Escala Geral', icon: Eye },
     { key: 'escala', label: 'Escala Anual', icon: CalendarDays },
+    { key: 'feiristas', label: 'Escala Feiristas', icon: User },
     { key: 'equipe', label: 'Minha Equipe', icon: Users },
+    { key: 'efetivos', label: 'Quadro de Efetivos', icon: BarChart3 },
   ] as const;
 
   const chefeTabs = [
@@ -1835,7 +2487,9 @@ export function Ferias() {
       {tab === 'aprovacoes' && <TabAprovacoes />}
       {tab === 'escala-geral' && <TabEscalaGeral />}
       {tab === 'escala' && <TabEscalaAnual />}
+      {tab === 'feiristas' && <TabEscalaFeiristas />}
       {tab === 'equipe' && <TabMinhaEquipe />}
+      {tab === 'efetivos' && <TabQuadroEfetivos />}
     </PageContainer>
   );
 }

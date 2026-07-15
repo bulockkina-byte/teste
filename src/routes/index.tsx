@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { Layout } from '../components/layout/Layout';
 import { Dashboard } from '../pages/Dashboard/Dashboard';
 import { Login } from '../pages/Login/Login';
+import { ConviteRegister } from '../pages/Login/ConviteRegister';
 import { AuthGuard } from '../components/layout/AuthGuard';
 import { Loading } from '../components/ui/Loading';
 
@@ -19,6 +20,10 @@ export const router = createBrowserRouter([
   {
     path: '/login',
     element: <Login />,
+  },
+  {
+    path: '/cadastro/convite/:codigo',
+    element: <ConviteRegister />,
   },
   {
     path: '/',
@@ -39,6 +44,7 @@ export const router = createBrowserRouter([
       { path: 'cadastro/documentos', element: lazyPage(() => import('../pages/Documentos/Documentos')) },
       { path: 'ocorrencias', element: lazyPage(() => import('../pages/Ocorrencias/Ocorrencias')) },
       { path: 'inspecoes', element: lazyPage(() => import('../pages/Inspecoes/Inspecoes')) },
+      { path: 'inspecoes/check', element: lazyPage(() => import('../pages/Inspecoes/InspecaoCheck')) },
       { path: 'viaturas', element: lazyPage(() => import('../pages/Viaturas/Viaturas')) },
       { path: 'epis', element: lazyPage(() => import('../pages/EPIs/EPIs')) },
       { path: 'checklists', element: lazyPage(() => import('../pages/Checklists/Checklists')) },
@@ -50,6 +56,7 @@ export const router = createBrowserRouter([
       { path: 'treinamentos/taf', element: lazyPage(() => import('../pages/Relatorios/TAF')) },
       { path: 'certificacoes', element: lazyPage(() => import('../pages/Certificacoes/Certificacoes')) },
       { path: 'funcionarios', element: lazyPage(() => import('../pages/Funcionarios/Funcionarios')) },
+      { path: 'funcionarios/substituicoes', element: lazyPage(() => import('../pages/Funcionarios/Substituicoes')) },
       { path: 'estatisticas', element: lazyPage(() => import('../pages/Estatisticas/Estatisticas')) },
       { path: 'registros-diarios/lro', element: lazyPage(() => import('../pages/RegistrosDiarios/LRODiario')) },
       { path: 'registros-diarios/ptr-ba', element: lazyPage(() => import('../pages/RegistrosDiarios/PTRBADiario')) },

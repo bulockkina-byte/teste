@@ -30,6 +30,7 @@ export interface Bombeiro {
   cnhNumero: string;
   cnhCategoria: CatCNH;
   cnhValidade: string;
+  credencialValidade: string;
   foto: string;
   dataDesligamento: string;
   endereco: string;

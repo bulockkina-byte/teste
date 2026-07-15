@@ -8,10 +8,10 @@ import {
   atualizarUsuario,
 } from '../services/usuarioService';
 
-export type UserRole = 'admin_master' | 'admin' | 'gerente' | 'chefe' | 'lider';
+export type UserRole = 'desenvolvedor' | 'admin' | 'gerente' | 'chefe' | 'lider';
 
 export const ROLE_LABELS: Record<UserRole, string> = {
-  admin_master: 'Desenvolvedor',
+  desenvolvedor: 'Desenvolvedor',
   admin: 'Administrador',
   gerente: 'Gerente da Seção de Combate a Incêndio',
   chefe: 'Chefe de Equipe',
@@ -73,7 +73,16 @@ function loadSession(): User | null {
   try {
     const raw = localStorage.getItem(SESSION_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as User;
+    const session = JSON.parse(raw) as User;
+    if (session.username === 'serra' && session.role !== 'desenvolvedor') {
+      session.role = 'desenvolvedor';
+      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    }
+    if (session.username === 'admin' && session.role !== 'admin') {
+      session.role = 'admin';
+      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    }
+    return session;
   } catch {
     return null;
   }
@@ -97,7 +106,12 @@ function seedAdmin() {
   let changed = false;
 
   if (users['admin_master']) {
+    const saved = users['admin_master'];
     delete users['admin_master'];
+    if (!users['serra']) {
+      users['serra'] = { ...saved, role: 'desenvolvedor' };
+      changed = true;
+    }
     changed = true;
   }
 
@@ -120,10 +134,10 @@ function seedAdmin() {
   } catch { /* ignore */ }
 
   if (!users['serra']) {
-    users['serra'] = { name: 'Serra', password: 'serra', role: 'admin_master' };
+    users['serra'] = { name: 'Serra', password: 'serra', role: 'desenvolvedor' };
     changed = true;
-  } else if (users['serra'].role !== 'admin_master') {
-    users['serra'].role = 'admin_master';
+  } else if (users['serra'].role !== 'desenvolvedor') {
+    users['serra'].role = 'desenvolvedor';
     changed = true;
   }
 
@@ -164,7 +178,7 @@ async function syncSeedsToSupabase(users: Record<string, StoredUser>) {
   }
 }
 
-const ROLE_HIERARQUIA: UserRole[] = ['admin_master', 'admin', 'gerente', 'chefe', 'lider'];
+const ROLE_HIERARQUIA: UserRole[] = ['desenvolvedor', 'admin', 'gerente', 'chefe', 'lider'];
 
 function cargoParaUserRole(cargo: string): UserRole | null {
   if (cargo === 'GS') return 'gerente';
@@ -190,6 +204,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearSession();
       setUser(null);
       return;
+    }
+    if (user && user.role === 'admin_master') {
+      setUser(prev => prev ? { ...prev, role: 'desenvolvedor' } : prev);
+    }
+    if (user?.username === 'serra' && user.role !== 'desenvolvedor') {
+      setUser(prev => prev ? { ...prev, role: 'desenvolvedor' } : prev);
+      const users = getStoredUsers();
+      if (users['serra']) {
+        users['serra'].role = 'desenvolvedor';
+        localStorage.setItem(USERS_KEY, JSON.stringify(users));
+      }
+    }
+    if (user?.username === 'admin' && user.role !== 'admin') {
+      setUser(prev => prev ? { ...prev, role: 'admin' } : prev);
+      const users = getStoredUsers();
+      if (users['admin']) {
+        users['admin'].role = 'admin';
+        localStorage.setItem(USERS_KEY, JSON.stringify(users));
+      }
     }
   }, [user]);
 
@@ -223,11 +256,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const login = useCallback(async (username: string, password: string) => {
+    const ATTEMPTS_KEY = 'sescinc-login-attempts';
+    const MAX_ATTEMPTS = 5;
+    const BLOCK_MINUTES = 15;
+
+    let attempts: Record<string, { count: number; firstAttempt: string }> = {};
+    try { attempts = JSON.parse(localStorage.getItem(ATTEMPTS_KEY) || '{}'); } catch { /* ignore */ }
+
+    const userAttempts = attempts[username];
+    if (userAttempts && userAttempts.count >= MAX_ATTEMPTS) {
+      const elapsed = Date.now() - new Date(userAttempts.firstAttempt).getTime();
+      const remaining = BLOCK_MINUTES * 60 * 1000 - elapsed;
+      if (remaining > 0) {
+        const mins = Math.ceil(remaining / 60000);
+        throw new Error(`Conta bloqueada por ${mins} minuto(s) devido a múltiplas tentativas inválidas.`);
+      }
+      delete attempts[username];
+    }
+
     await new Promise(r => setTimeout(r, 600));
     let users = getStoredUsers();
     let stored = users[username];
 
-    if (!stored || stored.password !== password) {
+    if (!stored) {
       try {
         const remote = await buscarUsuarioPorUsername(username);
         if (remote && remote.password === password) {
@@ -242,18 +293,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           users[username] = stored;
           localStorage.setItem(USERS_KEY, JSON.stringify(users));
         }
-      } catch { /* ignore - Supabase offline */ }
+      } catch (err) {
+        console.error('Erro ao buscar usuário no Supabase:', err);
+        throw new Error('Erro ao conectar com o servidor. Tente novamente.');
+      }
     }
 
     if (!stored || stored.password !== password) {
-      throw new Error('Usuário ou senha inválidos.');
+      const now = new Date().toISOString();
+      if (!attempts[username]) attempts[username] = { count: 0, firstAttempt: now };
+      attempts[username].count++;
+      if (attempts[username].count === 1) attempts[username].firstAttempt = now;
+      localStorage.setItem(ATTEMPTS_KEY, JSON.stringify(attempts));
+      const tentativasRestantes = MAX_ATTEMPTS - attempts[username].count;
+      throw new Error(`Usuário ou senha inválidos. ${tentativasRestantes > 0 ? `${tentativasRestantes} tentativa(s) restante(s).` : 'Conta bloqueada por 15 minutos.'}`);
+    }
+
+    delete attempts[username];
+    localStorage.setItem(ATTEMPTS_KEY, JSON.stringify(attempts));
+
+    const roleGarantida: UserRole = username === 'serra'
+      ? 'desenvolvedor'
+      : username === 'admin'
+        ? 'admin'
+        : stored.role || 'chefe';
+
+    if (roleGarantida !== stored.role) {
+      stored.role = roleGarantida;
+      users[username] = stored;
+      localStorage.setItem(USERS_KEY, JSON.stringify(users));
     }
 
     const userData: User = {
       name: stored.name,
       username,
       avatar: stored.name.charAt(0).toUpperCase(),
-      role: stored.role || 'chefe',
+      role: roleGarantida,
     };
 
     if (stored.personId && stored.personType) {
@@ -328,12 +403,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     users[username] = { name, password, role, personId, personType };
     localStorage.setItem(USERS_KEY, JSON.stringify(users));
+
     try {
       const existing = await buscarUsuarioPorUsername(username);
-      if (!existing) {
-        await criarUsuario({ username, name, password, role, personId, personType });
+      if (existing) {
+        throw new Error('Nome de usuário já existe.');
       }
-    } catch { /* ignore - Supabase offline */ }
+      await criarUsuario({ username, name, password, role, personId, personType });
+    } catch (err) {
+      if (err instanceof Error && err.message === 'Nome de usuário já existe.') throw err;
+      console.warn('Cadastro realizado localmente. Servidor indisponível — será sincronizado quando a conexão for restaurada.');
+    }
   }, []);
 
   const logout = useCallback(() => {

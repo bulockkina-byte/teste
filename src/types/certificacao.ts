@@ -7,7 +7,8 @@ export interface CertificacaoNR {
   dataEmissao: string;
   dataValidade: string;
   empresa: string;
-  foto: string;
+  arquivo: string;
+  tipoArquivo: 'image' | 'pdf';
   createdAt: string;
   updatedAt: string;
 }
@@ -20,6 +21,7 @@ export const NR_OPTIONS = [
   { numero: 'NR-12', nome: 'Segurança no Trabalho em Máquinas e Equipamentos' },
   { numero: 'NR-18', nome: 'Condições e Meio Ambiente de Trabalho na Indústria da Construção' },
   { numero: 'NR-20', nome: 'Líquidos e Gases Combustíveis' },
+  { numero: 'NR-20 II', nome: 'Líquidos e Gases Combustíveis - Programa' },
   { numero: 'NR-23', nome: 'Proteção e Combate a Incêndio' },
   { numero: 'NR-26', nome: 'Sinalização de Segurança' },
   { numero: 'NR-33', nome: 'Segurança e Saúde nos Trabalhos em Espaços Confinados' },

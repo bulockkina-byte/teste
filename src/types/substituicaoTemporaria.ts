@@ -8,6 +8,19 @@ export type MotivoSubstituicao =
   | 'Doacao Sangue'
   | 'Outro';
 
+export type TipoSubstituicao = 'Substituição' | 'Extra';
+export type RespostaPlantaoExtra = 'Sim' | 'Nao' | '';
+
+export const MOTIVOS_OBRIGATORIOS_POR_LEI: MotivoSubstituicao[] = [
+  'Atestado Medico',
+  'Falecimento Conjuge',
+  'Falecimento Pai Mae',
+  'Falecimento Filho',
+  'Casamento',
+  'Nascimento Filho',
+  'Doacao Sangue',
+];
+
 export interface SubstituicaoTemporaria {
   id: string;
   funcionarioId: string;
@@ -16,8 +29,10 @@ export interface SubstituicaoTemporaria {
   substitutoId: string;
   substitutoNome: string;
   substitutoCargo: string;
+  tipo: TipoSubstituicao;
   motivo: MotivoSubstituicao;
   motivoOutro: string;
+  plantaoExtra: RespostaPlantaoExtra;
   dataInicio: string;
   dataFim: string;
   dias: number;

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { X, User, Unlink } from 'lucide-react';
 import type { UserRole } from '../../context/AuthContext';
-import { ROLE_LABELS, cargoParaUserRole, apocParaUserRole } from '../../context/AuthContext';
+import { cargoParaUserRole, apocParaUserRole } from '../../context/AuthContext';
 import { Autocomplete } from '../../components/documentos/Autocomplete';
 import { listarAtivos } from '../../services/bombeiroService';
 import { listarAPOCs } from '../../services/apocService';
@@ -22,14 +22,9 @@ interface UserData {
 
 interface Props {
   user?: { username: string; name: string; role?: UserRole; previousRole?: UserRole; personId?: string; personType?: 'bombeiro' | 'apoc' } | null;
-  isProtected?: boolean;
-  currentUserRole?: UserRole;
-  currentUsername?: string;
-  onSave: (data: UserData) => void;
+  onSave: (data: UserData) => void | Promise<void>;
   onClose: () => void;
 }
-
-const ALL_ROLES: UserRole[] = ['gerente', 'chefe', 'lider'];
 
 interface PersonOption {
   id: string;
@@ -40,7 +35,7 @@ interface PersonOption {
   funcao?: string;
 }
 
-export function UsuarioForm({ user, isProtected = false, currentUserRole, currentUsername, onSave, onClose }: Props) {
+export function UsuarioForm({ user, onSave, onClose }: Props) {
   const [username, setUsername] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
@@ -125,9 +120,9 @@ export function UsuarioForm({ user, isProtected = false, currentUserRole, curren
     setPersonType(undefined);
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!username || !name || (!user && !password)) {
+    if (!username || (!user && !password)) {
       setErro('Preencha todos os campos obrigatórios.');
       return;
     }
@@ -136,7 +131,12 @@ export function UsuarioForm({ user, isProtected = false, currentUserRole, curren
       return;
     }
     setErro('');
-    onSave({ username, name, password, role, personId, personType });
+    const finalName = name || username;
+    try {
+      await onSave({ username, name: finalName, password, role, personId, personType });
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : 'Erro ao salvar usuário.');
+    }
   }
 
   const input = 'w-full rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all duration-200 hover:border-graphite-400 focus:border-aviation-500 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:hover:border-graphite-500 dark:focus:border-aviation-400 dark:focus:bg-surface-elevated dark:focus:ring-aviation-400/10 dark:placeholder:text-graphite-500';
@@ -155,7 +155,7 @@ export function UsuarioForm({ user, isProtected = false, currentUserRole, curren
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Nome Completo *</label>
+            <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Nome Completo</label>
             {loadingPessoas ? (
               <input disabled value="Carregando pessoas..." className={input + ' cursor-not-allowed opacity-60'} />
             ) : (
@@ -205,22 +205,6 @@ export function UsuarioForm({ user, isProtected = false, currentUserRole, curren
             </label>
             <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Mínimo 6 caracteres"
               className={input} />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Função *</label>
-            <select value={role} onChange={e => setRole(e.target.value as UserRole)}
-              disabled={isProtected}
-              className={input + (isProtected ? ' cursor-not-allowed opacity-60' : '')}>
-              {ALL_ROLES.map(r => (
-                <option key={r} value={r}>{ROLE_LABELS[r]}</option>
-              ))}
-            </select>
-            {isProtected && (
-              <p className="mt-1 text-[11px] text-graphite-500 dark:text-graphite-500">A função deste usuário não pode ser alterada.</p>
-            )}
-            {user?.role === 'admin' && user?.previousRole && (currentUserRole === 'admin_master' || user?.username === currentUsername) && (
-              <p className="mt-1 text-[11px] text-graphite-500 dark:text-graphite-500">Função anterior: <span className="font-medium">{ROLE_LABELS[user.previousRole] || user.previousRole}</span></p>
-            )}
           </div>
 
           {erro && <p className="text-sm text-alert-red dark:text-red-400">{erro}</p>}

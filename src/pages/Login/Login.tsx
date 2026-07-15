@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Loader2, User, Lock } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -14,6 +14,13 @@ export function Login() {
   const [error, setError] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const html = document.documentElement;
+    const wasDark = html.classList.contains('dark');
+    if (wasDark) html.classList.remove('dark');
+    return () => { if (wasDark) html.classList.add('dark'); };
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -34,8 +41,8 @@ export function Login() {
   }
 
   return (
-    <div className="flex min-h-screen">
-      <div className="flex w-full flex-col justify-center px-6 lg:w-2/5 lg:px-12 animate-fadeIn">
+    <div className="flex min-h-screen bg-white">
+      <div className="flex w-full flex-col justify-center bg-white px-6 lg:w-2/5 lg:px-12 animate-fadeIn">
         <div className="mx-auto w-full max-w-xs">
           <div className="mb-6 flex items-center gap-3">
             <div className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl shadow-lg shadow-aviation-500/20">
@@ -94,7 +101,7 @@ export function Login() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-black transition-all duration-200 hover:text-gray-600 dark:hover:text-graphite-300"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-black transition-all duration-200 hover:text-gray-600"
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -102,7 +109,7 @@ export function Login() {
               </div>
 
               {error && (
-                <div className="animate-slideUp rounded-xl bg-red-50 px-4 py-3 text-sm text-alert-red dark:bg-red-900/20">
+                <div className="animate-slideUp rounded-xl bg-red-50 px-4 py-3 text-sm text-alert-red">
                   {error}
                 </div>
               )}

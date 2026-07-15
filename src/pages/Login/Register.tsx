@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User, Lock, UserCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { User, Lock, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export function Register() {
-  const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -16,7 +15,7 @@ export function Register() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name || !username || !password || !confirmPassword) {
+    if (!username || !password || !confirmPassword) {
       setError('Preencha todos os campos.');
       return;
     }
@@ -31,7 +30,7 @@ export function Register() {
     setError('');
     setLoading(true);
     try {
-      await register(name, username, password, 'lider');
+      await register(username, username, password, 'lider');
       navigate('/login');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao cadastrar.');
@@ -66,22 +65,6 @@ SCI NVT
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-graphite-700 dark:text-graphite-300">
-                Nome completo
-              </label>
-              <div className="relative">
-                <UserCircle className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite-400" />
-                <input
-                  type="text"
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  placeholder="Seu nome"
-                  className="w-full rounded-xl border border-graphite-300/60 bg-white/70 py-2.5 pl-10 pr-4 text-sm text-graphite-900 backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated"
-                />
-              </div>
-            </div>
-
             <div>
               <label className="mb-1.5 block text-sm font-medium text-graphite-700 dark:text-graphite-300">
                 Usuário

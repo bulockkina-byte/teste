@@ -786,7 +786,7 @@ export function LRODiario() {
       } else {
         const users = JSON.parse(localStorage.getItem('sescinc-users') || '{}');
         const stored = users[username];
-        if (stored?.role === 'admin_master' || stored?.role === 'admin') {
+        if (stored?.role === 'desenvolvedor' || stored?.role === 'admin') {
           r = 'admin';
         } else {
           const bombeiros = await listarBombeiros();

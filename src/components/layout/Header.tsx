@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -17,6 +17,8 @@ import { Breadcrumb } from './Breadcrumb';
 import { RightPanel } from './RightPanel';
 import { CARGO_OPTIONS } from '../../types/bombeiro';
 import { FUNCAO_APOC_OPTIONS } from '../../types/apoc';
+import { contarNaoLidas as contarNotifNaoLidas } from '../../services/notificacaoService';
+import { contarNaoLidas as contarChatNaoLidas } from '../../services/chatService';
 
 export function Header() {
   const { theme, toggleTheme } = useTheme();
@@ -26,14 +28,27 @@ export function Header() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
   const [rightPanelTab, setRightPanelTab] = useState<'notificacoes' | 'chat' | 'contatos'>('notificacoes');
+  const [notifCount, setNotifCount] = useState(0);
+  const [chatCount, setChatCount] = useState(0);
+
+  useEffect(() => {
+    setNotifCount(contarNotifNaoLidas());
+    setChatCount(user?.username ? contarChatNaoLidas(user.username) : 0);
+    const iv = setInterval(() => {
+      setNotifCount(contarNotifNaoLidas());
+      setChatCount(user?.username ? contarChatNaoLidas(user.username) : 0);
+    }, 15000);
+    return () => clearInterval(iv);
+  }, [user?.username]);
 
   const pessoa = user?.pessoa;
   const displayName = pessoa?.nomeGuerra || user?.name || 'Usuário';
-  const displayRole = pessoa
+  const displayRole = ROLE_LABELS[user?.role || 'chefe'];
+  const cargoLabel = pessoa
     ? (pessoa.personType === 'bombeiro'
-        ? CARGO_OPTIONS.find(c => c.value === pessoa.funcao)?.label || ROLE_LABELS[user?.role || 'chefe']
-        : FUNCAO_APOC_OPTIONS.find(f => f.value === pessoa.funcao)?.label || ROLE_LABELS[user?.role || 'chefe'])
-    : ROLE_LABELS[user?.role || 'chefe'];
+        ? CARGO_OPTIONS.find(c => c.value === pessoa.funcao)?.label
+        : FUNCAO_APOC_OPTIONS.find(f => f.value === pessoa.funcao)?.label) || undefined
+    : undefined;
   const displayPhoto = pessoa?.foto || null;
   const fullName = pessoa?.nomeGuerra ? (user?.name || '') : '';
 
@@ -66,12 +81,21 @@ export function Header() {
         <button onClick={() => { setRightPanelTab('notificacoes'); setRightPanelOpen(true); }}
           className="relative rounded-xl p-2 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:text-graphite-500 dark:hover:bg-surface-card dark:hover:text-graphite-300">
           <Bell className="h-5 w-5" />
-          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-alert-red ring-2 ring-white dark:ring-surface-dark" />
+          {notifCount > 0 && (
+            <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-alert-red px-1 text-[10px] font-bold text-white ring-2 ring-white dark:ring-surface-dark">
+              {notifCount}
+            </span>
+          )}
         </button>
 
         <button onClick={() => { setRightPanelTab('chat'); setRightPanelOpen(true); }}
-          className="rounded-xl p-2 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:text-graphite-500 dark:hover:bg-surface-card dark:hover:text-graphite-300">
+          className="relative rounded-xl p-2 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:text-graphite-500 dark:hover:bg-surface-card dark:hover:text-graphite-300">
           <MessageSquare className="h-5 w-5" />
+          {chatCount > 0 && (
+            <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-alert-red px-1 text-[10px] font-bold text-white ring-2 ring-white dark:ring-surface-dark">
+              {chatCount}
+            </span>
+          )}
         </button>
 
         <div className="mx-1 h-6 w-px bg-graphite-200/60 dark:bg-border-dark" />
@@ -106,6 +130,11 @@ export function Header() {
               <p className="text-[10px] font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400">
                 {displayRole}
               </p>
+              {cargoLabel && (
+                <p className="text-[10px] uppercase text-graphite-500 dark:text-graphite-400">
+                  {cargoLabel}
+                </p>
+              )}
               {fullName && fullName !== displayName && (
                 <p className="text-[10px] text-graphite-400 dark:text-graphite-500 truncate max-w-[120px]">
                   {fullName}
@@ -134,6 +163,9 @@ export function Header() {
                     <div className="min-w-0">
                       <p className="text-sm font-bold text-graphite-900 dark:text-graphite-100 truncate">{displayName}</p>
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400">{displayRole}</p>
+                      {cargoLabel && (
+                        <p className="text-[10px] uppercase text-graphite-500 dark:text-graphite-400">{cargoLabel}</p>
+                      )}
                       {fullName && fullName !== displayName && (
                         <p className="text-[10px] text-graphite-400 truncate">{fullName}</p>
                       )}
@@ -211,6 +243,8 @@ function getPageTitle(pathname: string): string {
     treinamentos: 'Treinamentos',
     certificacoes: 'Certificações',
     funcionarios: 'Funcionários',
+    substituicoes: 'Substituições',
+    conferencia: 'Conferência',
     estatisticas: 'Estatísticas',
     configuracoes: 'Configurações',
     usuarios: 'Usuários',

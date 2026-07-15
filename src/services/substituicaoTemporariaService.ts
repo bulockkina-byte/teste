@@ -23,8 +23,10 @@ function rowToSubstituicao(row: Record<string, unknown>): SubstituicaoTemporaria
     substitutoId: row.substituto_id as string,
     substitutoNome: row.substituto_nome as string,
     substitutoCargo: row.substituto_cargo as string,
+    tipo: (row.tipo as SubstituicaoTemporaria['tipo']) || 'Substituição',
     motivo: row.motivo as SubstituicaoTemporaria['motivo'],
     motivoOutro: row.motivo_outro as string,
+    plantaoExtra: (row.plantao_extra as SubstituicaoTemporaria['plantaoExtra']) || '',
     dataInicio: row.data_inicio as string,
     dataFim: row.data_fim as string,
     dias: row.dias as number,
@@ -48,6 +50,7 @@ function substituicaoToRow(data: Partial<SubstituicaoTemporaria>): Record<string
   if (data.substitutoId !== undefined) row.substituto_id = data.substitutoId;
   if (data.substitutoNome !== undefined) row.substituto_nome = data.substitutoNome;
   if (data.substitutoCargo !== undefined) row.substituto_cargo = data.substitutoCargo;
+  if (data.tipo !== undefined) row.tipo = data.tipo;
   if (data.motivo !== undefined) row.motivo = data.motivo;
   if (data.motivoOutro !== undefined) row.motivo_outro = data.motivoOutro;
   if (data.dataInicio !== undefined) row.data_inicio = data.dataInicio;

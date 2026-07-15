@@ -30,6 +30,8 @@ export function Breadcrumb() {
     treinamentos: 'Treinamentos',
     certificacoes: 'Certificações',
     funcionarios: 'Funcionários',
+    substituicoes: 'Substituições',
+    conferencia: 'Conferência',
     estatisticas: 'Estatísticas',
     configuracoes: 'Configurações',
     usuarios: 'Usuários',
