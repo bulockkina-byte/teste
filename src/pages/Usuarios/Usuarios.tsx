@@ -385,11 +385,6 @@ export function Usuarios() {
                       <span className={`inline-flex w-fit rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${ROLE_BADGE[displayRole] || ROLE_BADGE.chefe}`}>
                         {ROLE_LABELS[displayRole] || displayRole}
                       </span>
-                      {isTargetAdmin && (isViewerDev || isSelf) && data.previousRole && (
-                        <span className={`inline-flex w-fit rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${ROLE_BADGE[data.previousRole] || ROLE_BADGE.chefe}`}>
-                          {ROLE_LABELS[data.previousRole] || data.previousRole}
-                        </span>
-                      )}
                       {personCargo && displayRole !== 'admin' && (
                         <span className="text-[11px] text-graphite-500 dark:text-graphite-400">{personCargo}</span>
                       )}
