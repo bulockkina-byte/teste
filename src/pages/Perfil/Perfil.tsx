@@ -250,12 +250,14 @@ export function Perfil() {
               <span className="text-sm text-graphite-500 dark:text-graphite-400">Funcao do Sistema</span>
               <span className="text-sm font-semibold text-graphite-900 dark:text-graphite-100">{ROLE_LABELS[user.role as UserRole] || user.role}</span>
             </div>
-            {displayCargo && (
+
+            {displayCargo && (user.role === 'desenvolvedor' || user.role === 'admin') && (
               <div className="flex items-center justify-between rounded-xl bg-graphite-50 px-4 py-3 dark:bg-graphite-800/50">
                 <span className="text-sm text-graphite-500 dark:text-graphite-400">Cargo/Funcao</span>
                 <span className="text-sm font-semibold text-graphite-900 dark:text-graphite-100">{displayCargo}</span>
               </div>
             )}
+
             {pessoa && (
               <div className="flex items-center justify-between rounded-xl bg-graphite-50 px-4 py-3 dark:bg-graphite-800/50">
                 <span className="text-sm text-graphite-500 dark:text-graphite-400">Tipo</span>
