@@ -342,12 +342,7 @@ export function Usuarios() {
                 const isTargetDev = data.role === 'desenvolvedor';
                 const isSelf = username === user?.username;
 
-                let displayRole: UserRole;
-                if (isTargetAdmin && !isViewerDev && !isSelf) {
-                  displayRole = data.previousRole || 'sem_funcao';
-                } else {
-                  displayRole = data.role;
-                }
+                const displayRole = data.role;
 
                 const canEditThis = isTargetDev ? isViewerDev : (isViewerDev || (!isSelf && data.role !== 'admin'));
                 const canDeleteThis = isTargetDev ? isViewerDev : (isViewerDev || (!isSelf && data.role !== 'admin'));
