@@ -152,19 +152,23 @@ async function syncSeedsToSupabase(users: Record<string, StoredUser>) {
 
 const ROLE_HIERARQUIA: UserRole[] = ['desenvolvedor', 'admin', 'gerente', 'chefe', 'lider', 'sem_funcao'];
 
-function cargoParaUserRole(cargo: string): UserRole | null {
-  if (cargo === 'GS') return 'gerente';
-  if (cargo === 'BA-CE') return 'chefe';
-  if (cargo === 'BA-LR') return 'lider';
-  return null;
-}
-
 function apocParaUserRole(funcao: string): UserRole {
   if (funcao === 'supervisor') return 'gerente';
   return 'chefe';
 }
 
-export { cargoParaUserRole, apocParaUserRole };
+export function cargoParaUserRole(cargo: string): UserRole {
+  if (cargo === 'GS') return 'gerente';
+  if (cargo === 'BA-CE') return 'chefe';
+  if (cargo === 'OC') return 'chefe';
+  if (cargo === 'BA-LR') return 'lider';
+  if (cargo === 'BA-MC') return 'lider';
+  if (cargo === 'BA-2') return 'lider';
+  if (cargo === 'BA-RE') return 'lider';
+  return 'chefe';
+}
+
+export { apocParaUserRole };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(() => loadSession());
