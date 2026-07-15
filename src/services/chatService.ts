@@ -1,60 +1,82 @@
+import { supabase } from '../lib/supabase';
 import type { ChatMensagem } from '../types/chat';
 
-const STORAGE_KEY = 'sescinc-chat';
+const TABLE = 'chat_mensagens';
 
-function getAll(): ChatMensagem[] {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-  } catch {
-    return [];
-  }
+function getDb() {
+  if (!supabase) throw new Error('Supabase não configurado.');
+  return supabase;
 }
 
-function saveAll(list: ChatMensagem[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-}
-
-export function listarMensagens(): ChatMensagem[] {
-  return getAll();
-}
-
-export function mensagensGerais(): ChatMensagem[] {
-  return getAll().filter(m => m.para === null);
-}
-
-export function mensagensPrivadas(usuario: string): ChatMensagem[] {
-  return getAll().filter(m => m.para === usuario || m.de === usuario);
-}
-
-export function conversaCom(usuario1: string, usuario2: string): ChatMensagem[] {
-  return getAll().filter(m =>
-    (m.de === usuario1 && m.para === usuario2) ||
-    (m.de === usuario2 && m.para === usuario1)
-  ).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-}
-
-export function enviarMensagem(data: Omit<ChatMensagem, 'id' | 'createdAt' | 'lida'>): ChatMensagem {
-  const all = getAll();
-  const msg: ChatMensagem = {
-    ...data,
-    id: crypto.randomUUID(),
-    lida: false,
-    createdAt: new Date().toISOString(),
+function rowToMensagem(row: Record<string, unknown>): ChatMensagem {
+  return {
+    id: row.id as string,
+    de: row.de as string,
+    deNome: (row.de_nome as string) || '',
+    para: (row.para as string) || null,
+    paraNome: (row.para_nome as string) || null,
+    texto: (row.texto as string) || '',
+    lida: !!row.lida,
+    createdAt: (row.created_at as string) || '',
   };
-  all.push(msg);
-  saveAll(all);
-  return msg;
 }
 
-export function marcarLida(id: string) {
-  const all = getAll();
-  const idx = all.findIndex(m => m.id === id);
-  if (idx !== -1) {
-    all[idx].lida = true;
-    saveAll(all);
-  }
+export async function listarMensagens(): Promise<ChatMensagem[]> {
+  const db = getDb();
+  const { data, error } = await db.from(TABLE).select('*').order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []).map(rowToMensagem);
 }
 
-export function contarNaoLidas(usuario: string): number {
-  return getAll().filter(m => m.para === usuario && !m.lida).length;
+export async function mensagensGerais(): Promise<ChatMensagem[]> {
+  const db = getDb();
+  const { data, error } = await db.from(TABLE).select('*').is('para', null).order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []).map(rowToMensagem);
+}
+
+export async function mensagensPrivadas(usuario: string): Promise<ChatMensagem[]> {
+  const db = getDb();
+  const { data, error } = await db.from(TABLE).select('*').or(`de.eq.${usuario},para.eq.${usuario}`).order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []).map(rowToMensagem);
+}
+
+export async function conversaCom(usuario1: string, usuario2: string): Promise<ChatMensagem[]> {
+  const db = getDb();
+  const { data, error } = await db
+    .from(TABLE)
+    .select('*')
+    .or(`and(de.eq.${usuario1},para.eq.${usuario2}),and(de.eq.${usuario2},para.eq.${usuario1})`)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data || []).map(rowToMensagem);
+}
+
+export async function enviarMensagem(data: Omit<ChatMensagem, 'id' | 'createdAt' | 'lida'>): Promise<ChatMensagem> {
+  const db = getDb();
+  const row = {
+    de: data.de,
+    de_nome: data.deNome,
+    para: data.para || null,
+    para_nome: data.paraNome || null,
+    texto: data.texto,
+    lida: false,
+    created_at: new Date().toISOString(),
+  };
+  const { data: created, error } = await db.from(TABLE).insert(row).select().single();
+  if (error) throw error;
+  return rowToMensagem(created);
+}
+
+export async function marcarLida(id: string): Promise<void> {
+  const db = getDb();
+  await db.from(TABLE).update({ lida: true }).eq('id', id);
+}
+
+export async function contarNaoLidas(usuario: string): Promise<number> {
+  const db = getDb();
+  const { count, error } = await db.from(TABLE).select('*', { count: 'exact', head: true }).eq('para', usuario).eq('lida', false);
+  if (error) throw error;
+  return count || 0;
 }

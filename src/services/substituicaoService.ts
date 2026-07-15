@@ -1,43 +1,58 @@
+import { supabase } from '../lib/supabase';
 import type { SubstituicaoAtiva } from '../types/ferias';
 
-const STORAGE_KEY = 'sescinc-substituicoes';
+const TABLE = 'substituicoes_ativas';
 
-function getAll(): SubstituicaoAtiva[] {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-  } catch {
-    return [];
-  }
+function getDb() {
+  if (!supabase) throw new Error('Supabase não configurado.');
+  return supabase;
 }
 
-function saveAll(list: SubstituicaoAtiva[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+function rowToSubstituicao(row: Record<string, unknown>): SubstituicaoAtiva {
+  return {
+    id: row.id as string,
+    feriasId: (row.ferias_id as string) || '',
+    funcionarioId: (row.funcionario_id as string) || '',
+    funcionarioNome: (row.funcionario_nome as string) || '',
+    substitutoId: (row.substituto_id as string) || '',
+    substitutoNome: (row.substituto_nome as string) || '',
+    funcaoSubstituicao: (row.funcao_substituicao as SubstituicaoAtiva['funcaoSubstituicao']) || 'BA-2',
+    dataInicio: (row.data_inicio as string) || '',
+    dataFim: (row.data_fim as string) || '',
+    ativa: row.ativa !== false,
+    createdAt: (row.created_at as string) || '',
+  };
 }
 
-export function listarSubstituicoes(): SubstituicaoAtiva[] {
-  return getAll();
+export async function listarSubstituicoes(): Promise<SubstituicaoAtiva[]> {
+  const db = getDb();
+  const { data, error } = await db.from(TABLE).select('*');
+  if (error) throw error;
+  return (data || []).map(rowToSubstituicao);
 }
 
-export function substituicoesAtivas(): SubstituicaoAtiva[] {
-  const agora = new Date().toISOString().slice(0, 10);
-  return getAll().filter(s => s.ativa && s.dataFim >= agora);
+export async function substituicoesAtivas(): Promise<SubstituicaoAtiva[]> {
+  const db = getDb();
+  const { data, error } = await db.from(TABLE).select('*').eq('ativa', true);
+  if (error) throw error;
+  return (data || []).map(rowToSubstituicao);
 }
 
-export function substituicaoPorSubstituto(substitutoId: string): SubstituicaoAtiva | null {
-  const agora = new Date().toISOString().slice(0, 10);
-  return getAll().find(s =>
-    s.substitutoId === substitutoId && s.ativa && s.dataFim >= agora
-  ) || null;
+export async function substituicaoPorSubstituto(substitutoId: string): Promise<SubstituicaoAtiva | null> {
+  const db = getDb();
+  const { data, error } = await db.from(TABLE).select('*').eq('substituto_id', substitutoId).eq('ativa', true).single();
+  if (error) return null;
+  return data ? rowToSubstituicao(data) : null;
 }
 
-export function substituicaoPorFuncionario(funcionarioId: string): SubstituicaoAtiva | null {
-  const agora = new Date().toISOString().slice(0, 10);
-  return getAll().find(s =>
-    s.funcionarioId === funcionarioId && s.ativa && s.dataFim >= agora
-  ) || null;
+export async function substituicaoPorFuncionario(funcionarioId: string): Promise<SubstituicaoAtiva | null> {
+  const db = getDb();
+  const { data, error } = await db.from(TABLE).select('*').eq('funcionario_id', funcionarioId).eq('ativa', true).single();
+  if (error) return null;
+  return data ? rowToSubstituicao(data) : null;
 }
 
-export function criarSubstituicao(data: {
+export async function criarSubstituicao(data: {
   feriasId: string;
   funcionarioId: string;
   funcionarioNome: string;
@@ -46,29 +61,33 @@ export function criarSubstituicao(data: {
   funcaoSubstituicao: string;
   dataInicio: string;
   dataFim: string;
-}): SubstituicaoAtiva {
-  const all = getAll();
-  const nova: SubstituicaoAtiva = {
-    id: crypto.randomUUID(),
-    ...data,
-    funcaoSubstituicao: data.funcaoSubstituicao as SubstituicaoAtiva['funcaoSubstituicao'],
+}): Promise<SubstituicaoAtiva> {
+  const db = getDb();
+  const row = {
+    ferias_id: data.feriasId,
+    funcionario_id: data.funcionarioId,
+    funcionario_nome: data.funcionarioNome,
+    substituto_id: data.substitutoId,
+    substituto_nome: data.substitutoNome,
+    funcao_substituicao: data.funcaoSubstituicao,
+    data_inicio: data.dataInicio,
+    data_fim: data.dataFim,
     ativa: true,
-    createdAt: new Date().toISOString(),
+    created_at: new Date().toISOString(),
   };
-  all.push(nova);
-  saveAll(all);
-  return nova;
+  const { data: created, error } = await db.from(TABLE).insert(row).select().single();
+  if (error) throw error;
+  return rowToSubstituicao(created);
 }
 
-export function encerrarSubstituicao(id: string): SubstituicaoAtiva | null {
-  const all = getAll();
-  const idx = all.findIndex(s => s.id === id);
-  if (idx === -1) return null;
-  all[idx] = { ...all[idx], ativa: false };
-  saveAll(all);
-  return all[idx];
+export async function encerrarSubstituicao(id: string): Promise<SubstituicaoAtiva | null> {
+  const db = getDb();
+  const { data, error } = await db.from(TABLE).update({ ativa: false }).eq('id', id).select().single();
+  if (error) throw error;
+  return data ? rowToSubstituicao(data) : null;
 }
 
-export function excluirSubstituicao(id: string) {
-  saveAll(getAll().filter(s => s.id !== id));
+export async function excluirSubstituicao(id: string): Promise<void> {
+  const db = getDb();
+  await db.from(TABLE).delete().eq('id', id);
 }
