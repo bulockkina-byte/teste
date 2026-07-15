@@ -130,7 +130,8 @@ export function Documentos() {
       setVincularOpen(null);
       setNotifPopup({ msg: `Documento vinculado a ${SOURCE_MODULE_OPTIONS.find(m => m.value === sourceModule)?.label || sourceModule}!`, type: 'success' });
       setTimeout(() => setNotifPopup(null), 3000);
-    } catch {
+    } catch (e) {
+      console.error('Erro ao vincular:', e);
       setNotifPopup({ msg: 'Erro ao vincular documento.', type: 'error' });
       setTimeout(() => setNotifPopup(null), 3000);
     }
@@ -141,7 +142,8 @@ export function Documentos() {
       await atualizarDocumento(docId, { source_module: null });
       setDocumentos(prev => prev.map(d => d.id === docId ? { ...d, source_module: null } : d));
       setVincularOpen(null);
-    } catch {
+    } catch (e) {
+      console.error('Erro ao desvincular:', e);
       setNotifPopup({ msg: 'Erro ao desvincular documento.', type: 'error' });
     }
   }

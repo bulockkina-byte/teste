@@ -6,7 +6,7 @@ import { useAuth, ROLE_LABELS, type UserRole } from '../../context/AuthContext';
 import { Autocomplete } from '../../components/documentos/Autocomplete';
 import { listarAtivos } from '../../services/bombeiroService';
 import { listarAPOCs } from '../../services/apocService';
-import { atualizarUsuario } from '../../services/usuarioService';
+import { atualizarUsuario, buscarUsuarioPorUsername } from '../../services/usuarioService';
 import type { Bombeiro } from '../../types/bombeiro';
 import type { APOC } from '../../types/apoc';
 import { CARGO_OPTIONS } from '../../types/bombeiro';
@@ -173,6 +173,13 @@ export function Perfil() {
 
     setSaving(true);
     try {
+      const remote = await buscarUsuarioPorUsername(user.username);
+      if (!remote || remote.password !== currentPassword) {
+        setNotif({ msg: 'Senha atual incorreta.', type: 'error' });
+        setTimeout(() => setNotif(null), 3000);
+        setSaving(false);
+        return;
+      }
       await atualizarUsuario(user.username, { password: newPassword });
       const users = getStoredUsers();
       if (users[user.username]) {
