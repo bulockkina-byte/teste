@@ -107,47 +107,13 @@ function seedAdmin() {
   const users = getStoredUsers();
   let changed = false;
 
-  if (users['admin_master']) {
-    const saved = users['admin_master'];
-    delete users['admin_master'];
-    if (!users['serra']) {
-      users['serra'] = { ...saved, role: 'desenvolvedor' };
-      changed = true;
-    }
-    changed = true;
-  }
-
-  try {
-    const sessionRaw = localStorage.getItem('sescinc-session');
-    if (sessionRaw) {
-      const session = JSON.parse(sessionRaw);
-      if (session.username === 'admin_master') {
-        localStorage.removeItem('sescinc-session');
-      }
-    }
-    const presenceRaw = localStorage.getItem('sescinc-presence');
-    if (presenceRaw) {
-      const presence: Record<string, number> = JSON.parse(presenceRaw);
-      if ('admin_master' in presence) {
-        delete presence['admin_master'];
-        localStorage.setItem('sescinc-presence', JSON.stringify(presence));
-      }
-    }
-  } catch { /* ignore */ }
-
   if (!users['serra']) {
     users['serra'] = { name: 'Serra', role: 'desenvolvedor' };
-    changed = true;
-  } else if (users['serra'].role !== 'desenvolvedor') {
-    users['serra'].role = 'desenvolvedor';
     changed = true;
   }
 
   if (!users['admin']) {
     users['admin'] = { name: 'Administrador', role: 'admin' };
-    changed = true;
-  } else if (users['admin'].role !== 'admin') {
-    users['admin'].role = 'admin';
     changed = true;
   }
 
@@ -206,29 +172,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => { seedAdmin(); }, []);
 
   useEffect(() => {
-    if (user && user.username === 'admin_master') {
-      clearSession();
-      setUser(null);
-      return;
-    }
-    if (user && user.role === 'admin_master') {
-      setUser(prev => prev ? { ...prev, role: 'desenvolvedor' } : prev);
-    }
     if (user?.username === 'serra' && user.role !== 'desenvolvedor') {
       setUser(prev => prev ? { ...prev, role: 'desenvolvedor' } : prev);
-      const users = getStoredUsers();
-      if (users['serra']) {
-        users['serra'].role = 'desenvolvedor';
-        localStorage.setItem(USERS_KEY, JSON.stringify(users));
-      }
     }
     if (user?.username === 'admin' && user.role !== 'admin') {
       setUser(prev => prev ? { ...prev, role: 'admin' } : prev);
-      const users = getStoredUsers();
-      if (users['admin']) {
-        users['admin'].role = 'admin';
-        localStorage.setItem(USERS_KEY, JSON.stringify(users));
-      }
     }
   }, [user]);
 

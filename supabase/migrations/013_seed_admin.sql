@@ -1,3 +1,2 @@
-INSERT INTO usuarios (username, name, password, role)
-VALUES ('admin', 'Administrador', 'admin', 'admin')
-ON CONFLICT (username) DO UPDATE SET password = 'admin', role = 'admin';
+-- Seeds the initial admin user with hashed password via RPC
+SELECT criar_usuario_com_hash('admin', 'Administrador', 'admin', 'admin');
