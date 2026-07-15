@@ -4,6 +4,7 @@ import { Layout } from '../components/layout/Layout';
 import { Dashboard } from '../pages/Dashboard/Dashboard';
 import { Login } from '../pages/Login/Login';
 import { ConviteRegister } from '../pages/Login/ConviteRegister';
+import { AguardandoFuncao } from '../pages/AguardandoFuncao/AguardandoFuncao';
 import { AuthGuard } from '../components/layout/AuthGuard';
 import { Loading } from '../components/ui/Loading';
 
@@ -24,6 +25,10 @@ export const router = createBrowserRouter([
   {
     path: '/cadastro/convite/:codigo',
     element: <ConviteRegister />,
+  },
+  {
+    path: '/aguardando-funcao',
+    element: <AguardandoFuncao />,
   },
   {
     path: '/',

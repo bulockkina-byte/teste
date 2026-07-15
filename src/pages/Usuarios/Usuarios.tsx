@@ -238,7 +238,7 @@ export function Usuarios() {
       let newPreviousRole: UserRole | undefined;
 
       if (target.role === 'admin') {
-        newRole = (target.previousRole as UserRole) || 'lider';
+        newRole = (target.previousRole as UserRole) || 'sem_funcao';
         newPreviousRole = undefined;
       } else {
         newRole = 'admin';
@@ -343,7 +343,7 @@ export function Usuarios() {
 
                 let displayRole: UserRole;
                 if (isTargetAdmin && !isViewerDev && !isSelf) {
-                  displayRole = data.previousRole || 'lider';
+                  displayRole = data.previousRole || 'sem_funcao';
                 } else {
                   displayRole = data.role;
                 }

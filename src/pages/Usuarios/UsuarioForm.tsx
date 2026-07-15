@@ -39,7 +39,7 @@ export function UsuarioForm({ user, onSave, onClose }: Props) {
   const [username, setUsername] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<UserRole>('chefe');
+  const [role, setRole] = useState<UserRole>('sem_funcao');
   const [erro, setErro] = useState('');
 
   const [personId, setPersonId] = useState<string | undefined>(user?.personId);
@@ -66,7 +66,7 @@ export function UsuarioForm({ user, onSave, onClose }: Props) {
     if (user) {
       setUsername(user.username);
       setName(user.name);
-      setRole(user.role || 'chefe');
+      setRole((user.role as UserRole) || 'sem_funcao');
       setPassword('');
       setPersonId(user.personId);
       setPersonType(user.personType);
@@ -205,18 +205,6 @@ export function UsuarioForm({ user, onSave, onClose }: Props) {
             </label>
             <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Mínimo 6 caracteres"
               className={input} />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Função *</label>
-            <select value={role} onChange={e => setRole(e.target.value as UserRole)}
-              className={input}>
-              <option value="sem_funcao">Sem Função Atribuída</option>
-              <option value="lider">Líder de Resgate</option>
-              <option value="chefe">Chefe de Equipe</option>
-              <option value="gerente">Gerente da Seção de Combate a Incêndio</option>
-              <option value="admin">Administrador</option>
-            </select>
           </div>
 
           {erro && <p className="text-sm text-alert-red dark:text-red-400">{erro}</p>}
