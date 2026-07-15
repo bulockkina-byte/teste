@@ -174,7 +174,13 @@ export function Perfil() {
     setSaving(true);
     try {
       const remote = await buscarUsuarioPorUsername(user.username);
-      if (!remote || remote.password !== currentPassword) {
+      if (!remote) {
+        setNotif({ msg: 'Usuario nao encontrado no servidor.', type: 'error' });
+        setTimeout(() => setNotif(null), 3000);
+        setSaving(false);
+        return;
+      }
+      if (remote.password !== currentPassword) {
         setNotif({ msg: 'Senha atual incorreta.', type: 'error' });
         setTimeout(() => setNotif(null), 3000);
         setSaving(false);

@@ -82,11 +82,7 @@ export async function buscarUsuarioPorUsername(username: string): Promise<Usuari
 export async function criarUsuario(data: Omit<Usuario, 'id' | 'createdAt' | 'updatedAt'>): Promise<Usuario> {
   const db = getDb();
   const row = usuarioToRow(data);
-  const { data: created, error } = await db
-    .from(TABLE)
-    .upsert(row, { onConflict: 'username' })
-    .select()
-    .single();
+  const { data: created, error } = await db.from(TABLE).insert(row).select().single();
   if (error) handleSupabaseError(error);
   return rowToUsuario(created);
 }
@@ -96,7 +92,8 @@ export async function atualizarUsuario(username: string, data: Partial<Usuario>)
   const row = usuarioToRow(data);
   const { data: updated, error } = await db
     .from(TABLE)
-    .upsert({ ...row, username }, { onConflict: 'username' })
+    .update(row)
+    .eq('username', username)
     .select()
     .single();
   if (error) handleSupabaseError(error);
