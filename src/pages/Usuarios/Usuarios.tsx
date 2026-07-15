@@ -343,18 +343,18 @@ export function Usuarios() {
                     ? apocParaUserRole(person.funcao)
                     : undefined;
 
-                const isViewerDev = user?.role === 'desenvolvedor';
+                const isViewerDevOrAdmin = user?.role === 'desenvolvedor' || user?.role === 'admin';
                 const isTargetAdmin = data.role === 'admin';
                 const isTargetDev = data.role === 'desenvolvedor';
                 const isSelf = username === user?.username;
 
-                const displayRole: UserRole = isTargetAdmin && !isViewerDev && !isSelf
+                const displayRole: UserRole = isTargetAdmin && !isViewerDevOrAdmin && !isSelf
                   ? (data.previousRole as UserRole) || 'sem_funcao'
                   : data.role;
 
-                const canEditThis = isTargetDev ? isViewerDev : (isViewerDev || (!isSelf && data.role !== 'admin'));
-                const canDeleteThis = isTargetDev ? isViewerDev : (isViewerDev || (!isSelf && data.role !== 'admin'));
-                const canToggleAdminThis = isViewerDev && !isTargetDev && !isSelf;
+                const canEditThis = isTargetDev ? isViewerDevOrAdmin : (isViewerDevOrAdmin || (!isSelf && data.role !== 'admin'));
+                const canDeleteThis = isTargetDev ? isViewerDevOrAdmin : (isViewerDevOrAdmin || (!isSelf && data.role !== 'admin'));
+                const canToggleAdminThis = isViewerDevOrAdmin && !isTargetDev && !isSelf;
 
                 return (
                 <tr key={username} className="border-b border-graphite-100 transition-colors hover:bg-graphite-50 dark:border-border-dark dark:hover:bg-surface-hover/50">
@@ -388,7 +388,7 @@ export function Usuarios() {
                       <span className={`inline-flex w-fit rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${ROLE_BADGE[displayRole] || ROLE_BADGE.chefe}`}>
                         {ROLE_LABELS[displayRole] || displayRole}
                       </span>
-                      {data.role === 'admin' && data.previousRole && (isViewerDev || isSelf) && (
+                      {data.role === 'admin' && data.previousRole && (isViewerDevOrAdmin || isSelf) && (
                         <span className={`inline-flex w-fit rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${ROLE_BADGE[data.previousRole] || ROLE_BADGE.chefe}`}>
                           {ROLE_LABELS[data.previousRole] || data.previousRole}
                         </span>
