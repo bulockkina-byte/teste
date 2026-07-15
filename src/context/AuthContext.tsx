@@ -300,7 +300,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (err) {
       console.error('Erro ao buscar usuario no Supabase:', err);
-      throw new Error('Erro ao conectar com o servidor. Tente novamente.');
+      if (!stored || stored.password !== password) {
+        throw new Error('Erro ao conectar com o servidor. Tente novamente.');
+      }
     }
 
     if (!stored || stored.password !== password) {
