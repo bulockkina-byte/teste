@@ -14,7 +14,11 @@ export interface Document {
   updated_at: string;
 }
 
-export type SourceModule = 'trocas' | 'ferias' | 'epis' | 'certificacoes' | 'ocorrencias';
+export type SourceModule =
+  | 'trocas' | 'ferias' | 'epis' | 'certificacoes' | 'ocorrencias'
+  | 'bona' | 'ordem_servico' | 'lro' | 'ptrba' | 'rae'
+  | 'taf' | 'tpepr' | 'checklists'
+  | 'exercicio_posicionamento' | 'exercicio_tempo_resposta' | 'dds';
 
 export const SOURCE_MODULE_OPTIONS: { value: SourceModule; label: string }[] = [
   { value: 'trocas', label: 'Trocas de Serviço' },
@@ -22,6 +26,17 @@ export const SOURCE_MODULE_OPTIONS: { value: SourceModule; label: string }[] = [
   { value: 'epis', label: 'EPIs' },
   { value: 'certificacoes', label: 'Certificações' },
   { value: 'ocorrencias', label: 'Ocorrências' },
+  { value: 'bona', label: 'BONA' },
+  { value: 'rae', label: 'RAE' },
+  { value: 'ordem_servico', label: 'Ordens de Serviço' },
+  { value: 'lro', label: 'LRO' },
+  { value: 'ptrba', label: 'PTR-BA' },
+  { value: 'taf', label: 'TAF' },
+  { value: 'tpepr', label: 'TP/EPR' },
+  { value: 'exercicio_posicionamento', label: 'Exercício de Posicionamento' },
+  { value: 'exercicio_tempo_resposta', label: 'Exercício de Tempo Resposta' },
+  { value: 'dds', label: 'DDS' },
+  { value: 'checklists', label: 'Checklists' },
 ];
 
 export type FieldType = 'text' | 'number' | 'date' | 'select' | 'textarea' | 'checkbox' | 'signature' | 'line';

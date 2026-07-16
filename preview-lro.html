@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>LIVRO ATA DE CHEFE DE EQUIPE</title>
+<style>
+  @page { size: A4; margin: 0; }
+  body { background: #ddd; display: flex; justify-content: center; padding: 20px; font-family: Arial, sans-serif; }
+  .page {
+    background: #fff; width: 210mm; min-height: 297mm; padding: 8mm 10mm;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2); font-size: 7.5px; line-height: 1.2; color: #000; margin-bottom: 20px;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  td, th { border: 1px solid #000; padding: 1.5px 3px; font-size: 7.5px; text-align: left; vertical-align: top; }
+  .b { font-weight: bold; }
+  .c { text-align: center; }
+  .noborder td, .noborder th { border: none; }
+  .sec-title td { font-weight: bold; font-size: 8px; background: #f0f0f0; padding: 2px 3px; }
+  .mb { margin-bottom: 3px; }
+  .footer-hash { font-size: 6px; color: #555; text-align: center; margin-top: 8px; }
+  .footer-hash a { color: #1a56db; }
+  .header-line td { border: none; vertical-align: top; }
+  .header-line { margin-bottom: 2px; }
+  .right-info td { text-align: right; font-size: 7px; border: none; padding: 1px 0; }
+  .sig-line { border-top: 1px solid #000; padding-top: 2px; margin-top: 4px; }
+</style>
+</head><body>
+<div class="page">
+
+  <!-- Cabeçalho: Logo | FOR + Livro Ata | Código, MMS, Revisão, Página -->
+  <table class="header-line" style="margin-bottom:2px; height:auto;">
+    <tr>
+      <td style="width:12%; border-right:1px solid #000; text-align:center; vertical-align:middle; padding:4px;">
+        <img src="/logobombeiro.jpeg" style="max-width:45px; height:auto; display:block; margin:0 auto;" alt="SCI NVT" />
+      </td>
+      <td style="width:48%; border-right:1px solid #000; padding:4px 6px; vertical-align:middle;">
+        <div style="font-size:8px; font-weight:bold;">FORMULÁRIO (FOR)</div>
+        <div style="border-top:1px solid #000; margin:3px 0;"></div>
+        <div style="font-size:10px; font-weight:bold; text-transform:uppercase; padding:2px 0;">LIVRO ATA DE CHEFE DE EQUIPE</div>
+      </td>
+      <td style="width:40%; padding:0; vertical-align:stretch;">
+        <table style="width:100%; height:100%; border-collapse:collapse;">
+          <tr>
+            <td style="border-bottom:1px solid #000; text-align:right; padding:3px 5px; font-size:7px; vertical-align:middle;"><span class="b">Código:</span></td>
+          </tr>
+          <tr>
+            <td style="border-bottom:1px solid #000; text-align:right; padding:3px 5px; font-size:7px; vertical-align:middle;">MMS.BR.BA.FOR.001</td>
+          </tr>
+          <tr>
+            <td style="width:50%; border-bottom:0; text-align:left; padding:3px 5px; font-size:7px; vertical-align:middle; border-right:1px solid #000;"><span class="b">Revisão:</span> 00</td>
+            <td style="width:50%; border-bottom:0; text-align:right; padding:3px 5px; font-size:7px; vertical-align:middle;"><span class="b">Página:</span> <span id="pageNum">1 de 3</span></td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Subtítulo -->
+  <table class="mb">
+    <tr><td class="c" style="font-size:7px;">SERVIÇO DE SALVAMENTO E COMBATE A INCÊNDIO - SESCINC</td></tr>
+  </table>
+  <table class="mb">
+    <tr><td class="b c" style="font-size:7px;">REGISTRO DE OCORRÊNCIA RELATIVO AO SERVIÇO DE CHEFE DE EQUIPE AO SESCINC</td></tr>
+  </table>
+
+  <!-- Identificação do Aeroporto -->
+  <table class="mb">
+    <tr><td class="b" style="width:25%">IDENTIFICAÇÃO DO AEROPORTO:</td><td colspan="3">SBNF - AEROPORTO INTERNACIONAL MINISTRO VICTOR KONDER</td></tr>
+    <tr><td class="b">PLANTÃO:</td><td style="width:25%" id="plantao">ALFA</td><td class="b" style="width:15%">Data início:</td><td style="width:35%" id="dataInicio">02/07/2025</td></tr>
+    <tr><td></td><td></td><td class="b">Data do fim:</td><td id="dataFim">02/07/2025</td></tr>
+  </table>
+
+  <!-- I. EQUIPE DE SERVIÇO -->
+  <table class="mb"><tr class="sec-title"><td colspan="6">I. EQUIPE DE SERVIÇO <span id="equipeNome">ALFA</span></td></tr></table>
+  <table class="mb">
+    <tr><td style="width:4%">1.1.</td><td class="b" style="width:22%">Chefe de Equipe:</td><td colspan="4" id="chefeEquipe">KEOMA</td></tr>
+    <tr><td>1.2.</td><td class="b">Comunicação BA-OC</td><td colspan="4" id="comunicacao">GUSTANI</td></tr>
+  </table>
+  <table class="mb">
+    <tr><td rowspan="2" style="width:4%">1.3.</td><td class="b" colspan="5">Equipagem dos CCI - EM LINHA, CCI - RT e CRS:</td></tr>
+    <tr class="b"><th style="width:16%">VIATURA</th><th style="width:14%">FUNÇÃO 1</th><th style="width:18%">NOME 1</th><th style="width:14%">FUNÇÃO 2</th><th style="width:18%">NOME 2</th><th style="width:16%">FUNÇÃO 3</th></tr>
+    <tr><td class="b">CCI 2</td><td>BA-CE</td><td>KEOMA</td><td>BA-MC</td><td>EDERSON</td><td>BA-2</td></tr>
+    <tr><td></td><td></td><td></td><td></td><td>ICARO</td><td></td></tr>
+    <tr><td class="b">CCI 3</td><td>BA-MC</td><td>CLECIR</td><td>BA-2</td><td>AMILCAR</td><td>BA-2</td></tr>
+    <tr><td></td><td></td><td></td><td></td><td>FERNANDO</td><td></td></tr>
+    <tr><td class="b">CRS</td><td>BA-LR</td><td>ADALTO</td><td>BA-MC</td><td>BRITO</td><td>BA-RE</td></tr>
+    <tr><td></td><td></td><td></td><td></td><td>JEAN</td><td>BA-RE</td></tr>
+    <tr><td></td><td></td><td></td><td></td><td>LEANDRO</td><td></td></tr>
+  </table>
+  <table class="mb">
+    <tr><td style="width:4%">1.4.</td><td class="b" style="width:25%">Substituições de BA:</td><td colspan="4">NÃO HOUVE ABAIXO</td></tr>
+  </table>
+
+  <!-- II. INSTRUÇÕES -->
+  <table class="mb"><tr class="sec-title"><td colspan="6">II. INSTRUÇÕES</td></tr></table>
+  <table class="mb">
+    <tr><td style="width:8%">Horas 09:00</td><td style="width:8%">Horas 15:00</td><td style="width:8%">Horas 16:30</td><td>15. EQUIPAMENTOS DE PROTEÇÃO</td><td>14. PLANO CONTRAINCÊNDIO DE AERÓDROMO (PCINC)</td><td>17. ATIVIDADE FÍSICA</td></tr>
+  </table>
+
+  <!-- Hash -->
+  <table class="mb footer-hash"><tr><td style="border:none;">
+    Escaneie a imagem para verificar a autenticidade do documento<br/>
+    Hash SHA256: e58cf29a683852049f6ce35ad1b09977b48d169652a2101503c1fc7dd97528db<br/>
+    <a href="https://valida.ae/124d904ba5357b0abe6045dc53e42960c7b6b51fa3358bdbf">https://valida.ae/124d904ba5357b0abe6045dc53e42960c7b6b51fa3358bdbf</a>
+  </td></tr></table>
+
+  <!-- III. FROTA -->
+  <table class="mb"><tr class="sec-title"><td colspan="7">III. SITUAÇÃO OPERACIONAL DA FROTA DO SESCINC:</td></tr></table>
+  <table class="mb">
+    <tr class="b"><th>VIATURA</th><th>PREFIXO</th><th>KM INICIAL</th><th>KM FINAL</th><th>COMB. INICIAL</th><th>COMB. FINAL</th><th>SITUAÇÃO</th></tr>
+    <tr><td class="b">CCI 319</td><td>F2 X6</td><td>8658</td><td>8658</td><td></td><td></td><td>EM LINHA</td></tr>
+    <tr><td class="b">CCI 320</td><td>F3 X6</td><td>11182</td><td>11182</td><td></td><td></td><td>EM LINHA</td></tr>
+    <tr><td class="b">CCI 333</td><td>RESE FRX X6</td><td>5764</td><td>5764</td><td></td><td></td><td>RESERVA</td></tr>
+  </table>
+
+  <!-- IV -->
+  <table class="mb"><tr class="sec-title"><td colspan="6">IV. SITUAÇÃO OPERACIONAL DA CENTRAL FAÍSCA, EQUIPAMENTOS DE COMUNICAÇÃO E ALARME:</td></tr></table>
+  <table class="mb">
+    <tr><td class="b" style="width:4%">3.1.</td><td class="b" style="width:22%">CENTRAL FAÍSCA:</td><td>ABAIXO SEM ALTERAÇÕES. TESTE SAE COM A TWR REALIZADO NO TURNO ANTERIOR ÀS 05:20H COM CLAREZA 5;</td></tr>
+    <tr><td class="b">3.2.</td><td class="b">RÁDIOS, HOTLINE, SISTEMA DE ALARME:</td><td>ABAIXO SEM ALTERAÇÕES. SEM ALTERAÇÕES</td></tr>
+  </table>
+
+  <!-- V -->
+  <table class="mb"><tr class="sec-title"><td colspan="6">V. SITUAÇÃO OPERACIONAL DOS TP, EPR EM LINHA E EM ESTOQUE</td></tr></table>
+  <table class="mb">
+    <tr><td>BA JEAN - ZÍPER, VELCRO E FECHO DO ROUPÃO COM DEFEITO</td></tr>
+    <tr><td>ABAIXO SEM ALTERAÇÕES</td></tr>
+  </table>
+
+  <!-- VI -->
+  <table class="mb"><tr class="sec-title"><td colspan="6">VI. SITUAÇÃO OPERACIONAL DOS AGENTES EXTINTORES (LGE E PQ) E NITROGÊNIO EM LINHA E ESTOQUE</td></tr></table>
+  <table class="mb">
+    <tr><td>SEM ALTERAÇÕES</td></tr>
+    <tr><td>ABAIXO SEM ALTERAÇÕES</td></tr>
+  </table>
+
+  <!-- VII -->
+  <table class="mb"><tr class="sec-title"><td colspan="6">VII. SITUAÇÃO OPERACIONAL DOS EQUIPAMENTOS E MATERIAIS DO SESCINC</td></tr></table>
+  <table class="mb">
+    <tr><td>ENTREGUE ÓLEO DOIS TEMPOS DE 500ML MARCA STIHL</td></tr>
+    <tr><td>ABAIXO SEM ALTERAÇÕES</td></tr>
+  </table>
+
+  <!-- VIII -->
+  <table class="mb"><tr class="sec-title"><td colspan="6">VIII. SITUAÇÃO OPERACIONAL DAS EDIFICAÇÕES / INSTALAÇÕES DA SCI</td></tr></table>
+  <table class="mb">
+    <tr><td>HIDRÔMETRO CAIXA DE REUSO - 638M³</td></tr>
+    <tr><td>AR CONDICIONADO SALA DO BA-CE INOPERANTE</td></tr>
+    <tr><td>FEITA SUBSTITUIÇÃO DE DUAS LUMINÁRIAS DE LED DA GARAGEM QUE ESTAVAM QUEIMADAS</td></tr>
+  </table>
+
+  <!-- IX-XI -->
+  <table class="mb"><tr class="sec-title"><td>IX. OCORRÊNCIAS NÃO AERONÁUTICAS</td></tr></table>
+  <table class="mb"><tr class="sec-title"><td>X. INSPEÇÕES TÉCNICAS E VISTORIAS</td></tr></table>
+  <table class="mb"><tr class="sec-title"><td>XI. EMERGÊNCIAS AERONÁUTICAS</td></tr></table>
+
+  <!-- XII -->
+  <table class="mb"><tr class="sec-title"><td colspan="4">XII. OUTRAS OCORRÊNCIAS</td></tr></table>
+  <table class="mb">
+    <tr class="b"><th style="width:14%">DATA</th><th style="width:8%">HORA</th><th style="width:16%">TIPO</th><th style="width:62%">DESCRIÇÃO</th></tr>
+    <tr><td>02/07/2025</td><td>08:00</td><td>VISTORIA</td><td>PORTO DA FIBONACCI REALIZOU CONFERÊNCIA DO COMPRESSOR</td></tr>
+    <tr><td>02/07/2025</td><td>08:16</td><td>COLETA</td><td>FLÁVIO DA GHS REALIZOU COLETA DE AMOSTRA D'ÁGUA NAS CAIXAS DO FUNDO DA SCI</td></tr>
+    <tr><td>02/07/2025</td><td>10:22</td><td>MANUTENÇÃO</td><td>PORTO E LEONARDO DA FIBONACCI REALIZARAM TROCA DE DOIS REFLETORES QUEIMADOS DA GARAGEM</td></tr>
+    <tr><td>02/07/2025</td><td>14:50</td><td>VISITA TÉCNICA</td><td>LEONARDO E PORTO DA FIBONACCI FIZERAM DEVOLUÇÃO DE BATERIA DA SALA TELEMÁTICA</td></tr>
+    <tr><td>02/07/2025</td><td>14:51</td><td>COLETA</td><td>DOUGLAS DA EPS REALIZOU COLETA DOS LIXOS</td></tr>
+    <tr><td></td><td>07:01</td><td>RÁDIO</td><td>ESCALA DE RÁDIO</td></tr>
+  </table>
+
+  <!-- Hash -->
+  <table class="mb footer-hash"><tr><td style="border:none;">
+    Escaneie a imagem para verificar a autenticidade do documento<br/>
+    Hash SHA256: e58cf29a683852049f6ce35ad1b09977b48d169652a2101503c1fc7dd97528db<br/>
+    <a href="https://valida.ae/124d904ba5357b0abe6045dc53e42960c7b6b51fa3358bdbf">https://valida.ae/124d904ba5357b0abe6045dc53e42960c7b6b51fa3358bdbf</a>
+  </td></tr></table>
+
+  <!-- XIII -->
+  <table class="mb"><tr class="sec-title"><td colspan="6">XIII. SOLICITAÇÕES EFETUADAS A CCR</td></tr></table>
+  <table class="mb">
+    <tr><td style="height:16px;"></td></tr>
+  </table>
+
+  <!-- Assinaturas -->
+  <table class="mb"><tr class="sec-title"><td colspan="6">LOCAL, DATA E ASSINATURAS</td></tr></table>
+  <table class="mb noborder">
+    <tr><td style="width:15%; border:none;" class="b">NAVEGANTES-SC,</td><td style="width:10%; border:none;">(Dia) 2</td><td style="width:15%; border:none;">(Mês) JULHO</td><td style="width:12%; border:none;">(Ano) 2025</td><td style="width:48%; border:none;">(Cidade) NAVEGANTES-SC</td></tr>
+  </table>
+
+  <table style="width:100%; margin-top:8px;">
+    <tr>
+      <td style="width:33%; text-align:center; border:none;">
+        <div class="sig-line" style="font-size:7px; font-weight:bold;">GERENTE DO SESCINC SBNF:</div>
+        <div style="font-size:8px; margin-top:4px;">GUSTAVO AURÉLIO</div>
+      </td>
+      <td style="width:33%; text-align:center; border:none;">
+        <div class="sig-line" style="font-size:7px; font-weight:bold;">COORD DE PREV E EMERG:</div>
+        <div style="font-size:8px; margin-top:4px;">RINALDO SANTOS RACHADEL</div>
+      </td>
+      <td style="width:33%; text-align:center; border:none;">
+        <div class="sig-line" style="font-size:7px; font-weight:bold;">CHEFE DE EQUIPE:</div>
+        <div style="font-size:8px; margin-top:4px;">KEOMA DE PAULA VIANA</div>
+      </td>
+    </tr>
+  </table>
+
+</div>
+</body></html>

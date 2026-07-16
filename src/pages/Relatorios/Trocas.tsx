@@ -23,6 +23,10 @@ import { listarAPOCs } from '../../services/apocService';
 import type { Bombeiro } from '../../types/bombeiro';
 import { CARGO_OPTIONS, EQUIPE_OPTIONS } from '../../types/bombeiro';
 import type { APOC } from '../../types/apoc';
+import {
+  criarDocumento as criarDocumentoAutentique,
+} from '../../services/autentiqueService';
+import type { AutentiqueSigner } from '../../services/autentiqueService';
 
 type SubView = 'list' | 'form';
 
@@ -479,6 +483,14 @@ export function Trocas() {
     return result;
   }
 
+  function getEmailByNome(nome: string): string | null {
+    const all = getAllFuncionarios();
+    const match = all.find(f => f.label === nome);
+    if (!match) return null;
+    if (match._type === 'bombeiro') return match._raw.email;
+    return match._raw.email;
+  }
+
   async function handleConfirmGerarPdf() {
     setShowConfirmPdf(false);
     setSaving(true);
@@ -486,15 +498,7 @@ export function Trocas() {
       const doc = await ensureDocumentExists();
       if (!doc) return;
       const formDataToSave = prepareFormDataWithAuth(formData);
-      if (editingFillId) {
-        await atualizarPreenchimento(editingFillId, { filled_data: formDataToSave, status: 'signed' });
-      } else {
-        await criarPreenchimento({
-          document_id: doc.id, filled_by: user?.username || null,
-          filled_data: formDataToSave, status: 'signed',
-          autentique_document_id: null, autentique_link: null,
-        });
-      }
+
       const pdfKey = doc.template_pdf_url;
       if (!pdfKey) { setShowNotifPopup({ msg: 'PDF template nao vinculado. Contate o administrador.', type: 'error' }); return; }
       const blob = await getPdfBlob(pdfKey);
@@ -522,11 +526,69 @@ export function Trocas() {
         dadosStr.check_deferido = '';
         dadosStr.check_indeferido = 'V';
       }
+
       const pdfBlob = await preencherPdf(pdfBytes, dadosStr, fieldPositionsFromDoc(doc));
+      const nomeArquivo = `Troca_Servico_${formData.nome_solicitante || 'sem_nome'}_${new Date().toISOString().split('T')[0]}`;
+
+      let autentiqueDocId: string | null = null;
+      let autentiqueLink: string | null = null;
+
+      try {
+        const emailSol = getEmailByNome(formData.nome_solicitante || '');
+        const emailSolic = getEmailByNome(formData.nome_solicitado || '');
+
+        const signers: AutentiqueSigner[] = [];
+        if (emailSol) {
+          signers.push({ email: emailSol, action: 'SIGN' });
+        } else {
+          signers.push({ name: formData.nome_solicitante || 'Solicitante', action: 'SIGN' });
+        }
+        if (emailSolic) {
+          signers.push({ email: emailSolic, action: 'SIGN' });
+        } else {
+          signers.push({ name: formData.nome_solicitado || 'Solicitado', action: 'SIGN' });
+        }
+
+        const result = await criarDocumentoAutentique(pdfBlob, nomeArquivo, signers, undefined, true);
+        autentiqueDocId = result.id;
+        autentiqueLink = result.signatures[0]?.link?.short_link || null;
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : 'Erro desconhecido';
+        if (editingFillId) {
+          await atualizarPreenchimento(editingFillId, { filled_data: formDataToSave, status: 'draft' });
+        } else {
+          await criarPreenchimento({
+            document_id: doc.id, filled_by: user?.username || null,
+            filled_data: formDataToSave, status: 'draft',
+            autentique_document_id: null, autentique_link: null,
+          });
+        }
+        setShowNotifPopup({ msg: `Erro ao enviar para Autentique: ${errMsg}`, type: 'error' });
+        setSaving(false);
+        return;
+      }
+
+      if (editingFillId) {
+        await atualizarPreenchimento(editingFillId, {
+          filled_data: formDataToSave,
+          status: 'pending',
+          autentique_document_id: autentiqueDocId,
+          autentique_link: autentiqueLink,
+        });
+      } else {
+        await criarPreenchimento({
+          document_id: doc.id, filled_by: user?.username || null,
+          filled_data: formDataToSave, status: 'pending',
+          autentique_document_id: autentiqueDocId,
+          autentique_link: autentiqueLink,
+        });
+      }
+
       const docFills = await listarPreenchimentos(doc.id);
       setFills(docFills);
       setEditingFillId(null);
       setSubView('list');
+      setShowNotifPopup({ msg: 'Documento enviado para assinatura no Autentique com sucesso!', type: 'success' });
     } catch {
       setShowNotifPopup({ msg: 'Erro ao enviar para Autentique. Contate o administrador.', type: 'error' });
     } finally {
@@ -1163,13 +1225,14 @@ export function Trocas() {
             let dotColor = 'bg-yellow-500 dark:bg-yellow-400';
             let dotLabel = 'Rascunho';
             if (fill.status === 'signed') {
-              if (fill.autentique_document_id) {
-                dotColor = 'bg-green-500 dark:bg-green-400';
-                dotLabel = 'Assinado';
-              } else {
-                dotColor = 'bg-blue-500 dark:bg-blue-400';
-                dotLabel = 'Aguardando';
-              }
+              dotColor = 'bg-green-500 dark:bg-green-400';
+              dotLabel = 'Assinado';
+            } else if (fill.status === 'pending') {
+              dotColor = 'bg-blue-500 dark:bg-blue-400';
+              dotLabel = 'Aguardando';
+            } else if (fill.status === 'cancelled') {
+              dotColor = 'bg-red-500 dark:bg-red-400';
+              dotLabel = 'Cancelado';
             }
 
             const displaySol = displayNomeGuerra(nomeSol);
@@ -1211,11 +1274,12 @@ export function Trocas() {
                     )}
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                       fill.status === 'draft' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300' :
-                      fill.status === 'signed' && fill.autentique_document_id ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
-                      fill.status === 'signed' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
+                      fill.status === 'signed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
+                      fill.status === 'pending' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
+                      fill.status === 'cancelled' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
                       'bg-graphite-100 text-graphite-600 dark:bg-graphite-700 dark:text-graphite-300'
                     }`}>
-                      {fill.status === 'draft' ? 'Rascunho' : fill.status === 'signed' && fill.autentique_document_id ? 'Assinado' : fill.status === 'signed' ? 'Aguardando' : fill.status}
+                      {fill.status === 'draft' ? 'Rascunho' : fill.status === 'signed' ? 'Assinado' : fill.status === 'pending' ? 'Aguardando' : fill.status === 'cancelled' ? 'Cancelado' : fill.status}
                     </span>
                     {fill.status === 'draft' && draftCountdowns[fill.id] != null && (
                       <span className="text-[10px] text-yellow-600 dark:text-yellow-400" title="Tempo ate exclusao automatica">

@@ -30,6 +30,7 @@ import {
   Radio,
   CalendarDays,
   ArrowLeftRight,
+  Archive,
 } from 'lucide-react';
 import type { MenuItem } from '../types/navigation';
 
@@ -97,6 +98,115 @@ export const menuItems: MenuItem[] = [
         path: '/usuarios',
         description: 'Gerenciamento de usuários do sistema.',
         adminOnly: true,
+      },
+    ],
+  },
+  {
+    label: 'Arquivo',
+    icon: Archive,
+    adminOnly: true,
+    children: [
+      {
+        label: 'Todos',
+        icon: Archive,
+        path: '/arquivo',
+        description: 'Todos os documentos arquivados.',
+      },
+      {
+        label: 'Trocas de Serviço',
+        icon: RefreshCw,
+        path: '/arquivo/trocas',
+        description: 'Trocas de serviço arquivadas.',
+      },
+      {
+        label: 'Férias',
+        icon: CalendarDays,
+        path: '/arquivo/ferias',
+        description: 'Documentos de férias arquivados.',
+      },
+      {
+        label: 'EPIs',
+        icon: HardHat,
+        path: '/arquivo/epis',
+        description: 'Termos de EPIs arquivados.',
+      },
+      {
+        label: 'Certificações',
+        icon: Award,
+        path: '/arquivo/certificacoes',
+        description: 'Certificações arquivadas.',
+      },
+      {
+        label: 'Ocorrências',
+        icon: AlertTriangle,
+        path: '/arquivo/ocorrencias',
+        description: 'Ocorrências arquivadas.',
+      },
+      {
+        label: 'BONA',
+        icon: FileText,
+        path: '/arquivo/bona',
+        description: 'Boletins de Ocorrência arquivados.',
+      },
+      {
+        label: 'RAE',
+        icon: FileText,
+        path: '/arquivo/rae',
+        description: 'Relatórios de Atendimento de Emergência arquivados.',
+      },
+      {
+        label: 'Ordens de Serviço',
+        icon: ClipboardList,
+        path: '/arquivo/ordem_servico',
+        description: 'Ordens de serviço arquivadas.',
+      },
+      {
+        label: 'LRO',
+        icon: FileSpreadsheet,
+        path: '/arquivo/lro',
+        description: 'Listas de Ronda arquivadas.',
+      },
+      {
+        label: 'PTR-BA',
+        icon: FileText,
+        path: '/arquivo/ptrba',
+        description: 'Planos de Trabalho arquivados.',
+      },
+      {
+        label: 'TAF',
+        icon: Target,
+        path: '/arquivo/taf',
+        description: 'Testes de Aptidão Física arquivados.',
+      },
+      {
+        label: 'TP/EPR',
+        icon: ScrollText,
+        path: '/arquivo/tpepr',
+        description: 'Testes de Progressão arquivados.',
+      },
+      {
+        label: 'Exercício de Posicionamento',
+        icon: Target,
+        path: '/arquivo/exercicio_posicionamento',
+        description: 'Exercícios de Posicionamento arquivados.',
+      },
+      {
+        label: 'Exercício de Tempo Resposta',
+        icon: Activity,
+        path: '/arquivo/exercicio_tempo_resposta',
+        description: 'Exercícios de Tempo Resposta arquivados.',
+      },
+      {
+        label: 'DDS',
+        icon: FileText,
+        path: '/arquivo/dds',
+        description: 'Diálogos Diários de Segurança arquivados.',
+      },
+      {
+        label: 'Checklists',
+        icon: ClipboardCheck,
+        path: '/arquivo/checklists',
+        description: 'Checklists arquivados.',
       },
     ],
   },

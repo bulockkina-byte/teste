@@ -74,6 +74,7 @@ export const router = createBrowserRouter([
       { path: 'relatorios/exercicios/tp-epr', element: lazyPage(() => import('../pages/Relatorios/TPEPR')) },
       { path: 'relatorios/ordem-servico', element: lazyPage(() => import('../pages/Relatorios/OrdemServico')) },
       { path: 'relatorios/trocas', element: lazyPage(() => import('../pages/Relatorios/Trocas')) },
+      { path: 'arquivo/:tipo?', element: lazyPage(() => import('../pages/Arquivo/Arquivo')) },
       { path: 'configuracoes', element: lazyPage(() => import('../pages/Configuracoes/Configuracoes')) },
       { path: 'usuarios', element: lazyPage(() => import('../pages/Usuarios/Usuarios')) },
       { path: 'perfil', element: lazyPage(() => import('../pages/Perfil/Perfil')) },
