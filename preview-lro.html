@@ -16,14 +16,12 @@
   .label-bg td { background: #d4d4d4; }
   .mb { margin-bottom: 3px; }
   .footer-hash { font-size: 6px; color: #555; text-align: center; margin-top: 8px; }
-  .footer-hash a { color: #1a56db; }
-  .right-info td { text-align: right; font-size: 7px; border: none; padding: 1px 0; }
   .sig-line { border-top: 1px solid #000; padding-top: 2px; margin-top: 4px; }
 </style>
 </head><body>
 <div class="page">
 
-  <!-- Cabeçalho: Logo | FOR (1 row) + LivroAta (3 rows) | Código / MMS / Revisão / Pagina -->
+  <!-- Cabeçalho -->
   <table style="margin-bottom:3px;">
     <tr>
       <td rowspan="4" style="width:12%; text-align:center; vertical-align:middle; padding:4px;">
@@ -46,7 +44,7 @@
     </tr>
     <tr>
       <td style="text-align:center; padding:2px 3px; font-size:6px; vertical-align:middle;">00</td>
-      <td style="text-align:center; padding:2px 3px; font-size:6px; vertical-align:middle;"><span id="pageNum">1 de 3</span></td>
+      <td style="text-align:center; padding:2px 3px; font-size:6px; vertical-align:middle;"><span id="pageNum">1 de 2</span></td>
     </tr>
   </table>
 
@@ -61,43 +59,42 @@
   <!-- Identificação do Aeroporto -->
   <table class="mb">
     <tr><td class="b" style="width:25%;background:#d4d4d4;">IDENTIFICAÇÃO DO AEROPORTO:</td><td colspan="4">SBNF - AEROPORTO INTERNACIONAL MINISTRO VICTOR KONDER</td></tr>
-    <tr><td class="b" style="width:10%">PLANTÃO:</td><td class="b" style="width:18%;background:#d4d4d4;">Data início:</td><td style="width:22%" id="dataInicio"></td><td class="b" style="width:18%;background:#d4d4d4;">Data do fim:</td><td style="width:32%" id="dataFim"></td></tr>
+    <tr><td class="b" style="width:10%">PLANTÃO:</td><td class="b" style="width:18%;background:#d4d4d4;">Data início:</td><td style="width:22%" id="dataInicio">15/07/2026</td><td class="b" style="width:18%;background:#d4d4d4;">Data do fim:</td><td style="width:32%" id="dataFim">16/07/2026</td></tr>
   </table>
 
-  <!-- I. EQUIPE DE SERVIÇO (tabela única) -->
+  <!-- I. EQUIPE DE SERVIÇO -->
   <table style="margin-bottom:3px;">
-    <tr class="sec-title"><td colspan="6">I. EQUIPE DE SERVIÇO <span id="equipeNome"></span></td></tr>
-    <tr><td class="b" colspan="2" style="width:22%">1.1. Chefe de Equipe:</td><td colspan="4" id="chefeEquipe"></td></tr>
-    <tr><td class="b" colspan="2">1.2. Comunicação BA-OC:</td><td colspan="4" id="comunicacao"></td></tr>
+    <tr class="sec-title"><td colspan="6">I. EQUIPE DE SERVIÇO ALFA</td></tr>
+    <tr><td class="b" colspan="2" style="width:22%">1.1. Chefe de Equipe:</td><td colspan="4" id="chefeEquipe">KEOMA DE PAULA VIANA</td></tr>
+    <tr><td class="b" colspan="2">1.2. Comunicação BA-OC:</td><td colspan="4" id="comunicacao">GUSTAVO HENRIQUE</td></tr>
     <tr><td colspan="6" class="b" style="padding:2px 3px;font-size:8px;background:#d4d4d4;">1.3. Equipagem dos CCI - EM LINHA, CCI - RT e CRS:</td></tr>
     <tr><td class="b" style="width:1%; white-space:nowrap;">CCI 2</td><td colspan="5"><div style="display:grid; grid-template-columns:1fr 1fr 1fr; text-align:left;"><div><b>KEOMA</b><br/><span style="font-size:6px;">BA-CE</span></div><div><b>EDERSON</b><br/><span style="font-size:6px;">BA-MC</span></div><div><b>ICARO</b><br/><span style="font-size:6px;">BA-2</span></div></div></td></tr>
     <tr><td class="b" style="white-space:nowrap;">CCI 3</td><td colspan="5"><div style="display:grid; grid-template-columns:1fr 1fr 1fr; text-align:left;"><div><b>CLECIR</b><br/><span style="font-size:6px;">BA-MC</span></div><div><b>AMILCAR</b><br/><span style="font-size:6px;">BA-2</span></div><div><b>FERNANDO</b><br/><span style="font-size:6px;">BA-2</span></div></div></td></tr>
     <tr><td class="b" style="white-space:nowrap;">CRS</td><td colspan="5"><div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; text-align:left;"><div><b>ADALTO</b><br/><span style="font-size:6px;">BA-LR</span></div><div><b>BRITO</b><br/><span style="font-size:6px;">BA-MC</span></div><div><b>JEAN</b><br/><span style="font-size:6px;">BA-RE</span></div><div><b>LEANDRO</b><br/><span style="font-size:6px;">BA-RE</span></div></div></td></tr>
-    <tr><td class="b" colspan="6">1.4. Substituições de BA: &nbsp;&nbsp;&nbsp;&nbsp;☐ ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;☐ NÃO HOUVE</td></tr>
+    <tr><td class="b" colspan="6">1.4. Substituições de BA: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;☐ ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;☐ NÃO HOUVE</td></tr>
     <tr id="substituicaoLinha"><td colspan="6" style="padding:4px 4px;font-size:7px;" id="substituicaoConteudo"><div style="display:grid; grid-template-columns:2fr 1fr 2fr; text-align:center;"><div><b>ANDREY DE ARAÚJO MONTANARO</b><br/><span style="font-size:6px;">BA-2</span></div><div style="align-self:center;"><span style="font-size:10px;">→</span></div><div><b>RODINEY EYNG</b><br/><span style="font-size:6px;">BA-2</span></div></div></td></tr>
   </table>
 
   <!-- II. INSTRUÇÕES -->
   <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
-    <tr class="sec-title"><td style="border:none; border-bottom:1px solid #000; padding:2px 3px; font-weight:bold; font-size:8px; background:#d4d4d4; text-align:center;">II. INSTRUÇÕES</td></tr>
+    <tr><td style="border:none; border-bottom:1px solid #000; padding:2px 3px; font-weight:bold; font-size:8px; background:#d4d4d4; text-align:center;">II. INSTRUÇÕES</td></tr>
     <tr><td style="border:none; height:5px;"></td></tr>
-    <tr><td style="border:none; padding:2px 40px; font-size:7px;" id="instrucao_1"><div style="display:grid; grid-template-columns:3fr 1fr; align-items:center;"><div>14. PLANO CONTRAINCÊNDIO DE AERÓDROMO (PCINC)</div><div style="text-align:right;">20:00 horas</div></div></td></tr>
+    <tr><td style="border:none; padding:2px 40px; font-size:7px;" id="instrucao_1"><div style="display:grid; grid-template-columns:3fr 1fr; align-items:center;"><div>14. PLANO CONTRAINCÊNDIO DE AERÓDROMO (PCINC)</div><div style="text-align:right;">08:00 horas</div></div></td></tr>
     <tr><td style="border:none; height:5px;"></td></tr>
-    <tr><td style="border:none; padding:2px 40px; font-size:7px;" id="instrucao_2"><div style="display:grid; grid-template-columns:3fr 1fr; align-items:center;"><div>15. EQUIPAMENTOS DE PROTEÇÃO</div><div style="text-align:right;">21:00 horas</div></div></td></tr>
+    <tr><td style="border:none; padding:2px 40px; font-size:7px;" id="instrucao_2"><div style="display:grid; grid-template-columns:3fr 1fr; align-items:center;"><div>15. EQUIPAMENTOS DE PROTEÇÃO</div><div style="text-align:right;">10:30 horas</div></div></td></tr>
     <tr><td style="border:none; height:5px;"></td></tr>
-    <tr><td style="border:none; padding:2px 40px; font-size:7px;" id="instrucao_3"><div style="display:grid; grid-template-columns:3fr 1fr; align-items:center;"><div>17. ATIVIDADE FÍSICA</div><div style="text-align:right;">22:00 horas</div></div></td></tr>
+    <tr><td style="border:none; padding:2px 40px; font-size:7px;" id="instrucao_3"><div style="display:grid; grid-template-columns:3fr 1fr; align-items:center;"><div>17. ATIVIDADE FÍSICA</div><div style="text-align:right;">14:00 horas</div></div></td></tr>
     <tr><td style="border:none; height:5px;"></td></tr>
-    <tr id="semInstrucoes" style="display:none;"><td style="border:none; height:14px; font-size:7px; text-align:center; padding:2px 40px;" id="semInstrucoesMsg">Nenhuma instrução registrada neste plantão</td></tr>
-    <tr id="instrucoesExtra" style="display:none;"><td style="padding:3px 4px;font-size:7px;border:none;" id="instrucoesConteudo"></td></tr>
+    <tr id="semInstrucoes" style="display:none;"><td style="border:none; height:14px; font-size:7px; text-align:center; padding:2px 40px;">Nenhuma instrução registrada neste plantão</td></tr>
   </table>
 
   <!-- III. FROTA -->
   <table class="mb">
     <tr class="sec-title"><td colspan="7">III. SITUAÇÃO OPERACIONAL DA FROTA DO SESCINC:</td></tr>
     <tr class="b"><th>VIATURA</th><th>PREFIXO</th><th>KM INICIAL</th><th>KM FINAL</th><th>COMB. INICIAL</th><th>COMB. FINAL</th><th>SITUAÇÃO</th></tr>
-    <tr><td class="b">CCI 319</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-    <tr><td class="b">CCI 320</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-    <tr><td class="b">CCI 333</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr><td class="b">CCI 319</td><td>F2 X6</td><td>8.658</td><td>8.672</td><td>¾</td><td>½</td><td>EM LINHA</td></tr>
+    <tr><td class="b">CCI 320</td><td>F3 X6</td><td>11.182</td><td>11.195</td><td>¼</td><td>¼</td><td>EM LINHA</td></tr>
+    <tr><td class="b">CCI 333</td><td>RESE FRX X6</td><td>5.764</td><td>5.764</td><td>¾</td><td>¾</td><td>RESERVA</td></tr>
   </table>
 
   <!-- IV -->
@@ -112,33 +109,31 @@
   <!-- V -->
   <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
     <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:8px; background:#d4d4d4; text-align:center; padding:2px 3px;">V. SITUAÇÃO OPERACIONAL DOS TP, EPR EM LINHA E EM ESTOQUE</td></tr>
-    <tr><td style="border:none; padding:2px 40px; font-size:7px;">☐ ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ☐ NÃO HOUVE</td></tr>
-    <tr id="linhaVazioV" style="border:none;"><td style="border:none; height:5px;"></td></tr>
-    <tr id="conteudoV" style="display:none;"><td style="border:none; padding:2px 40px; font-size:7px;" id="textoV"></td></tr>
+    <tr><td style="border:none; border-bottom:1px solid #000; padding:2px 40px; font-size:7px;">☐ ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ✅ NÃO HOUVE</td></tr>
+    <tr><td style="border:none; height:5px;"></td></tr>
   </table>
 
   <!-- VI -->
   <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
     <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:8px; background:#d4d4d4; text-align:center; padding:2px 3px;">VI. SITUAÇÃO OPERACIONAL DOS AGENTES EXTINTORES (LGE E PQ) E NITROGÊNIO EM LINHA E ESTOQUE</td></tr>
-    <tr><td style="border:none; padding:2px 40px; font-size:7px;">☐ ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ☐ NÃO HOUVE</td></tr>
-    <tr id="linhaVazioVI" style="border:none;"><td style="border:none; height:5px;"></td></tr>
-    <tr id="conteudoVI" style="display:none;"><td style="border:none; padding:2px 40px; font-size:7px;" id="textoVI"></td></tr>
+    <tr><td style="border:none; border-bottom:1px solid #000; padding:2px 40px; font-size:7px;">✅ ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ☐ NÃO HOUVE</td></tr>
+    <tr><td style="border:none; padding:2px 40px; font-size:7px;">TROCA DE 02 CILINDROS DE LGE 06KG NO SETOR DE MANUTENÇÃO</td></tr>
   </table>
 
   <!-- VII -->
   <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
     <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:8px; background:#d4d4d4; text-align:center; padding:2px 3px;">VII. SITUAÇÃO OPERACIONAL DOS EQUIPAMENTOS E MATERIAIS DO SESCINC</td></tr>
-    <tr><td style="border:none; padding:2px 40px; font-size:7px;">☐ ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ☐ NÃO HOUVE</td></tr>
-    <tr id="linhaVazioVII" style="border:none;"><td style="border:none; height:5px;"></td></tr>
-    <tr id="conteudoVII" style="display:none;"><td style="border:none; padding:2px 40px; font-size:7px;" id="textoVII"></td></tr>
+    <tr><td style="border:none; border-bottom:1px solid #000; padding:2px 40px; font-size:7px;">☐ ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ✅ NÃO HOUVE</td></tr>
+    <tr><td style="border:none; height:5px;"></td></tr>
   </table>
 
   <!-- VIII -->
   <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
     <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:8px; background:#d4d4d4; text-align:center; padding:2px 3px;">VIII. SITUAÇÃO OPERACIONAL DAS EDIFICAÇÕES / INSTALAÇÕES DA SCI</td></tr>
-    <tr><td style="border:none; padding:2px 40px; font-size:7px;">☐ ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ☐ NÃO HOUVE</td></tr>
-    <tr id="linhaVazioVIII" style="border:none;"><td style="border:none; height:5px;"></td></tr>
-    <tr id="conteudoVIII" style="display:none;"><td style="border:none; padding:2px 40px; font-size:7px;" id="textoVIII"></td></tr>
+    <tr><td style="border:none; border-bottom:1px solid #000; padding:2px 40px; font-size:7px;">✅ ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ☐ NÃO HOUVE</td></tr>
+    <tr><td style="border:none; padding:2px 4px; font-size:7px;">HIDRÔMETRO CAIXA DE REUSO - 638M³</td></tr>
+    <tr><td style="border:none; padding:2px 4px; font-size:7px;">AR CONDICIONADO SALA DO BA-CE INOPERANTE</td></tr>
+    <tr><td style="border:none; padding:2px 4px; font-size:7px;">FEITA SUBSTITUIÇÃO DE DUAS LUMINÁRIAS DE LED DA GARAGEM QUE ESTAVAM QUEIMADAS</td></tr>
   </table>
 
   <!-- IX -->
@@ -150,7 +145,10 @@
   <!-- X -->
   <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
     <tr><td style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:8px; background:#d4d4d4; text-align:center; padding:2px 3px;">X. INSPEÇÕES TÉCNICAS E VISTORIAS</td></tr>
-    <tr><td style="border:none; height:14px;" id="conteudoX"></td></tr>
+    <tr><td style="border:none; padding:2px 4px; font-size:7px;">02/07/2026 08:00 - VISTORIA: PORTO DA FIBONACCI REALIZOU CONFERÊNCIA DO COMPRESSOR</td></tr>
+    <tr><td style="border:none; padding:2px 4px; font-size:7px;">02/07/2026 08:16 - COLETA: FLÁVIO DA GHS REALIZOU COLETA DE AMOSTRA D'ÁGUA</td></tr>
+    <tr><td style="border:none; padding:2px 4px; font-size:7px;">02/07/2026 10:22 - MANUTENÇÃO: TROCA DE DOIS REFLETORES QUEIMADOS DA GARAGEM</td></tr>
+    <tr><td style="border:none; padding:2px 4px; font-size:7px;">02/07/2026 14:50 - VISITA TÉCNICA: DEVOLUÇÃO DE BATERIA DA SALA TELEMÁTICA</td></tr>
   </table>
 
   <!-- XI -->
@@ -162,32 +160,33 @@
   <!-- XII -->
   <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
     <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:8px; background:#d4d4d4; text-align:center; padding:2px 3px;">XII. OUTRAS OCORRÊNCIAS</td></tr>
-    <tr id="conteudoXII"><td style="border:none; padding:10px 4px; font-size:7px;" id="textoXII"></td></tr>
+    <tr><td style="border:none; padding:10px 4px; font-size:7px;">ESCALA DE RÁDIO REALIZADA CONFORME PROCEDIMENTO OPERACIONAL PADRÃO.</td></tr>
+    <tr><td style="border:none; padding:2px 4px; font-size:7px;">FISCALIZAÇÃO DE ROTINA NAS INSTALAÇÕES DO SETOR DE MANUTENÇÃO.</td></tr>
   </table>
 
   <!-- XIII -->
   <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
     <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:8px; background:#d4d4d4; text-align:center; padding:2px 3px;">XIII. SOLICITAÇÕES EFETUADAS A CCR</td></tr>
-    <tr><td style="border:none; height:16px;"></td></tr>
+    <tr><td style="border:none; padding:2px 4px; font-size:7px;">SOLICITADO REPARO DO AR CONDICIONADO DA SALA DO BA-CE.</td></tr>
   </table>
 
   <!-- Assinaturas -->
   <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
     <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:8px; background:#d4d4d4; text-align:center; padding:2px 3px;">LOCAL, DATA E ASSINATURAS</td></tr>
-    <tr><td colspan="6" style="border:none; padding:6px 4px; font-size:7px; text-align:right;">NAVEGANTES-SC, <span id="diaAss">2</span> de <span id="mesAss">JULHO</span> de <span id="anoAss">2025</span></td></tr>
+    <tr><td colspan="6" style="border:none; padding:6px 4px; font-size:7px; text-align:right;">NAVEGANTES-SC, 15 de JULHO de 2026</td></tr>
     <tr><td style="border:none; height:40px;"></td></tr>
     <tr>
       <td style="width:33%; border:none; text-align:center; padding:0 16px;">
         <div style="border-top:1px solid #000; padding-top:6px; font-size:7px; font-weight:bold;">CHEFE DE EQUIPE:</div>
-        <div style="font-size:8px; margin-top:8px; min-height:24px;" id="chefeAssinatura"></div>
+        <div style="font-size:8px; margin-top:8px; min-height:24px;">KEOMA DE PAULA VIANA</div>
       </td>
       <td style="width:33%; border:none; text-align:center; padding:0 16px;">
         <div style="border-top:1px solid #000; padding-top:6px; font-size:7px; font-weight:bold;">GERENTE DO SESCINC SBNF:</div>
-        <div style="font-size:8px; margin-top:8px; min-height:24px;" id="gerenteAssinatura"></div>
+        <div style="font-size:8px; margin-top:8px; min-height:24px;">GUSTAVO AURÉLIO</div>
       </td>
       <td style="width:33%; border:none; text-align:center; padding:0 16px;">
         <div style="border-top:1px solid #000; padding-top:6px; font-size:7px; font-weight:bold;">COORD DE PREV E EMERG:</div>
-        <div style="font-size:8px; margin-top:8px; min-height:24px;" id="coordenadorAssinatura"></div>
+        <div style="font-size:8px; margin-top:8px; min-height:24px;">RINALDO SANTOS RACHADEL</div>
       </td>
     </tr>
   </table>
