@@ -86,7 +86,7 @@ export function GerarLRO() {
 
   useEffect(() => {
     if (equipe === 'Bravo' || equipe === 'Delta') {
-      const inicio = new Date(dataInicio + 'T20:00:00');
+      const inicio = new Date(dataInicio + 'T19:00:00');
       const fim = new Date(inicio.getTime() + 12 * 60 * 60 * 1000);
       setDataFim(fim.toISOString().split('T')[0]);
     } else {
@@ -296,7 +296,7 @@ export function GerarLRO() {
               <div>
                 <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Data Fim</label>
                 <input type="date" value={dataFim} disabled className={inputClass + ' cursor-not-allowed opacity-60'} />
-                {(equipe === 'Bravo' || equipe === 'Delta') && <p className="mt-1 text-[11px] text-aviation-500">Plantão noturno (12x32) — data fim gerada automaticamente</p>}
+                {(equipe === 'Bravo' || equipe === 'Delta') && <p className="mt-1 text-[11px] text-aviation-500">Plantão noturno (19h às 07h) — data fim gerada automaticamente</p>}
               </div>
             </div>
           </div>
