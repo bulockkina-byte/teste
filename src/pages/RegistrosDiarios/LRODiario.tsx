@@ -51,9 +51,8 @@ function emptyLRO(): Omit<LRO, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'> {
   };
 }
 
-function ViaturasCCISection() {
+function ViaturasCCISection({ viaturas }: { viaturas: Viatura[] }) {
   const [expanded, setExpanded] = useState(false);
-  const viaturas = useMemo(() => listarViaturas().filter((v: Viatura) => v.tipo === 'CCI'), []);
 
   if (viaturas.length === 0) return null;
 
@@ -113,6 +112,8 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
   onCancel: () => void;
 }) {
   const [form, setForm] = useState(emptyLRO());
+  const [viaturas, setViaturas] = useState<Viatura[]>([]);
+  useEffect(() => { listarViaturas().then(setViaturas); }, []);
 
   useEffect(() => {
     if (lro) {
@@ -430,7 +431,7 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
       </fieldset>
 
       {/* Viaturas CCI Cadastradas */}
-      <ViaturasCCISection />
+      <ViaturasCCISection viaturas={viaturas.filter(v => v.tipo === 'CCI')} />
 
       {/* 4 colunas de viaturas */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
