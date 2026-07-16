@@ -1,13 +1,19 @@
 <!DOCTYPE html>
 <html><head><meta charset="UTF-8"><title>LIVRO ATA DE CHEFE DE EQUIPE</title>
 <style>
-  @page { size: A4; margin: 0; }
+  @page { size: A4; margin: 15mm 10mm; }
   body { background: #ddd; display: flex; justify-content: center; padding: 20px; font-family: Arial, sans-serif; }
   .page {
     background: #fff; width: 210mm; min-height: 297mm; padding: 8mm 10mm;
     box-shadow: 0 4px 12px rgba(0,0,0,0.2); font-size: 7.5px; line-height: 1.2; color: #000; margin-bottom: 20px;
   }
-  table { width: 100%; border-collapse: collapse; }
+  @media print {
+    body { background: #fff; padding: 0; }
+    .page { box-shadow: none; margin: 0; padding: 0; width: 100%; min-height: auto; }
+    table { page-break-inside: avoid; }
+    .sec-title { page-break-after: avoid; }
+  }
+  table { width: 100%; border-collapse: collapse; page-break-inside: avoid; }
   td, th { border: 1px solid #000; padding: 1.5px 3px; font-size: 7.5px; text-align: left; vertical-align: top; }
   .b { font-weight: bold; }
   .c { text-align: center; }
