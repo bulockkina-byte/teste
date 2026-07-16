@@ -121,6 +121,13 @@ export function GerarLRO() {
   const [solicitacoesCCR, setSolicitacoesCCR] = useState('');
 
   const isAdmin = user?.role === 'admin' || user?.role === 'desenvolvedor';
+  const isGerente = user?.role === 'gerente';
+  const userEquipe = useMemo(() => {
+    if (!user?.pessoa?.nomeGuerra) return '';
+    const b = bombeiros.find(bb => bb.nomeGuerra === user.pessoa!.nomeGuerra);
+    return b?.equipe || '';
+  }, [bombeiros, user]);
+  const podeFiltrarEquipe = isAdmin || isGerente;
   const [view, setView] = useState<'lista' | 'wizard'>('lista');
   const [showConfirm, setShowConfirm] = useState(false);
   const [filtroAno, setFiltroAno] = useState(new Date().getFullYear().toString());
@@ -323,7 +330,10 @@ export function GerarLRO() {
         const mes = d.data_plantao.substring(5, 7);
         if (mes !== filtroMes) return false;
       }
-      if (filtroEquipeLista && d.equipe !== filtroEquipeLista) return false;
+      if (!isAdmin && !isGerente && userEquipe && d.equipe !== userEquipe) return false;
+      if (isGerente && userEquipe && filtroEquipeLista && d.equipe !== filtroEquipeLista) return false;
+      if (isGerente && userEquipe && !filtroEquipeLista && d.equipe !== userEquipe) return false;
+      if (isAdmin && filtroEquipeLista && d.equipe !== filtroEquipeLista) return false;
       return true;
     });
 
@@ -333,7 +343,7 @@ export function GerarLRO() {
           <PageTitle icon={FileText} title="LRO - Livro Ata de Chefe de Equipe" />
           <div className="flex gap-3">
             <button onClick={() => setCloneOrigem({ id: 'novo', equipe: '', data_plantao: '', status: 'rascunho', dados: {}, created_by: username, created_at: '', updated_at: '', expires_at: '' } as any)}
-              className="flex items-center gap-2 rounded-xl border border-aviation-300 bg-white px-4 py-2.5 text-sm font-medium text-aviation-700 transition-all hover:bg-aviation-50 dark:border-aviation-700 dark:bg-transparent dark:text-aviation-400">
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-amber-500/20 transition-all hover:from-amber-400 hover:to-amber-500 hover:shadow-xl hover:shadow-amber-500/30 active:scale-[0.98]">
               <FileText className="h-4 w-4" /> Clonar LRO
             </button>
             <button onClick={() => { setDraftId(null); setStep('equipe'); setView('wizard'); }}
@@ -356,13 +366,20 @@ export function GerarLRO() {
                 <option key={m} value={m}>{m}</option>
               ))}
             </select>
-            <select value={filtroEquipeLista} onChange={e => setFiltroEquipeLista(e.target.value)} className="rounded-xl border border-graphite-300 bg-white px-3 py-2 text-xs text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-300">
-              <option value="">Todas as equipes</option>
-              <option value="Alfa">Alfa</option>
-              <option value="Bravo">Bravo</option>
-              <option value="Charlie">Charlie</option>
-              <option value="Delta">Delta</option>
-            </select>
+            {isAdmin && (
+              <select value={filtroEquipeLista} onChange={e => setFiltroEquipeLista(e.target.value)} className="rounded-xl border border-graphite-300 bg-white px-3 py-2 text-xs text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-300">
+                <option value="">Todas as equipes</option>
+                <option value="Alfa">Alfa</option>
+                <option value="Bravo">Bravo</option>
+                <option value="Charlie">Charlie</option>
+                <option value="Delta">Delta</option>
+              </select>
+            )}
+            {!isAdmin && userEquipe && (
+              <span className="self-center rounded-full bg-graphite-100 px-3 py-1 text-xs font-medium text-graphite-600 dark:bg-graphite-800 dark:text-graphite-300">
+                Equipe {userEquipe}
+              </span>
+            )}
             <span className="self-center text-xs text-graphite-400">{filtradas.length} registro(s)</span>
           </div>
         )}
