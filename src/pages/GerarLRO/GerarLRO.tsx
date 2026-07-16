@@ -120,6 +120,8 @@ export function GerarLRO() {
   const [outrasOcorrencias, setOutrasOcorrencias] = useState('');
   const [solicitacoesCCR, setSolicitacoesCCR] = useState('');
 
+  const MESES = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const ANOS = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
   const isAdmin = user?.role === 'admin' || user?.role === 'desenvolvedor';
   const isGerente = user?.role === 'gerente';
   const userEquipe = useMemo(() => {
@@ -327,7 +329,7 @@ export function GerarLRO() {
     const filtradas = drafts.filter(d => {
       if (filtroAno && !d.data_plantao?.startsWith(filtroAno)) return false;
       if (filtroMes && d.data_plantao) {
-        const mes = d.data_plantao.substring(5, 7);
+        const mes = String(parseInt(d.data_plantao.substring(5, 7), 10));
         if (mes !== filtroMes) return false;
       }
       if (!isAdmin && !isGerente && userEquipe && d.equipe !== userEquipe) return false;
@@ -353,36 +355,31 @@ export function GerarLRO() {
           </div>
         </div>
 
-        {/* Filtros */}
-        {drafts.length > 0 && (
-          <div className="mb-4 flex flex-wrap gap-3">
-            <select value={filtroAno} onChange={e => setFiltroAno(e.target.value)} className="rounded-xl border border-graphite-300 bg-white px-3 py-2 text-xs text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-300">
+        {/* Filtros estilo LRODiario */}
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <select value={filtroAno} onChange={e => setFiltroAno(e.target.value)} className={inputClass}>
               <option value="">Todos os anos</option>
-              {anos.map(a => <option key={a} value={a}>{a}</option>)}
+              {ANOS.map(a => <option key={a} value={a}>{a}</option>)}
             </select>
-            <select value={filtroMes} onChange={e => setFiltroMes(e.target.value)} className="rounded-xl border border-graphite-300 bg-white px-3 py-2 text-xs text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-300">
+            <select value={filtroMes} onChange={e => setFiltroMes(e.target.value)} className={inputClass}>
               <option value="">Todos os meses</option>
-              {['01','02','03','04','05','06','07','08','09','10','11','12'].map(m => (
-                <option key={m} value={m}>{m}</option>
-              ))}
+              {MESES.slice(1).map((m, i) => <option key={i + 1} value={String(i + 1)}>{m}</option>)}
             </select>
             {isAdmin && (
-              <select value={filtroEquipeLista} onChange={e => setFiltroEquipeLista(e.target.value)} className="rounded-xl border border-graphite-300 bg-white px-3 py-2 text-xs text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-300">
+              <select value={filtroEquipeLista} onChange={e => setFiltroEquipeLista(e.target.value)} className={inputClass}>
                 <option value="">Todas as equipes</option>
-                <option value="Alfa">Alfa</option>
-                <option value="Bravo">Bravo</option>
-                <option value="Charlie">Charlie</option>
-                <option value="Delta">Delta</option>
+                {['Alfa','Bravo','Charlie','Delta'].map(eq => <option key={eq} value={eq}>{eq}</option>)}
               </select>
             )}
             {!isAdmin && userEquipe && (
-              <span className="self-center rounded-full bg-graphite-100 px-3 py-1 text-xs font-medium text-graphite-600 dark:bg-graphite-800 dark:text-graphite-300">
+              <span className="rounded-full bg-graphite-100 px-3 py-1.5 text-xs font-medium text-graphite-600 dark:bg-graphite-800 dark:text-graphite-300">
                 Equipe {userEquipe}
               </span>
             )}
-            <span className="self-center text-xs text-graphite-400">{filtradas.length} registro(s)</span>
+            <p className="text-sm text-graphite-500 dark:text-graphite-400">{filtradas.length} LRO(s)</p>
           </div>
-        )}
+        </div>
 
         {filtradas.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-16 text-center dark:border-border-dark dark:bg-surface-card">
