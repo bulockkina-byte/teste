@@ -46,10 +46,11 @@
     </tr>
     <tr>
       <td style="text-align:center; padding:2px 3px; font-size:6px; vertical-align:middle;">00</td>
-      <td style="text-align:center; padding:2px 3px; font-size:6px; vertical-align:middle;"><span id="pageNum">1 de 2</span></td>
+      <td style="text-align:center; padding:2px 3px; font-size:6px; vertical-align:middle;"><span id="pageNum">1 de 1</span></td>
     </tr>
   </table>
 
+  <!-- Subtítulos -->
   <table class="mb">
     <tr><td class="b c" style="font-size:7px;">SERVIÇO DE SALVAMENTO E COMBATE A INCÊNDIO - SESCINC</td></tr>
   </table>
@@ -57,151 +58,129 @@
     <tr><td class="b c" style="font-size:7px;">REGISTRO DE OCORRÊNCIA RELATIVO AO SERVIÇO DE CHEFE DE EQUIPE AO SESCINC</td></tr>
   </table>
 
-  <!-- IDENTIFICAÇÃO -->
+  <!-- Identificação do Aeroporto -->
   <table class="mb">
     <tr><td class="b" style="width:25%;background:#d4d4d4;">IDENTIFICAÇÃO DO AEROPORTO:</td><td colspan="4">SBNF - AEROPORTO INTERNACIONAL MINISTRO VICTOR KONDER</td></tr>
-    <tr><td class="b" style="width:10%">PLANTÃO:</td><td class="b" style="width:18%;background:#d4d4d4;">Data início:</td><td style="width:22%">15/07/2026</td><td class="b" style="width:18%;background:#d4d4d4;">Data do fim:</td><td style="width:32%">16/07/2026</td></tr>
+    <tr><td class="b" style="width:10%">PLANTÃO:</td><td class="b" style="width:18%;background:#d4d4d4;">Data início:</td><td style="width:22%" id="dataInicio"></td><td class="b" style="width:18%;background:#d4d4d4;">Data do fim:</td><td style="width:32%" id="dataFim"></td></tr>
   </table>
 
   <!-- I. EQUIPE -->
   <table style="margin-bottom:3px;">
-    <tr class="sec-title"><td colspan="6">I. EQUIPE DE SERVIÇO ALFA</td></tr>
-    <tr><td class="b" colspan="2" style="width:22%">1.1. Chefe de Equipe:</td><td colspan="4">KEOMA DE PAULA VIANA</td></tr>
-    <tr><td class="b" colspan="2">1.2. Comunicação BA-OC:</td><td colspan="4">GUSTAVO HENRIQUE SILVA</td></tr>
+    <tr class="sec-title"><td colspan="6">I. EQUIPE DE SERVIÇO <span id="equipeNome"></span></td></tr>
+    <tr><td class="b" colspan="2" style="width:22%">1.1. Chefe de Equipe:</td><td colspan="4" id="chefeEquipe"></td></tr>
+    <tr><td class="b" colspan="2">1.2. Comunicação BA-OC:</td><td colspan="4" id="comunicacao"></td></tr>
     <tr><td colspan="6" class="b" style="padding:2px 3px;font-size:8px;background:#d4d4d4;">1.3. Equipagem dos CCI - EM LINHA, CCI - RT e CRS:</td></tr>
-    <tr><td class="b" style="width:1%; white-space:nowrap;">CCI 2</td><td colspan="5"><div style="display:grid; grid-template-columns:1fr 1fr 1fr;"><div><span class="b">BA-CE:</span> KEOMA</div><div><span class="b">BA-MC:</span> EDERSON</div><div><span class="b">BA-2:</span> ICARO</div></div></td></tr>
-    <tr><td class="b" style="white-space:nowrap;">CCI 3</td><td colspan="5"><div style="display:grid; grid-template-columns:1fr 1fr 1fr;"><div><span class="b">BA-MC:</span> CLECIR</div><div><span class="b">BA-2:</span> AMILCAR</div><div><span class="b">BA-2:</span> FERNANDO</div></div></td></tr>
-    <tr><td class="b" style="white-space:nowrap;">CRS</td><td colspan="5"><div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr;"><div><span class="b">BA-LR:</span> ADALTO</div><div><span class="b">BA-MC:</span> BRITO</div><div><span class="b">BA-RE:</span> JEAN</div><div><span class="b">BA-RE:</span> LEANDRO</div></div></td></tr>
-    <tr><td class="b" colspan="6">1.4. Substituições de BA: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;✅ ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;☐ NÃO HOUVE</td></tr>
-    <tr><td colspan="6" style="padding:4px 4px;font-size:7px;"><div style="display:grid; grid-template-columns:1fr 1fr; text-align:center;"><div><span class="b">BA-2:</span> ANDREY DE ARAÚJO MONTANARO &nbsp;&nbsp;→&nbsp;&nbsp;</div><div><span class="b">BA-2:</span> RODINEY EYNG</div></div></td></tr>
+    <tr><td class="b" style="width:1%; white-space:nowrap;">CCI 2</td><td colspan="5"><div style="display:grid; grid-template-columns:1fr 1fr 1fr;"><div><span class="b">BA-CE:</span> <span id="cci2_nome1"></span></div><div><span class="b">BA-MC:</span> <span id="cci2_nome2"></span></div><div><span class="b">BA-2:</span> <span id="cci2_nome3"></span></div></div></td></tr>
+    <tr><td class="b" style="white-space:nowrap;">CCI 3</td><td colspan="5"><div style="display:grid; grid-template-columns:1fr 1fr 1fr;"><div><span class="b">BA-MC:</span> <span id="cci3_nome1"></span></div><div><span class="b">BA-2:</span> <span id="cci3_nome2"></span></div><div><span class="b">BA-2:</span> <span id="cci3_nome3"></span></div></div></td></tr>
+    <tr><td class="b" style="white-space:nowrap;">CRS</td><td colspan="5"><div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr;"><div><span class="b">BA-LR:</span> <span id="crs_nome1"></span></div><div><span class="b">BA-MC:</span> <span id="crs_nome2"></span></div><div><span class="b">BA-RE:</span> <span id="crs_nome3"></span></div><div><span class="b">BA-RE:</span> <span id="crs_nome4"></span></div></div></td></tr>
+    <tr><td class="b" colspan="6">1.4. Substituições de BA: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;☐ ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;☐ NÃO HOUVE</td></tr>
+    <tr id="substituicaoLinha" style="display:none;"><td colspan="6" style="padding:4px 4px;font-size:7px;" id="substituicaoConteudo"></td></tr>
   </table>
 
   <!-- II. INSTRUÇÕES -->
   <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
     <tr><td style="border:none; border-bottom:1px solid #000; padding:2px 3px; font-weight:bold; font-size:8px; background:#d4d4d4; text-align:center;">II. INSTRUÇÕES</td></tr>
     <tr><td style="border:none; height:5px;"></td></tr>
-    <tr><td style="border:none; padding:2px 40px; font-size:7px;"><div style="display:grid; grid-template-columns:3fr 1fr; align-items:center;"><div>14. PLANO CONTRAINCÊNDIO DE AERÓDROMO (PCINC)</div><div style="text-align:right;">08:00 horas</div></div></td></tr>
-    <tr><td style="border:none; height:5px;"></td></tr>
-    <tr><td style="border:none; padding:2px 40px; font-size:7px;"><div style="display:grid; grid-template-columns:3fr 1fr; align-items:center;"><div>15. EQUIPAMENTOS DE PROTEÇÃO INDIVIDUAL (EPI)</div><div style="text-align:right;">09:30 horas</div></div></td></tr>
-    <tr><td style="border:none; height:5px;"></td></tr>
-    <tr><td style="border:none; padding:2px 40px; font-size:7px;"><div style="display:grid; grid-template-columns:3fr 1fr; align-items:center;"><div>16. TÉCNICAS DE RESGATE AERONÁUTICO</div><div style="text-align:right;">11:00 horas</div></div></td></tr>
-    <tr><td style="border:none; height:5px;"></td></tr>
-    <tr><td style="border:none; padding:2px 40px; font-size:7px;"><div style="display:grid; grid-template-columns:3fr 1fr; align-items:center;"><div>17. ATIVIDADE FÍSICA OBRIGATÓRIA</div><div style="text-align:right;">14:00 horas</div></div></td></tr>
-    <tr><td style="border:none; height:5px;"></td></tr>
-    <tr><td style="border:none; padding:2px 40px; font-size:7px;"><div style="display:grid; grid-template-columns:3fr 1fr; align-items:center;"><div>19. TREINAMENTO DE COMBATE A INCÊNDIO</div><div style="text-align:right;">15:30 horas</div></div></td></tr>
+    <tr id="semInstrucoes"><td style="border:none; height:14px; font-size:7px; text-align:center; padding:2px 40px;">Nenhuma instrução registrada neste plantão</td></tr>
+    <tr id="instrucao_1" style="display:none;"><td style="border:none; padding:2px 40px; font-size:7px;" id="instrucao_1_conteudo"></td></tr>
+    <tr id="instrucao_2" style="display:none;"><td style="border:none; padding:2px 40px; font-size:7px;" id="instrucao_2_conteudo"></td></tr>
+    <tr id="instrucao_3" style="display:none;"><td style="border:none; padding:2px 40px; font-size:7px;" id="instrucao_3_conteudo"></td></tr>
+    <tr id="instrucoesExtra" style="display:none;"><td style="padding:3px 4px;font-size:7px;border:none;" id="instrucoesConteudo"></td></tr>
   </table>
 
   <!-- III. FROTA -->
   <table class="mb">
     <tr class="sec-title"><td colspan="7">III. SITUAÇÃO OPERACIONAL DA FROTA DO SESCINC:</td></tr>
     <tr class="b"><th>VIATURA</th><th>PREFIXO</th><th>KM INICIAL</th><th>KM FINAL</th><th>COMB. INICIAL</th><th>COMB. FINAL</th><th>SITUAÇÃO</th></tr>
-    <tr><td class="b">CCI 319</td><td>F2 X6</td><td>8.658</td><td>8.672</td><td>¾</td><td>½</td><td>EM LINHA</td></tr>
-    <tr><td class="b">CCI 320</td><td>F3 X6</td><td>11.182</td><td>11.195</td><td>¼</td><td>¼</td><td>EM LINHA</td></tr>
-    <tr><td class="b">CCI 333</td><td>RESE FRX X6</td><td>5.764</td><td>5.764</td><td>¾</td><td>¾</td><td>RESERVA</td></tr>
+    <tr><td class="b">CCI 319</td><td id="v1_prefixo"></td><td id="v1_kmIni"></td><td id="v1_kmFim"></td><td id="v1_combIni"></td><td id="v1_combFim"></td><td id="v1_situacao"></td></tr>
+    <tr><td class="b">CCI 320</td><td id="v2_prefixo"></td><td id="v2_kmIni"></td><td id="v2_kmFim"></td><td id="v2_combIni"></td><td id="v2_combFim"></td><td id="v2_situacao"></td></tr>
+    <tr><td class="b">CCI 333</td><td id="v3_prefixo"></td><td id="v3_kmIni"></td><td id="v3_kmFim"></td><td id="v3_combIni"></td><td id="v3_combFim"></td><td id="v3_situacao"></td></tr>
   </table>
 
   <!-- IV -->
   <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
     <tr><td style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:8px; background:#d4d4d4; text-align:center; padding:2px 3px;">IV. SITUAÇÃO OPERACIONAL DA CENTRAL FAÍSCA, EQUIPAMENTOS DE COMUNICAÇÃO E ALARME:</td></tr>
     <tr><td style="border:none; border-bottom:1px solid #000; padding:2px 4px; font-size:7px;"><span class="b">3.1 CENTRAL FAÍSCA:</span></td></tr>
-    <tr><td style="border:none; border-bottom:1px solid #000; padding:2px 4px; font-size:7px;">TESTE SAE COM A TWR REALIZADO NO TURNO ANTERIOR ÀS 05:20H COM CLAREZA 5. CENTRAL OPERANTE NORMALMENTE.</td></tr>
+    <tr><td style="border:none; border-bottom:1px solid #000; padding:2px 4px; font-size:7px;" id="centralFaisca">SEM ALTERAÇÕES</td></tr>
     <tr><td style="border:none; border-bottom:1px solid #000; padding:2px 4px; font-size:7px;"><span class="b">3.2 RÁDIOS, HOTLINE, SISTEMA DE ALARME:</span></td></tr>
-    <tr><td style="border:none; padding:2px 4px; font-size:7px;">SEM ALTERAÇÕES. TODOS OS EQUIPAMENTOS OPERACIONAIS.</td></tr>
+    <tr><td style="border:none; padding:2px 4px; font-size:7px;" id="radioComunicacao">SEM ALTERAÇÕES</td></tr>
   </table>
 
   <!-- V -->
   <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
     <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:8px; background:#d4d4d4; text-align:center; padding:2px 3px;">V. SITUAÇÃO OPERACIONAL DOS TP, EPR EM LINHA E EM ESTOQUE</td></tr>
-    <tr><td style="border:none; border-bottom:1px solid #000; padding:2px 40px; font-size:7px;">✅ ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ☐ NÃO HOUVE</td></tr>
-    <tr><td style="border:none; padding:2px 4px; font-size:7px;">BA JEAN - ZÍPER, VELCRO E FECHO DO ROUPÃO COM DEFEITO. ENCAMINHADO PARA REPARO.</td></tr>
-    <tr><td style="border:none; padding:2px 4px; font-size:7px;">BA MARCOS - VÁLVULA DE AR COMPRIMIDO COM VAZAMENTO. TROCA PROGRAMADA.</td></tr>
+    <tr><td style="border:none; padding:2px 40px; font-size:7px;" id="checkTP"><span id="tpCheckbox">☐ ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ☐ NÃO HOUVE</span></td></tr>
+    <tr id="tpConteudo" style="display:none;"><td style="border:none; padding:2px 40px; font-size:7px;" id="tpTexto"></td></tr>
   </table>
 
   <!-- VI -->
   <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
     <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:8px; background:#d4d4d4; text-align:center; padding:2px 3px;">VI. SITUAÇÃO OPERACIONAL DOS AGENTES EXTINTORES (LGE E PQ) E NITROGÊNIO EM LINHA E ESTOQUE</td></tr>
-    <tr><td style="border:none; border-bottom:1px solid #000; padding:2px 40px; font-size:7px;">✅ ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ☐ NÃO HOUVE</td></tr>
-    <tr><td style="border:none; padding:2px 4px; font-size:7px;">TROCA DE 02 CILINDROS DE LGE 06KG NO SETOR DE MANUTENÇÃO - NF 4587.</td></tr>
-    <tr><td style="border:none; padding:2px 4px; font-size:7px;">RECARGA DE 01 CILINDRO DE PÓ QUÍMICO SECO 50KG NA ÁREA DE ABASTECIMENTO.</td></tr>
-    <tr><td style="border:none; padding:2px 4px; font-size:7px;">NITROGÊNIO DOS CCI 319 E 320 VERIFICADO E DENTRO DOS PADRÕES.</td></tr>
+    <tr><td style="border:none; padding:2px 40px; font-size:7px;" id="checkExt"><span id="extCheckbox">☐ ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ☐ NÃO HOUVE</span></td></tr>
+    <tr id="extConteudo" style="display:none;"><td style="border:none; padding:2px 40px; font-size:7px;" id="extTexto"></td></tr>
   </table>
 
   <!-- VII -->
   <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
     <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:8px; background:#d4d4d4; text-align:center; padding:2px 3px;">VII. SITUAÇÃO OPERACIONAL DOS EQUIPAMENTOS E MATERIAIS DO SESCINC</td></tr>
-    <tr><td style="border:none; border-bottom:1px solid #000; padding:2px 40px; font-size:7px;">✅ ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ☐ NÃO HOUVE</td></tr>
-    <tr><td style="border:none; padding:2px 4px; font-size:7px;">ENTREGUE ÓLEO DOIS TEMPOS DE 500ML MARCA STIHL PARA MOTOSSERRA.</td></tr>
-    <tr><td style="border:none; padding:2px 4px; font-size:7px;">MANGUEIRA DE SUCÇÃO DO CCI 319 APRESENTA DESGASTE - SOLICITADO SUBSTITUIÇÃO.</td></tr>
-    <tr><td style="border:none; padding:2px 4px; font-size:7px;">ESCADA EXTENSÍVEL VERIFICADA E EM CONDIÇÕES DE USO.</td></tr>
+    <tr><td style="border:none; padding:2px 40px; font-size:7px;" id="checkEquip"><span id="equipCheckbox">☐ ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ☐ NÃO HOUVE</span></td></tr>
+    <tr id="equipConteudo" style="display:none;"><td style="border:none; padding:2px 40px; font-size:7px;" id="equipTexto"></td></tr>
   </table>
 
   <!-- VIII -->
   <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
     <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:8px; background:#d4d4d4; text-align:center; padding:2px 3px;">VIII. SITUAÇÃO OPERACIONAL DAS EDIFICAÇÕES / INSTALAÇÕES DA SCI</td></tr>
-    <tr><td style="border:none; border-bottom:1px solid #000; padding:2px 40px; font-size:7px;">✅ ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ☐ NÃO HOUVE</td></tr>
-    <tr><td style="border:none; padding:2px 4px; font-size:7px;">HIDRÔMETRO CAIXA DE REUSO - 638M³ REGISTRADO.</td></tr>
-    <tr><td style="border:none; padding:2px 4px; font-size:7px;">AR CONDICIONADO SALA DO BA-CE INOPERANTE - SOLICITADO REPARO À CCR.</td></tr>
-    <tr><td style="border:none; padding:2px 4px; font-size:7px;">FEITA SUBSTITUIÇÃO DE DUAS LUMINÁRIAS DE LED DA GARAGEM QUE ESTAVAM QUEIMADAS.</td></tr>
-    <tr><td style="border:none; padding:2px 4px; font-size:7px;">PORTÃO DE ACESSO DA VIATURA CCI 333 COM TRAVAMENTO DEFEITUOSO - COMUNICADO.</td></tr>
+    <tr><td style="border:none; padding:2px 40px; font-size:7px;" id="checkEdif"><span id="edifCheckbox">☐ ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ☐ NÃO HOUVE</span></td></tr>
+    <tr id="edifConteudo" style="display:none;"><td style="border:none; padding:2px 4px; font-size:7px;" id="edifTexto"></td></tr>
   </table>
 
   <!-- IX -->
   <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
     <tr><td style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:8px; background:#d4d4d4; text-align:center; padding:2px 3px;">IX. OCORRÊNCIAS NÃO AERONÁUTICAS</td></tr>
-    <tr><td style="border:none; height:14px;"></td></tr>
+    <tr><td style="border:none; height:14px;" id="ocorrenciasNA"></td></tr>
   </table>
 
   <!-- X -->
   <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
     <tr><td style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:8px; background:#d4d4d4; text-align:center; padding:2px 3px;">X. INSPEÇÕES TÉCNICAS E VISTORIAS</td></tr>
-    <tr><td style="border:none; padding:2px 4px; font-size:7px;">15/07/2026 08:00 - VISTORIA: PORTO DA FIBONACCI REALIZOU CONFERÊNCIA DO COMPRESSOR DE AR DO SETOR DE MANUTENÇÃO.</td></tr>
-    <tr><td style="border:none; padding:2px 4px; font-size:7px;">15/07/2026 08:16 - COLETA: FLÁVIO DA GHS REALIZOU COLETA DE AMOSTRA D'ÁGUA NAS CAIXAS DO FUNDO DA SCI.</td></tr>
-    <tr><td style="border:none; padding:2px 4px; font-size:7px;">15/07/2026 10:22 - MANUTENÇÃO: PORTO E LEONARDO DA FIBONACCI REALIZARAM TROCA DE DOIS REFLETORES QUEIMADOS DA GARAGEM.</td></tr>
-    <tr><td style="border:none; padding:2px 4px; font-size:7px;">15/07/2026 14:50 - VISITA TÉCNICA: LEONARDO E PORTO DA FIBONACCI FIZERAM DEVOLUÇÃO DE BATERIA DA SALA TELEMÁTICA.</td></tr>
+    <tr><td style="border:none; height:14px;" id="inspecoes"></td></tr>
   </table>
 
   <!-- XI -->
   <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
     <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:8px; background:#d4d4d4; text-align:center; padding:2px 3px;">XI. EMERGÊNCIAS AERONÁUTICAS</td></tr>
-    <tr><td style="border:none; padding:2px 4px; font-size:7px;"><span class="b">15/07/2026 14:32</span> — ACIONAMENTO PARA EMERGÊNCIA AERONÁUTICA (FASE ALERTA) — VOO LA3589 (A320) REPORTOU INDICAÇÃO DE FOGO NO COMPARTIMENTO DE CARGA. AERONAVE AUTORIZADA PARA POUSO PREFERENCIAL. EQUIPE POSICIONADA NOS PONTOS DE ESPERA CONFORME PCINC. AERONAVE POUSOU SEM INTERCORRÊNCIAS ÀS 14:48. GUIAS DE ABASTECIMENTO E INSPEÇÃO ACIONADOS. SINISTRO CONTROLADO PELA PRÓPRIA TRIPULAÇÃO. EQUIPE RETORNOU À BASE ÀS 15:10.</td></tr>
+    <tr><td style="border:none; height:14px;" id="emergencias"></td></tr>
   </table>
 
   <!-- XII -->
   <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
     <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:8px; background:#d4d4d4; text-align:center; padding:2px 3px;">XII. OUTRAS OCORRÊNCIAS</td></tr>
-    <tr><td style="border:none; padding:2px 4px; font-size:7px;">15/07/2026 07:01 - ESCALA DE RÁDIO REALIZADA CONFORME PROCEDIMENTO OPERACIONAL PADRÃO, SEM INTERCORRÊNCIAS.</td></tr>
-    <tr><td style="border:none; padding:2px 4px; font-size:7px;">15/07/2026 09:45 - FISCALIZAÇÃO DE ROTINA NAS INSTALAÇÕES DO SETOR DE MANUTENÇÃO E ÁREA DE ABASTECIMENTO.</td></tr>
-    <tr><td style="border:none; padding:2px 4px; font-size:7px;">15/07/2026 11:30 - ACOMPANHAMENTO DA EMPRESA FIBONACCI PARA MANUTENÇÃO PREVENTIVA DO SISTEMA DE CLIMATIZAÇÃO.</td></tr>
-    <tr><td style="border:none; padding:2px 4px; font-size:7px;">15/07/2026 13:15 - RECEBIMENTO DE MATERIAL DE EXPEDIENTE E EPIs NO ALMOXARIFADO DA SCI.</td></tr>
-    <tr><td style="border:none; padding:2px 4px; font-size:7px;">15/07/2026 16:00 - PASSAGEM DE PLANTÃO PARA A EQUIPE BRAVO COM TODAS AS INFORMAÇÕES REPASSADAS.</td></tr>
+    <tr><td style="border:none; padding:10px 4px; font-size:7px;" id="outrasOcorrencias"></td></tr>
   </table>
 
   <!-- XIII -->
   <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
     <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:8px; background:#d4d4d4; text-align:center; padding:2px 3px;">XIII. SOLICITAÇÕES EFETUADAS A CCR</td></tr>
-    <tr><td style="border:none; padding:2px 4px; font-size:7px;">1. SOLICITADO REPARO DO AR CONDICIONADO DA SALA DO BA-CE (ORDEM DE SERVIÇO Nº 4587).</td></tr>
-    <tr><td style="border:none; padding:2px 4px; font-size:7px;">2. SOLICITADO SUBSTITUIÇÃO DA MANGUEIRA DE SUCÇÃO DO CCI 319.</td></tr>
-    <tr><td style="border:none; padding:2px 4px; font-size:7px;">3. SOLICITADO REPARO DO PORTÃO DE ACESSO DA VIATURA CCI 333.</td></tr>
-    <tr><td style="border:none; padding:2px 4px; font-size:7px;">4. SOLICITADO TROCA DAS LUMINÁRIAS RESTANTES DA GARAGEM (2 UNIDADES).</td></tr>
+    <tr><td style="border:none; height:16px;" id="solicitacoes"></td></tr>
   </table>
 
-  <!-- ASSINATURAS -->
+  <!-- Assinaturas -->
   <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
     <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:8px; background:#d4d4d4; text-align:center; padding:2px 3px;">LOCAL, DATA E ASSINATURAS</td></tr>
-    <tr><td colspan="6" style="border:none; padding:6px 4px; font-size:7px; text-align:right;">NAVEGANTES-SC, 15 de JULHO de 2026</td></tr>
+    <tr><td colspan="6" style="border:none; padding:6px 4px; font-size:7px; text-align:right;">NAVEGANTES-SC, <span id="diaAss"></span> de <span id="mesAss"></span> de <span id="anoAss"></span></td></tr>
     <tr><td style="border:none; height:40px;"></td></tr>
     <tr>
       <td style="width:33%; border:none; text-align:center; padding:0 16px;">
         <div style="border-top:1px solid #000; padding-top:6px; font-size:7px; font-weight:bold;">CHEFE DE EQUIPE:</div>
-        <div style="font-size:8px; margin-top:8px; min-height:24px;">KEOMA DE PAULA VIANA</div>
+        <div style="font-size:8px; margin-top:8px; min-height:24px;" id="chefeAssinatura"></div>
       </td>
       <td style="width:33%; border:none; text-align:center; padding:0 16px;">
         <div style="border-top:1px solid #000; padding-top:6px; font-size:7px; font-weight:bold;">GERENTE DO SESCINC SBNF:</div>
-        <div style="font-size:8px; margin-top:8px; min-height:24px;">GUSTAVO AURÉLIO</div>
+        <div style="font-size:8px; margin-top:8px; min-height:24px;" id="gerenteAssinatura"></div>
       </td>
       <td style="width:33%; border:none; text-align:center; padding:0 16px;">
         <div style="border-top:1px solid #000; padding-top:6px; font-size:7px; font-weight:bold;">COORD DE PREV E EMERG:</div>
-        <div style="font-size:8px; margin-top:8px; min-height:24px;">RINALDO SANTOS RACHADEL</div>
+        <div style="font-size:8px; margin-top:8px; min-height:24px;" id="coordenadorAssinatura"></div>
       </td>
     </tr>
   </table>
