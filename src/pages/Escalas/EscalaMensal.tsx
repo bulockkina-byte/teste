@@ -136,7 +136,7 @@ export function EscalaMensal() {
 
   const veiculosView = useMemo(() => {
     if (!completaAtual || completaAtual.paradas.length === 0) return null;
-    const v = completaAtual.paradas[0].veiculos;
+    const v = completaAtual.paradas[0].veiculos || {} as any;
     const linha = (label: string, nome: string) => `${label}: ${nome}`;
     return (
       <div className="rounded border-2 border-graphite-300 bg-white/80 p-1 print:border-graphite-500 print:bg-white dark:border-border-dark dark:bg-surface-card">
@@ -146,9 +146,9 @@ export function EscalaMensal() {
         </div>
         <div className="flex gap-2">
           {[
-            { nome: 'CRS', cor: 'border-blue-400 print:border-blue-600', itens: [linha('BA-MC', v.crs.baMc), linha('BA-LR', v.crs.baLr), linha('BA-2', v.crs.ba2_1), linha('BA-2', v.crs.ba2_2)] },
-            { nome: 'CCI F2', cor: 'border-amber-400 print:border-amber-600', itens: [linha('BA-MC', v.cciF2.baMc), linha('BA-CE', v.cciF2.baCe), linha('BA-2', v.cciF2.ba2)] },
-            { nome: 'CCI F3', cor: 'border-emerald-400 print:border-emerald-600', itens: [linha('BA-MC', v.cciF3.baMc), linha('BA-2', v.cciF3.ba2_1), linha('BA-2', v.cciF3.ba2_2)] },
+            { nome: 'CRS', cor: 'border-blue-400 print:border-blue-600', itens: [linha('BA-MC', v?.crs?.baMc || '-'), linha('BA-LR', v?.crs?.baLr || '-'), linha('BA-2', v?.crs?.ba2_1 || '-'), linha('BA-2', v?.crs?.ba2_2 || '-')] },
+            { nome: 'CCI F2', cor: 'border-amber-400 print:border-amber-600', itens: [linha('BA-MC', v?.cciF2?.baMc || '-'), linha('BA-CE', v?.cciF2?.baCe || '-'), linha('BA-2', v?.cciF2?.ba2 || '-')] },
+            { nome: 'CCI F3', cor: 'border-emerald-400 print:border-emerald-600', itens: [linha('BA-MC', v?.cciF3?.baMc || '-'), linha('BA-2', v?.cciF3?.ba2_1 || '-'), linha('BA-2', v?.cciF3?.ba2_2 || '-')] },
           ].map(c => (
             <div key={c.nome} className={`flex-1 rounded border-2 ${c.cor} bg-graphite-50/30 px-2 py-0.5 print:bg-white dark:border-border-dark dark:bg-surface-card/30`}>
               <p className="text-[11px] font-bold text-graphite-600 print:text-graphite-700 uppercase">{c.nome}</p>

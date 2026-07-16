@@ -185,7 +185,7 @@ function EscalaDiariaForm({
   function updateGuarnicao(section: 'cci02' | 'cci03' | 'crs', field: string, value: string) {
     setForm(f => ({
       ...f,
-      guarnicoes: { ...f.guarnicoes, [section]: { ...f.guarnicoes[section], [field]: value } },
+      guarnicoes: { ...(f.guarnicoes || emptyGuarnicoes()), [section]: { ...((f.guarnicoes as any)?.[section] || {}), [field]: value } },
     }));
   }
 
@@ -265,28 +265,28 @@ function EscalaDiariaForm({
           <div className="rounded-xl border border-graphite-200/60 bg-graphite-50/50 p-4 dark:border-border-dark dark:bg-surface-card/50">
             <h4 className="mb-3 text-sm font-bold text-graphite-700 dark:text-graphite-300">CCI 02</h4>
             <div className="space-y-3">
-              <SlotFuncao label="BA-MC" value={form.guarnicoes.cci02.baMc} onChange={v => updateGuarnicao('cci02', 'baMc', v)} allBombeiros={allBombeiros} />
-              <SlotFuncao label="BA-CE" value={form.guarnicoes.cci02.baCe} onChange={v => updateGuarnicao('cci02', 'baCe', v)} allBombeiros={allBombeiros} />
-              <SlotFuncao label="BA-2" value={form.guarnicoes.cci02.ba2} onChange={v => updateGuarnicao('cci02', 'ba2', v)} allBombeiros={allBombeiros} />
+              <SlotFuncao label="BA-MC" value={form.guarnicoes?.cci02?.baMc || ''} onChange={v => updateGuarnicao('cci02', 'baMc', v)} allBombeiros={allBombeiros} />
+              <SlotFuncao label="BA-CE" value={form.guarnicoes?.cci02?.baCe || ''} onChange={v => updateGuarnicao('cci02', 'baCe', v)} allBombeiros={allBombeiros} />
+              <SlotFuncao label="BA-2" value={form.guarnicoes?.cci02?.ba2 || ''} onChange={v => updateGuarnicao('cci02', 'ba2', v)} allBombeiros={allBombeiros} />
             </div>
           </div>
           {/* CCI 03 */}
           <div className="rounded-xl border border-graphite-200/60 bg-graphite-50/50 p-4 dark:border-border-dark dark:bg-surface-card/50">
             <h4 className="mb-3 text-sm font-bold text-graphite-700 dark:text-graphite-300">CCI 03</h4>
             <div className="space-y-3">
-              <SlotFuncao label="BA-MC" value={form.guarnicoes.cci03.baMc} onChange={v => updateGuarnicao('cci03', 'baMc', v)} allBombeiros={allBombeiros} />
-              <SlotFuncao label="BA-2" value={form.guarnicoes.cci03.ba2_1} onChange={v => updateGuarnicao('cci03', 'ba2_1', v)} allBombeiros={allBombeiros} />
-              <SlotFuncao label="BA-2" value={form.guarnicoes.cci03.ba2_2} onChange={v => updateGuarnicao('cci03', 'ba2_2', v)} allBombeiros={allBombeiros} />
+              <SlotFuncao label="BA-MC" value={form.guarnicoes?.cci03?.baMc || ''} onChange={v => updateGuarnicao('cci03', 'baMc', v)} allBombeiros={allBombeiros} />
+              <SlotFuncao label="BA-2" value={form.guarnicoes?.cci03?.ba2_1 || ''} onChange={v => updateGuarnicao('cci03', 'ba2_1', v)} allBombeiros={allBombeiros} />
+              <SlotFuncao label="BA-2" value={form.guarnicoes?.cci03?.ba2_2 || ''} onChange={v => updateGuarnicao('cci03', 'ba2_2', v)} allBombeiros={allBombeiros} />
             </div>
           </div>
           {/* CRS */}
           <div className="rounded-xl border border-graphite-200/60 bg-graphite-50/50 p-4 dark:border-border-dark dark:bg-surface-card/50">
             <h4 className="mb-3 text-sm font-bold text-graphite-700 dark:text-graphite-300">CRS</h4>
             <div className="space-y-3">
-              <SlotFuncao label="BA-MC" value={form.guarnicoes.crs.baMc} onChange={v => updateGuarnicao('crs', 'baMc', v)} allBombeiros={allBombeiros} />
-              <SlotFuncao label="BA-LR" value={form.guarnicoes.crs.baLr} onChange={v => updateGuarnicao('crs', 'baLr', v)} allBombeiros={allBombeiros} />
-              <SlotFuncao label="BA-RE" value={form.guarnicoes.crs.baRe1} onChange={v => updateGuarnicao('crs', 'baRe1', v)} allBombeiros={allBombeiros} />
-              <SlotFuncao label="BA-RE" value={form.guarnicoes.crs.baRe2} onChange={v => updateGuarnicao('crs', 'baRe2', v)} allBombeiros={allBombeiros} />
+              <SlotFuncao label="BA-MC" value={form.guarnicoes?.crs?.baMc || ''} onChange={v => updateGuarnicao('crs', 'baMc', v)} allBombeiros={allBombeiros} />
+              <SlotFuncao label="BA-LR" value={form.guarnicoes?.crs?.baLr || ''} onChange={v => updateGuarnicao('crs', 'baLr', v)} allBombeiros={allBombeiros} />
+              <SlotFuncao label="BA-RE" value={form.guarnicoes?.crs?.baRe1 || ''} onChange={v => updateGuarnicao('crs', 'baRe1', v)} allBombeiros={allBombeiros} />
+              <SlotFuncao label="BA-RE" value={form.guarnicoes?.crs?.baRe2 || ''} onChange={v => updateGuarnicao('crs', 'baRe2', v)} allBombeiros={allBombeiros} />
             </div>
           </div>
         </div>
