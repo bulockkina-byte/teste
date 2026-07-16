@@ -662,8 +662,8 @@ export function PTRBADiario() {
     setMode('form');
   }
 
-  function handleDelete(id: string) {
-    excluirPTRB(id);
+  async function handleDelete(id: string) {
+    await excluirPTRB(id);
     setConfirmDelete(null);
     carregar();
   }

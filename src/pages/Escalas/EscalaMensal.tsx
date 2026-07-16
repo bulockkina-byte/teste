@@ -100,11 +100,8 @@ export function EscalaMensal() {
 
   useEffect(() => {
     listarBombeiros().then(setBombeiros).catch(() => {});
-    const c = listarCompletas();
-    setCompletas(c);
+    listarCompletas().then(setCompletas).catch(() => {});
   }, []);
-
-  useEffect(() => { setCompletas(listarCompletas()); }, []);
 
   useEffect(() => {
     if (!equipe || !bombeiros.length || pessoas.some(p => p)) return;
@@ -181,7 +178,7 @@ export function EscalaMensal() {
     return !!p?.id && !!p?.nomeGuerra;
   }
 
-  function handleGerar() {
+  async function handleGerar() {
     const validadas = pessoas.filter(pessoaValida);
     if (!equipe) {
       notificar('Selecione uma equipe antes de gerar.');
@@ -201,10 +198,9 @@ export function EscalaMensal() {
     };
 
     const completa = gerarEscalaMensal(cfg);
-    salvarConfig(cfg);
-    salvarCompleta(completa);
+    await Promise.all([salvarConfig(cfg), salvarCompleta(completa)]);
 
-    const c = listarCompletas();
+    const c = await listarCompletas();
     setCompletas(c);
     setSelecionada(cfg.id);
     setMode('view');
@@ -228,10 +224,10 @@ export function EscalaMensal() {
     notificar(`Configuração clonada para ${MESES[novoMes - 1]}/${novoAno}. Verifique e gere.`);
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (!completaAtual) return;
-    excluirConfig(completaAtual.config.id);
-    const c = listarCompletas();
+    await excluirConfig(completaAtual.config.id);
+    const c = await listarCompletas();
     setCompletas(c);
     if (c.length > 0) { setSelecionada(c[0].config.id); setMode('view'); }
     else { setSelecionada(null); setMode('setup'); }

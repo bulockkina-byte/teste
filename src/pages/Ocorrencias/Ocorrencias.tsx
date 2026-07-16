@@ -545,13 +545,13 @@ export function Ocorrencias() {
     }
   }
 
-  function handleStatusChange(id: string, newStatus: Ocorrencia['status']) {
-    atualizarOcorrencia(id, { status: newStatus });
+  async function handleStatusChange(id: string, newStatus: Ocorrencia['status']) {
+    await atualizarOcorrencia(id, { status: newStatus });
     carregar();
   }
 
-  function handleDelete(id: string) {
-    excluirOcorrencia(id);
+  async function handleDelete(id: string) {
+    await excluirOcorrencia(id);
     setConfirmDelete(null);
     carregar();
   }

@@ -883,8 +883,8 @@ export function LRODiario() {
     setMode('form');
   }
 
-  function handleDelete(id: string) {
-    excluirLRO(id);
+  async function handleDelete(id: string) {
+    await excluirLRO(id);
     setConfirmDelete(null);
     carregar();
   }
