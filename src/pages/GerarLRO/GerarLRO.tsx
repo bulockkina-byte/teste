@@ -94,6 +94,10 @@ export function GerarLRO() {
     }
   }, [equipe, dataInicio]);
 
+  const horarioPlantao = equipe === 'Bravo' || equipe === 'Delta'
+    ? { inicio: '19:00', fim: '07:00', tipo: 'noturno (12h)' }
+    : { inicio: '07:00', fim: '19:00', tipo: 'diurno (12h)' };
+
   const membrosEquipe = useMemo(() => {
     return bombeiros.filter(b => b.equipe === equipe && !b.dataDesligamento);
   }, [bombeiros, equipe]);
@@ -296,7 +300,7 @@ export function GerarLRO() {
               <div>
                 <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Data Fim</label>
                 <input type="date" value={dataFim} disabled className={inputClass + ' cursor-not-allowed opacity-60'} />
-                {(equipe === 'Bravo' || equipe === 'Delta') && <p className="mt-1 text-[11px] text-aviation-500">Plantão noturno (19h às 07h) — data fim gerada automaticamente</p>}
+                <p className="mt-1 text-[11px] text-aviation-500">Plantão {horarioPlantao.tipo} — {horarioPlantao.inicio} às {horarioPlantao.fim}{equipe === 'Bravo' || equipe === 'Delta' ? ' — data fim gerada automaticamente' : ''}</p>
               </div>
             </div>
           </div>
