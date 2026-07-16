@@ -331,10 +331,16 @@ export function GerarLRO() {
       <PageContainer>
         <div className="mb-6 flex items-center justify-between">
           <PageTitle icon={FileText} title="LRO - Livro Ata de Chefe de Equipe" />
-          <button onClick={() => { setDraftId(null); setStep('equipe'); setView('wizard'); }}
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
-            <FileText className="h-4 w-4" /> Novo LRO
-          </button>
+          <div className="flex gap-3">
+            <button onClick={() => setCloneOrigem({ id: 'novo', equipe: '', data_plantao: '', status: 'rascunho', dados: {}, created_by: username, created_at: '', updated_at: '', expires_at: '' } as any)}
+              className="flex items-center gap-2 rounded-xl border border-aviation-300 bg-white px-4 py-2.5 text-sm font-medium text-aviation-700 transition-all hover:bg-aviation-50 dark:border-aviation-700 dark:bg-transparent dark:text-aviation-400">
+              <FileText className="h-4 w-4" /> Clonar LRO
+            </button>
+            <button onClick={() => { setDraftId(null); setStep('equipe'); setView('wizard'); }}
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
+              <FileText className="h-4 w-4" /> Novo LRO
+            </button>
+          </div>
         </div>
 
         {/* Filtros */}
@@ -409,8 +415,21 @@ export function GerarLRO() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
             <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-surface-card">
               <h3 className="mb-4 text-lg font-bold text-graphite-900 dark:text-graphite-100">Clonar LRO</h3>
-              <p className="mb-4 text-sm text-graphite-500">Clonar LRO da equipe <strong>{cloneOrigem.equipe}</strong> do dia <strong>{new Date(cloneOrigem.data_plantao).toLocaleDateString('pt-BR')}</strong>?</p>
               <div className="grid gap-3">
+                {cloneOrigem.id === 'novo' && (
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Selecione o LRO para clonar</label>
+                    <select id="cloneOrigemSelect" className="w-full rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm dark:border-border-dark dark:bg-surface-card">
+                      <option value="">Selecione...</option>
+                      {drafts.map(d => (
+                        <option key={d.id} value={d.id}>Equipe {d.equipe} - {d.data_plantao}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {cloneOrigem.id !== 'novo' && (
+                  <p className="text-sm text-graphite-500">Clonar LRO da equipe <strong>{cloneOrigem.equipe}</strong> do dia <strong>{new Date(cloneOrigem.data_plantao).toLocaleDateString('pt-BR')}</strong></p>
+                )}
                 <div>
                   <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Nova equipe</label>
                   <select id="cloneEquipe" className="w-full rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm dark:border-border-dark dark:bg-surface-card">
@@ -425,9 +444,15 @@ export function GerarLRO() {
               <div className="mt-6 flex justify-end gap-3">
                 <button onClick={() => setCloneOrigem(null)} className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">Cancelar</button>
                 <button onClick={async () => {
-                  const selEquipe = (document.getElementById('cloneEquipe') as HTMLSelectElement)?.value || cloneOrigem.equipe;
+                  const selCloneId = cloneOrigem.id === 'novo'
+                    ? (document.getElementById('cloneOrigemSelect') as HTMLSelectElement)?.value
+                    : cloneOrigem.id;
+                  if (!selCloneId) return;
+                  const origem = selCloneId === cloneOrigem.id ? cloneOrigem : drafts.find(d => d.id === selCloneId);
+                  if (!origem) return;
+                  const selEquipe = (document.getElementById('cloneEquipe') as HTMLSelectElement)?.value || origem.equipe;
                   const selData = (document.getElementById('cloneData') as HTMLInputElement)?.value || new Date().toISOString().split('T')[0];
-                  const frota = cloneOrigem.dados?.frota as Array<Record<string, string>> | undefined;
+                  const frota = origem.dados?.frota as Array<Record<string, string>> | undefined;
                   const frotaClone = frota?.map(f => ({
                     ...f,
                     combIni: f.combFim || '',
@@ -435,7 +460,7 @@ export function GerarLRO() {
                     kmFim: '', combFim: '', situacao: '',
                   })) || [];
                   const novosDados = {
-                    ...cloneOrigem.dados,
+                    ...origem.dados,
                     equipeNome: selEquipe,
                     dataInicio: selData,
                     dataFim: selData,
