@@ -357,8 +357,8 @@ export function GerarLRO() {
         </div>
 
         {/* Filtros estilo LRODiario */}
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-3">
+        <div className="mb-6 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
             <select value={filtroAno} onChange={e => setFiltroAno(e.target.value)} className={inputClass}>
               <option value="">Todos os anos</option>
               {ANOS.map(a => <option key={a} value={a}>{a}</option>)}
