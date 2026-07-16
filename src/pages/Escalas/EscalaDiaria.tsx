@@ -175,9 +175,9 @@ function EscalaDiariaForm({
       ...auto,
       chefeEquipe: chefe || f.chefeEquipe,
       guarnicoes: {
-        crs: { baMc: mc1 || f.guarnicoes.crs.baMc, baLr: lr || f.guarnicoes.crs.baLr, baRe1: b2_1 || f.guarnicoes.crs.baRe1, baRe2: b2_2 || f.guarnicoes.crs.baRe2 },
-        cci02: { baMc: mc2 || f.guarnicoes.cci02.baMc, baCe: chefe || f.guarnicoes.cci02.baCe, ba2: b2_3 || f.guarnicoes.cci02.ba2 },
-        cci03: { baMc: mc3 || f.guarnicoes.cci03.baMc, ba2_1: b2_4 || f.guarnicoes.cci03.ba2_1, ba2_2: b2_5 || f.guarnicoes.cci03.ba2_2 },
+        crs: { baMc: mc1 || f.guarnicoes?.crs?.baMc || '', baLr: lr || f.guarnicoes?.crs?.baLr || '', baRe1: b2_1 || f.guarnicoes?.crs?.baRe1 || '', baRe2: b2_2 || f.guarnicoes?.crs?.baRe2 || '' },
+        cci02: { baMc: mc2 || f.guarnicoes?.cci02?.baMc || '', baCe: chefe || f.guarnicoes?.cci02?.baCe || '', ba2: b2_3 || f.guarnicoes?.cci02?.ba2 || '' },
+        cci03: { baMc: mc3 || f.guarnicoes?.cci03?.baMc || '', ba2_1: b2_4 || f.guarnicoes?.cci03?.ba2_1 || '', ba2_2: b2_5 || f.guarnicoes?.cci03?.ba2_2 || '' },
       },
     }));
   }
@@ -507,22 +507,22 @@ function EscalaCard({ escala, onView, onEdit, onDelete, onClone, isAdmin }: {
           <div className="grid grid-cols-3 gap-4">
             <div>
               <p className="text-xs text-graphite-400">CCI 02</p>
-              <p className="text-sm">BA-MC: {escala.guarnicoes.cci02.baMc || '-'}</p>
-              <p className="text-sm">BA-CE: {escala.guarnicoes.cci02.baCe || '-'}</p>
-              <p className="text-sm">BA-2: {escala.guarnicoes.cci02.ba2 || '-'}</p>
+              <p className="text-sm">BA-MC: {escala.guarnicoes?.cci02?.baMc || '-'}</p>
+              <p className="text-sm">BA-CE: {escala.guarnicoes?.cci02?.baCe || '-'}</p>
+              <p className="text-sm">BA-2: {escala.guarnicoes?.cci02?.ba2 || '-'}</p>
             </div>
             <div>
               <p className="text-xs text-graphite-400">CCI 03</p>
-              <p className="text-sm">BA-MC: {escala.guarnicoes.cci03.baMc || '-'}</p>
-              <p className="text-sm">BA-2: {escala.guarnicoes.cci03.ba2_1 || '-'}</p>
-              <p className="text-sm">BA-2: {escala.guarnicoes.cci03.ba2_2 || '-'}</p>
+              <p className="text-sm">BA-MC: {escala.guarnicoes?.cci03?.baMc || '-'}</p>
+              <p className="text-sm">BA-2: {escala.guarnicoes?.cci03?.ba2_1 || '-'}</p>
+              <p className="text-sm">BA-2: {escala.guarnicoes?.cci03?.ba2_2 || '-'}</p>
             </div>
             <div>
               <p className="text-xs text-graphite-400">CRS</p>
-              <p className="text-sm">BA-MC: {escala.guarnicoes.crs.baMc || '-'}</p>
-              <p className="text-sm">BA-LR: {escala.guarnicoes.crs.baLr || '-'}</p>
-              <p className="text-sm">BA-RE: {escala.guarnicoes.crs.baRe1 || '-'}</p>
-              <p className="text-sm">BA-RE: {escala.guarnicoes.crs.baRe2 || '-'}</p>
+              <p className="text-sm">BA-MC: {escala.guarnicoes?.crs?.baMc || '-'}</p>
+              <p className="text-sm">BA-LR: {escala.guarnicoes?.crs?.baLr || '-'}</p>
+              <p className="text-sm">BA-RE: {escala.guarnicoes?.crs?.baRe1 || '-'}</p>
+              <p className="text-sm">BA-RE: {escala.guarnicoes?.crs?.baRe2 || '-'}</p>
             </div>
           </div>
 
@@ -530,7 +530,7 @@ function EscalaCard({ escala, onView, onEdit, onDelete, onClone, isAdmin }: {
           {([['BDS', escala.bds], ['PTR-1', escala.ptr1], ['PTR-2', escala.ptr2]] as const).map(([label, slot]) => (
             <div key={label}>
               <p className="text-xs font-semibold text-aviation-600 dark:text-aviation-400">{label}</p>
-              <p className="text-sm">{slot.funcao || '-'}: {slot.nomeGuerra || '-'}</p>
+              <p className="text-sm">{slot?.funcao || '-'}: {slot?.nomeGuerra || '-'}</p>
             </div>
           ))}
 
@@ -758,22 +758,22 @@ function ViewMode({ escala, onBack }: { escala: EscalaDiaria; onBack: () => void
           <div className="grid grid-cols-3 gap-4">
             <div className="rounded-2xl bg-white/60 p-3 backdrop-blur-sm dark:bg-surface-card/60">
               <p className="mb-1 text-xs font-bold text-graphite-500">CCI 02</p>
-              <p className="text-sm">BA-MC: {escala.guarnicoes.cci02.baMc || '-'}</p>
-              <p className="text-sm">BA-CE: {escala.guarnicoes.cci02.baCe || '-'}</p>
-              <p className="text-sm">BA-2: {escala.guarnicoes.cci02.ba2 || '-'}</p>
+              <p className="text-sm">BA-MC: {escala.guarnicoes?.cci02?.baMc || '-'}</p>
+              <p className="text-sm">BA-CE: {escala.guarnicoes?.cci02?.baCe || '-'}</p>
+              <p className="text-sm">BA-2: {escala.guarnicoes?.cci02?.ba2 || '-'}</p>
             </div>
             <div className="rounded-2xl bg-white/60 p-3 backdrop-blur-sm dark:bg-surface-card/60">
               <p className="mb-1 text-xs font-bold text-graphite-500">CCI 03</p>
-              <p className="text-sm">BA-MC: {escala.guarnicoes.cci03.baMc || '-'}</p>
-              <p className="text-sm">BA-2: {escala.guarnicoes.cci03.ba2_1 || '-'}</p>
-              <p className="text-sm">BA-2: {escala.guarnicoes.cci03.ba2_2 || '-'}</p>
+              <p className="text-sm">BA-MC: {escala.guarnicoes?.cci03?.baMc || '-'}</p>
+              <p className="text-sm">BA-2: {escala.guarnicoes?.cci03?.ba2_1 || '-'}</p>
+              <p className="text-sm">BA-2: {escala.guarnicoes?.cci03?.ba2_2 || '-'}</p>
             </div>
             <div className="rounded-2xl bg-white/60 p-3 backdrop-blur-sm dark:bg-surface-card/60">
               <p className="mb-1 text-xs font-bold text-graphite-500">CRS</p>
-              <p className="text-sm">BA-MC: {escala.guarnicoes.crs.baMc || '-'}</p>
-              <p className="text-sm">BA-LR: {escala.guarnicoes.crs.baLr || '-'}</p>
-              <p className="text-sm">BA-RE: {escala.guarnicoes.crs.baRe1 || '-'}</p>
-              <p className="text-sm">BA-RE: {escala.guarnicoes.crs.baRe2 || '-'}</p>
+              <p className="text-sm">BA-MC: {escala.guarnicoes?.crs?.baMc || '-'}</p>
+              <p className="text-sm">BA-LR: {escala.guarnicoes?.crs?.baLr || '-'}</p>
+              <p className="text-sm">BA-RE: {escala.guarnicoes?.crs?.baRe1 || '-'}</p>
+              <p className="text-sm">BA-RE: {escala.guarnicoes?.crs?.baRe2 || '-'}</p>
             </div>
           </div>
         </div>
@@ -781,7 +781,7 @@ function ViewMode({ escala, onBack }: { escala: EscalaDiaria; onBack: () => void
         {([['BDS', escala.bds], ['PTR-1', escala.ptr1], ['PTR-2', escala.ptr2]] as const).map(([label, slot]) => (
           <div key={label} className="mb-4">
             <p className="mb-1 text-xs font-semibold text-aviation-600 dark:text-aviation-400">{label}</p>
-            <p className="text-sm">{slot.funcao || '-'}: {slot.nomeGuerra || '-'}</p>
+            <p className="text-sm">{slot?.funcao || '-'}: {slot?.nomeGuerra || '-'}</p>
           </div>
         ))}
 
