@@ -365,6 +365,12 @@ export const menuItems: MenuItem[] = [
         description: 'Lista de Ronda Operacional.',
       },
       {
+        label: 'Gerar LRO',
+        icon: FileText,
+        path: '/relatorios/gerar-lro',
+        description: 'Gerar Livro Ata de Chefe de Equipe e enviar para assinatura.',
+      },
+      {
         label: 'BONA',
         icon: FileCheck,
         path: '/relatorios/bona',

@@ -67,6 +67,7 @@ export const router = createBrowserRouter([
       { path: 'registros-diarios/ptr-ba', element: lazyPage(() => import('../pages/RegistrosDiarios/PTRBADiario')) },
       { path: 'registros-diarios/lro-ocorrencias', element: lazyPage(() => import('../pages/RegistrosDiarios/LROOcorrencias')) },
       { path: 'relatorios/lro', element: lazyPage(() => import('../pages/Relatorios/LRO')) },
+      { path: 'relatorios/gerar-lro', element: lazyPage(() => import('../pages/GerarLRO/GerarLRO')) },
       { path: 'relatorios/bona', element: lazyPage(() => import('../pages/Relatorios/BONA')) },
       { path: 'relatorios/ptr-ba', element: lazyPage(() => import('../pages/Relatorios/PTRBA')) },
       { path: 'relatorios/exercicios', element: lazyPage(() => import('../pages/Relatorios/Exercicios')) },
