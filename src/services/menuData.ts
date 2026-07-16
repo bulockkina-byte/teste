@@ -268,6 +268,12 @@ export const menuItems: MenuItem[] = [
         path: '/registros-diarios/lro-ocorrencias',
         description: 'Registro de ocorrências durante o plantão para inclusão automática no LRO.',
       },
+      {
+        label: 'Gerar LRO',
+        icon: FileText,
+        path: '/registros-diarios/gerar-lro',
+        description: 'Gerar Livro Ata de Chefe de Equipe e enviar para assinatura.',
+      },
     ],
   },
   {
@@ -363,12 +369,6 @@ export const menuItems: MenuItem[] = [
         icon: FileSpreadsheet,
         path: '/relatorios/lro',
         description: 'Lista de Ronda Operacional.',
-      },
-      {
-        label: 'Gerar LRO',
-        icon: FileText,
-        path: '/relatorios/gerar-lro',
-        description: 'Gerar Livro Ata de Chefe de Equipe e enviar para assinatura.',
       },
       {
         label: 'BONA',

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { FileText, Save, Send, Eye, AlertTriangle, ArrowLeft, ArrowRight, Trash2 } from 'lucide-react';
+import { FileText, Save, Send, Eye, AlertTriangle, ArrowLeft, ArrowRight, Trash2, Search } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { useAuth } from '../../context/AuthContext';
@@ -7,10 +7,61 @@ import { listarAtivos } from '../../services/bombeiroService';
 import { listarFeriasGozo } from '../../services/feriasService';
 import { listarSubstituicoesTemporarias } from '../../services/substituicaoTemporariaService';
 import { listarViaturas } from '../../services/viaturaService';
+import { listarPTRBs } from '../../services/ptrbService';
 import { salvarDraft, listarDrafts, atualizarStatus, excluirDraft, type LRODraft, type LRODraftStatus } from '../../services/lroDraftService';
 import { gerarPDF } from '../../services/lroGenerator';
 import type { Bombeiro } from '../../types/bombeiro';
 import type { FeriasGozo } from '../../types/ferias';
+import type { PTRB } from '../../types/ptrb';
+
+function SearchSelect({ options, value, onChange, placeholder, label }: {
+  options: { value: string; label: string }[];
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  label?: string;
+}) {
+  const [search, setSearch] = useState('');
+  const [open, setOpen] = useState(false);
+  const filtered = options.filter(o => o.label.toLowerCase().includes(search.toLowerCase()));
+  const selected = options.find(o => o.value === value);
+
+  return (
+    <div className="relative">
+      {label && <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">{label}</label>}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite-400" />
+        <input
+          type="text"
+          value={open ? search : selected?.label || ''}
+          onChange={e => { setSearch(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 200)}
+          placeholder={placeholder || 'Digite para buscar...'}
+          className="w-full rounded-xl border border-graphite-300 bg-white py-2.5 pl-10 pr-4 text-sm text-graphite-900 transition-all hover:border-graphite-400 focus:border-aviation-500 focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400 dark:focus:ring-aviation-400/10"
+        />
+      </div>
+      {open && filtered.length > 0 && (
+        <div className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-graphite-200 bg-white shadow-lg dark:border-border-dark dark:bg-surface-card">
+          {filtered.map(o => (
+            <button
+              key={o.value}
+              onMouseDown={() => { onChange(o.value); setSearch(''); setOpen(false); }}
+              className={`w-full px-3 py-2 text-left text-sm transition-colors hover:bg-aviation-50 dark:hover:bg-aviation-900/20 ${value === o.value ? 'bg-aviation-50 font-medium text-aviation-700 dark:bg-aviation-900/20 dark:text-aviation-400' : 'text-graphite-700 dark:text-graphite-300'}`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      )}
+      {open && filtered.length === 0 && (
+        <div className="absolute z-50 mt-1 w-full rounded-xl border border-graphite-200 bg-white p-3 text-center text-sm text-graphite-400 shadow-lg dark:border-border-dark dark:bg-surface-card">
+          Nenhum resultado encontrado
+        </div>
+      )}
+    </div>
+  );
+}
 
 type EquipeOpcao = 'Alfa' | 'Bravo' | 'Charlie' | 'Delta';
 type Step = 'equipe' | 'trocas' | 'preencher' | 'revisar';
@@ -36,11 +87,16 @@ export function GerarLRO() {
   const [step, setStep] = useState<Step>('equipe');
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
   const [feriasGozo, setFeriasGozo] = useState<FeriasGozo[]>([]);
+  const [todasSubstituicoes, setTodasSubstituicoes] = useState<any[]>([]);
   const [viaturas, setViaturas] = useState<any[]>([]);
+  const [ptrbs, setPtrbs] = useState<PTRB[]>([]);
   const [drafts, setDrafts] = useState<LRODraft[]>([]);
   const [draftId, setDraftId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // -- Frota state --
+  const [frotaDados, setFrotaDados] = useState<Record<string, { kmIni: string; kmFim: string; combIni: string; combFim: string; situacao: string }>>({});
 
   // -- Wizard state --
   const [equipe, setEquipe] = useState<EquipeOpcao>('Alfa');
@@ -70,19 +126,50 @@ export function GerarLRO() {
   useEffect(() => {
     async function load() {
       try {
-        const [b, f, s, v, d] = await Promise.all([
-          listarAtivos(), listarFeriasGozo(), listarSubstituicoesTemporarias(), listarViaturas(), listarDrafts(username).catch(() => []),
+        const [b, f, subs, v, p, d] = await Promise.all([
+          listarAtivos(), listarFeriasGozo(), listarSubstituicoesTemporarias(), listarViaturas(), listarPTRBs(), listarDrafts(username).catch(() => []),
         ]);
         setBombeiros(b);
         setFeriasGozo(f);
-        setSubstituicoes(s);
+        setTodasSubstituicoes(subs);
         setViaturas(v);
+        setPtrbs(p);
         setDrafts(d);
+
+        const cci = v.filter((a: any) => a.tipo === 'CCI');
+        const frotaInit: Record<string, any> = {};
+        cci.forEach((veiculo: any) => { frotaInit[veiculo.id || veiculo.prefixo] = { kmIni: '', kmFim: '', combIni: '', combFim: '', situacao: '' }; });
+        setFrotaDados(frotaInit);
       } catch { /* ignore */ }
       setLoading(false);
     }
     load();
   }, [username]);
+
+  // Auto-detect substitutions when team changes
+  useEffect(() => {
+    const subsEquipe = todasSubstituicoes.filter((s: any) =>
+      s.status === 'Aprovada' && (s.equipe === equipe || s.funcionario_equipe === equipe)
+    );
+    if (subsEquipe.length > 0) {
+      setHouveTrocas('sim');
+      setTrocaSolicitante(subsEquipe[0].funcionario_nome || subsEquipe[0].substituto_nome || '');
+      setTrocaSolicitado(subsEquipe[0].substituto_nome || subsEquipe[0].funcionario_nome || '');
+    }
+  }, [equipe, todasSubstituicoes]);
+
+  // Auto-pull instructions from PTR-BA when team/date changes
+  useEffect(() => {
+    const ptrbsFiltrados = ptrbs.filter(p =>
+      p.equipe === equipe && p.data && p.data.startsWith(dataInicio)
+    );
+    if (ptrbsFiltrados.length > 0) {
+      const linhas = ptrbsFiltrados.map(p =>
+        `${p.assuntoMinistrado || p.descricao}${p.horaInicio ? ` (${p.horaInicio})` : ''}`
+      );
+      setInstrucoes(linhas.join('\n'));
+    }
+  }, [equipe, dataInicio, ptrbs]);
 
   useEffect(() => {
     if (equipe === 'Bravo' || equipe === 'Delta') {
@@ -110,6 +197,17 @@ export function GerarLRO() {
     const feriasIds = new Set(emFerias.map(f => f.funcionarioId));
     return membrosEquipe.filter(b => !feriasIds.has(b.id));
   }, [membrosEquipe, emFerias]);
+
+  const substituicoesMap = useMemo(() => {
+    const map: Record<string, { substitutoNome: string; substitutoId: string }> = {};
+    todasSubstituicoes
+      .filter((s: any) => s.status === 'Aprovada' || s.status === 'Pendente')
+      .forEach((s: any) => {
+        const id = s.funcionario_id || s.funcionarioId;
+        if (id) map[id] = { substitutoNome: s.substituto_nome || s.substitutoNome || '', substitutoId: s.substituto_id || s.substitutoId || '' };
+      });
+    return map;
+  }, [todasSubstituicoes]);
 
   async function handleSalvarRascunho() {
     setSaving(true);
@@ -317,12 +415,32 @@ export function GerarLRO() {
               </div>
             )}
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-              {disponiveis.map(b => (
-                <div key={b.id} className="rounded-xl border border-graphite-100 bg-graphite-50/50 p-2 text-center dark:border-border-dark dark:bg-surface-hover/30">
-                  <p className="text-xs font-bold text-graphite-900 dark:text-graphite-100">{b.nomeGuerra}</p>
-                  <p className="text-[10px] text-graphite-500">{b.cargo}</p>
-                </div>
-              ))}
+              {disponiveis.map(b => {
+                const sub = substituicoesMap[b.id];
+                return (
+                  <div key={b.id} className={`group relative rounded-xl border p-2 text-center transition-all ${sub ? 'border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/10' : 'border-graphite-100 bg-graphite-50/50 dark:border-border-dark dark:bg-surface-hover/30'}`}>
+                    {sub && (
+                      <>
+                        <div className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-[10px] text-white shadow" title="Substituição">↔</div>
+                        <div className="transition-opacity duration-200 group-hover:opacity-0">
+                          <p className="text-xs font-bold text-graphite-900 dark:text-graphite-100">{b.nomeGuerra}</p>
+                          <p className="text-[10px] text-graphite-500">{b.cargo}</p>
+                        </div>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center rounded-xl opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                          <p className="text-xs font-bold text-amber-700 dark:text-amber-400">↔ {sub.substitutoNome}</p>
+                          <p className="text-[10px] text-amber-500">substituindo</p>
+                        </div>
+                      </>
+                    )}
+                    {!sub && (
+                      <>
+                        <p className="text-xs font-bold text-graphite-900 dark:text-graphite-100">{b.nomeGuerra}</p>
+                        <p className="text-[10px] text-graphite-500">{b.cargo}</p>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -361,17 +479,20 @@ export function GerarLRO() {
               <div className="mt-6 space-y-4 rounded-xl border border-amber-200 bg-amber-50/50 p-4 dark:border-amber-800/30 dark:bg-amber-900/10">
                 <h4 className="text-sm font-bold text-graphite-900 dark:text-graphite-100">Dados da substituição</h4>
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Solicitante (quem pediu a troca)</label>
-                    <select value={trocaSolicitante} onChange={e => setTrocaSolicitante(e.target.value)} className={inputClass}>
-                      <option value="">Selecione...</option>
-                      {disponiveis.map(b => <option key={b.id} value={b.nomeGuerra}>{b.nomeGuerra} - {b.nomeCompleto} ({b.cargo})</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Solicitado (quem foi chamado)</label>
-                    <input type="text" value={trocaSolicitado} onChange={e => setTrocaSolicitado(e.target.value)} placeholder="Nome de guerra" className={inputClass} />
-                  </div>
+                  <SearchSelect
+                    label="Solicitante (quem pediu a troca)"
+                    value={trocaSolicitante}
+                    onChange={setTrocaSolicitante}
+                    options={disponiveis.map(b => ({ value: b.nomeGuerra, label: `${b.nomeGuerra} - ${b.nomeCompleto} (${b.cargo})` }))}
+                    placeholder="Buscar solicitante..."
+                  />
+                  <SearchSelect
+                    label="Solicitado (quem foi chamado)"
+                    value={trocaSolicitado}
+                    onChange={setTrocaSolicitado}
+                    options={disponiveis.map(b => ({ value: b.nomeGuerra, label: `${b.nomeGuerra} - ${b.nomeCompleto} (${b.cargo})` }))}
+                    placeholder="Buscar substituto..."
+                  />
                 </div>
               </div>
             )}
@@ -390,30 +511,77 @@ export function GerarLRO() {
 
       {step === 'preencher' && (
         <div className="space-y-4">
-          {/* 1.1 Chefe */}
+          {/* I. Equipe */}
           <div className="rounded-2xl border border-graphite-200 bg-white p-6 dark:border-border-dark dark:bg-surface-card">
             <h3 className="mb-4 font-bold text-graphite-900 dark:text-graphite-100">I. Equipe de Serviço</h3>
             <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">1.1 Chefe de Equipe</label>
-                <select value={chefeEquipe} onChange={e => setChefeEquipe(e.target.value)} className={inputClass}>
-                  <option value="">Selecione...</option>
-                  {disponiveis.filter(b => b.cargo === 'BA-CE').map(b => (
-                    <option key={b.id} value={b.nomeGuerra}>{b.nomeGuerra} - {b.nomeCompleto}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">1.2 Comunicação BA-OC</label>
-                <input type="text" value={comunicacao} onChange={e => setComunicacao(e.target.value)} placeholder="Nome de guerra" className={inputClass} />
-              </div>
+              <SearchSelect
+                label="1.1 Chefe de Equipe"
+                value={chefeEquipe}
+                onChange={setChefeEquipe}
+                options={disponiveis.filter(b => b.cargo === 'BA-CE').map(b => ({ value: b.nomeGuerra, label: `${b.nomeGuerra} - ${b.nomeCompleto} (${b.cargo})` }))}
+                placeholder="Buscar chefe de equipe..."
+              />
+              <SearchSelect
+                label="1.2 Comunicação BA-OC"
+                value={comunicacao}
+                onChange={setComunicacao}
+                options={disponiveis.map(b => ({ value: b.nomeGuerra, label: `${b.nomeGuerra} - ${b.nomeCompleto} (${b.cargo})` }))}
+                placeholder="Buscar operador de comunicação..."
+              />
             </div>
           </div>
 
-          {/* Instruções */}
+          {/* II. Instruções */}
           <div className="rounded-2xl border border-graphite-200 bg-white p-6 dark:border-border-dark dark:bg-surface-card">
             <h3 className="mb-4 font-bold text-graphite-900 dark:text-graphite-100">II. Instruções</h3>
             <textarea value={instrucoes} onChange={e => setInstrucoes(e.target.value)} placeholder="Uma instrução por linha. Ex: 14. PCINC&#10;15. EQUIPAMENTOS DE PROTEÇÃO" rows={4} className={inputClass + ' resize-y'} />
+            {ptrbs.filter(p => p.equipe === equipe && p.data?.startsWith(dataInicio)).length > 0 && (
+              <p className="mt-2 text-[11px] text-green-600">✓ Instruções carregadas automaticamente do PTR-BA deste plantão.</p>
+            )}
+          </div>
+
+          {/* III. Frota */}
+          <div className="rounded-2xl border border-graphite-200 bg-white p-6 dark:border-border-dark dark:bg-surface-card">
+            <h3 className="mb-4 font-bold text-graphite-900 dark:text-graphite-100">III. Situação Operacional da Frota</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-graphite-200 bg-graphite-50 dark:border-border-dark dark:bg-graphite-900">
+                    <th className="p-2 text-left font-semibold text-graphite-600">VIATURA</th>
+                    <th className="p-2 text-left font-semibold text-graphite-600">KM INICIAL</th>
+                    <th className="p-2 text-left font-semibold text-graphite-600">KM FINAL</th>
+                    <th className="p-2 text-left font-semibold text-graphite-600">COMB. INICIAL</th>
+                    <th className="p-2 text-left font-semibold text-graphite-600">COMB. FINAL</th>
+                    <th className="p-2 text-left font-semibold text-graphite-600">SITUAÇÃO</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {viaturas.filter((v: any) => v.tipo === 'CCI').map((v: any) => {
+                    const key = v.id || v.prefixo || v.nome;
+                    const d = frotaDados[key] || { kmIni: '', kmFim: '', combIni: '', combFim: '', situacao: '' };
+                    return (
+                      <tr key={key} className="border-b border-graphite-100 dark:border-border-dark">
+                        <td className="p-2 font-semibold text-graphite-900 dark:text-graphite-100">{v.prefixo || v.nome}</td>
+                        <td className="p-2"><input value={d.kmIni} onChange={e => setFrotaDados(prev => ({ ...prev, [key]: { ...prev[key], kmIni: e.target.value } }))} className="w-20 rounded border border-graphite-200 px-2 py-1 text-xs dark:border-border-dark dark:bg-surface-card" /></td>
+                        <td className="p-2"><input value={d.kmFim} onChange={e => setFrotaDados(prev => ({ ...prev, [key]: { ...prev[key], kmFim: e.target.value } }))} className="w-20 rounded border border-graphite-200 px-2 py-1 text-xs dark:border-border-dark dark:bg-surface-card" /></td>
+                        <td className="p-2"><input value={d.combIni} onChange={e => setFrotaDados(prev => ({ ...prev, [key]: { ...prev[key], combIni: e.target.value } }))} className="w-20 rounded border border-graphite-200 px-2 py-1 text-xs dark:border-border-dark dark:bg-surface-card" /></td>
+                        <td className="p-2"><input value={d.combFim} onChange={e => setFrotaDados(prev => ({ ...prev, [key]: { ...prev[key], combFim: e.target.value } }))} className="w-20 rounded border border-graphite-200 px-2 py-1 text-xs dark:border-border-dark dark:bg-surface-card" /></td>
+                        <td className="p-2">
+                          <select value={d.situacao} onChange={e => setFrotaDados(prev => ({ ...prev, [key]: { ...prev[key], situacao: e.target.value } }))} className="rounded border border-graphite-200 px-2 py-1 text-xs dark:border-border-dark dark:bg-surface-card">
+                            <option value="">Selecione</option>
+                            <option value="EM LINHA">EM LINHA</option>
+                            <option value="RESERVA">RESERVA</option>
+                            <option value="MANUTENÇÃO">MANUTENÇÃO</option>
+                            <option value="BAIXADO">BAIXADO</option>
+                          </select>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           {/* IV a VIII */}
