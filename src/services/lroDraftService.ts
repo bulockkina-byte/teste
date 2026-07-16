@@ -39,11 +39,9 @@ function rowToDraft(row: Record<string, unknown>): LRODraft {
 
 export async function listarDrafts(createdBy: string): Promise<LRODraft[]> {
   const db = getDb();
-  const { data, error } = await db
-    .from(TABLE)
-    .select('*')
-    .eq('created_by', createdBy)
-    .order('updated_at', { ascending: false });
+  let query = db.from(TABLE).select('*');
+  if (createdBy) query = query.eq('created_by', createdBy);
+  const { data, error } = await query.order('updated_at', { ascending: false });
   if (error) throw error;
   return (data || []).map(rowToDraft);
 }

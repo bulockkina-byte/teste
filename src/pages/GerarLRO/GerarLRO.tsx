@@ -120,25 +120,28 @@ export function GerarLRO() {
   const [outrasOcorrencias, setOutrasOcorrencias] = useState('');
   const [solicitacoesCCR, setSolicitacoesCCR] = useState('');
 
+  const isAdmin = user?.role === 'admin' || user?.role === 'desenvolvedor';
   const [view, setView] = useState<'lista' | 'wizard'>('lista');
   const [showConfirm, setShowConfirm] = useState(false);
   const [filtroAno, setFiltroAno] = useState(new Date().getFullYear().toString());
   const [filtroMes, setFiltroMes] = useState('');
   const [filtroEquipeLista, setFiltroEquipeLista] = useState('');
   const [cloneOrigem, setCloneOrigem] = useState<LRODraft | null>(null);
-  const isAdmin = user?.role === 'admin' || user?.role === 'desenvolvedor';
 
   useEffect(() => {
     async function load() {
       try {
-        const [b, f, subs, v, p, d] = await Promise.all([
-          listarAtivos(), listarFeriasGozo(), listarSubstituicoesTemporarias(), listarViaturas(), listarPTRBs(), listarDrafts(username).catch(() => []),
+        const [b, f, subs, v, p] = await Promise.all([
+          listarAtivos(), listarFeriasGozo(), listarSubstituicoesTemporarias(), listarViaturas(), listarPTRBs(),
         ]);
         setBombeiros(b);
         setFeriasGozo(f);
         setTodasSubstituicoes(subs);
         setViaturas(v);
         setPtrbs(p);
+        const d = isAdmin
+          ? await listarDrafts('').catch(() => [])
+          : await listarDrafts(username).catch(() => []);
         setDrafts(d);
 
         const cci = v.filter((a: any) => a.tipo === 'CCI');
@@ -416,13 +419,35 @@ export function GerarLRO() {
               </div>
               <div className="mt-6 flex justify-end gap-3">
                 <button onClick={() => setCloneOrigem(null)} className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">Cancelar</button>
-                <button onClick={() => {
+                <button onClick={async () => {
                   const selEquipe = (document.getElementById('cloneEquipe') as HTMLSelectElement)?.value || cloneOrigem.equipe;
                   const selData = (document.getElementById('cloneData') as HTMLInputElement)?.value || new Date().toISOString().split('T')[0];
-                  const novosDados = { ...cloneOrigem.dados, equipeNome: selEquipe, dataInicio: selData, dataFim: selData };
-                  salvarDraft(novosDados, selEquipe, selData, username).then(() => {
-                    listarDrafts(username).then(setDrafts).catch(() => {});
-                  }).catch(console.error);
+                  const frota = cloneOrigem.dados?.frota as Array<Record<string, string>> | undefined;
+                  const frotaClone = frota?.map(f => ({
+                    ...f,
+                    combIni: f.combFim || '',
+                    kmIni: f.kmFim || '',
+                    kmFim: '', combFim: '', situacao: '',
+                  })) || [];
+                  const novosDados = {
+                    ...cloneOrigem.dados,
+                    equipeNome: selEquipe,
+                    dataInicio: selData,
+                    dataFim: selData,
+                    frota: frotaClone,
+                    substituicao: [],
+                    emergenciaXI: '',
+                    ocorrenciasXII: [],
+                    solicitacoes: [],
+                  };
+                  const saved = await salvarDraft(novosDados, selEquipe, selData, username);
+                  const d = isAdmin
+                    ? await listarDrafts('').catch(() => [])
+                    : await listarDrafts(username).catch(() => []);
+                  setDrafts(d);
+                  setDraftId(saved.id);
+                  setView('wizard');
+                  setStep('preencher');
                   setCloneOrigem(null);
                 }} className="rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white">Clonar</button>
               </div>
