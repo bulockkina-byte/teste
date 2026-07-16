@@ -122,6 +122,11 @@ export function GerarLRO() {
 
   const [view, setView] = useState<'lista' | 'wizard'>('lista');
   const [showConfirm, setShowConfirm] = useState(false);
+  const [filtroAno, setFiltroAno] = useState(new Date().getFullYear().toString());
+  const [filtroMes, setFiltroMes] = useState('');
+  const [filtroEquipeLista, setFiltroEquipeLista] = useState('');
+  const [cloneOrigem, setCloneOrigem] = useState<LRODraft | null>(null);
+  const isAdmin = user?.role === 'admin' || user?.role === 'desenvolvedor';
 
   useEffect(() => {
     async function load() {
@@ -301,6 +306,19 @@ export function GerarLRO() {
   );
 
   if (view === 'lista') {
+    const anos = [...new Set(drafts.map(d => d.data_plantao?.substring(0, 4)).filter(Boolean))].sort().reverse();
+    if (anos.length === 0) anos.push(new Date().getFullYear().toString());
+
+    const filtradas = drafts.filter(d => {
+      if (filtroAno && !d.data_plantao?.startsWith(filtroAno)) return false;
+      if (filtroMes && d.data_plantao) {
+        const mes = d.data_plantao.substring(5, 7);
+        if (mes !== filtroMes) return false;
+      }
+      if (filtroEquipeLista && d.equipe !== filtroEquipeLista) return false;
+      return true;
+    });
+
     return (
       <PageContainer>
         <div className="mb-6 flex items-center justify-between">
@@ -311,34 +329,62 @@ export function GerarLRO() {
           </button>
         </div>
 
-        {drafts.length === 0 ? (
+        {/* Filtros */}
+        {drafts.length > 0 && (
+          <div className="mb-4 flex flex-wrap gap-3">
+            <select value={filtroAno} onChange={e => setFiltroAno(e.target.value)} className="rounded-xl border border-graphite-300 bg-white px-3 py-2 text-xs text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-300">
+              <option value="">Todos os anos</option>
+              {anos.map(a => <option key={a} value={a}>{a}</option>)}
+            </select>
+            <select value={filtroMes} onChange={e => setFiltroMes(e.target.value)} className="rounded-xl border border-graphite-300 bg-white px-3 py-2 text-xs text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-300">
+              <option value="">Todos os meses</option>
+              {['01','02','03','04','05','06','07','08','09','10','11','12'].map(m => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+            <select value={filtroEquipeLista} onChange={e => setFiltroEquipeLista(e.target.value)} className="rounded-xl border border-graphite-300 bg-white px-3 py-2 text-xs text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-300">
+              <option value="">Todas as equipes</option>
+              <option value="Alfa">Alfa</option>
+              <option value="Bravo">Bravo</option>
+              <option value="Charlie">Charlie</option>
+              <option value="Delta">Delta</option>
+            </select>
+            <span className="self-center text-xs text-graphite-400">{filtradas.length} registro(s)</span>
+          </div>
+        )}
+
+        {filtradas.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-16 text-center dark:border-border-dark dark:bg-surface-card">
             <FileText className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
             <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhum LRO encontrado</h3>
-            <p className="mb-6 text-sm text-graphite-400">Clique em "Novo LRO" para criar o primeiro.</p>
+            <p className="text-sm text-graphite-400">Clique em "Novo LRO" para criar o primeiro.</p>
           </div>
         ) : (
           <div className="space-y-3">
-            {drafts.map(d => (
+            {filtradas.map(d => (
               <div key={d.id} className="flex items-center justify-between rounded-2xl border border-graphite-200 bg-white p-4 transition-all hover:shadow-md dark:border-border-dark dark:bg-surface-card">
                 <div className="flex items-center gap-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-graphite-100 dark:bg-graphite-800">
-                    <FileText className="h-5 w-5 text-graphite-500" />
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${d.status === 'assinado' ? 'bg-green-100 dark:bg-green-900/30' : d.status === 'aguardando' ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-graphite-100 dark:bg-graphite-800'}`}>
+                    <FileText className={`h-5 w-5 ${d.status === 'assinado' ? 'text-green-600 dark:text-green-400' : d.status === 'aguardando' ? 'text-amber-600 dark:text-amber-400' : 'text-graphite-500'}`} />
                   </div>
                   <div>
                     <p className="font-semibold text-graphite-900 dark:text-graphite-100">LRO - Equipe {d.equipe}</p>
-                    <p className="text-xs text-graphite-500">{d.data_plantao} · Criado em {new Date(d.created_at).toLocaleDateString('pt-BR')}</p>
+                    <p className="text-xs text-graphite-500">{d.data_plantao} · {new Date(d.created_at).toLocaleDateString('pt-BR')}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   <span className={`rounded-full px-3 py-1 text-[11px] font-medium ${STATUS_CORES[d.status] || STATUS_CORES.rascunho}`}>
                     {STATUS_LABELS[d.status] || d.status}
                   </span>
                   <button onClick={() => { setDraftId(d.id); setView('wizard'); }}
-                    className="rounded-lg border border-graphite-200 px-3 py-1.5 text-xs font-medium text-graphicate-600 transition-all hover:bg-graphite-50 dark:border-border-dark dark:hover:bg-surface-hover">
+                    className="rounded-lg border border-graphite-200 px-3 py-1.5 text-xs font-medium text-graphite-600 transition-all hover:bg-graphite-50 dark:border-border-dark dark:hover:bg-surface-hover">
                     {d.status === 'rascunho' ? 'Continuar' : 'Visualizar'}
                   </button>
-                  {d.status === 'rascunho' && (
+                  <button onClick={() => setCloneOrigem(d)} title="Clonar LRO"
+                    className="rounded-lg p-1.5 text-graphite-400 transition-all hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover">
+                    <FileText className="h-4 w-4" />
+                  </button>
+                  {(d.status === 'rascunho' || isAdmin) && (
                     <button onClick={() => excluirDraft(d.id).then(() => setDrafts(prev => prev.filter(x => x.id !== d.id)))}
                       className="rounded-lg p-1.5 text-alert-red transition-all hover:bg-red-50 dark:hover:bg-red-900/20">
                       <Trash2 className="h-4 w-4" />
@@ -347,6 +393,40 @@ export function GerarLRO() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Modal de clonagem */}
+        {cloneOrigem && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-surface-card">
+              <h3 className="mb-4 text-lg font-bold text-graphite-900 dark:text-graphite-100">Clonar LRO</h3>
+              <p className="mb-4 text-sm text-graphite-500">Clonar LRO da equipe <strong>{cloneOrigem.equipe}</strong> do dia <strong>{new Date(cloneOrigem.data_plantao).toLocaleDateString('pt-BR')}</strong>?</p>
+              <div className="grid gap-3">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Nova equipe</label>
+                  <select id="cloneEquipe" className="w-full rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm dark:border-border-dark dark:bg-surface-card">
+                    {['Alfa','Bravo','Charlie','Delta'].map(e => <option key={e} value={e} selected={e === cloneOrigem.equipe}>{e}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Nova data</label>
+                  <input id="cloneData" type="date" defaultValue={new Date().toISOString().split('T')[0]} className="w-full rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm dark:border-border-dark dark:bg-surface-card" />
+                </div>
+              </div>
+              <div className="mt-6 flex justify-end gap-3">
+                <button onClick={() => setCloneOrigem(null)} className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">Cancelar</button>
+                <button onClick={() => {
+                  const selEquipe = (document.getElementById('cloneEquipe') as HTMLSelectElement)?.value || cloneOrigem.equipe;
+                  const selData = (document.getElementById('cloneData') as HTMLInputElement)?.value || new Date().toISOString().split('T')[0];
+                  const novosDados = { ...cloneOrigem.dados, equipeNome: selEquipe, dataInicio: selData, dataFim: selData };
+                  salvarDraft(novosDados, selEquipe, selData, username).then(() => {
+                    listarDrafts(username).then(setDrafts).catch(() => {});
+                  }).catch(console.error);
+                  setCloneOrigem(null);
+                }} className="rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white">Clonar</button>
+              </div>
+            </div>
           </div>
         )}
       </PageContainer>
