@@ -8,6 +8,11 @@ function getDb() {
   return supabase;
 }
 
+function parseJSON(val: unknown): any {
+  if (typeof val === 'string') { try { return JSON.parse(val); } catch { return val; } }
+  return val;
+}
+
 function rowToPTRB(row: Record<string, unknown>): PTRB {
   return {
     id: row.id as string,
@@ -20,13 +25,13 @@ function rowToPTRB(row: Record<string, unknown>): PTRB {
     duracao: (row.duracao as string) || '',
     equipe: (row.equipe as string) || '',
     turno: (row.turno as string) || '',
-    participantes: (row.participantes as any) || [],
+    participantes: parseJSON(row.participantes) || [],
     observacoes: (row.observacoes as string) || '',
     instrutor: (row.instrutor as string) || '',
     assuntoMinistrado: (row.assunto_ministrado as string) || '',
     descricao: (row.descricao as string) || '',
     informacoesComplementares: (row.informacoes_complementares as string) || '',
-    fotos: (row.fotos as string[]) || [],
+    fotos: parseJSON(row.fotos) || [],
   };
 }
 
@@ -58,10 +63,10 @@ export async function criarPTRB(data: Omit<PTRB, 'id' | 'createdAt' | 'updatedAt
     created_by: data.createdBy, created_at: now, updated_at: now,
     data: data.data, hora_inicio: data.horaInicio, hora_termino: data.horaTermino,
     duracao: data.duracao, equipe: data.equipe, turno: data.turno,
-    participantes: JSON.stringify(data.participantes), observacoes: data.observacoes,
+    participantes: data.participantes, observacoes: data.observacoes,
     instrutor: data.instrutor, assunto_ministrado: data.assuntoMinistrado,
     descricao: data.descricao, informacoes_complementares: data.informacoesComplementares,
-    fotos: JSON.stringify(data.fotos),
+    fotos: data.fotos,
   };
   const { data: created, error } = await db.from(TABLE).insert(row).select().single();
   if (error) throw error;
@@ -77,13 +82,13 @@ export async function atualizarPTRB(id: string, data: Partial<PTRB>): Promise<PT
   if (data.duracao !== undefined) r.duracao = data.duracao;
   if (data.equipe !== undefined) r.equipe = data.equipe;
   if (data.turno !== undefined) r.turno = data.turno;
-  if (data.participantes !== undefined) r.participantes = JSON.stringify(data.participantes);
+  if (data.participantes !== undefined) r.participantes = data.participantes;
   if (data.observacoes !== undefined) r.observacoes = data.observacoes;
   if (data.instrutor !== undefined) r.instrutor = data.instrutor;
   if (data.assuntoMinistrado !== undefined) r.assunto_ministrado = data.assuntoMinistrado;
   if (data.descricao !== undefined) r.descricao = data.descricao;
   if (data.informacoesComplementares !== undefined) r.informacoes_complementares = data.informacoesComplementares;
-  if (data.fotos !== undefined) r.fotos = JSON.stringify(data.fotos);
+  if (data.fotos !== undefined) r.fotos = data.fotos;
   const { data: updated, error } = await db.from(TABLE).update(r).eq('id', id).select().single();
   if (error) throw error;
   return updated ? rowToPTRB(updated) : null;

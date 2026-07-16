@@ -8,6 +8,11 @@ function getDb() {
   return supabase;
 }
 
+function parseJSON(val: unknown): any {
+  if (typeof val === 'string') { try { return JSON.parse(val); } catch { return val; } }
+  return val;
+}
+
 function rowToLRO(row: Record<string, unknown>): LRO {
   return {
     id: row.id as string,
@@ -20,17 +25,17 @@ function rowToLRO(row: Record<string, unknown>): LRO {
     dataSaida: (row.data_saida as string) || '',
     chefeEquipe: (row.chefe_equipe as string) || '',
     apoc: (row.apoc as string) || '',
-    cci02Slots: (row.cci02_slots as any) || [],
-    cci03Slots: (row.cci03_slots as any) || [],
-    crsSlots: (row.crs_slots as any) || [],
-    apoioOutrosSlots: (row.apoio_outros_slots as any) || [],
+    cci02Slots: parseJSON(row.cci02_slots) || [],
+    cci03Slots: parseJSON(row.cci03_slots) || [],
+    crsSlots: parseJSON(row.crs_slots) || [],
+    apoioOutrosSlots: parseJSON(row.apoio_outros_slots) || [],
     substituicoesAtivo: !!row.substituicoes_ativo,
-    substituicoes: (row.substituicoes as any) || [],
+    substituicoes: parseJSON(row.substituicoes) || [],
     instrucoes: (row.instrucoes as string) || '',
-    faisca2: (row.faisca2 as any) || {},
-    faisca3: (row.faisca3 as any) || {},
-    faiscaRT: (row.faisca_rt as any) || {},
-    crs: (row.crs as any) || {},
+    faisca2: parseJSON(row.faisca2) || {},
+    faisca3: parseJSON(row.faisca3) || {},
+    faiscaRT: parseJSON(row.faisca_rt) || {},
+    crs: parseJSON(row.crs) || {},
     situacaoCentralFaisca: (row.situacao_central_faisca as string) || '',
     situacaoComunicacao: (row.situacao_comunicacao as string) || '',
     situacaoTPEPR: (row.situacao_tpepr as string) || '',
@@ -73,12 +78,12 @@ export async function criarLRO(data: Omit<LRO, 'id' | 'createdAt' | 'updatedAt'>
     equipe: data.equipe, turno: data.turno,
     data_entrada: data.dataEntrada, data_saida: data.dataSaida,
     chefe_equipe: data.chefeEquipe, apoc: data.apoc,
-    cci02_slots: JSON.stringify(data.cci02Slots), cci03_slots: JSON.stringify(data.cci03Slots),
-    crs_slots: JSON.stringify(data.crsSlots), apoio_outros_slots: JSON.stringify(data.apoioOutrosSlots),
-    substituicoes_ativo: data.substituicoesAtivo, substituicoes: JSON.stringify(data.substituicoes),
+    cci02_slots: data.cci02Slots, cci03_slots: data.cci03Slots,
+    crs_slots: data.crsSlots, apoio_outros_slots: data.apoioOutrosSlots,
+    substituicoes_ativo: data.substituicoesAtivo, substituicoes: data.substituicoes,
     instrucoes: data.instrucoes,
-    faisca2: JSON.stringify(data.faisca2), faisca3: JSON.stringify(data.faisca3),
-    faisca_rt: JSON.stringify(data.faiscaRT), crs: JSON.stringify(data.crs),
+    faisca2: data.faisca2, faisca3: data.faisca3,
+    faisca_rt: data.faiscaRT, crs: data.crs,
     situacao_central_faisca: data.situacaoCentralFaisca, situacao_comunicacao: data.situacaoComunicacao,
     situacao_tpepr: data.situacaoTPEPR, situacao_agentes_extintores: data.situacaoAgentesExtintores,
     situacao_equipamentos: data.situacaoEquipamentos, situacao_edificacoes: data.situacaoEdificacoes,
@@ -99,17 +104,17 @@ export async function atualizarLRO(id: string, data: Partial<LRO>): Promise<LRO 
   if (data.dataSaida !== undefined) r.data_saida = data.dataSaida;
   if (data.chefeEquipe !== undefined) r.chefe_equipe = data.chefeEquipe;
   if (data.apoc !== undefined) r.apoc = data.apoc;
-  if (data.cci02Slots !== undefined) r.cci02_slots = JSON.stringify(data.cci02Slots);
-  if (data.cci03Slots !== undefined) r.cci03_slots = JSON.stringify(data.cci03Slots);
-  if (data.crsSlots !== undefined) r.crs_slots = JSON.stringify(data.crsSlots);
-  if (data.apoioOutrosSlots !== undefined) r.apoio_outros_slots = JSON.stringify(data.apoioOutrosSlots);
+  if (data.cci02Slots !== undefined) r.cci02_slots = data.cci02Slots;
+  if (data.cci03Slots !== undefined) r.cci03_slots = data.cci03Slots;
+  if (data.crsSlots !== undefined) r.crs_slots = data.crsSlots;
+  if (data.apoioOutrosSlots !== undefined) r.apoio_outros_slots = data.apoioOutrosSlots;
   if (data.substituicoesAtivo !== undefined) r.substituicoes_ativo = data.substituicoesAtivo;
-  if (data.substituicoes !== undefined) r.substituicoes = JSON.stringify(data.substituicoes);
+  if (data.substituicoes !== undefined) r.substituicoes = data.substituicoes;
   if (data.instrucoes !== undefined) r.instrucoes = data.instrucoes;
-  if (data.faisca2 !== undefined) r.faisca2 = JSON.stringify(data.faisca2);
-  if (data.faisca3 !== undefined) r.faisca3 = JSON.stringify(data.faisca3);
-  if (data.faiscaRT !== undefined) r.faisca_rt = JSON.stringify(data.faiscaRT);
-  if (data.crs !== undefined) r.crs = JSON.stringify(data.crs);
+  if (data.faisca2 !== undefined) r.faisca2 = data.faisca2;
+  if (data.faisca3 !== undefined) r.faisca3 = data.faisca3;
+  if (data.faiscaRT !== undefined) r.faisca_rt = data.faiscaRT;
+  if (data.crs !== undefined) r.crs = data.crs;
   if (data.situacaoCentralFaisca !== undefined) r.situacao_central_faisca = data.situacaoCentralFaisca;
   if (data.situacaoComunicacao !== undefined) r.situacao_comunicacao = data.situacaoComunicacao;
   if (data.situacaoTPEPR !== undefined) r.situacao_tpepr = data.situacaoTPEPR;

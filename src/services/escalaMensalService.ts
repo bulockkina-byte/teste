@@ -10,6 +10,11 @@ function getDb() {
   return supabase;
 }
 
+function parseJSON(val: unknown): any {
+  if (typeof val === 'string') { try { return JSON.parse(val); } catch { return val; } }
+  return val;
+}
+
 function rowToConfig(row: Record<string, unknown>): EscalaMensalConfig {
   return {
     id: row.id as string,
@@ -17,7 +22,7 @@ function rowToConfig(row: Record<string, unknown>): EscalaMensalConfig {
     mes: (row.mes as number) || 1,
     ano: (row.ano as number) || 2026,
     paridade: (row.paridade as 'par' | 'impar') || 'impar',
-    pessoas: (row.pessoas as any) || [],
+    pessoas: parseJSON(row.pessoas) || [],
     createdAt: (row.created_at as string) || '',
     updatedAt: (row.updated_at as string) || '',
   };
@@ -29,16 +34,16 @@ function configToRow(data: Partial<EscalaMensalConfig>): Record<string, unknown>
   if (data.mes !== undefined) r.mes = data.mes;
   if (data.ano !== undefined) r.ano = data.ano;
   if (data.paridade !== undefined) r.paridade = data.paridade;
-  if (data.pessoas !== undefined) r.pessoas = JSON.stringify(data.pessoas);
+  if (data.pessoas !== undefined) r.pessoas = data.pessoas;
   return r;
 }
 
 function rowToCompleta(row: Record<string, unknown>, config: EscalaMensalConfig): EscalaMensalCompleta {
   return {
     config,
-    paradas: (row.paradas as any) || [],
-    faxinaMensal: (row.faxina_mensal as any) || [],
-    responsabilidades: (row.responsabilidades as any) || [],
+    paradas: parseJSON(row.paradas) || [],
+    faxinaMensal: parseJSON(row.faxina_mensal) || [],
+    responsabilidades: parseJSON(row.responsabilidades) || [],
   };
 }
 
@@ -99,9 +104,9 @@ export async function salvarCompleta(completa: EscalaMensalCompleta): Promise<vo
   await salvarConfig(completa.config);
   const row = {
     config_id: completa.config.id,
-    paradas: JSON.stringify(completa.paradas),
-    faxina_mensal: JSON.stringify(completa.faxinaMensal),
-    responsabilidades: JSON.stringify(completa.responsabilidades),
+    paradas: completa.paradas,
+    faxina_mensal: completa.faxinaMensal,
+    responsabilidades: completa.responsabilidades,
     created_at: now,
   };
   const existing = await db.from(GERADAS_TABLE).select('id').eq('config_id', completa.config.id).single();

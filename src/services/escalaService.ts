@@ -8,7 +8,13 @@ function getDb() {
   return supabase;
 }
 
+function parseJSON(val: unknown): any {
+  if (typeof val === 'string') { try { return JSON.parse(val); } catch { return val; } }
+  return val;
+}
+
 function rowToEscala(row: Record<string, unknown>): EscalaDiaria {
+  const g = parseJSON(row.guarnicoes);
   return {
     id: row.id as string,
     createdBy: (row.created_by as string) || '',
@@ -20,13 +26,13 @@ function rowToEscala(row: Record<string, unknown>): EscalaDiaria {
     horarioInicio: (row.horario_inicio as string) || '',
     horarioTermino: (row.horario_termino as string) || '',
     turno: (row.turno as string) || '',
-    guarnicoes: (row.guarnicoes as any)?.cci02 ? (row.guarnicoes as any) : { cci02: { baMc:'', baCe:'', ba2:'' }, cci03: { baMc:'', ba2_1:'', ba2_2:'' }, crs: { baMc:'', baLr:'', baRe1:'', baRe2:'' } },
-    bds: (row.bds as any)?.funcao ? (row.bds as any) : { funcao: '', nomeGuerra: '' },
-    ptr1: (row.ptr1 as any)?.funcao ? (row.ptr1 as any) : { funcao: '', nomeGuerra: '' },
-    ptr2: (row.ptr2 as any)?.funcao ? (row.ptr2 as any) : { funcao: '', nomeGuerra: '' },
-    atestados: (row.atestados as string[]) || [],
-    trocas: (row.trocas as any[]) || [],
-    radio: (row.radio as any[]) || [],
+    guarnicoes: g?.cci02 ? g : { cci02: { baMc:'', baCe:'', ba2:'' }, cci03: { baMc:'', ba2_1:'', ba2_2:'' }, crs: { baMc:'', baLr:'', baRe1:'', baRe2:'' } },
+    bds: parseJSON(row.bds) || { funcao: '', nomeGuerra: '' },
+    ptr1: parseJSON(row.ptr1) || { funcao: '', nomeGuerra: '' },
+    ptr2: parseJSON(row.ptr2) || { funcao: '', nomeGuerra: '' },
+    atestados: parseJSON(row.atestados) || [],
+    trocas: parseJSON(row.trocas) || [],
+    radio: parseJSON(row.radio) || [],
   };
 }
 
@@ -59,10 +65,10 @@ export async function criarEscala(data: Omit<EscalaDiaria, 'id' | 'createdAt' | 
     equipe: data.equipe, chefe_equipe: data.chefeEquipe,
     data_plantao: data.dataPlantao, horario_inicio: data.horarioInicio,
     horario_termino: data.horarioTermino, turno: data.turno,
-    guarnicoes: JSON.stringify(data.guarnicoes), bds: JSON.stringify(data.bds),
-    ptr1: JSON.stringify(data.ptr1), ptr2: JSON.stringify(data.ptr2),
-    atestados: JSON.stringify(data.atestados), trocas: JSON.stringify(data.trocas),
-    radio: JSON.stringify(data.radio),
+    guarnicoes: data.guarnicoes, bds: data.bds,
+    ptr1: data.ptr1, ptr2: data.ptr2,
+    atestados: data.atestados, trocas: data.trocas,
+    radio: data.radio,
   };
   const { data: created, error } = await db.from(TABLE).insert(row).select().single();
   if (error) throw error;
@@ -78,13 +84,13 @@ export async function atualizarEscala(id: string, data: Partial<EscalaDiaria>): 
   if (data.horarioInicio !== undefined) r.horario_inicio = data.horarioInicio;
   if (data.horarioTermino !== undefined) r.horario_termino = data.horarioTermino;
   if (data.turno !== undefined) r.turno = data.turno;
-  if (data.guarnicoes !== undefined) r.guarnicoes = JSON.stringify(data.guarnicoes);
-  if (data.bds !== undefined) r.bds = JSON.stringify(data.bds);
-  if (data.ptr1 !== undefined) r.ptr1 = JSON.stringify(data.ptr1);
-  if (data.ptr2 !== undefined) r.ptr2 = JSON.stringify(data.ptr2);
-  if (data.atestados !== undefined) r.atestados = JSON.stringify(data.atestados);
-  if (data.trocas !== undefined) r.trocas = JSON.stringify(data.trocas);
-  if (data.radio !== undefined) r.radio = JSON.stringify(data.radio);
+  if (data.guarnicoes !== undefined) r.guarnicoes = data.guarnicoes;
+  if (data.bds !== undefined) r.bds = data.bds;
+  if (data.ptr1 !== undefined) r.ptr1 = data.ptr1;
+  if (data.ptr2 !== undefined) r.ptr2 = data.ptr2;
+  if (data.atestados !== undefined) r.atestados = data.atestados;
+  if (data.trocas !== undefined) r.trocas = data.trocas;
+  if (data.radio !== undefined) r.radio = data.radio;
   const { data: updated, error } = await db.from(TABLE).update(r).eq('id', id).select().single();
   if (error) throw error;
   return updated ? rowToEscala(updated) : null;

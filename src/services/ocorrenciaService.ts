@@ -8,6 +8,11 @@ function getDb() {
   return supabase;
 }
 
+function parseJSON(val: unknown): any {
+  if (typeof val === 'string') { try { return JSON.parse(val); } catch { return val; } }
+  return val;
+}
+
 function rowToOcorrencia(row: Record<string, unknown>): Ocorrencia {
   return {
     id: row.id as string,
@@ -27,7 +32,7 @@ function rowToOcorrencia(row: Record<string, unknown>): Ocorrencia {
     envolvidos: (row.envolvidos as string) || '',
     acoesTomadas: (row.acoes_tomadas as string) || '',
     status: (row.status as Ocorrencia['status']) || 'Aberta',
-    fotos: (row.fotos as string[]) || [],
+    fotos: parseJSON(row.fotos) || [],
   };
 }
 
@@ -47,7 +52,7 @@ export async function criarOcorrencia(data: Omit<Ocorrencia, 'id' | 'createdAt' 
     data: data.data, hora: data.hora, equipe: data.equipe, turno: data.turno,
     categoria: data.categoria, titulo: data.titulo, descricao: data.descricao,
     local: data.local, envolvidos: data.envolvidos, acoes_tomadas: data.acoesTomadas,
-    status: data.status, fotos: JSON.stringify(data.fotos),
+    status: data.status, fotos: data.fotos,
   };
   const { data: created, error } = await db.from(TABLE).insert(row).select().single();
   if (error) throw error;
@@ -70,7 +75,7 @@ export async function atualizarOcorrencia(id: string, data: Partial<Ocorrencia>)
   if (data.envolvidos !== undefined) r.envolvidos = data.envolvidos;
   if (data.acoesTomadas !== undefined) r.acoes_tomadas = data.acoesTomadas;
   if (data.status !== undefined) r.status = data.status;
-  if (data.fotos !== undefined) r.fotos = JSON.stringify(data.fotos);
+  if (data.fotos !== undefined) r.fotos = data.fotos;
   const { data: updated, error } = await db.from(TABLE).update(r).eq('id', id).select().single();
   if (error) throw error;
   return updated ? rowToOcorrencia(updated) : null;
