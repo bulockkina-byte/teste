@@ -87,7 +87,7 @@ export function GerarLRO() {
   useEffect(() => {
     if (equipe === 'Bravo' || equipe === 'Delta') {
       const inicio = new Date(dataInicio + 'T20:00:00');
-      const fim = new Date(inicio.getTime() + 32 * 60 * 60 * 1000);
+      const fim = new Date(inicio.getTime() + 12 * 60 * 60 * 1000);
       setDataFim(fim.toISOString().split('T')[0]);
     } else {
       setDataFim(dataInicio);
@@ -333,27 +333,41 @@ export function GerarLRO() {
       {step === 'trocas' && (
         <div className="space-y-6">
           <div className="rounded-2xl border border-graphite-200 bg-white p-6 dark:border-border-dark dark:bg-surface-card">
-            <h3 className="mb-4 text-lg font-bold text-graphite-900 dark:text-graphite-100">Houve troca de BA neste plantão?</h3>
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
+                <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">Houve troca de BA neste plantão?</h3>
+                <p className="text-sm text-graphite-500">Selecione se algum bombeiro solicitou substituição</p>
+              </div>
+            </div>
             <div className="flex gap-4">
-              <button onClick={() => setHouveTrocas('sim')} className={`flex-1 rounded-xl border-2 p-4 text-center transition-all ${houveTrocas === 'sim' ? 'border-aviation-500 bg-aviation-50 dark:bg-aviation-900/20' : 'border-graphite-200 hover:border-graphite-300 dark:border-border-dark'}`}>
+              <button onClick={() => setHouveTrocas('sim')} className={`flex-1 rounded-xl border-2 p-4 text-center transition-all ${houveTrocas === 'sim' ? 'border-aviation-500 bg-aviation-50 dark:bg-aviation-900/20 ring-2 ring-aviation-500/20' : 'border-graphite-200 hover:border-graphite-300 dark:border-border-dark'}`}>
                 <p className="text-sm font-semibold text-graphite-900 dark:text-graphite-100">Sim</p>
                 <p className="text-xs text-graphite-500">Houve substituição</p>
               </button>
-              <button onClick={() => setHouveTrocas('nao')} className={`flex-1 rounded-xl border-2 p-4 text-center transition-all ${houveTrocas === 'nao' ? 'border-aviation-500 bg-aviation-50 dark:bg-aviation-900/20' : 'border-graphite-200 hover:border-graphite-300 dark:border-border-dark'}`}>
+              <button onClick={() => setHouveTrocas('nao')} className={`flex-1 rounded-xl border-2 p-4 text-center transition-all ${houveTrocas === 'nao' ? 'border-aviation-500 bg-aviation-50 dark:bg-aviation-900/20 ring-2 ring-aviation-500/20' : 'border-graphite-200 hover:border-graphite-300 dark:border-border-dark'}`}>
                 <p className="text-sm font-semibold text-graphite-900 dark:text-graphite-100">Não</p>
                 <p className="text-xs text-graphite-500">Nenhuma substituição</p>
               </button>
             </div>
 
             {houveTrocas === 'sim' && (
-              <div className="mt-6 grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Solicitante (quem pediu a troca)</label>
-                  <input type="text" value={trocaSolicitante} onChange={e => setTrocaSolicitante(e.target.value)} placeholder="Nome de guerra" className={inputClass} />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Solicitado (quem foi chamado)</label>
-                  <input type="text" value={trocaSolicitado} onChange={e => setTrocaSolicitado(e.target.value)} placeholder="Nome de guerra" className={inputClass} />
+              <div className="mt-6 space-y-4 rounded-xl border border-amber-200 bg-amber-50/50 p-4 dark:border-amber-800/30 dark:bg-amber-900/10">
+                <h4 className="text-sm font-bold text-graphite-900 dark:text-graphite-100">Dados da substituição</h4>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Solicitante (quem pediu a troca)</label>
+                    <select value={trocaSolicitante} onChange={e => setTrocaSolicitante(e.target.value)} className={inputClass}>
+                      <option value="">Selecione...</option>
+                      {disponiveis.map(b => <option key={b.id} value={b.nomeGuerra}>{b.nomeGuerra} - {b.nomeCompleto} ({b.cargo})</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Solicitado (quem foi chamado)</label>
+                    <input type="text" value={trocaSolicitado} onChange={e => setTrocaSolicitado(e.target.value)} placeholder="Nome de guerra" className={inputClass} />
+                  </div>
                 </div>
               </div>
             )}
