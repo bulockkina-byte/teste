@@ -12,7 +12,8 @@
   .b { font-weight: bold; }
   .c { text-align: center; }
   .noborder td, .noborder th { border: none; }
-  .sec-title td { font-weight: bold; font-size: 8px; background: #f0f0f0; padding: 2px 3px; }
+  .sec-title td { font-weight: bold; font-size: 8px; background: #f0f0f0; padding: 2px 3px; text-align:center; }
+  .label-bg td { background: #f5f5f5; }
   .mb { margin-bottom: 3px; }
   .footer-hash { font-size: 6px; color: #555; text-align: center; margin-top: 8px; }
   .footer-hash a { color: #1a56db; }
@@ -59,17 +60,15 @@
 
   <!-- Identificação do Aeroporto -->
   <table class="mb">
-    <tr><td class="b" style="width:25%">IDENTIFICAÇÃO DO AEROPORTO:</td><td colspan="4">SBNF - AEROPORTO INTERNACIONAL MINISTRO VICTOR KONDER</td></tr>
-    <tr><td class="b" style="width:10%">PLANTÃO:</td><td class="b" style="width:18%">Data início:</td><td style="width:22%" id="dataInicio"></td><td class="b" style="width:18%">Data do fim:</td><td style="width:32%" id="dataFim"></td></tr>
+    <tr><td class="b" style="width:25%;background:#f5f5f5;">IDENTIFICAÇÃO DO AEROPORTO:</td><td colspan="4">SBNF - AEROPORTO INTERNACIONAL MINISTRO VICTOR KONDER</td></tr>
+    <tr><td class="b" style="width:10%">PLANTÃO:</td><td class="b" style="width:18%;background:#f5f5f5;">Data início:</td><td style="width:22%" id="dataInicio"></td><td class="b" style="width:18%;background:#f5f5f5;">Data do fim:</td><td style="width:32%" id="dataFim"></td></tr>
   </table>
 
-  <!-- I. EQUIPE DE SERVIÇO -->
-  <table style="margin-bottom:0;"><tr class="sec-title"><td colspan="6">I. EQUIPE DE SERVIÇO <span id="equipeNome">ALFA</span></td></tr></table>
-  <table style="margin-bottom:0;">
+  <!-- I. EQUIPE DE SERVIÇO (tabela única) -->
+  <table style="margin-bottom:3px;">
+    <tr class="sec-title"><td colspan="6">I. EQUIPE DE SERVIÇO <span id="equipeNome">ALFA</span></td></tr>
     <tr><td style="width:4%">1.1.</td><td class="b" style="width:22%">Chefe de Equipe:</td><td colspan="4" id="chefeEquipe">KEOMA</td></tr>
     <tr><td>1.2.</td><td class="b">Comunicação BA-OC</td><td colspan="4" id="comunicacao">GUSTANI</td></tr>
-  </table>
-  <table style="margin-bottom:0;">
     <tr><td rowspan="2" style="width:4%">1.3.</td><td class="b" colspan="5">Equipagem dos CCI - EM LINHA, CCI - RT e CRS:</td></tr>
     <tr class="b"><th style="width:16%">VIATURA</th><th style="width:14%">FUNÇÃO 1</th><th style="width:18%">NOME 1</th><th style="width:14%">FUNÇÃO 2</th><th style="width:18%">NOME 2</th><th style="width:16%">FUNÇÃO 3</th></tr>
     <tr><td class="b">CCI 2</td><td>BA-CE</td><td>KEOMA</td><td>BA-MC</td><td>EDERSON</td><td>BA-2</td></tr>
@@ -79,8 +78,6 @@
     <tr><td class="b">CRS</td><td>BA-LR</td><td>ADALTO</td><td>BA-MC</td><td>BRITO</td><td>BA-RE</td></tr>
     <tr><td></td><td></td><td></td><td></td><td>JEAN</td><td>BA-RE</td></tr>
     <tr><td></td><td></td><td></td><td></td><td>LEANDRO</td><td></td></tr>
-  </table>
-  <table style="margin-bottom:0;">
     <tr><td style="width:4%">1.4.</td><td class="b" style="width:25%">Substituições de BA:</td><td colspan="4">NÃO HOUVE ABAIXO</td></tr>
   </table>
 
