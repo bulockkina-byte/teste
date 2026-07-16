@@ -225,11 +225,11 @@ export function GerarLRO() {
         dataInicio, dataFim,
         chefeEquipe, comunicacao,
         instrucoes: instrucoes.split('\n').filter(Boolean),
-        frota: viaturas.filter(v => v.tipo === 'CCI').map(v => ({
-          viatura: v.prefixo || v.nome,
-          prefixo: v.prefixo || '',
-          kmIni: '', kmFim: '', combIni: '', combFim: '', situacao: '',
-        })),
+        frota: viaturas.filter((v: any) => v.tipo === 'CCI').map((v: any) => {
+          const key = v.id || v.prefixo || v.nome;
+          const d = frotaDados[key] || {};
+          return { viatura: v.prefixo || v.nome, prefixo: v.prefixo || '', kmIni: d.kmIni || '', kmFim: d.kmFim || '', combIni: d.combIni || '', combFim: d.combFim || '', situacao: d.situacao || '' };
+        }),
         centralFaisca, radioComunicacao,
         tpStatus: tpTexto ? '✅ ABAIXO' : '☐ ABAIXO',
         tpTexto,
@@ -266,6 +266,11 @@ export function GerarLRO() {
         equipeNome: equipe,
         dataInicio, dataFim,
         chefeEquipe, comunicacao,
+        frota: viaturas.filter((v: any) => v.tipo === 'CCI').map((v: any) => {
+          const key = v.id || v.prefixo || v.nome;
+          const d = frotaDados[key] || {};
+          return { viatura: v.prefixo || v.nome, prefixo: v.prefixo || '', kmIni: d.kmIni || '', kmFim: d.kmFim || '', combIni: d.combIni || '', combFim: d.combFim || '', situacao: d.situacao || '' };
+        }),
         instrucoes: instrucoes.split('\n').filter(Boolean),
         centralFaisca: centralFaisca || 'SEM ALTERAÇÕES',
         radioComunicacao: radioComunicacao || 'SEM ALTERAÇÕES',
