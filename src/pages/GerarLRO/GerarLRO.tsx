@@ -130,6 +130,7 @@ export function GerarLRO() {
     return b?.equipe || '';
   }, [bombeiros, user]);
   const podeFiltrarEquipe = isAdmin || isGerente;
+  const inputClass = 'w-full rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all hover:border-graphite-400 focus:border-aviation-500 focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400 dark:focus:ring-aviation-400/10';
   const [view, setView] = useState<'lista' | 'wizard'>('lista');
   const [showConfirm, setShowConfirm] = useState(false);
   const [filtroAno, setFiltroAno] = useState(new Date().getFullYear().toString());
@@ -501,8 +502,6 @@ export function GerarLRO() {
       </PageContainer>
     );
   }
-
-  const inputClass = 'w-full rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all hover:border-graphite-400 focus:border-aviation-500 focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400 dark:focus:ring-aviation-400/10';
 
   return (
     <PageContainer>
