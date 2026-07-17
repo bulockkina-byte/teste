@@ -135,29 +135,37 @@ export function montarHTML(dados: Record<string, unknown>): string {
   <!-- V -->
   <table style="border:1px solid #000; border-collapse:separate; border-spacing:0; margin-top:3px;">
     <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:11px; background:#d4d4d4; text-align:center; padding:2px 3px;">V. SITUAÇÃO OPERACIONAL DOS TP, EPR EM LINHA E EM ESTOQUE</td></tr>
+    ${e('tpTexto') ? `
     <tr><td style="border:none; padding:2px 40px; font-size:11px;"><span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:-2px;">✓</span> ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:1px;"></span> SEM ALTERAÇÕES</td></tr>
-    <tr><td style="border:none; border-top:1px solid #000; padding:6px 8px; font-size:11px;">${e('tpTexto')}</td></tr>` : `<tr><td style="border:none; padding:6px 8px; font-size:11px;">SEM ALTERAÇÕES</td></tr>`}
+    <tr><td style="border:none; border-top:1px solid #000; padding:6px 8px; font-size:11px;">${e('tpTexto')}</td></tr>` : `
+    <tr><td style="border:none; padding:6px 8px; font-size:11px;">SEM ALTERAÇÕES</td></tr>`}
   </table>
 
   <!-- VI -->
   <table style="border:1px solid #000; border-collapse:separate; border-spacing:0; margin-top:3px;">
     <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:11px; background:#d4d4d4; text-align:center; padding:2px 3px;">VI. SITUAÇÃO OPERACIONAL DOS AGENTES EXTINTORES (LGE E PQ) E NITROGÊNIO EM LINHA E ESTOQUE</td></tr>
-    ${e('extTexto') ? `<tr><td style="border:none; padding:2px 40px; font-size:11px;"><span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:-2px;">✓</span> ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:1px;"></span> SEM ALTERAÇÕES</td></tr>
-    <tr><td style="border:none; border-top:1px solid #000; padding:6px 8px; font-size:11px;">${e('extTexto')}</td></tr>` : `<tr><td style="border:none; padding:6px 8px; font-size:11px;">SEM ALTERAÇÕES</td></tr>`}
+    ${e('extTexto') ? `
+    <tr><td style="border:none; padding:2px 40px; font-size:11px;"><span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:-2px;">✓</span> ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:1px;"></span> SEM ALTERAÇÕES</td></tr>
+    <tr><td style="border:none; border-top:1px solid #000; padding:6px 8px; font-size:11px;">${e('extTexto')}</td></tr>` : `
+    <tr><td style="border:none; padding:6px 8px; font-size:11px;">SEM ALTERAÇÕES</td></tr>`}
   </table>
 
   <!-- VII -->
   <table style="border:1px solid #000; border-collapse:separate; border-spacing:0; margin-top:3px;">
     <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:11px; background:#d4d4d4; text-align:center; padding:2px 3px;">VII. SITUAÇÃO OPERACIONAL DOS EQUIPAMENTOS E MATERIAIS DO SESCINC</td></tr>
-    ${e('equipTexto') ? `<tr><td style="border:none; padding:2px 40px; font-size:11px;"><span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:-2px;">✓</span> ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:1px;"></span> SEM ALTERAÇÕES</td></tr>
-    <tr><td style="border:none; border-top:1px solid #000; padding:6px 8px; font-size:11px;">${e('equipTexto')}</td></tr>` : `<tr><td style="border:none; padding:6px 8px; font-size:11px;">SEM ALTERAÇÕES</td></tr>`}
+    ${e('equipTexto') ? `
+    <tr><td style="border:none; padding:2px 40px; font-size:11px;"><span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:-2px;">✓</span> ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:1px;"></span> SEM ALTERAÇÕES</td></tr>
+    <tr><td style="border:none; border-top:1px solid #000; padding:6px 8px; font-size:11px;">${e('equipTexto')}</td></tr>` : `
+    <tr><td style="border:none; padding:6px 8px; font-size:11px;">SEM ALTERAÇÕES</td></tr>`}
   </table>
 
   <!-- VIII -->
   <table style="border:1px solid #000; border-collapse:separate; border-spacing:0; margin-top:3px;">
     <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:11px; background:#d4d4d4; text-align:center; padding:2px 3px;">VIII. SITUAÇÃO OPERACIONAL DAS EDIFICAÇÕES / INSTALAÇÕES DA SCI</td></tr>
-    ${e('edifTexto') ? `<tr><td style="border:none; padding:2px 40px; font-size:11px;"><span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:-2px;">✓</span> ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:1px;"></span> SEM ALTERAÇÕES</td></tr>
-    <tr><td style="border:none; border-top:1px solid #000; padding:6px 8px; font-size:11px;">${e('edifTexto')}</td></tr>` : `<tr><td style="border:none; padding:6px 8px; font-size:11px;">SEM ALTERAÇÕES</td></tr>`}
+    ${e('edifTexto') ? `
+    <tr><td style="border:none; padding:2px 40px; font-size:11px;"><span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:-2px;">✓</span> ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:1px;"></span> SEM ALTERAÇÕES</td></tr>
+    <tr><td style="border:none; border-top:1px solid #000; padding:6px 8px; font-size:11px;">${e('edifTexto')}</td></tr>` : `
+    <tr><td style="border:none; padding:6px 8px; font-size:11px;">SEM ALTERAÇÕES</td></tr>`}
   </table>
 
   <!-- IX a XI -->
