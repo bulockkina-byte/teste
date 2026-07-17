@@ -4,7 +4,7 @@ import { criarDocumento, type AutentiqueSigner } from './autentiqueService';
 export function montarHTML(dados: Record<string, unknown>): string {
   const e = (k: string, fallback = '') => String(dados[k] ?? fallback);
 
-  const logoUrl = e('logoUrl', '/logobombeiro.jpeg');
+  const logoUrl = e('logoUrl', '/LOGOLRO.jpeg');
   const equipeNome = e('equipeNome');
   const dataInicio = e('dataInicio');
   const dataFim = e('dataFim');
