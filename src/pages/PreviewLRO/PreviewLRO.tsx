@@ -11,9 +11,9 @@ const SAMPLE_DATA: Record<string, unknown> = {
   chefeEquipe: 'SILVA',
   comunicacao: 'SANTOS',
   dataAssinatura: '16 de Julho de 2026',
-  chefeAssinatura: 'SILVA',
-  gerenteAssinatura: 'SANTOS',
-  coordenadorAssinatura: 'COSTA',
+  chefeAssinatura: 'MICHAEL ALEXANDRE DE AZEVEDO',
+  gerenteAssinatura: 'GUILHERME SERRA CARDIAS',
+  coordenadorAssinatura: 'FELIPE AUGUSTO DE OLIVEIRA',
   instrucoes: [
     '14. PCINC - Verificar conformidade dos extintores',
     '15. EQUIPAMENTOS DE PROTEÇÃO - Manter EPIs atualizados',
