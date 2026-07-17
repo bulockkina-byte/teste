@@ -17,7 +17,7 @@
   td, th { border: 1px solid #000; padding: 1.5px 3px; font-size: 7.5px; text-align: left; vertical-align: top; }
   .b { font-weight: bold; }
   .c { text-align: center; }
-  .sec-title td { font-weight: bold; font-size: 8px; background: #d4d4d4; padding: 2px 3px; text-align:center; }
+  .sec-title td { font-weight: bold; font-size: 11px; background: #d4d4d4; padding: 2px 3px; text-align:center; }
   .mb { margin-bottom: 3px; }
 </style>
 </head><body>
@@ -46,7 +46,7 @@
     </tr>
     <tr>
       <td style="text-align:center; padding:2px 3px; font-size:6px; vertical-align:middle;">00</td>
-      <td style="text-align:center; padding:2px 3px; font-size:6px; vertical-align:middle;"><span id="pageNum">1 de 1</span></td>
+      <td style="text-align:center; padding:2px 3px; font-size:6px; vertical-align:middle;"><span class="page-num"></span> de <span class="page-total"></span></td>
     </tr>
   </table>
 
@@ -99,91 +99,113 @@
 
   <!-- IV -->
   <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
-    <tr><td style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:8px; background:#d4d4d4; text-align:center; padding:2px 3px;">IV. SITUAÇÃO OPERACIONAL DA CENTRAL FAÍSCA, EQUIPAMENTOS DE COMUNICAÇÃO E ALARME:</td></tr>
-    <tr><td style="border:none; border-bottom:1px solid #000; padding:2px 4px; font-size:7px;"><span class="b">3.1 CENTRAL FAÍSCA:</span></td></tr>
-    <tr><td style="border:none; border-bottom:1px solid #000; padding:2px 4px; font-size:7px;" id="centralFaisca">SEM ALTERAÇÕES</td></tr>
-    <tr><td style="border:none; border-bottom:1px solid #000; padding:2px 4px; font-size:7px;"><span class="b">3.2 RÁDIOS, HOTLINE, SISTEMA DE ALARME:</span></td></tr>
-    <tr><td style="border:none; padding:2px 4px; font-size:7px;" id="radioComunicacao">SEM ALTERAÇÕES</td></tr>
+    <tr><td style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:11px; background:#d4d4d4; text-align:center; padding:2px 3px;">IV. SITUAÇÃO OPERACIONAL DA CENTRAL FAÍSCA, EQUIPAMENTOS DE COMUNICAÇÃO E ALARME:</td></tr>
+    <tr><td style="border:none; border-bottom:1px solid #000; padding:2px 4px; font-size:11px;"><span class="b">3.1 CENTRAL FAÍSCA:</span></td></tr>
+    <tr><td style="border:none; border-bottom:1px solid #000; padding:2px 4px; font-size:11px;" id="centralFaisca">SEM ALTERAÇÕES</td></tr>
+    <tr><td style="border:none; border-bottom:1px solid #000; padding:2px 4px; font-size:11px;"><span class="b">3.2 RÁDIOS, HOTLINE, SISTEMA DE ALARME:</span></td></tr>
+    <tr><td style="border:none; padding:2px 4px; font-size:11px;" id="radioComunicacao">SEM ALTERAÇÕES</td></tr>
   </table>
 
   <!-- V -->
   <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
-    <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:8px; background:#d4d4d4; text-align:center; padding:2px 3px;">V. SITUAÇÃO OPERACIONAL DOS TP, EPR EM LINHA E EM ESTOQUE</td></tr>
-    <tr><td style="border:none; padding:2px 40px; font-size:7px;" id="checkTP"><span id="tpCheckbox">☐ ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ☐ NÃO HOUVE</span></td></tr>
-    <tr id="tpConteudo" style="display:none;"><td style="border:none; padding:2px 40px; font-size:7px;" id="tpTexto"></td></tr>
+    <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:11px; background:#d4d4d4; text-align:center; padding:2px 3px;">V. SITUAÇÃO OPERACIONAL DOS TP, EPR EM LINHA E EM ESTOQUE</td></tr>
+    <tr><td style="border:none; padding:2px 40px; font-size:11px;" id="checkTP"><span id="tpCheckbox"><span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:-2px;"></span> ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:1px;"></span> SEM ALTERAÇÕES</span></td></tr>
+    <tr id="tpConteudo" style="display:none;"><td style="border:none; padding:2px 40px; font-size:11px;" id="tpTexto"></td></tr>
   </table>
 
   <!-- VI -->
   <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
-    <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:8px; background:#d4d4d4; text-align:center; padding:2px 3px;">VI. SITUAÇÃO OPERACIONAL DOS AGENTES EXTINTORES (LGE E PQ) E NITROGÊNIO EM LINHA E ESTOQUE</td></tr>
-    <tr><td style="border:none; padding:2px 40px; font-size:7px;" id="checkExt"><span id="extCheckbox">☐ ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ☐ NÃO HOUVE</span></td></tr>
-    <tr id="extConteudo" style="display:none;"><td style="border:none; padding:2px 40px; font-size:7px;" id="extTexto"></td></tr>
+    <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:11px; background:#d4d4d4; text-align:center; padding:2px 3px;">VI. SITUAÇÃO OPERACIONAL DOS AGENTES EXTINTORES (LGE E PQ) E NITROGÊNIO EM LINHA E ESTOQUE</td></tr>
+    <tr><td style="border:none; padding:2px 40px; font-size:11px;" id="checkExt"><span id="extCheckbox"><span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:-2px;"></span> ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:1px;"></span> SEM ALTERAÇÕES</span></td></tr>
+    <tr id="extConteudo" style="display:none;"><td style="border:none; padding:2px 40px; font-size:11px;" id="extTexto"></td></tr>
   </table>
 
   <!-- VII -->
   <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
-    <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:8px; background:#d4d4d4; text-align:center; padding:2px 3px;">VII. SITUAÇÃO OPERACIONAL DOS EQUIPAMENTOS E MATERIAIS DO SESCINC</td></tr>
-    <tr><td style="border:none; padding:2px 40px; font-size:7px;" id="checkEquip"><span id="equipCheckbox">☐ ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ☐ NÃO HOUVE</span></td></tr>
-    <tr id="equipConteudo" style="display:none;"><td style="border:none; padding:2px 40px; font-size:7px;" id="equipTexto"></td></tr>
+    <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:11px; background:#d4d4d4; text-align:center; padding:2px 3px;">VII. SITUAÇÃO OPERACIONAL DOS EQUIPAMENTOS E MATERIAIS DO SESCINC</td></tr>
+    <tr><td style="border:none; padding:2px 40px; font-size:11px;" id="checkEquip"><span id="equipCheckbox"><span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:-2px;"></span> ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:1px;"></span> SEM ALTERAÇÕES</span></td></tr>
+    <tr id="equipConteudo" style="display:none;"><td style="border:none; padding:2px 40px; font-size:11px;" id="equipTexto"></td></tr>
   </table>
 
   <!-- VIII -->
   <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
-    <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:8px; background:#d4d4d4; text-align:center; padding:2px 3px;">VIII. SITUAÇÃO OPERACIONAL DAS EDIFICAÇÕES / INSTALAÇÕES DA SCI</td></tr>
-    <tr><td style="border:none; padding:2px 40px; font-size:7px;" id="checkEdif"><span id="edifCheckbox">☐ ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ☐ NÃO HOUVE</span></td></tr>
-    <tr id="edifConteudo" style="display:none;"><td style="border:none; padding:2px 4px; font-size:7px;" id="edifTexto"></td></tr>
+    <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:11px; background:#d4d4d4; text-align:center; padding:2px 3px;">VIII. SITUAÇÃO OPERACIONAL DAS EDIFICAÇÕES / INSTALAÇÕES DA SCI</td></tr>
+    <tr><td style="border:none; padding:2px 40px; font-size:11px;" id="checkEdif"><span id="edifCheckbox"><span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:-2px;"></span> ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:1px;"></span> SEM ALTERAÇÕES</span></td></tr>
+    <tr id="edifConteudo" style="display:none;"><td style="border:none; padding:2px 4px; font-size:11px;" id="edifTexto"></td></tr>
   </table>
 
   <!-- IX -->
   <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
-    <tr><td style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:8px; background:#d4d4d4; text-align:center; padding:2px 3px;">IX. OCORRÊNCIAS NÃO AERONÁUTICAS</td></tr>
+    <tr><td style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:11px; background:#d4d4d4; text-align:center; padding:2px 3px;">IX. OCORRÊNCIAS NÃO AERONÁUTICAS</td></tr>
     <tr><td style="border:none; height:14px;" id="ocorrenciasNA"></td></tr>
   </table>
 
   <!-- X -->
   <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
-    <tr><td style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:8px; background:#d4d4d4; text-align:center; padding:2px 3px;">X. INSPEÇÕES TÉCNICAS E VISTORIAS</td></tr>
+    <tr><td style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:11px; background:#d4d4d4; text-align:center; padding:2px 3px;">X. INSPEÇÕES TÉCNICAS E VISTORIAS</td></tr>
     <tr><td style="border:none; height:14px;" id="inspecoes"></td></tr>
   </table>
 
   <!-- XI -->
   <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
-    <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:8px; background:#d4d4d4; text-align:center; padding:2px 3px;">XI. EMERGÊNCIAS AERONÁUTICAS</td></tr>
+    <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:11px; background:#d4d4d4; text-align:center; padding:2px 3px;">XI. EMERGÊNCIAS AERONÁUTICAS</td></tr>
     <tr><td style="border:none; height:14px;" id="emergencias"></td></tr>
   </table>
 
   <!-- XII -->
   <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
-    <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:8px; background:#d4d4d4; text-align:center; padding:2px 3px;">XII. OUTRAS OCORRÊNCIAS</td></tr>
-    <tr><td style="border:none; padding:10px 4px; font-size:7px;" id="outrasOcorrencias"></td></tr>
+    <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:11px; background:#d4d4d4; text-align:center; padding:2px 3px;">XII. OUTRAS OCORRÊNCIAS</td></tr>
+    <tr><td style="border:none; padding:10px 4px; font-size:11px;" id="outrasOcorrencias"></td></tr>
   </table>
 
   <!-- XIII -->
   <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
-    <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:8px; background:#d4d4d4; text-align:center; padding:2px 3px;">XIII. SOLICITAÇÕES EFETUADAS A CCR</td></tr>
+    <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:11px; background:#d4d4d4; text-align:center; padding:2px 3px;">XIII. SOLICITAÇÕES EFETUADAS A CCR</td></tr>
     <tr><td style="border:none; height:16px;" id="solicitacoes"></td></tr>
   </table>
 
   <!-- Assinaturas -->
   <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
-    <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:8px; background:#d4d4d4; text-align:center; padding:2px 3px;">LOCAL, DATA E ASSINATURAS</td></tr>
-    <tr><td colspan="6" style="border:none; padding:6px 4px; font-size:7px; text-align:right;">NAVEGANTES-SC, <span id="diaAss"></span> de <span id="mesAss"></span> de <span id="anoAss"></span></td></tr>
+    <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:10px; background:#d4d4d4; text-align:center; padding:2px 3px;">LOCAL, DATA E ASSINATURAS</td></tr>
+    <tr><td colspan="6" style="border:none; padding:6px 4px; font-size:10px; text-align:right;">NAVEGANTES-SC, <span id="diaAss"></span> de <span id="mesAss"></span> de <span id="anoAss"></span></td></tr>
     <tr><td style="border:none; height:40px;"></td></tr>
     <tr>
       <td style="width:33%; border:none; text-align:center; padding:0 16px;">
-        <div style="border-top:1px solid #000; padding-top:6px; font-size:7px; font-weight:bold;">CHEFE DE EQUIPE:</div>
-        <div style="font-size:8px; margin-top:8px; min-height:24px;" id="chefeAssinatura"></div>
+        <div style="border-top:1px solid #000; padding-top:6px; font-size:9px; font-weight:bold;">CHEFE DE EQUIPE:</div>
+        <div style="font-size:9px; margin-top:8px; min-height:24px;" id="chefeAssinatura"></div>
       </td>
       <td style="width:33%; border:none; text-align:center; padding:0 16px;">
-        <div style="border-top:1px solid #000; padding-top:6px; font-size:7px; font-weight:bold;">GERENTE DO SESCINC SBNF:</div>
-        <div style="font-size:8px; margin-top:8px; min-height:24px;" id="gerenteAssinatura"></div>
+        <div style="border-top:1px solid #000; padding-top:6px; font-size:9px; font-weight:bold;">GERENTE DO SESCINC SBNF:</div>
+        <div style="font-size:9px; margin-top:8px; min-height:24px;" id="gerenteAssinatura"></div>
       </td>
       <td style="width:33%; border:none; text-align:center; padding:0 16px;">
-        <div style="border-top:1px solid #000; padding-top:6px; font-size:7px; font-weight:bold;">COORD DE PREV E EMERG:</div>
-        <div style="font-size:8px; margin-top:8px; min-height:24px;" id="coordenadorAssinatura"></div>
+        <div style="border-top:1px solid #000; padding-top:6px; font-size:9px; font-weight:bold;">COORD DE PREV E EMERG:</div>
+        <div style="font-size:9px; margin-top:8px; min-height:24px;" id="coordenadorAssinatura"></div>
       </td>
     </tr>
   </table>
 
 </div>
+<script>
+  // Contagem automática de páginas
+  document.addEventListener('DOMContentLoaded', function() {
+    var pages = document.querySelectorAll('.page');
+    pages.forEach(function(page, index) {
+      var pageNum = page.querySelector('.page-num');
+      var pageTotal = page.querySelector('.page-total');
+      if (pageNum) pageNum.textContent = (index + 1);
+      if (pageTotal) pageTotal.textContent = pages.length;
+    });
+  });
+  // Atualizar ao imprimir
+  window.onbeforeprint = function() {
+    var pages = document.querySelectorAll('.page');
+    pages.forEach(function(page, index) {
+      var pageNum = page.querySelector('.page-num');
+      var pageTotal = page.querySelector('.page-total');
+      if (pageNum) pageNum.textContent = (index + 1);
+      if (pageTotal) pageTotal.textContent = pages.length;
+    });
+  };
+</script>
 </body></html>

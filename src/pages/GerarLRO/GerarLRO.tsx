@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FileText, Save, Send, Eye, AlertTriangle, ArrowLeft, ArrowRight, Trash2, Search } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
@@ -82,6 +83,7 @@ const STATUS_LABELS: Record<LRODraftStatus, string> = {
 
 export function GerarLRO() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const username = user?.username || '';
 
   const [step, setStep] = useState<Step>('equipe');
@@ -110,6 +112,7 @@ export function GerarLRO() {
   const [chefeEquipe, setChefeEquipe] = useState('');
   const [comunicacao, setComunicacao] = useState('');
   const [instrucoes, setInstrucoes] = useState('');
+  const [instrucoesHorarios, setInstrucoesHorarios] = useState('');
   const [centralFaisca, setCentralFaisca] = useState('');
   const [radioComunicacao, setRadioComunicacao] = useState('');
   const [tpTexto, setTpTexto] = useState('');
@@ -182,10 +185,10 @@ export function GerarLRO() {
       p.equipe === equipe && p.data && p.data.startsWith(dataInicio)
     );
     if (ptrbsFiltrados.length > 0) {
-      const linhas = ptrbsFiltrados.map(p =>
-        `${p.assuntoMinistrado || p.descricao}${p.horaInicio ? ` (${p.horaInicio})` : ''}`
-      );
+      const linhas = ptrbsFiltrados.map(p => p.assuntoMinistrado || p.descricao);
+      const horarios = ptrbsFiltrados.map(p => p.horaInicio || '');
       setInstrucoes(linhas.join('\n'));
+      setInstrucoesHorarios(horarios.join('\n'));
     }
   }, [equipe, dataInicio, ptrbs]);
 
@@ -235,7 +238,8 @@ export function GerarLRO() {
         dataInicio, dataFim,
         chefeEquipe, comunicacao,
         instrucoes: instrucoes.split('\n').filter(Boolean),
-        frota: viaturas.filter((v: any) => v.tipo === 'CCI').map((v: any) => {
+        instrucoesHorarios: instrucoesHorarios.split('\n').filter(Boolean),
+        frota: viaturas.filter((v: any) => v.tipo === 'CCI' || v.tipo === 'CRS').map((v: any) => {
           const key = v.id || v.prefixo || v.nome;
           const d = frotaDados[key] || {};
           return { viatura: v.prefixo || v.nome, prefixo: v.prefixo || '', kmIni: d.kmIni || '', kmFim: d.kmFim || '', combIni: d.combIni || '', combFim: d.combFim || '', situacao: d.situacao || '' };
@@ -276,12 +280,13 @@ export function GerarLRO() {
         equipeNome: equipe,
         dataInicio, dataFim,
         chefeEquipe, comunicacao,
-        frota: viaturas.filter((v: any) => v.tipo === 'CCI').map((v: any) => {
+        frota: viaturas.filter((v: any) => v.tipo === 'CCI' || v.tipo === 'CRS').map((v: any) => {
           const key = v.id || v.prefixo || v.nome;
           const d = frotaDados[key] || {};
           return { viatura: v.prefixo || v.nome, prefixo: v.prefixo || '', kmIni: d.kmIni || '', kmFim: d.kmFim || '', combIni: d.combIni || '', combFim: d.combFim || '', situacao: d.situacao || '' };
         }),
         instrucoes: instrucoes.split('\n').filter(Boolean),
+        instrucoesHorarios: instrucoesHorarios.split('\n').filter(Boolean),
         centralFaisca: centralFaisca || 'SEM ALTERAÇÕES',
         radioComunicacao: radioComunicacao || 'SEM ALTERAÇÕES',
         tpTexto, extTexto, equipTexto, edifTexto,
@@ -811,8 +816,30 @@ export function GerarLRO() {
               <ArrowLeft className="h-4 w-4" /> Voltar
             </button>
             <div className="flex gap-3">
-              <button onClick={handleGerarLRO} disabled={saving} className="flex items-center gap-2 rounded-xl border border-aviation-300 bg-white px-4 py-2.5 text-sm font-medium text-aviation-700 transition-all hover:bg-aviation-50 disabled:opacity-50 dark:border-aviation-700 dark:bg-transparent dark:text-aviation-400">
-                <Eye className="h-4 w-4" /> {saving ? 'Gerando...' : 'Visualizar LRO'}
+              <button onClick={() => {
+                const dados = {
+                  equipeNome: equipe, dataInicio, dataFim, chefeEquipe, comunicacao,
+                  frota: viaturas.filter((v: any) => v.tipo === 'CCI' || v.tipo === 'CRS').map((v: any) => {
+                    const key = v.id || v.prefixo || v.nome;
+                    const d = frotaDados[key] || {};
+                    return { viatura: v.prefixo || v.nome, prefixo: v.prefixo || '', kmIni: d.kmIni || '', kmFim: d.kmFim || '', combIni: d.combIni || '', combFim: d.combFim || '', situacao: d.situacao || '' };
+                  }),
+                  instrucoes: instrucoes.split('\n').filter(Boolean),
+                  instrucoesHorarios: instrucoesHorarios.split('\n').filter(Boolean),
+                  centralFaisca: centralFaisca || 'SEM ALTERAÇÕES',
+                  radioComunicacao: radioComunicacao || 'SEM ALTERAÇÕES',
+                  tpTexto, extTexto, equipTexto, edifTexto,
+                  emergenciaXI,
+                  ocorrenciasXII: outrasOcorrencias.split('\n').filter(Boolean),
+                  solicitacoes: solicitacoesCCR.split('\n').filter(Boolean),
+                  substituicao: houveTrocas === 'sim' ? [{ funcao1: 'BA-2', nome1: trocaSolicitante, funcao2: 'BA-2', nome2: trocaSolicitado }] : [],
+                  cci2: [], cci3: [], crs: [],
+                  dataAssinatura: new Date().toLocaleDateString('pt-BR'),
+                  chefeAssinatura: chefeEquipe,
+                };
+                navigate('/registros-diarios/preview-lro', { state: dados });
+              }} className="flex items-center gap-2 rounded-xl border border-aviation-300 bg-white px-4 py-2.5 text-sm font-medium text-aviation-700 transition-all hover:bg-aviation-50 disabled:opacity-50 dark:border-aviation-700 dark:bg-transparent dark:text-aviation-400">
+                <Eye className="h-4 w-4" /> Preview LRO
               </button>
               <button onClick={() => setShowConfirm(true)} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-green-600 to-green-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-green-500/20 transition-all hover:from-green-500 hover:to-green-600 active:scale-[0.98]">
                 <Send className="h-4 w-4" /> Enviar para Assinatura
