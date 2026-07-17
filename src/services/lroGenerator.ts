@@ -138,7 +138,8 @@ export function montarHTML(dados: Record<string, unknown>): string {
     ${e('tpTexto') ? `
     <tr><td style="border:none; padding:2px 40px; font-size:11px;"><span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:-2px;">✓</span> ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:1px;"></span> SEM ALTERAÇÕES</td></tr>
     <tr><td style="border:none; border-top:1px solid #000; padding:6px 8px; font-size:11px;">${e('tpTexto')}</td></tr>` : `
-    <tr><td style="border:none; padding:6px 8px; font-size:11px;">SEM ALTERAÇÕES</td></tr>`}
+    <tr><td style="border:none; padding:2px 40px; font-size:11px;"><span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:-2px;"></span> ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:1px;">✓</span> SEM ALTERAÇÕES</td></tr>
+    <tr><td style="border:none; border-top:1px solid #000; padding:6px 8px; font-size:11px;">SEM ALTERAÇÕES</td></tr>`}
   </table>
 
   <!-- VI -->
@@ -147,7 +148,8 @@ export function montarHTML(dados: Record<string, unknown>): string {
     ${e('extTexto') ? `
     <tr><td style="border:none; padding:2px 40px; font-size:11px;"><span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:-2px;">✓</span> ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:1px;"></span> SEM ALTERAÇÕES</td></tr>
     <tr><td style="border:none; border-top:1px solid #000; padding:6px 8px; font-size:11px;">${e('extTexto')}</td></tr>` : `
-    <tr><td style="border:none; padding:6px 8px; font-size:11px;">SEM ALTERAÇÕES</td></tr>`}
+    <tr><td style="border:none; padding:2px 40px; font-size:11px;"><span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:-2px;"></span> ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:1px;">✓</span> SEM ALTERAÇÕES</td></tr>
+    <tr><td style="border:none; border-top:1px solid #000; padding:6px 8px; font-size:11px;">SEM ALTERAÇÕES</td></tr>`}
   </table>
 
   <!-- VII -->
@@ -156,7 +158,8 @@ export function montarHTML(dados: Record<string, unknown>): string {
     ${e('equipTexto') ? `
     <tr><td style="border:none; padding:2px 40px; font-size:11px;"><span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:-2px;">✓</span> ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:1px;"></span> SEM ALTERAÇÕES</td></tr>
     <tr><td style="border:none; border-top:1px solid #000; padding:6px 8px; font-size:11px;">${e('equipTexto')}</td></tr>` : `
-    <tr><td style="border:none; padding:6px 8px; font-size:11px;">SEM ALTERAÇÕES</td></tr>`}
+    <tr><td style="border:none; padding:2px 40px; font-size:11px;"><span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:-2px;"></span> ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:1px;">✓</span> SEM ALTERAÇÕES</td></tr>
+    <tr><td style="border:none; border-top:1px solid #000; padding:6px 8px; font-size:11px;">SEM ALTERAÇÕES</td></tr>`}
   </table>
 
   <!-- VIII -->
@@ -165,7 +168,8 @@ export function montarHTML(dados: Record<string, unknown>): string {
     ${e('edifTexto') ? `
     <tr><td style="border:none; padding:2px 40px; font-size:11px;"><span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:-2px;">✓</span> ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:1px;"></span> SEM ALTERAÇÕES</td></tr>
     <tr><td style="border:none; border-top:1px solid #000; padding:6px 8px; font-size:11px;">${e('edifTexto')}</td></tr>` : `
-    <tr><td style="border:none; padding:6px 8px; font-size:11px;">SEM ALTERAÇÕES</td></tr>`}
+    <tr><td style="border:none; padding:2px 40px; font-size:11px;"><span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:-2px;"></span> ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:1px;">✓</span> SEM ALTERAÇÕES</td></tr>
+    <tr><td style="border:none; border-top:1px solid #000; padding:6px 8px; font-size:11px;">SEM ALTERAÇÕES</td></tr>`}
   </table>
 
   <!-- IX a XI -->
