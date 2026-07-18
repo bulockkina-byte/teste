@@ -85,13 +85,25 @@ export function PreviewLRO() {
   const htmlWithStyles = html;
 
   function handleBaixarPDF() {
-    const htmlLimpo = montarHTML(dados);
+    const htmlLimpo = montarHTML(dados).replace(
+      '</head>',
+      `<base href="${window.location.origin}/">\n</head>`
+    );
     const win = window.open('', '_blank');
     if (win) {
       win.document.write(htmlLimpo);
       win.document.close();
-      win.focus();
-      win.print();
+      const checkReady = () => {
+        const imgs = win.document.querySelectorAll('img');
+        const loaded = Array.from(imgs).every(img => img.complete && img.naturalWidth > 0);
+        if (loaded) {
+          win.focus();
+          setTimeout(() => win.print(), 200);
+        } else {
+          setTimeout(checkReady, 300);
+        }
+      };
+      setTimeout(checkReady, 500);
     }
   }
 
