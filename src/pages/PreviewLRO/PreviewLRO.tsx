@@ -137,7 +137,7 @@ export function PreviewLRO() {
       }
 
       try {
-        await criarDocumentoAutentique(blob, nomeArquivo, signersAutentique, undefined, true);
+        await criarDocumentoAutentique(blob, nomeArquivo, signersAutentique, undefined, false);
       } catch (errAut) {
         alert('Erro do Autentique: ' + (errAut instanceof Error ? errAut.message : 'Erro') + '\n\nVerifique se o token VITE_AUTENTIQUE_TOKEN está configurado no Vercel.');
         setEnviando('idle');
