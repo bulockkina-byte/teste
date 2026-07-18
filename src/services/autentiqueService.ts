@@ -12,6 +12,7 @@ async function graphqlRequest<T>(query: string, variables?: Record<string, unkno
     headers: {
       'Authorization': `Bearer ${getToken()}`,
       'Content-Type': 'application/json',
+      'x-autentique-sandbox': 'true',
     },
     body: JSON.stringify({ query, variables }),
   });
@@ -22,7 +23,7 @@ async function graphqlRequest<T>(query: string, variables?: Record<string, unkno
   return json.data as T;
 }
 
-async function graphqlUpload<T>(query: string, variables: Record<string, unknown>, file: Blob, filename: string): Promise<T> {
+async function graphqlUpload<T>(query: string, variables: Record<string, unknown>, file: Blob, filename: string, sandbox = true): Promise<T> {
   const formData = new FormData();
   const ops = JSON.stringify({ query, variables: { ...variables, file: null } });
   formData.append('operations', ops);
@@ -30,7 +31,10 @@ async function graphqlUpload<T>(query: string, variables: Record<string, unknown
   formData.append('file', file, filename);
   const res = await fetch(API_URL, {
     method: 'POST',
-    headers: { 'Authorization': `Bearer ${getToken()}` },
+    headers: {
+      'Authorization': `Bearer ${getToken()}`,
+      'x-autentique-sandbox': String(sandbox),
+    },
     body: formData,
   });
   const json = await res.json();
@@ -81,7 +85,7 @@ export async function criarDocumento(
   return graphqlUpload<CreateDocumentResult>(query, {
     document: { name: nome },
     signers: signatarios,
-  }, pdfBlob, `${nome}.pdf`);
+  }, pdfBlob, `${nome}.pdf`, sandbox);
 }
 
 export async function criarDocumentoComPasta(

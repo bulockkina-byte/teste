@@ -139,7 +139,7 @@ export function PreviewLRO() {
       try {
         await criarDocumentoAutentique(blob, nomeArquivo, signersAutentique, undefined, false);
       } catch (errAut) {
-        alert('Erro do Autentique: ' + (errAut instanceof Error ? errAut.message : 'Erro') + '\n\nVerifique se o token VITE_AUTENTIQUE_TOKEN está configurado no Vercel.');
+        alert('Erro do Autentique: ' + (errAut instanceof Error ? errAut.message : 'Erro') + '\n\nO token foi configurado mas o Autentique rejeitou. Verifique se:\n1. O token é válido no https://app.autentique.com.br (Configurações > API)\n2. O token está ativo e não expirou\n3. É o token correto (produção vs sandbox)');
         setEnviando('idle');
         return;
       }

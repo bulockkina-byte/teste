@@ -1,4 +1,5 @@
-const API_URL = 'https://api.autentique.com.br/v2/graphql';
+const PROD_API = 'https://api.autentique.com.br/v2/graphql';
+const SANDBOX_API = 'https://api.sandbox.autentique.com.br/v2/graphql';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -38,7 +39,8 @@ export default async function handler(req, res) {
       }
 
       const auth = req.headers['authorization'] || '';
-      const apiRes = await fetch(API_URL, {
+      const isSandbox = req.headers['x-autentique-sandbox'] === 'true';
+      const apiRes = await fetch(isSandbox ? SANDBOX_API : PROD_API, {
         method: 'POST',
         headers: auth ? { 'Authorization': auth } : {},
         body: formData,
@@ -51,7 +53,7 @@ export default async function handler(req, res) {
       let body = '';
       await new Promise(resolve => { req.on('data', c => { body += c; }); req.on('end', resolve); });
       const auth = req.headers['authorization'] || '';
-      const apiRes = await fetch(API_URL, {
+      const apiRes = await fetch(isSandbox ? SANDBOX_API : PROD_API, {
         method: 'POST',
         headers: {
           ...(auth ? { 'Authorization': auth } : {}),
