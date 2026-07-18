@@ -73,6 +73,7 @@ export function PreviewLRO() {
   const { user } = useAuth();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [enviando, setEnviando] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const isAdmin = user?.role === 'admin' || user?.role === 'desenvolvedor';
   const modoAutentique = (location.state as any)?.modoAutentique;
   const signersAutentique = (location.state as any)?.signers as AutentiqueSigner[] | undefined;
@@ -112,19 +113,39 @@ export function PreviewLRO() {
   }
 
   async function handleEnviarAutentique() {
-    if (!iframeRef.current || !signersAutentique) return;
+    setShowConfirm(false);
+    if (!signersAutentique) return;
     setEnviando(true);
     try {
-      const iframeWin = iframeRef.current.contentWindow;
-      if (!iframeWin) return;
-      const iframeDoc = iframeWin.document;
       const nomeArquivo = `LRO_${new Date().toISOString().split('T')[0]}`;
-      const blob = await gerarPDF(dados);
-      await criarDocumentoAutentique(blob, nomeArquivo, signersAutentique, undefined, true);
+
+      let blob;
+      try {
+        blob = await gerarPDF(dados);
+      } catch (errPdf) {
+        alert('Erro ao gerar o PDF: ' + (errPdf instanceof Error ? errPdf.message : 'Erro'));
+        setEnviando(false);
+        return;
+      }
+
+      if (!blob || blob.size === 0) {
+        alert('Erro: PDF gerado está vazio.');
+        setEnviando(false);
+        return;
+      }
+
+      try {
+        await criarDocumentoAutentique(blob, nomeArquivo, signersAutentique, undefined, true);
+      } catch (errAut) {
+        alert('Erro do Autentique: ' + (errAut instanceof Error ? errAut.message : 'Erro') + '\n\nVerifique se o token VITE_AUTENTIQUE_TOKEN está configurado no Vercel.');
+        setEnviando(false);
+        return;
+      }
+
       navigate('/registros-diarios/gerar-lro');
     } catch (err) {
-      console.error('Erro ao enviar para Autentique:', err);
-      alert('Erro ao enviar: ' + (err instanceof Error ? err.message : 'Erro'));
+      console.error('Erro ao enviar:', err);
+      alert('Erro inesperado: ' + (err instanceof Error ? err.message : 'Erro'));
     }
     setEnviando(false);
   }
@@ -157,7 +178,7 @@ export function PreviewLRO() {
               <Download className="h-4 w-4" /> Baixar PDF
             </button>
             {modoAutentique && signersAutentique && (
-              <button onClick={handleEnviarAutentique} disabled={enviando} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-green-600 to-green-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-green-500/20 transition-all hover:from-green-500 hover:to-green-600 active:scale-[0.98]">
+              <button onClick={() => setShowConfirm(true)} disabled={enviando} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-green-600 to-green-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-green-500/20 transition-all hover:from-green-500 hover:to-green-600 active:scale-[0.98]">
                 <Send className="h-4 w-4" /> {enviando ? 'Enviando...' : 'Confirmar e Enviar para Assinatura'}
               </button>
             )}
@@ -175,6 +196,31 @@ export function PreviewLRO() {
           />
         </div>
       </div>
+
+      {showConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-surface-card">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
+                <Send className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <h3 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar envio</h3>
+            </div>
+            <p className="mb-6 text-sm text-graphite-500">
+              Após enviar para assinatura, <span className="font-semibold text-graphite-700 dark:text-graphite-300">não será mais possível alterar</span> o LRO. O documento será encaminhado para os 3 signatários via Autentique.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setShowConfirm(false)}
+                className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 transition-all hover:bg-graphite-50 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">
+                Cancelar
+              </button>
+              <button onClick={handleEnviarAutentique} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-green-600 to-green-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-green-500/20 transition-all hover:from-green-500 hover:to-green-600 active:scale-[0.98]">
+                <Send className="h-4 w-4" /> Confirmar e Enviar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
