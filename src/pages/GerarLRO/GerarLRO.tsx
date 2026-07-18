@@ -658,19 +658,16 @@ export function GerarLRO() {
       const nomeArquivo = `LRO_${equipe}_${dataInicio}_${new Date().toISOString().split('T')[0]}`;
       const emailChefe = getEmailByNome(chefeEquipe);
       const signers: AutentiqueSigner[] = [];
-      const posY = '86%';
-      const posYName = '87.5%';
       if (emailChefe) {
         signers.push({
           email: emailChefe,
           action: 'SIGN',
           positions: [
-            { x: '5%', y: posY, z: 0, element: 'SIGNATURE' },
-            { x: '5%', y: posYName, z: 1, element: 'NAME' },
+            { x: '5%', y: '86%', z: 0, element: 'SIGNATURE' },
           ],
         });
       } else {
-        signers.push({ name: 'Chefe de Equipe', action: 'SIGN', positions: [{ x: '5%', y: posY, z: 0, element: 'SIGNATURE' }] });
+        signers.push({ name: 'Chefe de Equipe', action: 'SIGN', positions: [{ x: '5%', y: '86%', z: 0, element: 'SIGNATURE' }] });
       }
       const gerente = bombeiros.find(b => b.cargo === 'GS');
       if (gerente?.email) {
@@ -678,14 +675,13 @@ export function GerarLRO() {
           email: gerente.email,
           action: 'SIGN',
           positions: [
-            { x: '37%', y: posY, z: 0, element: 'SIGNATURE' },
-            { x: '37%', y: posYName, z: 1, element: 'NAME' },
+            { x: '37%', y: '86%', z: 0, element: 'SIGNATURE' },
           ],
         });
       } else {
-        signers.push({ name: 'Gerente SESCINC', action: 'SIGN', positions: [{ x: '37%', y: posY, z: 0, element: 'SIGNATURE' }] });
+        signers.push({ name: 'Gerente SESCINC', action: 'SIGN', positions: [{ x: '37%', y: '86%', z: 0, element: 'SIGNATURE' }] });
       }
-      signers.push({ name: 'Coordenador', action: 'SIGN', positions: [{ x: '66%', y: posY, z: 0, element: 'SIGNATURE' }] });
+      signers.push({ name: 'Coordenador', action: 'SIGN', positions: [{ x: '66%', y: '86%', z: 0, element: 'SIGNATURE' }] });
 
       const result = await criarDocumentoAutentique(blob, nomeArquivo, signers, undefined, true);
       if (draftId) await atualizarStatus(draftId, 'aguardando');
