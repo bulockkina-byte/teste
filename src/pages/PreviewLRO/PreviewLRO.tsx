@@ -1,8 +1,9 @@
 import { useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Download, Printer, Send } from 'lucide-react';
+import { ArrowLeft, Download, Printer, Send, Check } from 'lucide-react';
 import { montarHTML, gerarPDF } from '../../services/lroGenerator';
 import { criarDocumento as criarDocumentoAutentique } from '../../services/autentiqueService';
+import { atualizarStatus } from '../../services/lroDraftService';
 import type { AutentiqueSigner } from '../../services/autentiqueService';
 import { useAuth } from '../../context/AuthContext';
 
@@ -72,11 +73,12 @@ export function PreviewLRO() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [enviando, setEnviando] = useState(false);
+  const [enviando, setEnviando] = useState<'idle' | 'sending' | 'sent'>('idle');
   const [showConfirm, setShowConfirm] = useState(false);
   const isAdmin = user?.role === 'admin' || user?.role === 'desenvolvedor';
   const modoAutentique = (location.state as any)?.modoAutentique;
   const signersAutentique = (location.state as any)?.signers as AutentiqueSigner[] | undefined;
+  const draftIdAutentique = (location.state as any)?.draftId as string | undefined;
 
   const dados = useMemo(() => {
     const stateData = location.state as Record<string, unknown> | null;
@@ -115,7 +117,7 @@ export function PreviewLRO() {
   async function handleEnviarAutentique() {
     setShowConfirm(false);
     if (!signersAutentique) return;
-    setEnviando(true);
+    setEnviando('sending');
     try {
       const nomeArquivo = `LRO_${new Date().toISOString().split('T')[0]}`;
 
@@ -124,13 +126,13 @@ export function PreviewLRO() {
         blob = await gerarPDF(dados);
       } catch (errPdf) {
         alert('Erro ao gerar o PDF: ' + (errPdf instanceof Error ? errPdf.message : 'Erro'));
-        setEnviando(false);
+        setEnviando('idle');
         return;
       }
 
       if (!blob || blob.size === 0) {
         alert('Erro: PDF gerado está vazio.');
-        setEnviando(false);
+        setEnviando('idle');
         return;
       }
 
@@ -138,16 +140,21 @@ export function PreviewLRO() {
         await criarDocumentoAutentique(blob, nomeArquivo, signersAutentique, undefined, true);
       } catch (errAut) {
         alert('Erro do Autentique: ' + (errAut instanceof Error ? errAut.message : 'Erro') + '\n\nVerifique se o token VITE_AUTENTIQUE_TOKEN está configurado no Vercel.');
-        setEnviando(false);
+        setEnviando('idle');
         return;
       }
 
-      navigate('/registros-diarios/gerar-lro');
+      if (draftIdAutentique) {
+        await atualizarStatus(draftIdAutentique, 'aguardando').catch(() => {});
+      }
+
+      setEnviando('sent');
+      setTimeout(() => navigate('/registros-diarios/gerar-lro'), 2000);
     } catch (err) {
       console.error('Erro ao enviar:', err);
       alert('Erro inesperado: ' + (err instanceof Error ? err.message : 'Erro'));
+      setEnviando('idle');
     }
-    setEnviando(false);
   }
 
   function handleImprimir() {
@@ -178,9 +185,15 @@ export function PreviewLRO() {
               <Download className="h-4 w-4" /> Baixar PDF
             </button>
             {modoAutentique && signersAutentique && (
-              <button onClick={() => setShowConfirm(true)} disabled={enviando} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-green-600 to-green-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-green-500/20 transition-all hover:from-green-500 hover:to-green-600 active:scale-[0.98]">
-                <Send className="h-4 w-4" /> {enviando ? 'Enviando...' : 'Confirmar e Enviar para Assinatura'}
-              </button>
+              enviando === 'sent' ? (
+                <button disabled className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-emerald-500/20">
+                  <Check className="h-4 w-4" /> Enviado — Aguardando Assinaturas
+                </button>
+              ) : (
+                <button onClick={() => setShowConfirm(true)} disabled={enviando === 'sending'} className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium text-white shadow-lg transition-all ${enviando === 'sending' ? 'bg-graphite-400 cursor-not-allowed' : 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 active:scale-[0.98] shadow-green-500/20'}`}>
+                  <Send className="h-4 w-4" /> {enviando === 'sending' ? 'Enviando...' : 'Confirmar e Enviar para Assinatura'}
+                </button>
+              )
             )}
           </div>
         </div>
