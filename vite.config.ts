@@ -18,9 +18,9 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api/autentique-proxy': {
-        target: 'https://api.autentique.com.br/v2/graphql',
+        target: 'https://api.sandbox.autentique.com.br',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/autentique-proxy/, ''),
+        rewrite: () => '/v2/graphql',
       },
     },
   },
