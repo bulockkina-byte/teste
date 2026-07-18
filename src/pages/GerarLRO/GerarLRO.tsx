@@ -1,16 +1,20 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Save, Send, Eye, AlertTriangle, ArrowLeft, ArrowRight, Trash2, Search } from 'lucide-react';
+import { FileText, Save, Send, Eye, AlertTriangle, ArrowLeft, ArrowRight, Trash2, Search, Check, X } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { useAuth } from '../../context/AuthContext';
 import { listarAtivos } from '../../services/bombeiroService';
 import { listarFeriasGozo } from '../../services/feriasService';
 import { listarSubstituicoesTemporarias } from '../../services/substituicaoTemporariaService';
+import { listarDocumentos, listarPreenchimentos } from '../../services/documentoService';
 import { listarViaturas } from '../../services/viaturaService';
 import { listarPTRBs } from '../../services/ptrbService';
+import { listarOcorrencias } from '../../services/ocorrenciaService';
 import { salvarDraft, listarDrafts, atualizarStatus, excluirDraft, type LRODraft, type LRODraftStatus } from '../../services/lroDraftService';
 import { gerarPDF } from '../../services/lroGenerator';
+import { criarDocumento as criarDocumentoAutentique } from '../../services/autentiqueService';
+import type { AutentiqueSigner } from '../../services/autentiqueService';
 import type { Bombeiro } from '../../types/bombeiro';
 import type { FeriasGozo } from '../../types/ferias';
 import type { PTRB } from '../../types/ptrb';
@@ -89,9 +93,11 @@ export function GerarLRO() {
   const [step, setStep] = useState<Step>('equipe');
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
   const [feriasGozo, setFeriasGozo] = useState<FeriasGozo[]>([]);
+  const [trocaFills, setTrocaFills] = useState<any[]>([]);
   const [todasSubstituicoes, setTodasSubstituicoes] = useState<any[]>([]);
   const [viaturas, setViaturas] = useState<any[]>([]);
   const [ptrbs, setPtrbs] = useState<PTRB[]>([]);
+  const [ocorrencias, setOcorrencias] = useState<any[]>([]);
   const [drafts, setDrafts] = useState<LRODraft[]>([]);
   const [draftId, setDraftId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -99,6 +105,12 @@ export function GerarLRO() {
 
   // -- Frota state --
   const [frotaDados, setFrotaDados] = useState<Record<string, { kmIni: string; kmFim: string; combIni: string; combFim: string; situacao: string }>>({});
+  const DEFAULT_VIATURAS = [
+    { id: 'default-cci-319', prefixo: 'CCI 319', tipo: 'CCI' },
+    { id: 'default-cci-320', prefixo: 'CCI 320', tipo: 'CCI' },
+    { id: 'default-cci-333', prefixo: 'CCI 333', tipo: 'CCI' },
+  ];
+  const FROTA_ROWS = 3;
 
   // -- Wizard state --
   const [equipe, setEquipe] = useState<EquipeOpcao>('Alfa');
@@ -107,19 +119,29 @@ export function GerarLRO() {
   const [houveTrocas, setHouveTrocas] = useState<'sim' | 'nao' | null>(null);
   const [trocaSolicitante, setTrocaSolicitante] = useState('');
   const [trocaSolicitado, setTrocaSolicitado] = useState('');
+  const [substituicoesDetectadas, setSubstituicoesDetectadas] = useState<{ id: string; tipo: 'troca' | 'substituicao'; substituido: string; substituto: string; dataSolicitada?: string; dataFolga?: string; confirmada: boolean | null }[]>([]);
 
   // -- LRO Sections --
   const [chefeEquipe, setChefeEquipe] = useState('');
   const [comunicacao, setComunicacao] = useState('');
+  const [equipagemCCI, setEquipagemCCI] = useState<Record<string, string>>({});
+  const [equipagemCCIRT, setEquipagemCCIRT] = useState<Record<string, string>>({});
+  const [equipagemCRS, setEquipagemCRS] = useState<Record<string, string>>({});
   const [instrucoes, setInstrucoes] = useState('');
   const [instrucoesHorarios, setInstrucoesHorarios] = useState('');
-  const [centralFaisca, setCentralFaisca] = useState('');
-  const [radioComunicacao, setRadioComunicacao] = useState('');
+  const [centralFaisca, setCentralFaisca] = useState('SEM ALTERAÇÕES');
+  const [radioComunicacao, setRadioComunicacao] = useState('SEM ALTERAÇÕES');
+  const [tpTemAlteracao, setTpTemAlteracao] = useState(false);
   const [tpTexto, setTpTexto] = useState('');
+  const [extTemAlteracao, setExtTemAlteracao] = useState(false);
   const [extTexto, setExtTexto] = useState('');
+  const [equipTemAlteracao, setEquipTemAlteracao] = useState(false);
   const [equipTexto, setEquipTexto] = useState('');
+  const [edifTemAlteracao, setEdifTemAlteracao] = useState(false);
   const [edifTexto, setEdifTexto] = useState('');
   const [emergenciaXI, setEmergenciaXI] = useState('');
+  const [ocorrenciasNA, setOcorrenciasNA] = useState('');
+  const [inspecoes, setInspecoes] = useState('');
   const [outrasOcorrencias, setOutrasOcorrencias] = useState('');
   const [solicitacoesCCR, setSolicitacoesCCR] = useState('');
 
@@ -132,10 +154,14 @@ export function GerarLRO() {
     const b = bombeiros.find(bb => bb.nomeGuerra === user.pessoa!.nomeGuerra);
     return b?.equipe || '';
   }, [bombeiros, user]);
-  const podeFiltrarEquipe = isAdmin || isGerente;
   const inputClass = 'w-full rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all hover:border-graphite-400 focus:border-aviation-500 focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400 dark:focus:ring-aviation-400/10';
   const [view, setView] = useState<'lista' | 'wizard'>('lista');
   const [showConfirm, setShowConfirm] = useState(false);
+  const [erroValidacao, setErroValidacao] = useState('');
+  const [showConfirmTroca, setShowConfirmTroca] = useState(false);
+  const [trocaRecusadaIdx, setTrocaRecusadaIdx] = useState<number | null>(null);
+  const [showConfirmCorreta, setShowConfirmCorreta] = useState(false);
+  const [trocaConfirmadaIdx, setTrocaConfirmadaIdx] = useState<number | null>(null);
   const [filtroAno, setFiltroAno] = useState(new Date().getFullYear().toString());
   const [filtroMes, setFiltroMes] = useState('');
   const [filtroEquipeLista, setFiltroEquipeLista] = useState('');
@@ -144,14 +170,29 @@ export function GerarLRO() {
   useEffect(() => {
     async function load() {
       try {
-        const [b, f, subs, v, p] = await Promise.all([
-          listarAtivos(), listarFeriasGozo(), listarSubstituicoesTemporarias(), listarViaturas(), listarPTRBs(),
+        const [b, f, v, p, o, subs, docs] = await Promise.all([
+          listarAtivos(), listarFeriasGozo(), listarViaturas(), listarPTRBs(), listarOcorrencias(), listarSubstituicoesTemporarias(), listarDocumentos(),
         ]);
         setBombeiros(b);
         setFeriasGozo(f);
         setTodasSubstituicoes(subs);
         setViaturas(v);
         setPtrbs(p);
+        setOcorrencias(o);
+
+        const trocaDoc = docs.find((d: any) => d.name?.includes('TROCA') || d.source_module === 'trocas');
+        if (trocaDoc) {
+          const fills = await listarPreenchimentos(trocaDoc.id);
+          setTrocaFills(fills.filter((fl: any) => fl.status !== 'archived'));
+        } else {
+          // Fallback: procura fills com nome_solicitante em qualquer documento
+          const todosFills = await Promise.all(docs.map((d: any) => listarPreenchimentos(d.id).catch(() => [])));
+          const comNome = todosFills.flat().filter((fl: any) => {
+            const fd = fl.filled_data || {};
+            return fd.nome_solicitante || fd.nome_solicitado;
+          });
+          setTrocaFills(comNome.filter((fl: any) => fl.status !== 'archived'));
+        }
         const d = isAdmin
           ? await listarDrafts('').catch(() => [])
           : await listarDrafts(username).catch(() => []);
@@ -167,17 +208,45 @@ export function GerarLRO() {
     load();
   }, [username]);
 
-  // Auto-detect substitutions when team changes
+  // Auto-detect trocas/substituições do dia e equipe selecionados
   useEffect(() => {
-    const subsEquipe = todasSubstituicoes.filter((s: any) =>
-      s.status === 'Aprovada' && (s.equipe === equipe || s.funcionario_equipe === equipe)
-    );
-    if (subsEquipe.length > 0) {
-      setHouveTrocas('sim');
-      setTrocaSolicitante(subsEquipe[0].funcionario_nome || subsEquipe[0].substituto_nome || '');
-      setTrocaSolicitado(subsEquipe[0].substituto_nome || subsEquipe[0].funcionario_nome || '');
-    }
-  }, [equipe, todasSubstituicoes]);
+    if (!dataInicio) return;
+    const nomesEquipe = bombeiros.filter((b: any) => b.equipe === equipe).map((b: any) => b.nomeGuerra.toLowerCase());
+    const resultados: { id: string; tipo: 'troca' | 'substituicao'; substituido: string; substituto: string; confirmada: boolean | null }[] = [];
+    // De trocaFills (documento Troca de Serviço) — filtra pela data solicitada
+    trocaFills.forEach((fl: any) => {
+      const fd = fl.filled_data || {};
+      const dataSwap = fd.data_solicitada || (fl.created_at ? fl.created_at.split('T')[0] : '');
+      if (dataSwap !== dataInicio) return;
+      const nomeSol = fd.nome_solicitante || '';
+      const nomeSolic = fd.nome_solicitado || '';
+      if (!nomeSol && !nomeSolic) return;
+      const solNome = nomeSol.toLowerCase();
+      const solicNome = nomeSolic.toLowerCase();
+      const pertenceEquipe = nomesEquipe.some(n => solNome.includes(n)) || nomesEquipe.some(n => solicNome.includes(n));
+      if (pertenceEquipe) {
+        resultados.push({ id: fl.id, tipo: 'troca' as const, substituido: nomeSol, substituto: nomeSolic, dataSolicitada: fd.data_solicitada || '', dataFolga: fd.data_folga_solicitado || '', confirmada: null });
+      }
+    });
+    // De todasSubstituicoes (substituições temporárias aprovadas) — filtra pela data
+    todasSubstituicoes.forEach((s: any) => {
+      if (s.status !== 'Aprovada') return;
+      const dataSubst = s.dataInicio || s.data_inicio || '';
+      if (dataSubst !== dataInicio) return;
+      const nomeSubstituido = s.funcionarioNome || s.funcionario_nome || '';
+      const nomeSubstituto = s.substitutoNome || s.substituto_nome || '';
+      if (!nomeSubstituido && !nomeSubstituto) return;
+      const substNome = nomeSubstituido.toLowerCase();
+      const substNome2 = nomeSubstituto.toLowerCase();
+      const pertenceEquipe = nomesEquipe.some(n => substNome.includes(n)) || nomesEquipe.some(n => substNome2.includes(n));
+      if (pertenceEquipe) {
+        resultados.push({ id: s.id, tipo: 'substituicao' as const, substituido: nomeSubstituido, substituto: nomeSubstituto, confirmada: null });
+      }
+    });
+    setSubstituicoesDetectadas(resultados);
+  }, [dataInicio, equipe, trocaFills, todasSubstituicoes, bombeiros]);
+
+  const equipeInversa: Record<string, string> = { Alfa: 'Charlie', Charlie: 'Alfa', Bravo: 'Delta', Delta: 'Bravo' };
 
   // Auto-pull instructions from PTR-BA when team/date changes
   useEffect(() => {
@@ -185,12 +254,28 @@ export function GerarLRO() {
       p.equipe === equipe && p.data && p.data.startsWith(dataInicio)
     );
     if (ptrbsFiltrados.length > 0) {
-      const linhas = ptrbsFiltrados.map(p => p.assuntoMinistrado || p.descricao);
-      const horarios = ptrbsFiltrados.map(p => p.horaInicio || '');
-      setInstrucoes(linhas.join('\n'));
-      setInstrucoesHorarios(horarios.join('\n'));
+      const linhas = ptrbsFiltrados.map(p => {
+        const assunto = p.assuntoMinistrado || '';
+        const desc = p.descricao || '';
+        const hora = p.horaInicio || '';
+        const texto = assunto && desc ? `${assunto} - ${desc}` : (assunto || desc);
+        return `${texto}  ${hora}`;
+      });
+      setInstrucoes(linhas.join('\n\n'));
+      setInstrucoesHorarios(ptrbsFiltrados.map(p => p.horaInicio || ''));
     }
   }, [equipe, dataInicio, ptrbs]);
+
+  // Auto-pull Ocorrências (Section XII) when team/date changes
+  useEffect(() => {
+    const ocorrenciasFiltradas = ocorrencias.filter(o =>
+      o.equipe === equipe && o.data && o.data.startsWith(dataInicio)
+    );
+    if (ocorrenciasFiltradas.length > 0) {
+      const linhas = ocorrenciasFiltradas.map(o => `${o.titulo}: ${o.descricao}`.trim());
+      setOutrasOcorrencias(linhas.join('\n'));
+    }
+  }, [equipe, dataInicio, ocorrencias]);
 
   useEffect(() => {
     if (equipe === 'Bravo' || equipe === 'Delta') {
@@ -214,21 +299,89 @@ export function GerarLRO() {
     return feriasGozo.filter(f => f.equipe === equipe && f.status === 'Em Gozo');
   }, [feriasGozo, equipe]);
 
-  const disponiveis = useMemo(() => {
-    const feriasIds = new Set(emFerias.map(f => f.funcionarioId));
-    return membrosEquipe.filter(b => !feriasIds.has(b.id));
-  }, [membrosEquipe, emFerias]);
+  function getEmailByNome(nome: string): string {
+    if (!nome) return '';
+    const b = bombeiros.find(p => p.nomeGuerra === nome || p.nomeCompleto.startsWith(nome) || p.nomeCompleto.includes(nome));
+    return b?.email || '';
+  }
+
+  function getNomeGuerra(nome: string): string {
+    if (!nome) return '';
+    const b = bombeiros.find(p => p.nomeCompleto === nome || p.nomeGuerra === nome);
+    return b?.nomeGuerra || nome;
+  }
 
   const substituicoesMap = useMemo(() => {
-    const map: Record<string, { substitutoNome: string; substitutoId: string }> = {};
-    todasSubstituicoes
-      .filter((s: any) => s.status === 'Aprovada' || s.status === 'Pendente')
-      .forEach((s: any) => {
-        const id = s.funcionario_id || s.funcionarioId;
-        if (id) map[id] = { substitutoNome: s.substituto_nome || s.substitutoNome || '', substitutoId: s.substituto_id || s.substitutoId || '' };
-      });
+    if (!dataInicio) return {};
+    const map: Record<string, { substitutoNome: string; substitutoId: string; tipo: 'troca' | 'substituicao' }> = {};
+    // De trocaFills (documento Troca de Serviço) — filtra pela data solicitada (plantão)
+    trocaFills.forEach((fl: any) => {
+      const fd = fl.filled_data || {};
+      const dataSwap = fd.data_solicitada || (fl.created_at ? fl.created_at.split('T')[0] : '');
+      if (dataSwap !== dataInicio) return;
+      const nomeSol = fd.nome_solicitante || '';
+      const nomeSolic = fd.nome_solicitado || '';
+      const pessoaSol = bombeiros.find((b: any) => b.nomeCompleto === nomeSol || b.nomeGuerra === nomeSol);
+      const pessoaSolic = bombeiros.find((b: any) => b.nomeCompleto === nomeSolic || b.nomeGuerra === nomeSolic);
+      if (pessoaSol && pessoaSolic) {
+        map[pessoaSol.id] = { substitutoNome: nomeSolic, substitutoId: pessoaSolic.id, tipo: 'troca' };
+        map[pessoaSolic.id] = { substitutoNome: nomeSol, substitutoId: pessoaSol.id, tipo: 'troca' };
+      }
+    });
+    // De todasSubstituicoes (substituições temporárias) — filtra pela data de início
+    todasSubstituicoes.forEach((s: any) => {
+      const dataSubst = s.dataInicio || s.data_inicio || '';
+      if (dataSubst !== dataInicio) return;
+      const nomeSubstituido = s.funcionarioNome || s.funcionario_nome || '';
+      const nomeSubstituto = s.substitutoNome || s.substituto_nome || '';
+      const idSubstituido = s.funcionarioId || s.funcionario_id || '';
+      const idSubstituto = s.substitutoId || s.substituto_id || '';
+      if (idSubstituido && nomeSubstituto) {
+        map[idSubstituido] = { substitutoNome: nomeSubstituto, substitutoId: idSubstituto, tipo: 'substituicao' };
+      }
+      if (idSubstituto && nomeSubstituido) {
+        map[idSubstituto] = { substitutoNome: nomeSubstituido, substitutoId: idSubstituido, tipo: 'substituicao' };
+      }
+    });
     return map;
-  }, [todasSubstituicoes]);
+  }, [dataInicio, trocaFills, todasSubstituicoes, bombeiros]);
+
+  const disponiveis = useMemo(() => {
+    const feriasIds = new Set(emFerias.map(f => f.funcionarioId));
+    const substituidoIds = new Set(Object.keys(substituicoesMap));
+    const idsAdicionados = new Set<string>();
+    const presentes = membrosEquipe.filter(b => {
+      if (feriasIds.has(b.id) || substituidoIds.has(b.id)) return false;
+      idsAdicionados.add(b.id);
+      return true;
+    });
+    Object.entries(substituicoesMap).forEach(([ausenteId, sub]) => {
+      if (idsAdicionados.has(ausenteId)) return;
+      // Só adiciona o substituto se o ausente for da equipe atual
+      const ausente = bombeiros.find((b: any) => b.id === ausenteId);
+      if (ausente?.equipe !== equipe) return;
+      const substituto = bombeiros.find((b: any) => b.nomeGuerra === sub.substitutoNome || b.nomeCompleto === sub.substitutoNome);
+      if (substituto && !idsAdicionados.has(substituto.id)) {
+        presentes.push(substituto);
+        idsAdicionados.add(substituto.id);
+      }
+    });
+    return presentes;
+  }, [membrosEquipe, emFerias, substituicoesMap, bombeiros, equipe]);
+
+  // Auto-determina o Chefe de Equipe efetivo (designado, substituto de troca, ou substituto de férias)
+  useEffect(() => {
+    if (!dataInicio || !equipe || chefeEquipe) return;
+    const designado = bombeiros.find((b: any) => b.cargo === 'BA-CE' && b.equipe === equipe);
+    if (!designado) return;
+    const sub = substituicoesMap[designado.id];
+    if (sub) {
+      const substituto = bombeiros.find((b: any) => (b.nomeGuerra === sub.substitutoNome || b.nomeCompleto === sub.substitutoNome) && b.cargo === 'BA-CE');
+      if (substituto) setChefeEquipe(substituto.nomeGuerra);
+    } else if (disponiveis.some(b => b.id === designado.id)) {
+      setChefeEquipe(designado.nomeGuerra);
+    }
+  }, [dataInicio, equipe, substituicoesMap, disponiveis, bombeiros, chefeEquipe]);
 
   async function handleSalvarRascunho() {
     setSaving(true);
@@ -237,27 +390,30 @@ export function GerarLRO() {
         equipeNome: equipe,
         dataInicio, dataFim,
         chefeEquipe, comunicacao,
-        instrucoes: instrucoes.split('\n').filter(Boolean),
-        instrucoesHorarios: instrucoesHorarios.split('\n').filter(Boolean),
-        frota: viaturas.filter((v: any) => v.tipo === 'CCI' || v.tipo === 'CRS').map((v: any) => {
-          const key = v.id || v.prefixo || v.nome;
-          const d = frotaDados[key] || {};
-          return { viatura: v.prefixo || v.nome, prefixo: v.prefixo || '', kmIni: d.kmIni || '', kmFim: d.kmFim || '', combIni: d.combIni || '', combFim: d.combFim || '', situacao: d.situacao || '' };
+        instrucoes: Array.isArray(instrucoes) ? instrucoes : (typeof instrucoes === 'string' ? instrucoes.split('\n').filter(Boolean) : []),
+        instrucoesHorarios: Array.isArray(instrucoesHorarios) ? instrucoesHorarios : (typeof instrucoesHorarios === 'string' ? instrucoesHorarios.split('\n').filter(Boolean) : []),
+        frota: Array.from({ length: FROTA_ROWS }).map((_, i) => {
+          const d = frotaDados[`row_${i}`] || {};
+          const frotaLista = viaturas.length > 0 ? viaturas : DEFAULT_VIATURAS;
+          const sel = frotaLista.find((vv: any) => vv.id === d.viaturaId);
+          return { viatura: sel?.prefixo || sel?.nome || '—', prefixo: d.prefixo || '', kmIni: d.kmIni || '', kmFim: d.kmFim || '', combIni: d.combIni || '', combFim: d.combFim || '', situacao: d.situacao || '' };
         }),
         centralFaisca, radioComunicacao,
-        tpStatus: tpTexto ? '✅ ABAIXO' : '☐ ABAIXO',
-        tpTexto,
-        extStatus: extTexto ? '✅ ABAIXO' : '☐ ABAIXO',
-        extTexto,
-        equipStatus: equipTexto ? '✅ ABAIXO' : '☐ ABAIXO',
-        equipTexto,
-        edifStatus: edifTexto ? '✅ ABAIXO' : '☐ ABAIXO',
-        edifTexto,
+        tpTemAlteracao, tpTexto,
+        extTemAlteracao, extTexto,
+        equipTemAlteracao, equipTexto,
+        edifTemAlteracao, edifTexto,
+        ocorrenciasNA, inspecoes,
         emergenciaXI,
-        ocorrenciasXII: outrasOcorrencias.split('\n').filter(Boolean),
+        ocorrenciasXII: Array.isArray(outrasOcorrencias) ? outrasOcorrencias : (typeof outrasOcorrencias === 'string' ? outrasOcorrencias.split('\n').filter(Boolean) : []),
         solicitacoes: solicitacoesCCR.split('\n').filter(Boolean),
-        substituicao: houveTrocas === 'sim' ? [{ funcao1: 'BA-2', nome1: trocaSolicitante, funcao2: 'BA-2', nome2: trocaSolicitado }] : [],
-        cci2: [], cci3: [], crs: [],
+        substituicao: [
+          ...substituicoesDetectadas.filter(s => s.confirmada === true).map(s => ({ funcao1: 'BA-2', nome1: s.substituido, funcao2: 'BA-2', nome2: s.substituto })),
+          ...(houveTrocas === 'sim' && trocaSolicitante && trocaSolicitado ? [{ funcao1: 'BA-2', nome1: trocaSolicitante, funcao2: 'BA-2', nome2: trocaSolicitado }] : []),
+        ],
+        cci2: Object.entries(equipagemCCI).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
+        cci3: Object.entries(equipagemCCIRT).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
+        crs: Object.entries(equipagemCRS).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
         dataAssinatura: new Date().toLocaleDateString('pt-BR'),
         chefeAssinatura: chefeEquipe,
         gerenteAssinatura: '',
@@ -267,8 +423,12 @@ export function GerarLRO() {
       setDraftId(saved.id);
       const updated = await listarDrafts(username).catch(() => []);
       setDrafts(updated);
+      setView('lista');
+      setStep('equipe');
+      setErroValidacao('');
     } catch (err) {
       console.error('Erro ao salvar:', err);
+      setErroValidacao(`Erro ao salvar rascunho: ${err instanceof Error ? err.message : 'Erro desconhecido'}`);
     }
     setSaving(false);
   }
@@ -280,21 +440,27 @@ export function GerarLRO() {
         equipeNome: equipe,
         dataInicio, dataFim,
         chefeEquipe, comunicacao,
-        frota: viaturas.filter((v: any) => v.tipo === 'CCI' || v.tipo === 'CRS').map((v: any) => {
-          const key = v.id || v.prefixo || v.nome;
-          const d = frotaDados[key] || {};
-          return { viatura: v.prefixo || v.nome, prefixo: v.prefixo || '', kmIni: d.kmIni || '', kmFim: d.kmFim || '', combIni: d.combIni || '', combFim: d.combFim || '', situacao: d.situacao || '' };
+        frota: Array.from({ length: FROTA_ROWS }).map((_, i) => {
+          const d = frotaDados[`row_${i}`] || {};
+          const frotaLista = viaturas.length > 0 ? viaturas : DEFAULT_VIATURAS;
+          const sel = frotaLista.find((vv: any) => vv.id === d.viaturaId);
+          return { viatura: sel?.prefixo || sel?.nome || '—', prefixo: d.prefixo || '', kmIni: d.kmIni || '', kmFim: d.kmFim || '', combIni: d.combIni || '', combFim: d.combFim || '', situacao: d.situacao || '' };
         }),
-        instrucoes: instrucoes.split('\n').filter(Boolean),
-        instrucoesHorarios: instrucoesHorarios.split('\n').filter(Boolean),
+        instrucoes: Array.isArray(instrucoes) ? instrucoes : (typeof instrucoes === 'string' ? instrucoes.split('\n').filter(Boolean) : []),
+        instrucoesHorarios: Array.isArray(instrucoesHorarios) ? instrucoesHorarios : (typeof instrucoesHorarios === 'string' ? instrucoesHorarios.split('\n').filter(Boolean) : []),
         centralFaisca: centralFaisca || 'SEM ALTERAÇÕES',
         radioComunicacao: radioComunicacao || 'SEM ALTERAÇÕES',
         tpTexto, extTexto, equipTexto, edifTexto,
         emergenciaXI,
-        ocorrenciasXII: outrasOcorrencias.split('\n').filter(Boolean),
+        ocorrenciasXII: Array.isArray(outrasOcorrencias) ? outrasOcorrencias : (typeof outrasOcorrencias === 'string' ? outrasOcorrencias.split('\n').filter(Boolean) : []),
         solicitacoes: solicitacoesCCR.split('\n').filter(Boolean),
-        substituicao: houveTrocas === 'sim' ? [{ funcao1: 'BA-2', nome1: trocaSolicitante, funcao2: 'BA-2', nome2: trocaSolicitado }] : [],
-        cci2: [], cci3: [], crs: [],
+        substituicao: [
+          ...substituicoesDetectadas.filter(s => s.confirmada === true).map(s => ({ funcao1: 'BA-2', nome1: s.substituido, funcao2: 'BA-2', nome2: s.substituto })),
+          ...(houveTrocas === 'sim' && trocaSolicitante && trocaSolicitado ? [{ funcao1: 'BA-2', nome1: trocaSolicitante, funcao2: 'BA-2', nome2: trocaSolicitado }] : []),
+        ],
+        cci2: Object.entries(equipagemCCI).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
+        cci3: Object.entries(equipagemCCIRT).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
+        crs: Object.entries(equipagemCRS).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
         dataAssinatura: new Date().toLocaleDateString('pt-BR'),
         chefeAssinatura: chefeEquipe,
       };
@@ -315,8 +481,56 @@ export function GerarLRO() {
     setShowConfirm(false);
     setSaving(true);
     try {
+      const dados = {
+        equipeNome: equipe, dataInicio, dataFim, chefeEquipe, comunicacao,
+        frota: Array.from({ length: FROTA_ROWS }).map((_, i) => {
+          const d = frotaDados[`row_${i}`] || {};
+          const frotaLista = viaturas.length > 0 ? viaturas : DEFAULT_VIATURAS;
+          const sel = frotaLista.find((vv: any) => vv.id === d.viaturaId);
+          return { viatura: sel?.prefixo || sel?.nome || '—', prefixo: d.prefixo || '', kmIni: d.kmIni || '', kmFim: d.kmFim || '', combIni: d.combIni || '', combFim: d.combFim || '', situacao: d.situacao || '' };
+        }),
+        instrucoes: Array.isArray(instrucoes) ? instrucoes : (typeof instrucoes === 'string' ? instrucoes.split('\n').filter(Boolean) : []),
+        instrucoesHorarios: Array.isArray(instrucoesHorarios) ? instrucoesHorarios : (typeof instrucoesHorarios === 'string' ? instrucoesHorarios.split('\n').filter(Boolean) : []),
+        centralFaisca: centralFaisca || 'SEM ALTERAÇÕES',
+        radioComunicacao: radioComunicacao || 'SEM ALTERAÇÕES',
+        tpTexto, extTexto, equipTexto, edifTexto,
+        emergenciaXI,
+        ocorrenciasXII: Array.isArray(outrasOcorrencias) ? outrasOcorrencias : (typeof outrasOcorrencias === 'string' ? outrasOcorrencias.split('\n').filter(Boolean) : []),
+        solicitacoes: solicitacoesCCR.split('\n').filter(Boolean),
+        substituicao: [
+          ...substituicoesDetectadas.filter(s => s.confirmada === true).map(s => ({ funcao1: 'BA-2', nome1: s.substituido, funcao2: 'BA-2', nome2: s.substituto })),
+          ...(houveTrocas === 'sim' && trocaSolicitante && trocaSolicitado ? [{ funcao1: 'BA-2', nome1: trocaSolicitante, funcao2: 'BA-2', nome2: trocaSolicitado }] : []),
+        ],
+        cci2: Object.entries(equipagemCCI).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
+        cci3: Object.entries(equipagemCCIRT).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
+        crs: Object.entries(equipagemCRS).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
+        dataAssinatura: new Date().toLocaleDateString('pt-BR'),
+        chefeAssinatura: chefeEquipe,
+      };
+
+      const blob = await gerarPDF(dados);
+      const nomeArquivo = `LRO_${equipe}_${dataInicio}_${new Date().toISOString().split('T')[0]}`;
+      const emailChefe = getEmailByNome(chefeEquipe);
+      const signers: AutentiqueSigner[] = [];
+      if (emailChefe) {
+        signers.push({ email: emailChefe, action: 'SIGN' });
+      } else {
+        signers.push({ name: chefeEquipe || 'Chefe de Equipe', action: 'SIGN' });
+      }
+      const gerente = bombeiros.find(b => b.cargo === 'GS');
+      if (gerente?.email) {
+        signers.push({ email: gerente.email, action: 'SIGN' });
+      } else {
+        signers.push({ name: 'Gerente SESCINC', action: 'SIGN' });
+      }
+      signers.push({ name: 'Coordenador', action: 'SIGN' });
+
+      const result = await criarDocumentoAutentique(blob, nomeArquivo, signers, undefined, true);
       if (draftId) await atualizarStatus(draftId, 'aguardando');
-    } catch { /* ignore */ }
+    } catch (err) {
+      console.error('Erro ao enviar para Autentique:', err);
+      alert('Erro ao enviar para Autentique: ' + (err instanceof Error ? err.message : 'Erro desconhecido'));
+    }
     setSaving(false);
   }
 
@@ -530,7 +744,14 @@ export function GerarLRO() {
         ))}
       </div>
 
-      {step === 'equipe' && (
+      {erroValidacao && (
+        <div className="mb-4 flex items-center gap-3 rounded-xl border border-red-300 bg-red-50 px-5 py-4 dark:border-red-800 dark:bg-red-900/20">
+          <AlertTriangle className="h-5 w-5 shrink-0 text-red-600 dark:text-red-400" />
+          <p className="text-sm text-red-700 dark:text-red-300">{erroValidacao}</p>
+        </div>
+      )}
+
+{step === 'equipe' && (
         <div className="space-y-6">
           <div className="rounded-2xl border border-graphite-200 bg-white p-6 dark:border-border-dark dark:bg-surface-card">
             <h3 className="mb-4 text-lg font-bold text-graphite-900 dark:text-graphite-100">Selecionar Equipe e Data</h3>
@@ -568,28 +789,36 @@ export function GerarLRO() {
               </div>
             )}
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-              {disponiveis.map(b => {
+              {[...disponiveis].sort((a, b) => {
+                const hierarquia: Record<string, number> = { 'BA-CE': 1, 'BA-LR': 2, 'BA-MC': 3, 'BA-RE': 4, 'BA-2': 5, 'OC': 6, 'GS': 7 };
+                return (hierarquia[a.cargo] || 99) - (hierarquia[b.cargo] || 99);
+              }).map(b => {
                 const sub = substituicoesMap[b.id];
+                const cargoAusente = sub ? (() => { const ba = bombeiros.find((x: any) => x.nomeGuerra === sub.substitutoNome || x.nomeCompleto === sub.substitutoNome); return ba?.cargo || ''; })() : '';
                 return (
-                  <div key={b.id} className={`group relative rounded-xl border p-2 text-center transition-all ${sub ? 'border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/10' : 'border-graphite-100 bg-graphite-50/50 dark:border-border-dark dark:bg-surface-hover/30'}`}>
-                    {sub && (
-                      <>
-                        <div className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-[10px] text-white shadow" title="Substituição">↔</div>
-                        <div className="transition-opacity duration-200 group-hover:opacity-0">
-                          <p className="text-xs font-bold text-graphite-900 dark:text-graphite-100">{b.nomeGuerra}</p>
-                          <p className="text-[10px] text-graphite-500">{b.cargo}</p>
+                  <div key={b.id} className={`group relative rounded-xl border p-2 transition-all ${sub ? (sub.tipo === 'troca' ? 'border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/10' : 'border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-900/10') : 'border-graphite-100 bg-graphite-50/50 dark:border-border-dark dark:bg-surface-hover/30'}`}>
+                    {sub ? (
+                      <div className="relative min-h-[52px] flex flex-col items-center justify-center">
+                        <div className="flex flex-col items-center transition-all duration-300 group-hover:opacity-0 group-hover:scale-95">
+                          <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[7px] font-bold mb-0.5 ${sub.tipo === 'troca' ? 'bg-amber-200 text-amber-800 dark:bg-amber-800/40 dark:text-amber-300' : 'bg-blue-200 text-blue-800 dark:bg-blue-800/40 dark:text-blue-300'}`}>
+                            {sub.tipo === 'troca' ? '↔ TROCA' : '↔ SUBSTITUIÇÃO'}
+                          </span>
+                          <p className={`text-xs font-bold ${sub.tipo === 'troca' ? 'text-amber-700 dark:text-amber-300' : 'text-blue-700 dark:text-blue-300'}`}>{b.nomeGuerra}</p>
+                          <p className={`text-[9px] ${sub.tipo === 'troca' ? 'text-amber-600 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'}`}>como {b.cargo}</p>
                         </div>
-                        <div className="absolute inset-0 flex flex-col items-center justify-center rounded-xl opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                          <p className="text-xs font-bold text-amber-700 dark:text-amber-400">↔ {sub.substitutoNome}</p>
-                          <p className="text-[10px] text-amber-500">substituindo</p>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center rounded-xl opacity-0 transition-all duration-300 group-hover:opacity-100 group-hover:scale-100 scale-90">
+                          <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[7px] font-bold mb-0.5 ${sub.tipo === 'troca' ? 'bg-amber-100 text-amber-700 dark:bg-amber-800/30 dark:text-amber-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-800/30 dark:text-blue-300'}`}>
+                            {sub.tipo === 'troca' ? '↔ TROCADO' : '↔ SUBSTITUÍDO'}
+                          </span>
+                          <p className={`text-xs font-bold ${sub.tipo === 'troca' ? 'text-graphite-600 dark:text-graphite-400' : 'text-graphite-600 dark:text-graphite-400'}`}>{getNomeGuerra(sub.substitutoNome)}</p>
+                          <p className="text-[9px] text-graphite-500">{cargoAusente}</p>
                         </div>
-                      </>
-                    )}
-                    {!sub && (
-                      <>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center min-h-[52px]">
                         <p className="text-xs font-bold text-graphite-900 dark:text-graphite-100">{b.nomeGuerra}</p>
                         <p className="text-[10px] text-graphite-500">{b.cargo}</p>
-                      </>
+                      </div>
                     )}
                   </div>
                 );
@@ -598,7 +827,11 @@ export function GerarLRO() {
           </div>
 
           <div className="flex justify-end">
-            <button onClick={() => setStep('trocas')} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-6 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
+            <button onClick={() => {
+              if (!dataInicio) { setErroValidacao('Selecione a data de início do plantão.'); return; }
+              setErroValidacao('');
+              setStep('trocas');
+            }} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-6 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
               Próximo <ArrowRight className="h-4 w-4" />
             </button>
           </div>
@@ -607,6 +840,150 @@ export function GerarLRO() {
 
       {step === 'trocas' && (
         <div className="space-y-6">
+          {/* Férias do plantão (só informativo) */}
+          {emFerias.length > 0 && (
+            <div className="rounded-2xl border border-blue-200 bg-blue-50 p-6 dark:border-blue-800/30 dark:bg-blue-900/10">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-200 dark:bg-blue-800">
+                  <span className="text-sm">🏖</span>
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-blue-800 dark:text-blue-300">Equipe em Férias</h3>
+                  <p className="text-xs text-blue-600 dark:text-blue-400">Apenas informativo — não vai para o LRO</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {emFerias.map(f => (
+                  <span key={f.funcionarioId} className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                    {f.funcionarioNome}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Substitições detectadas do sistema */}
+          {substituicoesDetectadas.length > 0 && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-6 dark:border-amber-800/30 dark:bg-amber-900/10">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-200 dark:bg-amber-800">
+                  <AlertTriangle className="h-5 w-5 text-amber-700 dark:text-amber-300" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-amber-800 dark:text-amber-200">Trocas Detectadas</h3>
+                  <p className="text-sm text-amber-600 dark:text-amber-400">
+                    {substituicoesDetectadas.length} troca(s) encontrada(s) no sistema para esta equipe. Confirme cada uma:
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {substituicoesDetectadas.map((sub, idx) => {
+                  const isTroca = sub.tipo === 'troca';
+                  const borderCor = isTroca ? 'border-amber-300 dark:border-amber-700' : 'border-blue-300 dark:border-blue-700';
+                  const bgCor = isTroca ? 'bg-amber-50/50 dark:bg-amber-900/10' : 'bg-blue-50/50 dark:bg-blue-900/10';
+                  const labelCor = isTroca ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
+                  const textCor = isTroca ? 'text-amber-700 dark:text-amber-300' : 'text-blue-700 dark:text-blue-300';
+                  return (
+                  <div key={sub.id || idx} className={`rounded-xl border ${borderCor} ${bgCor} p-4`}>
+                    <div className="mb-2">
+                      <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold ${labelCor}`}>
+                        {isTroca ? '🔄 Troca' : '📋 Substituição'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex flex-col gap-1 text-sm flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-sm font-bold truncate ${sub.tipo === 'troca' ? 'text-graphite-600 dark:text-graphite-300' : 'text-blue-700 dark:text-blue-300'}`}>{sub.substituido || '—'}</span>
+                          <span className="text-graphite-400 text-xs">{sub.tipo === 'troca' ? '↔' : '→'}</span>
+                          <span className={`text-sm font-bold truncate ${textCor}`}>{sub.substituto || '—'}</span>
+                        </div>
+                      <div className="flex items-center gap-2 text-[10px] text-graphite-400 uppercase">
+                        <span>{(() => {
+                          const nome = (sub.substituido || '').toLowerCase().trim();
+                          const b = bombeiros.find((x: any) => nome.includes(x.nomeGuerra.toLowerCase().trim()) || nome.includes(x.nomeCompleto.toLowerCase().trim().split(' ')[0]));
+                          return b?.cargo || '—';
+                        })()}</span>
+                        <span className="text-graphite-300">→</span>
+                        <span>{(() => {
+                          const nome = (sub.substituto || '').toLowerCase().trim();
+                          const b = bombeiros.find((x: any) => nome.includes(x.nomeGuerra.toLowerCase().trim()) || nome.includes(x.nomeCompleto.toLowerCase().trim().split(' ')[0]));
+                          return b?.cargo || '—';
+                        })()}</span>
+                      </div>
+                      {sub.dataSolicitada && (() => {
+                        const dataFmt = new Date(sub.dataSolicitada + 'T12:00:00').toLocaleDateString('pt-BR');
+                        const findB = (nome: string) => {
+                          const n = (nome || '').toLowerCase().trim();
+                          return bombeiros.find((x: any) => n.includes(x.nomeGuerra.toLowerCase().trim()) || n.includes(x.nomeCompleto.toLowerCase().trim().split(' ')[0]));
+                        };
+                        const getTurno = (e: string) => e === 'Alfa' || e === 'Charlie' ? 'DIURNO' : e === 'Bravo' || e === 'Delta' ? 'NOTURNO' : '';
+                        const bSub = findB(sub.substituto);
+                        const bSubdo = findB(sub.substituido);
+                        const eSub = bSub?.equipe || '';
+                        const eSubdo = bSubdo?.equipe || '';
+                        const tSub = getTurno(eSub);
+                        const tSubdo = getTurno(eSubdo);
+                        if (eSub && eSubdo && eSub !== eSubdo) {
+                          return (
+                            <div className="mt-1 space-y-0.5 uppercase">
+                              <div className="flex items-center gap-1 text-[10px] text-graphite-400">
+                                <span>{dataFmt} {tSubdo}</span>
+                                <span className="text-graphite-300">{sub.tipo === 'troca' ? '↔' : '→'}</span>
+                                <span>{dataFmt} {tSub}</span>
+                              </div>
+                              <div className="flex items-center gap-1 text-[10px] font-semibold text-graphite-500">
+                                <span>EQUIPE {eSubdo}</span>
+                                <span className="text-graphite-300">·</span>
+                                <span>EQUIPE {eSub}</span>
+                              </div>
+                            </div>
+                          );
+                        }
+                        const eq = eSub || eSubdo;
+                        const turno = getTurno(eq);
+                        return (
+                          <div className="text-[10px] text-graphite-400 mt-1 uppercase">
+                            {dataFmt} {turno}{eq ? ` · EQUIPE ${eq}` : ''}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      {sub.confirmada === null ? (
+                        <>
+                          <button
+                            onClick={() => { setTrocaConfirmadaIdx(idx); setShowConfirmCorreta(true); }}
+                            className="flex items-center gap-1 rounded-lg bg-green-100 px-3 py-1.5 text-xs font-bold text-green-700 transition-all hover:bg-green-200 dark:bg-green-900/20 dark:text-green-400"
+                          >
+                            <Check className="h-3.5 w-3.5" /> Correta
+                          </button>
+                          <button
+                            onClick={() => { setTrocaRecusadaIdx(idx); setShowConfirmTroca(true); }}
+                            className="flex items-center gap-1 rounded-lg bg-red-100 px-3 py-1.5 text-xs font-bold text-red-700 transition-all hover:bg-red-200 dark:bg-red-900/20 dark:text-red-400"
+                          >
+                            <X className="h-3.5 w-3.5" /> Incorreta
+                          </button>
+                        </>
+                      ) : sub.confirmada === true ? (
+                        <span className="inline-flex items-center gap-1 rounded-lg bg-green-100 px-3 py-1.5 text-xs font-bold text-green-700 dark:bg-green-900/20 dark:text-green-400">
+                          <Check className="h-3.5 w-3.5" /> Confirmada
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-lg bg-red-100 px-3 py-1.5 text-xs font-bold text-red-700 dark:bg-red-900/20 dark:text-red-400">
+                          <X className="h-3.5 w-3.5" /> Recusada
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Adicionar troca manual (emergencial ou não detectada) — só aparece se não houver trocas detectadas */}
+          {substituicoesDetectadas.length === 0 && (
           <div className="rounded-2xl border border-graphite-200 bg-white p-6 dark:border-border-dark dark:bg-surface-card">
             <div className="mb-4 flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
@@ -614,23 +991,23 @@ export function GerarLRO() {
               </div>
               <div>
                 <h3 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">Houve troca de BA neste plantão?</h3>
-                <p className="text-sm text-graphite-500">Selecione se algum bombeiro solicitou substituição</p>
+                <p className="text-sm text-graphite-500">Se alguma troca não foi detectada acima ou ocorreu emergencialmente, informe aqui</p>
               </div>
             </div>
             <div className="flex gap-4">
-              <button onClick={() => setHouveTrocas('sim')} className={`flex-1 rounded-xl border-2 p-4 text-center transition-all ${houveTrocas === 'sim' ? 'border-aviation-500 bg-aviation-50 dark:bg-aviation-900/20 ring-2 ring-aviation-500/20' : 'border-graphite-200 hover:border-graphite-300 dark:border-border-dark'}`}>
+              <button onClick={() => { setHouveTrocas('sim'); if (substituicoesDetectadas.length === 0) { setSubstituicoesDetectadas([{ id: 'manual', substituido: '', substituto: '', confirmada: true }]); } }} className={`flex-1 rounded-xl border-2 p-4 text-center transition-all ${houveTrocas === 'sim' ? 'border-aviation-500 bg-aviation-50 dark:bg-aviation-900/20 ring-2 ring-aviation-500/20' : 'border-graphite-200 hover:border-graphite-300 dark:border-border-dark'}`}>
                 <p className="text-sm font-semibold text-graphite-900 dark:text-graphite-100">Sim</p>
-                <p className="text-xs text-graphite-500">Houve substituição</p>
+                <p className="text-xs text-graphite-500">Houve troca extra</p>
               </button>
               <button onClick={() => setHouveTrocas('nao')} className={`flex-1 rounded-xl border-2 p-4 text-center transition-all ${houveTrocas === 'nao' ? 'border-aviation-500 bg-aviation-50 dark:bg-aviation-900/20 ring-2 ring-aviation-500/20' : 'border-graphite-200 hover:border-graphite-300 dark:border-border-dark'}`}>
                 <p className="text-sm font-semibold text-graphite-900 dark:text-graphite-100">Não</p>
-                <p className="text-xs text-graphite-500">Nenhuma substituição</p>
+                <p className="text-xs text-graphite-500">Nenhuma troca extra</p>
               </button>
             </div>
 
             {houveTrocas === 'sim' && (
               <div className="mt-6 space-y-4 rounded-xl border border-amber-200 bg-amber-50/50 p-4 dark:border-amber-800/30 dark:bg-amber-900/10">
-                <h4 className="text-sm font-bold text-graphite-900 dark:text-graphite-100">Dados da substituição</h4>
+                <h4 className="text-sm font-bold text-graphite-900 dark:text-graphite-100">Dados da troca</h4>
                 <div className="grid gap-4 md:grid-cols-2">
                   <SearchSelect
                     label="Solicitante (quem pediu a troca)"
@@ -643,19 +1020,33 @@ export function GerarLRO() {
                     label="Solicitado (quem foi chamado)"
                     value={trocaSolicitado}
                     onChange={setTrocaSolicitado}
-                    options={disponiveis.map(b => ({ value: b.nomeGuerra, label: `${b.nomeGuerra} - ${b.nomeCompleto} (${b.cargo})` }))}
+                    options={(() => {
+                      const inversa = equipeInversa[equipe] || '';
+                      const equipeInversaMembros = bombeiros.filter(b => b.equipe === inversa && !b.dataDesligamento);
+                      const outrosMembros = bombeiros.filter(b => b.equipe !== equipe && b.equipe !== inversa && !b.dataDesligamento);
+                      return [
+                        ...equipeInversaMembros.map(b => ({ value: b.nomeGuerra, label: `${b.nomeGuerra} - ${b.nomeCompleto} (${b.cargo}) [${b.equipe}]` })),
+                        ...outrosMembros.map(b => ({ value: b.nomeGuerra, label: `${b.nomeGuerra} - ${b.nomeCompleto} (${b.cargo}) [${b.equipe}]` })),
+                      ];
+                    })()}
                     placeholder="Buscar substituto..."
                   />
                 </div>
               </div>
             )}
           </div>
+          )}
 
           <div className="flex justify-between">
             <button onClick={() => setStep('equipe')} className="flex items-center gap-1 rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 transition-all hover:bg-graphite-50 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">
               <ArrowLeft className="h-4 w-4" /> Voltar
             </button>
-            <button onClick={() => setStep('preencher')} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-6 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
+            <button onClick={() => {
+              const naoConfirmadas = substituicoesDetectadas.filter(s => s.confirmada === null);
+              if (naoConfirmadas.length > 0) { setErroValidacao(`Confirme ou rejeite todas as trocas detectadas (${naoConfirmadas.length} pendente(s)).`); return; }
+              setErroValidacao('');
+              setStep('preencher');
+            }} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-6 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
               Próximo <ArrowRight className="h-4 w-4" />
             </button>
           </div>
@@ -669,14 +1060,28 @@ export function GerarLRO() {
             <h3 className="mb-4 font-bold text-graphite-900 dark:text-graphite-100">I. Equipe de Serviço</h3>
             <div className="grid gap-4 md:grid-cols-2">
               <SearchSelect
-                label="1.1 Chefe de Equipe"
+                label="1.1 Chefe de Equipe *"
                 value={chefeEquipe}
                 onChange={setChefeEquipe}
-                options={disponiveis.filter(b => b.cargo === 'BA-CE').map(b => ({ value: b.nomeGuerra, label: `${b.nomeGuerra} - ${b.nomeCompleto} (${b.cargo})` }))}
-                placeholder="Buscar chefe de equipe..."
+                options={(() => {
+                  const designado = bombeiros.find((b: any) => b.cargo === 'BA-CE' && b.equipe === equipe);
+                  if (!designado) return [];
+                  const sub = substituicoesMap[designado.id];
+                  // Se tem substituição (troca ou férias), mostra o substituto se for BA-CE
+                  if (sub) {
+                    const substituto = bombeiros.find((b: any) => (b.nomeGuerra === sub.substitutoNome || b.nomeCompleto === sub.substitutoNome) && b.cargo === 'BA-CE');
+                    if (substituto) return [{ value: substituto.nomeGuerra, label: `${substituto.nomeGuerra} - ${substituto.nomeCompleto} (${substituto.cargo})` }];
+                  }
+                  // Sem substituição: mostra o designado se estiver disponível (não de férias)
+                  if (disponiveis.some(b => b.id === designado.id)) {
+                    return [{ value: designado.nomeGuerra, label: `${designado.nomeGuerra} - ${designado.nomeCompleto} (${designado.cargo})` }];
+                  }
+                  return [];
+                })()}
+                placeholder="Chefe de equipe"
               />
               <SearchSelect
-                label="1.2 Comunicação BA-OC"
+                label="1.2 Comunicação BA-OC *"
                 value={comunicacao}
                 onChange={setComunicacao}
                 options={disponiveis.map(b => ({ value: b.nomeGuerra, label: `${b.nomeGuerra} - ${b.nomeCompleto} (${b.cargo})` }))}
@@ -685,10 +1090,86 @@ export function GerarLRO() {
             </div>
           </div>
 
+          {/* 1.3 Equipagem dos CCI */}
+          <div className="rounded-2xl border border-graphite-200 bg-white p-6 dark:border-border-dark dark:bg-surface-card">
+            <h3 className="mb-4 font-bold text-graphite-900 dark:text-graphite-100">1.3 Equipagem dos CCI - EM LINHA, CCI - RT e CRS</h3>
+            <div className="grid gap-4 md:grid-cols-3">
+              {[
+                { label: 'CCI 2', slots: ['BA-CE', 'BA-MC', 'BA-2'], state: equipagemCCI, setState: setEquipagemCCI },
+                { label: 'CCI 3', slots: ['BA-MC', 'BA-2', 'BA-2'], state: equipagemCCIRT, setState: setEquipagemCCIRT },
+                { label: 'CRS', slots: ['BA-LR', 'BA-MC', 'BA-RE', 'BA-RE'], state: equipagemCRS, setState: setEquipagemCRS },
+              ].map(section => (
+                <div key={section.label}>
+                  <label className="mb-2 block text-sm font-bold text-graphite-800 dark:text-graphite-200">{section.label}</label>
+                  <div className="space-y-2">
+                    {section.slots.map((cargo, idx) => {
+                      const key = `${cargo}_${idx}`;
+                      const selected = section.state[key] || '';
+                      const cargoFiltro = cargo === 'BA-RE' ? 'BA-2' : cargo;
+                      const selectedInOtherSlots = new Set([
+                        ...Object.values(equipagemCCI),
+                        ...Object.values(equipagemCCIRT),
+                        ...Object.values(equipagemCRS),
+                      ].filter(Boolean));
+                      const opts = disponiveis
+                        .filter(b => b.cargo === cargoFiltro && (!selectedInOtherSlots.has(b.nomeGuerra) || selected === b.nomeGuerra))
+                        .map(b => ({ value: b.nomeGuerra, label: `${b.nomeGuerra} - ${b.nomeCompleto}` }));
+                      return (
+                        <div key={key} className="flex items-center gap-2">
+                          <span className="w-14 shrink-0 text-[10px] font-bold uppercase text-graphite-500 dark:text-graphite-400">{cargo}</span>
+                          <select
+                            value={selected}
+                            onChange={e => section.setState(prev => ({ ...prev, [key]: e.target.value }))}
+                            className="flex-1 rounded-lg border border-graphite-200 px-2 py-1.5 text-xs dark:border-border-dark dark:bg-surface-card"
+                          >
+                            <option value="">Selecionar...</option>
+                            {opts.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                          </select>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 1.3 Substituições de BA */}
+          <div className="rounded-2xl border border-graphite-200 bg-white p-6 dark:border-border-dark dark:bg-surface-card">
+            <h3 className="mb-4 font-bold text-graphite-900 dark:text-graphite-100">1.3 Substituições de BA</h3>
+            <div className="flex items-center gap-6 mb-4">
+              <label className="flex items-center gap-2 text-sm text-graphite-700 dark:text-graphite-300">
+                <input type="checkbox" checked={substituicoesDetectadas.some(s => s.confirmada === true)} readOnly className="h-4 w-4 rounded border-graphite-300 text-aviation-600" />
+                ABAIXO
+              </label>
+              <label className="flex items-center gap-2 text-sm text-graphite-700 dark:text-graphite-300">
+                <input type="checkbox" checked={!substituicoesDetectadas.some(s => s.confirmada === true)} readOnly className="h-4 w-4 rounded border-graphite-300 text-aviation-600" />
+                NÃO HOUVE
+              </label>
+            </div>
+            {substituicoesDetectadas.filter(s => s.confirmada === true).map(sub => {
+              const p1 = bombeiros.find((b: any) => sub.substituido.includes(b.nomeCompleto) || sub.substituido.includes(b.nomeGuerra));
+              const p2 = bombeiros.find((b: any) => sub.substituto.includes(b.nomeCompleto) || sub.substituto.includes(b.nomeGuerra));
+              return (
+                <div key={sub.id} className="mb-2 rounded-lg border border-graphite-200 bg-graphite-50 p-3 dark:border-border-dark dark:bg-graphite-800">
+                  <div className="flex items-center gap-4 text-sm">
+                    <span className="font-bold text-graphite-800 dark:text-graphite-200">
+                      {p1?.cargo || 'BA-2'} {p1?.nomeCompleto || sub.substituido}
+                    </span>
+                    <span className="text-graphite-400 text-xs">→</span>
+                    <span className="font-bold text-graphite-800 dark:text-graphite-200">
+                      {p2?.cargo || 'BA-2'} {p2?.nomeCompleto || sub.substituto}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
           {/* II. Instruções */}
           <div className="rounded-2xl border border-graphite-200 bg-white p-6 dark:border-border-dark dark:bg-surface-card">
             <h3 className="mb-4 font-bold text-graphite-900 dark:text-graphite-100">II. Instruções</h3>
-            <textarea value={instrucoes} onChange={e => setInstrucoes(e.target.value)} placeholder="Uma instrução por linha. Ex: 14. PCINC&#10;15. EQUIPAMENTOS DE PROTEÇÃO" rows={4} className={inputClass + ' resize-y'} />
+            <textarea value={instrucoes} readOnly placeholder={"14. PCINC - Verificar conformidade dos extintores e hidrantes\n\n15. EQUIPAMENTOS DE PROTEÇÃO - Manter EPIs atualizados"} rows={4} className={inputClass + ' resize-y cursor-not-allowed opacity-80'} />
             {ptrbs.filter(p => p.equipe === equipe && p.data?.startsWith(dataInicio)).length > 0 && (
               <p className="mt-2 text-[11px] text-green-600">✓ Instruções carregadas automaticamente do PTR-BA deste plantão.</p>
             )}
@@ -702,6 +1183,7 @@ export function GerarLRO() {
                 <thead>
                   <tr className="border-b border-graphite-200 bg-graphite-50 dark:border-border-dark dark:bg-graphite-900">
                     <th className="p-2 text-left font-semibold text-graphite-600">VIATURA</th>
+                    <th className="p-2 text-left font-semibold text-graphite-600">PREFIXO</th>
                     <th className="p-2 text-left font-semibold text-graphite-600">KM INICIAL</th>
                     <th className="p-2 text-left font-semibold text-graphite-600">KM FINAL</th>
                     <th className="p-2 text-left font-semibold text-graphite-600">COMB. INICIAL</th>
@@ -710,18 +1192,31 @@ export function GerarLRO() {
                   </tr>
                 </thead>
                 <tbody>
-                  {viaturas.filter((v: any) => v.tipo === 'CCI').map((v: any) => {
-                    const key = v.id || v.prefixo || v.nome;
-                    const d = frotaDados[key] || { kmIni: '', kmFim: '', combIni: '', combFim: '', situacao: '' };
+                  {Array.from({ length: FROTA_ROWS }).map((_, rowIdx) => {
+                    const frotaLista = viaturas.length > 0 ? viaturas : DEFAULT_VIATURAS;
+                    const frotaOpts = [{ id: '', prefixo: '—' }, ...frotaLista].map((vv: any) => ({ id: vv.id, label: vv.prefixo || vv.nome || '—' }));
+                    const selectedId = frotaDados[`row_${rowIdx}`]?.viaturaId || '';
+                    const prefixoPadrao = ['F2 X6', 'F3 X6', 'FRT X6'][rowIdx] || '';
+                    let d = frotaDados[`row_${rowIdx}`] || { kmIni: '', kmFim: '', combIni: '', combFim: '', situacao: '', viaturaId: '', prefixo: '' };
+                    if (!d.prefixo) d = { ...d, prefixo: prefixoPadrao };
+                    const updateRow = (updates: Record<string, string>) => setFrotaDados(prev => ({ ...prev, [`row_${rowIdx}`]: { ...prev[`row_${rowIdx}`], ...updates } }));
                     return (
-                      <tr key={key} className="border-b border-graphite-100 dark:border-border-dark">
-                        <td className="p-2 font-semibold text-graphite-900 dark:text-graphite-100">{v.prefixo || v.nome}</td>
-                        <td className="p-2"><input value={d.kmIni} onChange={e => setFrotaDados(prev => ({ ...prev, [key]: { ...prev[key], kmIni: e.target.value } }))} className="w-20 rounded border border-graphite-200 px-2 py-1 text-xs dark:border-border-dark dark:bg-surface-card" /></td>
-                        <td className="p-2"><input value={d.kmFim} onChange={e => setFrotaDados(prev => ({ ...prev, [key]: { ...prev[key], kmFim: e.target.value } }))} className="w-20 rounded border border-graphite-200 px-2 py-1 text-xs dark:border-border-dark dark:bg-surface-card" /></td>
-                        <td className="p-2"><input value={d.combIni} onChange={e => setFrotaDados(prev => ({ ...prev, [key]: { ...prev[key], combIni: e.target.value } }))} className="w-20 rounded border border-graphite-200 px-2 py-1 text-xs dark:border-border-dark dark:bg-surface-card" /></td>
-                        <td className="p-2"><input value={d.combFim} onChange={e => setFrotaDados(prev => ({ ...prev, [key]: { ...prev[key], combFim: e.target.value } }))} className="w-20 rounded border border-graphite-200 px-2 py-1 text-xs dark:border-border-dark dark:bg-surface-card" /></td>
+                      <tr key={`frota-row-${rowIdx}`} className="border-b border-graphite-100 dark:border-border-dark">
                         <td className="p-2">
-                          <select value={d.situacao} onChange={e => setFrotaDados(prev => ({ ...prev, [key]: { ...prev[key], situacao: e.target.value } }))} className="rounded border border-graphite-200 px-2 py-1 text-xs dark:border-border-dark dark:bg-surface-card">
+                          <select value={selectedId} onChange={e => updateRow({ viaturaId: e.target.value })} className="rounded border border-graphite-200 px-2 py-1 text-xs dark:border-border-dark dark:bg-surface-card">
+                            <option value="">Selecione</option>
+                            {frotaOpts.filter(o => o.id).map(o => (
+                              <option key={o.id} value={o.id}>{o.label}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="p-2 font-semibold text-graphite-700 dark:text-graphite-300 text-xs">{d.prefixo || '—'}</td>
+                        <td className="p-2"><input value={d.kmIni || ''} onChange={e => updateRow({ kmIni: e.target.value })} className="w-20 rounded border border-graphite-200 px-2 py-1 text-xs dark:border-border-dark dark:bg-surface-card" /></td>
+                        <td className="p-2"><input value={d.kmFim || ''} onChange={e => updateRow({ kmFim: e.target.value })} className="w-20 rounded border border-graphite-200 px-2 py-1 text-xs dark:border-border-dark dark:bg-surface-card" /></td>
+                        <td className="p-2"><input value={d.combIni || ''} onChange={e => updateRow({ combIni: e.target.value })} className="w-20 rounded border border-graphite-200 px-2 py-1 text-xs dark:border-border-dark dark:bg-surface-card" /></td>
+                        <td className="p-2"><input value={d.combFim || ''} onChange={e => updateRow({ combFim: e.target.value })} className="w-20 rounded border border-graphite-200 px-2 py-1 text-xs dark:border-border-dark dark:bg-surface-card" /></td>
+                        <td className="p-2">
+                          <select value={d.situacao || ''} onChange={e => updateRow({ situacao: e.target.value })} className="rounded border border-graphite-200 px-2 py-1 text-xs dark:border-border-dark dark:bg-surface-card">
                             <option value="">Selecione</option>
                             <option value="EM LINHA">EM LINHA</option>
                             <option value="RESERVA">RESERVA</option>
@@ -737,41 +1232,67 @@ export function GerarLRO() {
             </div>
           </div>
 
-          {/* IV a VIII */}
+          {/* IV */}
+          <div className="rounded-2xl border border-graphite-200 bg-white p-6 dark:border-border-dark dark:bg-surface-card">
+            <h3 className="mb-2 font-bold text-graphite-900 dark:text-graphite-100">IV. Central Faísca</h3>
+            <div className="space-y-2">
+              <input type="text" value={centralFaisca} onChange={e => setCentralFaisca(e.target.value)} placeholder="3.1 CENTRAL FAÍSCA" className={inputClass} />
+              <input type="text" value={radioComunicacao} onChange={e => setRadioComunicacao(e.target.value)} placeholder="3.2 RÁDIOS, HOTLINE" className={inputClass} />
+            </div>
+          </div>
+
+          {/* V a VIII */}
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-2xl border border-graphite-200 bg-white p-6 dark:border-border-dark dark:bg-surface-card">
-              <h3 className="mb-2 font-bold text-graphite-900 dark:text-graphite-100">IV. Central Faísca</h3>
-              <div className="space-y-2">
-                <input type="text" value={centralFaisca} onChange={e => setCentralFaisca(e.target.value)} placeholder="3.1 CENTRAL FAÍSCA" className={inputClass} />
-                <input type="text" value={radioComunicacao} onChange={e => setRadioComunicacao(e.target.value)} placeholder="3.2 RÁDIOS, HOTLINE" className={inputClass} />
+            {[
+              { titulo: 'V. TP/EPR', temAlt: tpTemAlteracao, setTemAlt: setTpTemAlteracao, texto: tpTexto, setTexto: setTpTexto, placeholder: 'Alterações nos TP/EPR...' },
+              { titulo: 'VI. Agentes Extintores', temAlt: extTemAlteracao, setTemAlt: setExtTemAlteracao, texto: extTexto, setTexto: setExtTexto, placeholder: 'Alterações...' },
+              { titulo: 'VII. Equipamentos', temAlt: equipTemAlteracao, setTemAlt: setEquipTemAlteracao, texto: equipTexto, setTexto: setEquipTexto, placeholder: 'Alterações...' },
+              { titulo: 'VIII. Edificações', temAlt: edifTemAlteracao, setTemAlt: setEdifTemAlteracao, texto: edifTexto, setTexto: setEdifTexto, placeholder: 'Alterações...' },
+            ].map(s => (
+              <div key={s.titulo} className="rounded-2xl border border-graphite-200 bg-white p-6 dark:border-border-dark dark:bg-surface-card">
+                <h3 className="mb-3 font-bold text-graphite-900 dark:text-graphite-100">{s.titulo}</h3>
+                <div className="flex items-center gap-4 mb-3">
+                  <label className="flex items-center gap-2 text-sm text-graphite-700 dark:text-graphite-300 cursor-pointer">
+                    <input type="radio" name={s.titulo} checked={s.temAlt} onChange={() => s.setTemAlt(true)} className="h-4 w-4 text-aviation-600" />
+                    ABAIXO
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-graphite-700 dark:text-graphite-300 cursor-pointer">
+                    <input type="radio" name={s.titulo} checked={!s.temAlt} onChange={() => { s.setTemAlt(false); s.setTexto(''); }} className="h-4 w-4 text-aviation-600" />
+                    SEM ALTERAÇÕES
+                  </label>
+                </div>
+                {s.temAlt && (
+                  <textarea value={s.texto} onChange={e => s.setTexto(e.target.value)} rows={2} placeholder={s.placeholder} className={inputClass + ' resize-y'} />
+                )}
               </div>
+            ))}
             </div>
-            <div className="rounded-2xl border border-graphite-200 bg-white p-6 dark:border-border-dark dark:bg-surface-card">
-              <h3 className="mb-2 font-bold text-graphite-900 dark:text-graphite-100">V. TP/EPR</h3>
-              <textarea value={tpTexto} onChange={e => setTpTexto(e.target.value)} rows={2} placeholder="Alterações nos TP/EPR..." className={inputClass + ' resize-y'} />
-            </div>
-            <div className="rounded-2xl border border-graphite-200 bg-white p-6 dark:border-border-dark dark:bg-surface-card">
-              <h3 className="mb-2 font-bold text-graphite-900 dark:text-graphite-100">VI. Agentes Extintores</h3>
-              <textarea value={extTexto} onChange={e => setExtTexto(e.target.value)} rows={2} placeholder="Alterações..." className={inputClass + ' resize-y'} />
-            </div>
-            <div className="rounded-2xl border border-graphite-200 bg-white p-6 dark:border-border-dark dark:bg-surface-card">
-              <h3 className="mb-2 font-bold text-graphite-900 dark:text-graphite-100">VII. Equipamentos</h3>
-              <textarea value={equipTexto} onChange={e => setEquipTexto(e.target.value)} rows={2} placeholder="Alterações..." className={inputClass + ' resize-y'} />
-            </div>
-            <div className="rounded-2xl border border-graphite-200 bg-white p-6 dark:border-border-dark dark:bg-surface-card">
-              <h3 className="mb-2 font-bold text-graphite-900 dark:text-graphite-100">VIII. Edificações</h3>
-              <textarea value={edifTexto} onChange={e => setEdifTexto(e.target.value)} rows={2} placeholder="Alterações..." className={inputClass + ' resize-y'} />
-            </div>
-            <div className="rounded-2xl border border-graphite-200 bg-white p-6 dark:border-border-dark dark:bg-surface-card">
-              <h3 className="mb-2 font-bold text-graphite-900 dark:text-graphite-100">XI. Emergências Aeronáuticas</h3>
-              <textarea value={emergenciaXI} onChange={e => setEmergenciaXI(e.target.value)} rows={2} placeholder="Descreva a emergência..." className={inputClass + ' resize-y'} />
-            </div>
+
+          {/* IX */}
+          <div className="rounded-2xl border border-graphite-200 bg-white p-6 dark:border-border-dark dark:bg-surface-card">
+            <h3 className="mb-2 font-bold text-graphite-900 dark:text-graphite-100">IX. Ocorrências Não Aeronáuticas</h3>
+            <textarea value={ocorrenciasNA} onChange={e => setOcorrenciasNA(e.target.value)} rows={2} placeholder="Descreva as ocorrências não aeronáuticas..." className={inputClass + ' resize-y'} />
+          </div>
+
+          {/* X */}
+          <div className="rounded-2xl border border-graphite-200 bg-white p-6 dark:border-border-dark dark:bg-surface-card">
+            <h3 className="mb-2 font-bold text-graphite-900 dark:text-graphite-100">X. Inspeções Técnicas e Vistorias</h3>
+            <textarea value={inspecoes} onChange={e => setInspecoes(e.target.value)} rows={2} placeholder="Descreva as inspeções técnicas e vistorias..." className={inputClass + ' resize-y'} />
+          </div>
+
+          {/* XI */}
+          <div className="rounded-2xl border border-graphite-200 bg-white p-6 dark:border-border-dark dark:bg-surface-card">
+            <h3 className="mb-2 font-bold text-graphite-900 dark:text-graphite-100">XI. Emergências Aeronáuticas</h3>
+            <textarea value={emergenciaXI} onChange={e => setEmergenciaXI(e.target.value)} rows={2} placeholder="Descreva a emergência..." className={inputClass + ' resize-y'} />
           </div>
 
           {/* XII */}
           <div className="rounded-2xl border border-graphite-200 bg-white p-6 dark:border-border-dark dark:bg-surface-card">
             <h3 className="mb-2 font-bold text-graphite-900 dark:text-graphite-100">XII. Outras Ocorrências</h3>
             <textarea value={outrasOcorrencias} onChange={e => setOutrasOcorrencias(e.target.value)} rows={3} placeholder="Uma ocorrência por linha..." className={inputClass + ' resize-y'} />
+            {ocorrencias.filter(o => o.equipe === equipe && o.data?.startsWith(dataInicio)).length > 0 && (
+              <p className="mt-2 text-[11px] text-green-600">✓ Ocorrências carregadas automaticamente do dia.</p>
+            )}
           </div>
 
           {/* XIII */}
@@ -788,7 +1309,13 @@ export function GerarLRO() {
               <button onClick={handleSalvarRascunho} disabled={saving} className="flex items-center gap-2 rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 transition-all hover:bg-graphite-50 disabled:opacity-50 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">
                 <Save className="h-4 w-4" /> {saving ? 'Salvando...' : 'Salvar Rascunho'}
               </button>
-              <button onClick={() => setStep('revisar')} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-6 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
+              <button onClick={() => {
+                if (!chefeEquipe) { setErroValidacao('Selecione o Chefe de Equipe (campo 1.1).'); return; }
+                if (!comunicacao) { setErroValidacao('Selecione a Comunicação BA-OC (campo 1.2).'); return; }
+                if (!dataInicio) { setErroValidacao('Data de início do plantão é obrigatória.'); return; }
+                setErroValidacao('');
+                setStep('revisar');
+              }} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-6 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
                 Revisar <ArrowRight className="h-4 w-4" />
               </button>
             </div>
@@ -806,7 +1333,7 @@ export function GerarLRO() {
               <p><span className="font-semibold">Chefe de Equipe:</span> {chefeEquipe || '-'}</p>
               <p><span className="font-semibold">Comunicação:</span> {comunicacao || '-'}</p>
               <p><span className="font-semibold">Houve trocas:</span> {houveTrocas === 'sim' ? `Sim (${trocaSolicitante} → ${trocaSolicitado})` : 'Não'}</p>
-              {instrucoes && <p><span className="font-semibold">Instruções:</span> {instrucoes.split('\n').length} registro(s)</p>}
+              {instrucoes && (Array.isArray(instrucoes) ? instrucoes.length : instrucoes.split('\n').filter(Boolean).length) > 0 && <p><span className="font-semibold">Instruções:</span> {Array.isArray(instrucoes) ? instrucoes.length : instrucoes.split('\n').filter(Boolean).length} registro(s)</p>}
               {emergenciaXI && <p><span className="font-semibold">Emergência Aeronáutica:</span> Sim</p>}
             </div>
           </div>
@@ -819,21 +1346,39 @@ export function GerarLRO() {
               <button onClick={() => {
                 const dados = {
                   equipeNome: equipe, dataInicio, dataFim, chefeEquipe, comunicacao,
-                  frota: viaturas.filter((v: any) => v.tipo === 'CCI' || v.tipo === 'CRS').map((v: any) => {
-                    const key = v.id || v.prefixo || v.nome;
-                    const d = frotaDados[key] || {};
-                    return { viatura: v.prefixo || v.nome, prefixo: v.prefixo || '', kmIni: d.kmIni || '', kmFim: d.kmFim || '', combIni: d.combIni || '', combFim: d.combFim || '', situacao: d.situacao || '' };
+                  frota: Array.from({ length: FROTA_ROWS }).map((_, i) => {
+                    const d = frotaDados[`row_${i}`] || {};
+                    const frotaLista = viaturas.length > 0 ? viaturas : DEFAULT_VIATURAS;
+                    const sel = frotaLista.find((vv: any) => vv.id === d.viaturaId);
+                    return { viatura: sel?.prefixo || sel?.nome || '—', prefixo: d.prefixo || '', kmIni: d.kmIni || '', kmFim: d.kmFim || '', combIni: d.combIni || '', combFim: d.combFim || '', situacao: d.situacao || '' };
                   }),
-                  instrucoes: instrucoes.split('\n').filter(Boolean),
-                  instrucoesHorarios: instrucoesHorarios.split('\n').filter(Boolean),
+                  instrucoes: Array.isArray(instrucoes) ? instrucoes : (typeof instrucoes === 'string' ? instrucoes.split('\n').filter(Boolean) : []),
+                  instrucoesHorarios: Array.isArray(instrucoesHorarios) ? instrucoesHorarios : (typeof instrucoesHorarios === 'string' ? instrucoesHorarios.split('\n').filter(Boolean) : []),
                   centralFaisca: centralFaisca || 'SEM ALTERAÇÕES',
                   radioComunicacao: radioComunicacao || 'SEM ALTERAÇÕES',
-                  tpTexto, extTexto, equipTexto, edifTexto,
+                  tpTemAlteracao, tpTexto,
+                  extTemAlteracao, extTexto,
+                  equipTemAlteracao, equipTexto,
+                  edifTemAlteracao, edifTexto,
+                  ocorrenciasNA, inspecoes,
                   emergenciaXI,
-                  ocorrenciasXII: outrasOcorrencias.split('\n').filter(Boolean),
+                  ocorrenciasXII: Array.isArray(outrasOcorrencias) ? outrasOcorrencias : (typeof outrasOcorrencias === 'string' ? outrasOcorrencias.split('\n').filter(Boolean) : []),
                   solicitacoes: solicitacoesCCR.split('\n').filter(Boolean),
-                  substituicao: houveTrocas === 'sim' ? [{ funcao1: 'BA-2', nome1: trocaSolicitante, funcao2: 'BA-2', nome2: trocaSolicitado }] : [],
-                  cci2: [], cci3: [], crs: [],
+        substituicao: [
+          ...substituicoesDetectadas.filter(s => s.confirmada === true).map(s => {
+            const p1 = bombeiros.find((b: any) => s.substituido.includes(b.nomeCompleto) || s.substituido.includes(b.nomeGuerra));
+            const p2 = bombeiros.find((b: any) => s.substituto.includes(b.nomeCompleto) || s.substituto.includes(b.nomeGuerra));
+            return { funcao1: p1?.cargo || 'BA-2', nome1: p1?.nomeGuerra || p1?.nomeCompleto || s.substituido, funcao2: p2?.cargo || 'BA-2', nome2: p2?.nomeGuerra || p2?.nomeCompleto || s.substituto };
+          }),
+          ...(houveTrocas === 'sim' && trocaSolicitante && trocaSolicitado ? (() => {
+            const p1 = bombeiros.find((b: any) => trocaSolicitante.includes(b.nomeGuerra) || b.nomeCompleto === trocaSolicitante);
+            const p2 = bombeiros.find((b: any) => trocaSolicitado.includes(b.nomeGuerra) || b.nomeCompleto === trocaSolicitado);
+            return [{ funcao1: p1?.cargo || 'BA-2', nome1: p1?.nomeGuerra || trocaSolicitante, funcao2: p2?.cargo || 'BA-2', nome2: p2?.nomeGuerra || trocaSolicitado }];
+          })() : []),
+        ],
+                  cci2: Object.entries(equipagemCCI).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
+        cci3: Object.entries(equipagemCCIRT).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
+        crs: Object.entries(equipagemCRS).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
                   dataAssinatura: new Date().toLocaleDateString('pt-BR'),
                   chefeAssinatura: chefeEquipe,
                 };
@@ -850,6 +1395,75 @@ export function GerarLRO() {
       )}
 
       {/* Confirm modal */}
+      {/* Troca recusada warning */}
+      {showConfirmTroca && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-surface-card">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+                <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+              </div>
+              <h3 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">Atenção - Troca Registrada</h3>
+            </div>
+            <p className="mb-4 text-sm text-graphite-500">
+              Esta troca consta no sistema como um documento de <strong>Troca de Serviço</strong>. 
+              Se ela realmente não ocorreu, ela deverá ser <strong>cancelada no formulário de Troca de Serviço</strong> 
+              para evitar inconsistências.
+            </p>
+            <p className="mb-6 text-sm text-graphite-500">
+              Deseja marcar como incorreta mesmo assim?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => { setShowConfirmTroca(false); setTrocaRecusadaIdx(null); }}
+                className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 transition-all hover:bg-graphite-50 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">
+                Voltar
+              </button>
+              <button onClick={() => {
+                if (trocaRecusadaIdx !== null) {
+                  setSubstituicoesDetectadas(prev => prev.map((s, i) => i === trocaRecusadaIdx ? { ...s, confirmada: false } : s));
+                }
+                setShowConfirmTroca(false);
+                setTrocaRecusadaIdx(null);
+              }} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-red-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
+                <X className="h-4 w-4" /> Sim, marcar como Incorreta
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Troca correta warning */}
+      {showConfirmCorreta && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-surface-card">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+                <Check className="h-5 w-5 text-green-600 dark:text-green-400" />
+              </div>
+              <h3 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar Troca</h3>
+            </div>
+            <p className="mb-6 text-sm text-graphite-500">
+              Confirma que esta troca está <strong>correta</strong>? Após confirmar, <span className="font-semibold text-graphite-700 dark:text-graphite-300">não será possível alterar</span>.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => { setShowConfirmCorreta(false); setTrocaConfirmadaIdx(null); }}
+                className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 transition-all hover:bg-graphite-50 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">
+                Voltar
+              </button>
+              <button onClick={() => {
+                if (trocaConfirmadaIdx !== null) {
+                  setSubstituicoesDetectadas(prev => prev.map((s, i) => i === trocaConfirmadaIdx ? { ...s, confirmada: true } : s));
+                }
+                setShowConfirmCorreta(false);
+                setTrocaConfirmadaIdx(null);
+              }} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-green-600 to-green-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-green-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
+                <Check className="h-4 w-4" /> Sim, confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-surface-card">

@@ -788,30 +788,61 @@ function FichaFuncionario({
                 const validadeLabel = getLabelValidade(epi.dataValidade);
                 const estadoOpt = ESTADO_CONSERVACAO_OPTIONS.find(o => o.value === epi.estado);
                 return (
-                  <div key={epi.id} className="flex flex-col gap-2 rounded-lg border border-graphite-100 bg-graphite-50/50 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-border-dark dark:bg-surface-card">
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className={`h-2.5 w-2.5 rounded-full ${validadeLabel.bolinha}`} />
-                      </div>
+                  <div key={epi.id} className="rounded-lg border border-graphite-100 bg-white p-3 dark:border-border-dark dark:bg-surface-card">
+                    <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-sm font-bold text-graphite-900 dark:text-graphite-100">{epi.nome}</span>
-                          {epi.descricao && <span className="text-xs text-graphite-500 dark:text-graphite-400">— {epi.descricao}</span>}
+                          {epi.descricao && <span className="text-xs text-graphite-500">— {epi.descricao}</span>}
                         </div>
-                        <div className="mt-0.5 flex items-center gap-3 flex-wrap text-[10px] text-graphite-500 dark:text-graphite-400">
-                          <span>CA: {epi.ca}</span>
-                          {epi.tamanho && <span>Tam: {epi.tamanho}</span>}
-                          <span className={validadeLabel.cor}>{validadeLabel.label}</span>
-                          {epi.dataPagamento && <span>Pago: {new Date(epi.dataPagamento + 'T00:00:00').toLocaleDateString('pt-BR')}</span>}
+                        <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
+                          <div>
+                            <span className="text-graphite-400">CA:</span>
+                            <span className="ml-1 font-medium text-graphite-700 dark:text-graphite-300">{epi.ca}</span>
+                          </div>
+                          {epi.tamanho && (
+                            <div>
+                              <span className="text-graphite-400">Tamanho:</span>
+                              <span className="ml-1 font-medium text-graphite-700 dark:text-graphite-300">{epi.tamanho}</span>
+                            </div>
+                          )}
+                          {epi.dataPagamento && (
+                            <div>
+                              <span className="text-graphite-400">Recebido em:</span>
+                              <span className="ml-1 font-medium text-graphite-700 dark:text-graphite-300">{new Date(epi.dataPagamento + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
+                            </div>
+                          )}
+                          {epi.entreguePor && (
+                            <div>
+                              <span className="text-graphite-400">Pago por:</span>
+                              <span className="ml-1 font-medium text-graphite-700 dark:text-graphite-300">{epi.entreguePor}</span>
+                            </div>
+                          )}
+                          <div>
+                            <span className="text-graphite-400">Validade:</span>
+                            <span className={`ml-1 font-medium ${validadeLabel.cor}`}>
+                              {epi.dataValidade ? new Date(epi.dataValidade + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}
+                            </span>
+                          </div>
+                          {epi.numeroSerie && (
+                            <div>
+                              <span className="text-graphite-400">Nº Série:</span>
+                              <span className="ml-1 font-medium text-graphite-700 dark:text-graphite-300">{epi.numeroSerie}</span>
+                            </div>
+                          )}
                         </div>
-                        <div className="mt-0.5 flex items-center gap-3 flex-wrap text-[10px]">
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
                           {estadoOpt && (
-                            <span className={`inline-flex rounded-full px-2 py-0.5 font-medium ${estadoOpt.color}`}>
+                            <span className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-medium ${estadoOpt.color}`}>
                               {estadoOpt.label}
                             </span>
                           )}
-                          <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${EPI_STATUS_COLORS[epi.status]}`}>
+                          <span className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-medium ${EPI_STATUS_COLORS[epi.status]}`}>
                             {EPI_STATUS_LABELS[epi.status]}
+                          </span>
+                          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold ${validadeLabel.cor.replace('text-', 'bg-').replace('dark:', 'dark:bg-').replace('green', 'green/10').replace('yellow', 'yellow/10').replace('orange', 'orange/10').replace('red', 'red/10')} ${validadeLabel.bolinha ? 'pl-1.5' : ''}`}>
+                            {validadeLabel.bolinha && <span className={`h-1.5 w-1.5 rounded-full ${validadeLabel.bolinha}`} />}
+                            {validadeLabel.label}
                           </span>
                         </div>
                       </div>

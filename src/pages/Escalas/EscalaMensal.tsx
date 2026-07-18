@@ -17,7 +17,7 @@ import {
   obterCompleta, gerarEscalaMensal, clonarConfig, gerarNomesMes,
   excluirConfig,
 } from '../../services/escalaMensalService';
-import { SLOTS_RADIO, LOCAIS_FAXINA, type EscalaMensalConfig, type EscalaMensalCompleta, type PessoaEscala, type Veiculo, type FuncaoVeiculo } from '../../types/escalaMensal';
+import { getSlotsRadio, LOCAIS_FAXINA, type EscalaMensalConfig, type EscalaMensalCompleta, type PessoaEscala, type Veiculo, type FuncaoVeiculo } from '../../types/escalaMensal';
 
 const MESES = gerarNomesMes();
 
@@ -576,7 +576,7 @@ export function EscalaMensal() {
                   <tr className="border-b-2 border-graphite-300 dark:border-border-dark">
                     <th className="bg-white px-0.5 py-0 text-left font-bold text-graphite-600 print:text-graphite-800 dark:bg-surface-card">#</th>
                     <th className="bg-white px-0.5 py-0 text-left font-bold text-graphite-600 print:text-graphite-800 dark:bg-surface-card">Data</th>
-                    {SLOTS_RADIO.map((s, i) => (
+                    {getSlotsRadio(equipe).map((s, i) => (
                       <th key={i} className="px-0.5 py-0 text-left font-bold text-graphite-600 print:text-graphite-800">
                         {s.horario}
                       </th>

@@ -90,6 +90,7 @@ export interface EscalaFeriasItem {
   motivoRejeicao: string;
   rejeitadoPor: string;
   rejeitadoEm: string;
+  enviado: boolean;
   createdAt: string;
 }
 

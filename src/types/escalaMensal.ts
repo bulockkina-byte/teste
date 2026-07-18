@@ -64,7 +64,7 @@ export const LOCAIS_FAXINA = [
   'Lixo',
 ] as const;
 
-export const SLOTS_RADIO = [
+export const SLOTS_RADIO_NOTURNO = [
   { horario: '19:00', horarioFim: '20:00', fixo: true },
   { horario: '20:00', horarioFim: '21:00', fixo: false },
   { horario: '21:00', horarioFim: '22:00', fixo: false },
@@ -76,3 +76,22 @@ export const SLOTS_RADIO = [
   { horario: '04:30', horarioFim: '06:00', fixo: false },
   { horario: '06:00', horarioFim: '07:00', fixo: true },
 ] as const;
+
+export const SLOTS_RADIO_DIURNO = [
+  { horario: '07:00', horarioFim: '08:00', fixo: true },
+  { horario: '08:00', horarioFim: '09:00', fixo: false },
+  { horario: '09:00', horarioFim: '10:00', fixo: false },
+  { horario: '10:00', horarioFim: '11:00', fixo: false },
+  { horario: '11:00', horarioFim: '12:00', fixo: false },
+  { horario: '12:00', horarioFim: '13:00', fixo: false },
+  { horario: '13:00', horarioFim: '14:00', fixo: false },
+  { horario: '14:00', horarioFim: '15:00', fixo: false },
+  { horario: '15:00', horarioFim: '16:00', fixo: false },
+  { horario: '16:00', horarioFim: '17:00', fixo: false },
+  { horario: '17:00', horarioFim: '18:00', fixo: false },
+  { horario: '18:00', horarioFim: '19:00', fixo: true },
+] as const;
+
+export function getSlotsRadio(equipe: string) {
+  return equipe === 'Alfa' || equipe === 'Charlie' ? SLOTS_RADIO_DIURNO : SLOTS_RADIO_NOTURNO;
+}

@@ -6,7 +6,8 @@ import { useAuth } from '../../context/AuthContext';
 import { listarBombeiros } from '../../services/bombeiroService';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import type { Bombeiro } from '../../types/bombeiro';
-import { CARGO_OPTIONS, type Cargo } from '../../types/bombeiro';
+import { ABBR_CARGO, CARGO_OPTIONS, type Cargo } from '../../types/bombeiro';
+
 import type { SubstituicaoTemporaria, MotivoSubstituicao, TipoSubstituicao } from '../../types/substituicaoTemporaria';
 import { MOTIVOS_SUBSTITUICAO, STATUS_SUBSTITUICAO_CORES, MOTIVOS_OBRIGATORIOS_POR_LEI } from '../../types/substituicaoTemporaria';
 import {
@@ -20,7 +21,6 @@ import { useDebounce } from '../../hooks/useDebounce';
 import { validarCursoParaFuncao } from '../../utils/validacaoCursos';
 
 function capitalize(str: string) { return str.replace(/\b\w/g, c => c.toUpperCase()); }
-function labelCargo(valor: string) { return CARGO_OPTIONS.find(o => o.value === valor)?.label || valor; }
 function formatDate(d: string) { return d ? new Date(d + 'T12:00:00').toLocaleDateString('pt-BR') : '-'; }
 
 const INPUT_CLASS = "w-full rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all hover:border-graphite-400 focus:border-aviation-500 focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:hover:border-graphite-500 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated dark:focus:ring-aviation-400/10 dark:scheme-dark";
@@ -279,12 +279,12 @@ export function Substituicoes() {
                     <span className="font-semibold text-graphite-900 dark:text-graphite-100 truncate">
                       {capitalize(sub.funcionarioNome)}
                     </span>
-                    <span className="text-xs text-graphite-400 hidden sm:inline">[{labelCargo(sub.funcionarioCargo)}]</span>
+                    <span className="text-xs text-graphite-400 hidden sm:inline">[{ABBR_CARGO[sub.funcionarioCargo as Cargo] || sub.funcionarioCargo}]</span>
                     <ArrowRight className="h-3 w-3 shrink-0 text-graphite-400" />
                     <span className="font-semibold text-graphite-900 dark:text-graphite-100 truncate">
                       {capitalize(sub.substitutoNome)}
                     </span>
-                    <span className="text-xs text-graphite-400 hidden sm:inline">[{labelCargo(sub.substitutoCargo)}]</span>
+                    <span className="text-xs text-graphite-400 hidden sm:inline">[{ABBR_CARGO[sub.substitutoCargo as Cargo] || sub.substitutoCargo}]</span>
                   </div>
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-graphite-500 dark:text-graphite-400">
                     <span>{sub.motivo === 'Outro' ? sub.motivoOutro : MOTIVOS_SUBSTITUICAO.find(m => m.value === sub.motivo)?.label}</span>
@@ -356,7 +356,7 @@ export function Substituicoes() {
                   placeholder="Selecione o funcionário..."
                 />
                 {formSubstituido && (
-                  <p className="mt-1 text-xs text-graphite-500">{capitalize(formSubstituido.nomeCompleto)} · {labelCargo(formSubstituido.cargo)}</p>
+                  <p className="mt-1 text-xs text-graphite-500">{capitalize(formSubstituido.nomeCompleto)} · {ABBR_CARGO[formSubstituido.cargo] || formSubstituido.cargo}</p>
                 )}
               </div>
 
@@ -370,7 +370,7 @@ export function Substituicoes() {
                   disabledTooltip="Pessoa não possui os cursos necessários para esta função"
                 />
                 {formSubstituto && (
-                  <p className="mt-1 text-xs text-graphite-500">{capitalize(formSubstituto.nomeCompleto)} · {labelCargo(formSubstituto.cargo)}</p>
+                  <p className="mt-1 text-xs text-graphite-500">{capitalize(formSubstituto.nomeCompleto)} · {ABBR_CARGO[formSubstituto.cargo] || formSubstituto.cargo}</p>
                 )}
                 {formSubstituido && formSubstituto && formSubstituido.id === formSubstituto.id && (
                   <p className="mt-1 text-xs text-red-500">O substituto não pode ser a mesma pessoa.</p>
@@ -392,7 +392,7 @@ export function Substituicoes() {
 
               <div>
                 <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Função de Substituição</label>
-                <input type="text" readOnly value={substituicaoFuncao ? labelCargo(substituicaoFuncao) : 'Selecione o substituído primeiro'}
+                <input type="text" readOnly value={substituicaoFuncao ? (ABBR_CARGO[substituicaoFuncao as Cargo] || substituicaoFuncao) : 'Selecione o substituído primeiro'}
                   className={`${INPUT_CLASS} cursor-default opacity-70`} />
               </div>
 

@@ -1,4 +1,4 @@
-const API_URL = 'https://api.autentique.com.br/v2/graphql';
+const API_URL = '/api/autentique-proxy';
 
 function getToken(): string {
   const token = import.meta.env.VITE_AUTENTIQUE_TOKEN;

@@ -5,7 +5,7 @@ import { PageTitle } from '../../components/layout/PageTitle';
 import { useAuth } from '../../context/AuthContext';
 import { listarBombeiros, buscarBombeiro, criarBombeiro, atualizarBombeiro, excluirBombeiro } from '../../services/bombeiroService';
 import type { Bombeiro } from '../../types/bombeiro';
-import { CARGO_OPTIONS, EQUIPE_OPTIONS } from '../../types/bombeiro';
+import { CARGO_OPTIONS, EQUIPE_OPTIONS, ABBR_CARGO, getHorarioTrabalho } from '../../types/bombeiro';
 import { BombeiroForm } from './BombeiroForm';
 import { useDebounce } from '../../hooks/useDebounce';
 
@@ -145,7 +145,9 @@ export function Bombeiros() {
                 <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Nome</th>
                 <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Nome de Guerra</th>
                 <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Cargo</th>
+                <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Função Abrev.</th>
                 <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Equipe</th>
+                <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Horário</th>
                 <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Turno</th>
                 <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Situação</th>
                 <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Ações</th>
@@ -158,11 +160,13 @@ export function Bombeiros() {
                   <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{capitalize(b.nomeCompleto)}</td>
                   <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{capitalize(b.nomeGuerra)}</td>
                   <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{labelCargo(b.cargo)}</td>
+                  <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{ABBR_CARGO[b.cargo] || b.cargo}</td>
                   <td className="px-4 py-3">
                     <span className="inline-flex rounded-full bg-aviation-50 px-2.5 py-0.5 text-xs font-medium text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-300">
                       {b.equipe}
                     </span>
                   </td>
+                  <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{getHorarioTrabalho(b.equipe, b.cargo)}</td>
                   <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{b.turno}</td>
                   <td className="px-4 py-3">
                     {b.dataDesligamento ? (

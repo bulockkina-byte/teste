@@ -140,19 +140,7 @@ export const menuItems: MenuItem[] = [
         label: 'Ocorrências',
         icon: AlertTriangle,
         path: '/arquivo/ocorrencias',
-        description: 'Ocorrências arquivadas.',
-      },
-      {
-        label: 'BONA',
-        icon: FileText,
-        path: '/arquivo/bona',
-        description: 'Boletins de Ocorrência arquivados.',
-      },
-      {
-        label: 'RAE',
-        icon: FileText,
-        path: '/arquivo/rae',
-        description: 'Relatórios de Atendimento de Emergência arquivados.',
+        description: 'Ocorrências arquivadas (BONA e RAE).',
       },
       {
         label: 'Ordens de Serviço',
@@ -173,28 +161,10 @@ export const menuItems: MenuItem[] = [
         description: 'Planos de Trabalho arquivados.',
       },
       {
-        label: 'TAF',
-        icon: Target,
-        path: '/arquivo/taf',
-        description: 'Testes de Aptidão Física arquivados.',
-      },
-      {
-        label: 'TP/EPR',
-        icon: ScrollText,
-        path: '/arquivo/tpepr',
-        description: 'Testes de Progressão arquivados.',
-      },
-      {
-        label: 'Exercício de Posicionamento',
-        icon: Target,
-        path: '/arquivo/exercicio_posicionamento',
-        description: 'Exercícios de Posicionamento arquivados.',
-      },
-      {
-        label: 'Exercício de Tempo Resposta',
+        label: 'Treinamentos',
         icon: Activity,
-        path: '/arquivo/exercicio_tempo_resposta',
-        description: 'Exercícios de Tempo Resposta arquivados.',
+        path: '/arquivo/treinamentos',
+        description: 'Treinamentos arquivados (TAF, TP/EPR, Exercícios).',
       },
       {
         label: 'DDS',

@@ -114,12 +114,14 @@ function rowToItem(row: Record<string, unknown>): EscalaFeriasItem {
     motivoRejeicao: (row.motivo_rejeicao as string) || '',
     rejeitadoPor: (row.rejeitado_por as string) || '',
     rejeitadoEm: (row.rejeitado_em as string) || '',
+    enviado: (row.enviado as boolean) || false,
     createdAt: row.created_at as string,
   };
 }
 
 function itemToRow(data: Partial<EscalaFeriasItem>): Record<string, unknown> {
   const row: Record<string, unknown> = {};
+  if (data.enviado !== undefined) row.enviado = data.enviado;
   if (data.escalaId !== undefined) row.escala_id = data.escalaId;
   if (data.mes !== undefined) row.mes = data.mes;
   if (data.funcionarioId !== undefined) row.funcionario_id = data.funcionarioId;
@@ -424,6 +426,18 @@ export async function rejeitarItemEscala(
       rejeitado_por: rejeitadoPor,
       rejeitado_em: now,
     })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) handleSupabaseError(error);
+  return updated ? rowToItem(updated) : null;
+}
+
+export async function enviarItemEscala(id: string): Promise<EscalaFeriasItem | null> {
+  const db = getDb();
+  const { data: updated, error } = await db
+    .from(TABLE_ITEM)
+    .update({ enviado: true })
     .eq('id', id)
     .select()
     .single();

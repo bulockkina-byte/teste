@@ -13,5 +13,15 @@ export default defineConfig({
     sourcemap: false,
     cssMinify: true,
   },
-  server: { host: true, port: 5173 },
+  server: {
+    host: true,
+    port: 5173,
+    proxy: {
+      '/api/autentique-proxy': {
+        target: 'https://api.autentique.com.br/v2/graphql',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/autentique-proxy/, ''),
+      },
+    },
+  },
 })

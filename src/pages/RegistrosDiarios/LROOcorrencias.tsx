@@ -340,6 +340,8 @@ export function LROOcorrencias() {
   const [filtroAno, setFiltroAno] = useState(new Date().getFullYear().toString());
   const [filtroMes, setFiltroMes] = useState((new Date().getMonth() + 1).toString());
   const [filtroEquipe, setFiltroEquipe] = useState('');
+  const [filtroTipo, setFiltroTipo] = useState('');
+  const [filtroStatus, setFiltroStatus] = useState('');
   const MESES = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   const ANOS = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
   const inputClass = 'rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated';
@@ -355,6 +357,12 @@ export function LROOcorrencias() {
     if (canFilterTeam && filtroEquipe) {
       list = list.filter(o => o.equipe === filtroEquipe);
     }
+    if (filtroTipo) {
+      list = list.filter(o => o.tipoDocumento === filtroTipo);
+    }
+    if (filtroStatus) {
+      list = list.filter(o => o.status === filtroStatus);
+    }
     if (filtroAno) {
       list = list.filter(o => o.data.startsWith(filtroAno));
     }
@@ -365,7 +373,7 @@ export function LROOcorrencias() {
       });
     }
     return list;
-  }, [ocorrencias, canFilterTeam, userEquipe, filtroEquipe, filtroAno, filtroMes]);
+  }, [ocorrencias, canFilterTeam, userEquipe, filtroEquipe, filtroTipo, filtroStatus, filtroAno, filtroMes]);
 
   async function handleSave(data: Omit<Ocorrencia, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) {
     if (editando && editando.id) {
@@ -415,6 +423,15 @@ export function LROOcorrencias() {
           <select value={filtroMes} onChange={e => setFiltroMes(e.target.value)} className={inputClass}>
             <option value="">Todos os meses</option>
             {MESES.slice(1).map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
+          </select>
+          <select value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)} className={inputClass}>
+            <option value="">Todos os tipos</option>
+            <option value="BONA">BONA</option>
+            <option value="RAE">RAE</option>
+          </select>
+          <select value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)} className={inputClass}>
+            <option value="">Todos os status</option>
+            {STATUS_OCORRENCIA.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
           {canFilterTeam && (
             <select value={filtroEquipe} onChange={e => setFiltroEquipe(e.target.value)} className={inputClass}>

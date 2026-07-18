@@ -22,7 +22,7 @@ import {
   listarEscalas, obterEscala, criarEscala,
   excluirEscala, enviarEscala, aprovarEscala, aprovarEscalaEGerarGozos, rejeitarEscala,
   listarItensEscala, criarItemEscala, atualizarItemEscala,
-  excluirItemEscala, rejeitarItemEscala, aprovarItemEscala,
+  excluirItemEscala, rejeitarItemEscala, aprovarItemEscala, enviarItemEscala,
 } from '../../services/feriasService';
 
 // -- Constants -------------------------------------------------------------------
@@ -582,9 +582,27 @@ function TabBombeiros() {
                         <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {fmt(b.dataAdmissao)}</span>
                       </div>
                     </div>
-                    {temGozado && (
-                      <span className="shrink-0 rounded-full bg-green-100 px-2.5 py-0.5 text-[10px] font-bold text-green-700 dark:bg-green-900/20 dark:text-green-400">Gozou</span>
-                    )}
+                    <div className="flex flex-wrap gap-1 shrink-0">
+                      {periodos.map(p => {
+                        const label = p.gozo
+                          ? p.gozo.status === 'Gozadas' ? 'G' : p.gozo.status === 'Em Gozo' ? 'EG' : 'PR'
+                          : p.status === 'Disponivel' ? 'D' : p.status === 'Vencido' ? 'V' : '?';
+                        const color = p.gozo
+                          ? p.gozo.status === 'Gozadas'
+                            ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400'
+                            : p.gozo.status === 'Em Gozo'
+                              ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400'
+                              : 'bg-purple-100 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400'
+                          : p.status === 'Disponivel'
+                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
+                            : 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400';
+                        return (
+                          <span key={p.numero} title={`Periodo ${p.numero}: ${p.gozo ? p.gozo.status : p.status}`} className={`inline-flex h-5 w-5 items-center justify-center rounded text-[9px] font-bold ${color}`}>
+                            {label}
+                          </span>
+                        );
+                      })}
+                    </div>
                     {isSelected ? <ChevronDown className="h-5 w-5 shrink-0 text-graphite-400" /> : <ChevronRight className="h-5 w-5 shrink-0 text-graphite-400" />}
                   </div>
                 </button>
@@ -968,11 +986,12 @@ function TabEscalaGeral() {
   const [escalas, setEscalas] = useState<EscalaFerias[]>([]);
   const [itemsByEscala, setItemsByEscala] = useState<Map<string, EscalaFeriasItem[]>>(new Map());
   const [ano, setAno] = useState(new Date().getFullYear());
+  const [mes, setMes] = useState<number>(0);
   const [expandedEquipe, setExpandedEquipe] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [confirmDeleteEscala, setConfirmDeleteEscala] = useState<string | null>(null);
 
-  useEffect(() => { loadData(); }, [ano]);
+  useEffect(() => { loadData(); }, [ano, mes]);
 
   async function loadData() {
     setLoading(true);
@@ -1016,11 +1035,22 @@ function TabEscalaGeral() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center gap-3">
-        <label className={labelCls}>Ano</label>
-        <select value={ano} onChange={e => setAno(Number(e.target.value))} className={`${selectCls} !w-auto`}>
-          {getAnos().map(a => <option key={a} value={a} className={optionCls}>{a}</option>)}
-        </select>
+      <div className="mb-6 flex items-center gap-3 flex-wrap">
+        <div>
+          <label className={labelCls}>Ano</label>
+          <select value={ano} onChange={e => setAno(Number(e.target.value))} className={`${selectCls} !w-auto`}>
+            {getAnos().map(a => <option key={a} value={a} className={optionCls}>{a}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className={labelCls}>Mês</label>
+          <select value={mes} onChange={e => setMes(Number(e.target.value))} className={`${selectCls} !w-auto`}>
+            <option value={0} className={optionCls}>Todos</option>
+            {MESES.map((m, i) => (
+              <option key={i + 1} value={i + 1} className={optionCls}>{m}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="space-y-3">
@@ -1109,9 +1139,9 @@ function TabEscalaGeral() {
                     </div>
                   )}
 
-                  {items.length > 0 ? (
+                  {items.filter(item => mes === 0 || item.mes === mes).length > 0 ? (
                     <div className="space-y-2">
-                      {items.map(item => (
+                      {items.filter(item => mes === 0 || item.mes === mes).map(item => (
                         <div key={item.id} className="rounded-xl border border-graphite-200 p-3 dark:border-border-dark dark:bg-surface-hover">
                           <div className="flex items-center justify-between">
                             <div>
@@ -1150,7 +1180,10 @@ function TabEscalaGeral() {
                   <div className="mt-4">
                     <h5 className="mb-2 text-xs font-bold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Efetivo da Equipe</h5>
                     <div className="flex flex-wrap gap-2">
-                      {teamMembers.map(m => (
+                      {[...teamMembers].sort((a, b) => {
+                        const hierarquia: Record<string, number> = { 'BA-CE': 1, 'BA-LR': 2, 'BA-MC': 3, 'BA-2': 4, 'BA-RE': 5, 'GS': 6, 'OC': 7 };
+                        return (hierarquia[a.cargo] || 99) - (hierarquia[b.cargo] || 99);
+                      }).map(m => (
                         <span key={m.id} className="inline-flex items-center gap-1 rounded-full bg-graphite-100 px-2.5 py-1 text-[10px] font-semibold text-graphite-700 dark:bg-surface-hover dark:text-graphite-300">
                           {m.nomeGuerra} <span className="text-graphite-400 dark:text-graphite-500">({ABBR_CARGO[m.cargo] || m.cargo})</span>
                         </span>
@@ -1491,7 +1524,10 @@ function TabEscalaAnual() {
       {escala && (
         <>
           <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-            {teamMembers.map(m => (
+            {[...teamMembers].sort((a, b) => {
+              const h: Record<string, number> = { 'BA-CE': 1, 'BA-LR': 2, 'BA-MC': 3, 'BA-RE': 4, 'BA-2': 5, 'OC': 6, 'GS': 7 };
+              return (h[a.cargo] || 99) - (h[b.cargo] || 99);
+            }).map(m => (
               <div key={m.id} className="rounded-xl border border-graphite-200 bg-white p-3 text-center shadow-sm dark:border-border-dark dark:bg-surface-card">
                 <div className="mx-auto mb-1 flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-aviation-500 to-aviation-700 text-xs font-bold text-white">
                   {m.nomeGuerra.charAt(0)}
@@ -1513,11 +1549,24 @@ function TabEscalaAnual() {
                 <div key={mesNum} className={`rounded-2xl border p-4 transition-all dark:bg-surface-card ${hasItems ? 'border-aviation-200 bg-aviation-50/50 dark:border-aviation-800 dark:bg-aviation-900/10' : 'border-graphite-200 bg-white dark:border-border-dark'}`}>
                   <div className="flex items-center justify-between gap-3 mb-2">
                     <span className="text-sm font-bold text-graphite-900 dark:text-graphite-100">{mes}</span>
-                    {canEdit && (
-                      <button onClick={() => startEditMonth(mesNum)} className="flex items-center gap-1 rounded-lg bg-aviation-100 px-2.5 py-1 text-xs font-medium text-aviation-700 transition-colors hover:bg-aviation-200 dark:bg-aviation-900/30 dark:text-aviation-300 dark:hover:bg-aviation-900/50">
-                        <Plus className="h-3.5 w-3.5" /> Adicionar pessoa
-                      </button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {canEdit && (
+                        <button onClick={() => startEditMonth(mesNum)} className="flex items-center gap-1 rounded-lg bg-aviation-100 px-2.5 py-1 text-xs font-medium text-aviation-700 transition-colors hover:bg-aviation-200 dark:bg-aviation-900/30 dark:text-aviation-300 dark:hover:bg-aviation-900/50">
+                          <Plus className="h-3.5 w-3.5" /> Adicionar pessoa
+                        </button>
+                      )}
+                      {canSend && mesItems.length > 0 && (
+                        <button onClick={async () => {
+                          for (const item of mesItems) {
+                            await enviarItemEscala(item.id);
+                          }
+                          const it = await listarItensEscala(escala.id);
+                          setItens(it);
+                        }} className="flex items-center gap-1 rounded-lg bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:hover:bg-amber-900/50">
+                          <Send className="h-3.5 w-3.5" /> Enviar Mês
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {!hasItems && !isEditing && (
@@ -1625,9 +1674,22 @@ function TabEscalaAnual() {
                         <label className={labelCls}>Substituto</label>
                         <select value={formSubId} onChange={e => setFormSubId(e.target.value)} className={selectCls}>
                           <option value="" className={optionCls}>Nenhum</option>
-                          {teamMembers.filter(m => m.id !== formFuncId).map(m => (
-                            <option key={m.id} value={m.id} className={optionCls}>{m.nomeCompleto} ({ABBR_CARGO[m.cargo] || m.cargo})</option>
-                          ))}
+                          {(() => {
+                            const func = bombeiros.find(b => b.id === formFuncId);
+                            const isBA2 = func?.cargo === 'BA-2';
+                            if (isBA2) {
+                              return feiristas.map(m => (
+                                <option key={m.id} value={m.id} className={optionCls}>
+                                  {m.nomeCompleto} ({ABBR_CARGO[m.cargo] || m.cargo}) [Feirista]
+                                </option>
+                              ));
+                            }
+                            return [...teamMembers.filter(m => m.id !== formFuncId), ...feiristas].map(m => (
+                              <option key={m.id} value={m.id} className={optionCls}>
+                                {m.nomeCompleto} ({ABBR_CARGO[m.cargo] || m.cargo}){m.equipe === 'Feirista' ? ' [Feirista]' : ''}
+                              </option>
+                            ));
+                          })()}
                         </select>
                       </div>
 
@@ -1985,104 +2047,49 @@ function TabMinhaEquipe() {
   );
 }
 
-// -- Tab Escala Feiristas --------------------------------------------------------
+// -- Tab Férias Feiristas (Gerente) -------------------------------------------------
 
 function TabEscalaFeiristas() {
-  const { effectiveRole } = useAuth();
+  const { effectiveRole, user } = useAuth();
   const canManage = effectiveRole === 'desenvolvedor' || effectiveRole === 'admin' || effectiveRole === 'gerente';
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
-  const [escalas, setEscalas] = useState<EscalaFerias[]>([]);
-  const [allItems, setAllItems] = useState<EscalaFeriasItem[]>([]);
+  const [feriasGozo, setFeriasGozo] = useState<FeriasGozo[]>([]);
   const [ano, setAno] = useState(new Date().getFullYear());
   const [loading, setLoading] = useState(true);
-
-  const [formEquipe, setFormEquipe] = useState('');
-  const [formMes, setFormMes] = useState(1);
-  const [formMembro, setFormMembro] = useState('');
-  const [formFeiristaAtivo, setFormFeiristaAtivo] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const feiristas = useMemo(() => bombeiros.filter(b => b.equipe === 'Feirista'), [bombeiros]);
-  const equipes: Equipe[] = ['Alfa', 'Bravo', 'Charlie', 'Delta'];
 
   async function carregar() {
     setLoading(true);
-    const all = await listarAtivos();
+    const [all, gozos] = await Promise.all([listarAtivos(), listarFeriasGozo()]);
     setBombeiros(all);
-    const escs = await listarEscalas(undefined, ano);
-    setEscalas(escs);
-    const items: EscalaFeriasItem[] = [];
-    for (const esc of escs) {
-      const it = await listarItensEscala(esc.id);
-      items.push(...it);
-    }
-    setAllItems(items);
+    setFeriasGozo(gozos);
     setLoading(false);
   }
 
-  useEffect(() => { carregar(); }, [ano]);
+  useEffect(() => { carregar(); }, []);
 
-  const membrosSemFeirista = useMemo(() => {
-    if (!formEquipe) return [];
-    const esc = escalas.find(e => e.equipe === formEquipe && e.ano === ano);
-    if (!esc) return [];
-    const members = bombeiros.filter(b => b.equipe === formEquipe);
-    return members.filter(m => {
-      const item = allItems.find(i => i.escalaId === esc.id && i.funcionarioId === m.id && i.mes === formMes);
-      return !item?.feiristaId || item?.rejeitado;
+  async function handleSaveGozo(periodo: PeriodoAquisitivo, dataInicio: string, dataFim: string, feirista: Bombeiro) {
+    if (!user) return;
+    setSaving(true);
+    const dias = calcDias(dataInicio, dataFim);
+    await criarFeriasGozo({
+      funcionarioId: feirista.id,
+      funcionarioNome: feirista.nomeCompleto,
+      equipe: 'Feirista',
+      periodoNumero: periodo.numero,
+      dataInicio, dataFim, dias,
+      status: 'Programadas',
+      substitutoId: '', substitutoNome: '', funcaoSubstituicao: '',
+      observacoes: 'Férias Feirista',
+      modificadoPor: user.username,
+      bloqueado: true,
     });
-  }, [formEquipe, formMes, escalas, allItems, bombeiros, ano]);
-
-  async function handleAddAlocacao(feiristaId: string) {
-    if (!formEquipe || !formMembro) return;
-    const esc = escalas.find(e => e.equipe === formEquipe && e.ano === ano);
-    if (!esc) return;
-    const existing = allItems.find(i =>
-      i.escalaId === esc.id && i.funcionarioId === formMembro && i.mes === formMes
-    );
-    const feirista = feiristas.find(f => f.id === feiristaId);
-    if (!feirista) return;
-
-    if (existing) {
-      await atualizarItemEscala(existing.id, { feiristaId, feiristaNome: feirista.nomeCompleto });
-    } else {
-      await criarItemEscala({
-        escalaId: esc.id,
-        funcionarioId: formMembro,
-        funcionarioNome: bombeiros.find(b => b.id === formMembro)?.nomeCompleto || '',
-        mes: formMes,
-        dataInicio: '',
-        dataFim: '',
-        dias: 30,
-        feiristaId,
-        feiristaNome: feirista.nomeCompleto,
-        rejeitado: false,
-      });
-    }
-    setFormEquipe('');
-    setFormMembro('');
     await carregar();
+    setSaving(false);
   }
-
-  async function handleRemoveAlocacao(itemId: string) {
-    await atualizarItemEscala(itemId, { feiristaId: null, feiristaNome: null });
-    await carregar();
-  }
-
-  const feiristaAssignments = useMemo(() => {
-    const assignments: Record<string, { equipe: string; mes: number; funcNome: string; item: EscalaFeriasItem }[]> = {};
-    for (const f of feiristas) {
-      assignments[f.id] = [];
-    }
-    for (const item of allItems) {
-      if (item.feiristaId && item.feiristaNome && !item.rejeitado) {
-        const list = assignments[item.feiristaId] || [];
-        const esc = escalas.find(e => e.id === item.escalaId);
-        list.push({ equipe: esc?.equipe || '', mes: item.mes, funcNome: item.funcionarioNome, item });
-        assignments[item.feiristaId] = list;
-      }
-    }
-    return assignments;
-  }, [feiristas, allItems, escalas]);
 
   if (loading) {
     return (
@@ -2095,108 +2102,69 @@ function TabEscalaFeiristas() {
   return (
     <div>
       <div className="mb-4 flex items-center gap-3">
-        <span className="text-sm font-medium text-graphite-700 dark:text-graphite-300">Ano:</span>
-        <select value={ano} onChange={e => setAno(Number(e.target.value))} className={`${selectCls} !w-auto`}>
-          {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(y => (
-            <option key={y} value={y} className={optionCls}>{y}</option>
-          ))}
-        </select>
+        <User className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+        <span className="text-sm font-medium text-graphite-700 dark:text-graphite-300">
+          {feiristas.length} feirista(s) — Gerencie os períodos de férias
+        </span>
       </div>
-
-      <p className="mb-4 text-sm text-graphite-500 dark:text-graphite-400">
-        <strong className="text-graphite-700 dark:text-graphite-200">{feiristas.length}</strong> feirista(s) · {' '}
-        <strong className="text-orange-700 dark:text-orange-400">{allItems.filter(i => i.feiristaId && !i.rejeitado).length}</strong> alocação(ões) ativa(s)
-      </p>
 
       {feiristas.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">
           <Users className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
           <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhum feirista cadastrado</h3>
-          <p className="text-sm text-graphite-400">Cadastre bombeiros com equipe "Feirista" para gerenciar escala.</p>
+          <p className="text-sm text-graphite-400">Cadastre bombeiros com equipe "Feirista" para gerenciar férias.</p>
         </div>
       ) : (
         <div className="space-y-3">
           {feiristas.map(f => {
-            const assignments = feiristaAssignments[f.id] || [];
-            const grouped: Record<string, typeof assignments> = {};
-            for (const a of assignments) {
-              if (!grouped[a.equipe]) grouped[a.equipe] = [];
-              grouped[a.equipe].push(a);
-            }
+            const periodos = buildPeriodos(f, feriasGozo);
+            const isSelected = selectedId === f.id;
             return (
-              <div key={f.id} className="rounded-2xl border border-graphite-200 bg-white p-4 shadow-sm dark:border-border-dark dark:bg-surface-card">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 text-sm font-bold text-white">
-                    {f.nomeGuerra?.charAt(0)?.toUpperCase() || f.nomeCompleto.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-bold text-graphite-900 dark:text-graphite-100">{f.nomeCompleto}</p>
-                    <p className="text-xs text-graphite-500 dark:text-graphite-400">{f.nomeGuerra} · {f.cargo}</p>
-                  </div>
-                  <span className="rounded-full bg-orange-100 px-2.5 py-0.5 text-[10px] font-bold text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
-                    {assignments.length} alocação(ões)
-                  </span>
-                </div>
-
-                {assignments.length > 0 && (
-                  <div className="space-y-2 mb-3">
-                    {Object.entries(grouped).map(([equipe, eqAssignments]) => (
-                      <div key={equipe} className="rounded-xl border border-graphite-100 bg-graphite-50/50 p-3 dark:border-border-dark dark:bg-surface-hover">
-                        <div className="flex items-center justify-between mb-2">
-                          <p className="text-xs font-bold text-graphite-700 dark:text-graphite-300">Equipe {equipe}</p>
-                        </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {eqAssignments.sort((a, b) => a.mes - b.mes).map((a, idx) => (
-                            <span key={a.item.id || idx} className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-orange-700 dark:bg-orange-900/20 dark:text-orange-300">
-                              {MESES[a.mes - 1].substring(0, 3)} → {a.funcNome.split(' ')[0]}
-                              {canManage && (
-                                <button onClick={() => handleRemoveAlocacao(a.item.id)}
-                                  className="ml-0.5 rounded-full p-0.5 text-orange-500 hover:bg-orange-200 hover:text-orange-800 dark:hover:bg-orange-800/30 dark:hover:text-orange-200">
-                                  <X className="h-3 w-3" />
-                                </button>
-                              )}
-                            </span>
-                          ))}
-                        </div>
+              <div key={f.id}>
+                <button
+                  onClick={() => setSelectedId(isSelected ? null : f.id)}
+                  className={`w-full rounded-2xl border p-4 text-left shadow-sm transition-all hover:shadow-md dark:bg-surface-card ${
+                    isSelected ? 'border-aviation-400 bg-aviation-50 dark:border-aviation-500 dark:bg-aviation-900/20' : 'border-graphite-200 bg-white dark:border-border-dark'
+                  }`}>
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-orange-700 text-sm font-bold text-white shadow-sm">
+                      {f.foto ? <img src={f.foto} alt="" className="h-full w-full rounded-xl object-cover" /> : f.nomeGuerra.charAt(0)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-graphite-900 dark:text-graphite-100 truncate">{f.nomeCompleto}</p>
+                      <div className="flex items-center gap-2 text-xs text-graphite-500 dark:text-graphite-400">
+                        <span>{f.cargo}</span>
+                        <span>·</span>
+                        <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {fmt(f.dataAdmissao)}</span>
                       </div>
-                    ))}
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {periodos.map(p => {
+                        const label = p.gozo
+                          ? p.gozo.status === 'Gozadas' ? 'G' : p.gozo.status === 'Em Gozo' ? 'EG' : 'PR'
+                          : p.status === 'Disponivel' ? 'D' : p.status === 'Vencido' ? 'V' : '?';
+                        const color = p.gozo
+                          ? p.gozo.status === 'Gozadas' ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400' : p.gozo.status === 'Em Gozo' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400' : 'bg-purple-100 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400'
+                          : p.status === 'Disponivel' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400' : 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400';
+                        return (
+                          <span key={p.numero} title={`Periodo ${p.numero}: ${p.gozo ? p.gozo.status : p.status}`} className={`inline-flex h-5 w-5 items-center justify-center rounded text-[9px] font-bold ${color}`}>{label}</span>
+                        );
+                      })}
+                    </div>
+                    {isSelected ? <ChevronDown className="h-5 w-5 shrink-0 text-graphite-400" /> : <ChevronRight className="h-5 w-5 shrink-0 text-graphite-400" />}
                   </div>
-                )}
-
-                {canManage && (
-                  <div className="border-t border-graphite-100 pt-3 dark:border-border-dark">
-                    {formFeiristaAtivo === f.id ? (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <select value={formEquipe} onChange={e => { setFormEquipe(e.target.value); setFormMembro(''); }}
-                          className="rounded-lg border border-graphite-300 bg-white px-2 py-1 text-[10px] dark:border-border-dark dark:bg-surface-card dark:text-graphite-100">
-                          <option value="" className={optionCls}>Equipe</option>
-                          {equipes.map(eq => <option key={eq} value={eq} className={optionCls}>{eq}</option>)}
-                        </select>
-                        <select value={formMes} onChange={e => setFormMes(Number(e.target.value))}
-                          className="rounded-lg border border-graphite-300 bg-white px-2 py-1 text-[10px] dark:border-border-dark dark:bg-surface-card dark:text-graphite-100">
-                          {MESES.map((m, i) => <option key={i} value={i + 1} className={optionCls}>{m.substring(0, 3)}</option>)}
-                        </select>
-                        <select value={formMembro} onChange={e => setFormMembro(e.target.value)}
-                          className="rounded-lg border border-graphite-300 bg-white px-2 py-1 text-[10px] dark:border-border-dark dark:bg-surface-card dark:text-graphite-100">
-                          <option value="" className={optionCls}>Membro</option>
-                          {membrosSemFeirista.map(m => (
-                            <option key={m.id} value={m.id} className={optionCls}>{m.nomeGuerra}</option>
-                          ))}
-                        </select>
-                        <button onClick={() => handleAddAlocacao(f.id)} disabled={!formEquipe || !formMembro}
-                          className="flex items-center gap-1 rounded-lg bg-orange-500 px-2.5 py-1 text-[10px] font-medium text-white transition-all hover:bg-orange-600 disabled:opacity-40">
-                          <Plus className="h-3 w-3" /> Alocar
-                        </button>
-                        <button onClick={() => { setFormFeiristaAtivo(null); setFormEquipe(''); setFormMembro(''); }}
-                          className="rounded-lg border border-graphite-300 bg-white px-2 py-1 text-[10px] text-graphite-500 dark:border-border-dark dark:bg-surface-card">
-                          Cancelar
-                        </button>
-                      </div>
+                </button>
+                {isSelected && (
+                  <div className="mt-2 rounded-2xl border border-graphite-200 bg-white p-5 shadow-sm dark:border-border-dark dark:bg-surface-card">
+                    <h4 className="mb-4 text-sm font-bold text-graphite-900 dark:text-graphite-100">Períodos Aquisitivos — {f.nomeCompleto}</h4>
+                    {periodos.length === 0 ? (
+                      <p className="text-sm text-graphite-400">Nenhum período calculado.</p>
                     ) : (
-                      <button onClick={() => { setFormFeiristaAtivo(f.id); setFormEquipe(''); setFormMes(1); setFormMembro(''); }}
-                        className="flex items-center gap-1 text-xs text-aviation-600 hover:text-aviation-700 dark:text-aviation-400">
-                        <Plus className="h-3 w-3" /> Nova Alocação
-                      </button>
+                      <div className="space-y-3">
+                        {periodos.map(p => (
+                          <PeriodoCard key={p.numero} periodo={p} onSave={(periodo, dIni, dFim) => handleSaveGozo(periodo, dIni, dFim, f)} saving={saving} />
+                        ))}
+                      </div>
                     )}
                   </div>
                 )}
@@ -2346,24 +2314,54 @@ function TabQuadroEfetivos() {
                         {disponiveis.map(m => {
                           const item = getItemSubstituicao(m, mesSelecionado);
                           const feirista = getFeiristaDesignado(m, mesSelecionado);
+                          const temSub = !!(item?.substitutoNome || feirista?.feiristaNome);
                           return (
-                            <div key={m.id} className="flex items-center gap-2.5 rounded-xl border border-green-200 bg-green-50/50 px-3 py-2 dark:border-green-800/30 dark:bg-green-900/10">
-                              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-green-500 to-green-600 text-[10px] font-bold text-white">
-                                {m.foto ? <img src={m.foto} alt="" className="h-full w-full rounded-lg object-cover" /> : m.nomeGuerra.charAt(0)}
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <p className="text-xs font-bold text-graphite-900 dark:text-graphite-100 truncate">{m.nomeGuerra}</p>
-                                <p className="text-[10px] text-graphite-500 dark:text-graphite-400">{ABBR_CARGO[m.cargo] || m.cargo}</p>
-                              </div>
-                              {item?.substitutoNome && (
-                                <span className="shrink-0 text-[9px] text-orange-600 dark:text-orange-400">
-                                  Sub: {item.substitutoNome.split(' ')[0]}
-                                </span>
-                              )}
-                              {feirista?.feiristaNome && (
-                                <span className="shrink-0 text-[9px] text-orange-600 dark:text-orange-400">
-                                  F: {feirista.feiristaNome.split(' ')[0]}
-                                </span>
+                            <div key={m.id} className={`group relative rounded-xl border px-3 py-2 transition-all ${
+                              temSub
+                                ? 'border-amber-300 bg-amber-50/50 dark:border-amber-700 dark:bg-amber-900/10'
+                                : 'border-green-200 bg-green-50/50 dark:border-green-800/30 dark:bg-green-900/10'
+                            }`}>
+                              {temSub ? (
+                                <div className="group relative">
+                                  <div className="flex items-center gap-2.5 transition-all duration-300 group-hover:opacity-0 group-hover:scale-95">
+                                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 text-[10px] font-bold text-white">
+                                      {item?.substitutoNome ? item.substitutoNome.charAt(0).toUpperCase() : feirista?.feiristaNome?.charAt(0).toUpperCase() || 'S'}
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-xs font-bold text-graphite-900 dark:text-graphite-100 truncate flex items-center gap-1">
+                                        {item?.substitutoNome || feirista?.feiristaNome || ''}
+                                        <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[8px] font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">↔</span>
+                                      </p>
+                                      <p className="text-[10px] text-graphite-500 dark:text-graphite-400">Substituto</p>
+                                    </div>
+                                  </div>
+                                  <div className="absolute inset-0 flex items-center gap-2.5 rounded-xl opacity-0 transition-all duration-300 group-hover:opacity-100 group-hover:scale-100 scale-90">
+                                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-green-500 to-green-600 text-xs font-bold text-white shadow-md shadow-green-500/30">
+                                      {m.nomeGuerra.charAt(0)}
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-xs font-bold text-green-700 dark:text-green-300 truncate">
+                                        {m.nomeGuerra}
+                                      </p>
+                                      <div className="flex items-center gap-1 mt-0.5">
+                                        <span className="rounded-full bg-green-200 px-1.5 py-0.5 text-[8px] font-bold text-green-800 dark:bg-green-800/40 dark:text-green-300">Substituído</span>
+                                        <span className="text-[10px] text-green-600 dark:text-green-400">
+                                          {ABBR_CARGO[m.cargo] || m.cargo}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2.5">
+                                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-green-500 to-green-600 text-[10px] font-bold text-white">
+                                    {m.foto ? <img src={m.foto} alt="" className="h-full w-full rounded-lg object-cover" /> : m.nomeGuerra.charAt(0)}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-xs font-bold text-graphite-900 dark:text-graphite-100 truncate">{m.nomeGuerra}</p>
+                                    <p className="text-[10px] text-graphite-500 dark:text-graphite-400">{ABBR_CARGO[m.cargo] || m.cargo}</p>
+                                  </div>
+                                </div>
                               )}
                             </div>
                           );

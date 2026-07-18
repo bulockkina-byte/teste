@@ -3,7 +3,7 @@ import {
   FileText, Plus, Search, Eye, Loader2,
   ChevronDown, ChevronUp, Edit3, CheckCircle,
   Trash2, Download, Upload, Shield, Save, ArrowLeft,
-  AlertTriangle, Package, Link, X,
+  AlertTriangle, Package, Link, X, Send,
 } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
@@ -21,6 +21,8 @@ import {
   listarPdfsStorage,
 } from '../../services/documentoService';
 import { preencherPdf, downloadPdf } from '../../services/pdfService';
+import { criarDocumento as criarDocumentoAutentique } from '../../services/autentiqueService';
+import type { AutentiqueSigner } from '../../services/autentiqueService';
 import type { Document, DocumentWithFields, DocumentField, DocumentFill } from '../../types/document';
 import { SOURCE_MODULE_OPTIONS } from '../../types/document';
 import { useAuth } from '../../context/AuthContext';
@@ -196,9 +198,16 @@ export function Documentos() {
 
   function getAllFuncionarios() {
     return [
-      ...bombeirosList.map(b => ({ label: b.nomeCompleto, sublabel: `${b.cargo} - ${b.email}` })),
-      ...apocsList.map(a => ({ label: a.nomeCompleto, sublabel: `APOC - ${a.email}` })),
+      ...bombeirosList.map(b => ({ label: b.nomeCompleto, sublabel: `${b.cargo} - ${b.email}`, _type: 'bombeiro' as const, _raw: b })),
+      ...apocsList.map(a => ({ label: a.nomeCompleto, sublabel: `APOC - ${a.email}`, _type: 'apoc' as const, _raw: a })),
     ];
+  }
+
+  function getEmailByNome(nome: string): string | null {
+    if (!nome) return null;
+    const all = getAllFuncionarios();
+    const match = all.find(f => f.label === nome || f._raw.nomeGuerra === nome);
+    return match?._raw.email || null;
   }
 
   async function loadPdfData(doc: DocumentWithFields | null) {
@@ -673,6 +682,48 @@ export function Documentos() {
       setNotifPopup({ msg: 'Erro inesperado ao gerar PDF. Contate o administrador.', type: 'error' });
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleSendAutentique() {
+    if (!selectedDoc || !validateForm()) return;
+    setSaving(true);
+    try {
+      const pdfKey = selectedDoc.template_pdf_url;
+      if (!pdfKey) { setNotifPopup({ msg: 'PDF nao vinculado.', type: 'error' }); return; }
+      const blob = await getPdfBlob(pdfKey);
+      if (!blob) { setNotifPopup({ msg: 'PDF nao encontrado.', type: 'error' }); return; }
+      const pdfBytes = await blob.arrayBuffer();
+      const dadosStr: Record<string, string> = {};
+      for (const [k, v] of Object.entries(formData)) dadosStr[k] = String(v || '');
+      const pdfBlob = await preencherPdf(pdfBytes, dadosStr);
+
+      const nomeArquivo = `${selectedDoc.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`;
+      const signers: AutentiqueSigner[] = [];
+      for (const signer of selectedDoc.document_signers) {
+        const email = getEmailByNome(signer.signer_name);
+        if (email) {
+          signers.push({ email, action: 'SIGN' });
+        } else {
+          signers.push({ name: signer.signer_name, action: 'SIGN' });
+        }
+      }
+
+      const result = await criarDocumentoAutentique(pdfBlob, nomeArquivo, signers, undefined, true);
+      await criarPreenchimento({
+        document_id: selectedDoc.id, filled_by: user?.username || null,
+        filled_data: formData, status: 'pending',
+        autentique_document_id: result.id,
+        autentique_link: result.signatures[0]?.link?.short_link || null,
+      });
+      const docFills = await import('../../services/documentoService').then(m => m.listarPreenchimentos(selectedDoc.id));
+      setNotifPopup({ msg: 'Enviado para assinatura no Autentique com sucesso!', type: 'success' });
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : 'Erro desconhecido';
+      setNotifPopup({ msg: `Erro ao enviar para Autentique: ${errMsg}`, type: 'error' });
+    } finally {
+      setSaving(false);
+      setTimeout(() => setNotifPopup(null), 4000);
     }
   }
 
@@ -1403,6 +1454,10 @@ export function Documentos() {
               <button onClick={handleGerarPdf} disabled={!selectedDoc.template_pdf_url}
                 className="flex items-center gap-2 rounded-lg bg-aviation-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-aviation-700 disabled:opacity-50">
                 <Download className="h-4 w-4" /> Baixar PDF Preenchido
+              </button>
+              <button onClick={handleSendAutentique} disabled={!selectedDoc.template_pdf_url}
+                className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-xl hover:from-purple-500 hover:to-purple-600 active:scale-[0.98] disabled:opacity-50">
+                <Send className="h-4 w-4" /> Enviar para Autentique
               </button>
             </div>
           </div>

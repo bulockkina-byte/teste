@@ -1,5 +1,5 @@
 import type { EscalaMensalConfig, EscalaMensalCompleta, PessoaEscala, PlantaoGerado, VeiculosPlantao, RadioSlot } from '../types/escalaMensal';
-import { LOCAIS_FAXINA, SLOTS_RADIO } from '../types/escalaMensal';
+import { LOCAIS_FAXINA, getSlotsRadio } from '../types/escalaMensal';
 
 function buildVeiculos(pessoas: PessoaEscala[]): VeiculosPlantao {
   const g = (v: string, f: string) => pessoas.find(p => p.veiculo === v && p.funcaoNoVeiculo === f)?.nomeGuerra || '-';
@@ -27,7 +27,8 @@ function rotateArray<T>(arr: T[], shift: number): T[] {
   return [...arr.slice(s), ...arr.slice(0, s)];
 }
 
-function gerarRadioPlantao(pessoas: PessoaEscala[], idxPlantao: number): RadioSlot[] {
+function gerarRadioPlantao(pessoas: PessoaEscala[], idxPlantao: number, equipe: string): RadioSlot[] {
+  const slots = getSlotsRadio(equipe);
   const pool = pessoas.filter(p => p.funcao !== 'chefe' && p.funcao !== 'lider');
   const bookendIdx = pool.findIndex(p => p.isRadioFixo);
   const bookend = pool[bookendIdx];
@@ -37,21 +38,24 @@ function gerarRadioPlantao(pessoas: PessoaEscala[], idxPlantao: number): RadioSl
   const posNoite = Math.floor((idxPlantao + 3) / 2) % 4;
   const posMadrugada = Math.floor(idxPlantao / 2) % 4;
   const pos = bookendNaNoite ? posNoite : posMadrugada;
+  const metade = Math.floor((slots.length - 2) / 2);
   let grupo20: PessoaEscala[], grupo06: PessoaEscala[];
   if (bookendNaNoite) {
-    grupo20 = [...rotSem.slice(0, 3)]; grupo20.splice(pos, 0, bookend);
-    grupo06 = rotSem.slice(3, 7);
+    grupo20 = [...rotSem.slice(0, metade - 1)]; grupo20.splice(pos, 0, bookend);
+    grupo06 = rotSem.slice(metade - 1, slots.length - 2);
   } else {
-    grupo20 = rotSem.slice(0, 4);
-    grupo06 = [...rotSem.slice(4, 7)]; grupo06.splice(pos, 0, bookend);
+    grupo20 = rotSem.slice(0, metade);
+    grupo06 = [...rotSem.slice(metade, slots.length - 2)]; grupo06.splice(pos, 0, bookend);
   }
   const result: RadioSlot[] = [];
   let i20 = 0, i06 = 0;
-  for (const slot of SLOTS_RADIO) {
-    if (slot.horario === '19:00' || slot.horario === '06:00') {
+  const primeiroFixo = slots[0].horario;
+  const ultimoFixo = slots[slots.length - 1].horario;
+  for (const slot of slots) {
+    if (slot.horario === primeiroFixo || slot.horario === ultimoFixo) {
       result.push({ horario: slot.horario, horarioFim: slot.horarioFim, pessoaNome: bookend.nome, pessoaNomeGuerra: bookend.nomeGuerra, fixo: true });
     } else {
-      const is20 = i20 < 4;
+      const is20 = i20 < metade;
       const p = is20 ? grupo20[i20++] : grupo06[i06++];
       result.push({ horario: slot.horario, horarioFim: slot.horarioFim, pessoaNome: p.nome, pessoaNomeGuerra: p.nomeGuerra, fixo: false });
     }
@@ -91,7 +95,7 @@ function gerarResponsabilidades(pessoas: PessoaEscala[], faxina: { local: string
 }
 
 export function gerarEscalaMensal(config: EscalaMensalConfig): EscalaMensalCompleta {
-  const { mes, ano, paridade, pessoas } = config;
+  const { mes, ano, paridade, pessoas, equipe } = config;
   const dias = diasPlantao(mes, ano, paridade);
   const faxinaMensal = gerarFaxinaMensal(pessoas, mes);
   const responsabilidades = gerarResponsabilidades(pessoas, faxinaMensal);
@@ -99,7 +103,7 @@ export function gerarEscalaMensal(config: EscalaMensalConfig): EscalaMensalCompl
     dia,
     data: fmtDate(dia, mes, ano),
     veiculos: buildVeiculos(pessoas),
-    radio: gerarRadioPlantao(pessoas, idx + 1),
+    radio: gerarRadioPlantao(pessoas, idx + 1, equipe),
   }));
   return { config, paradas, faxinaMensal, responsabilidades };
 }

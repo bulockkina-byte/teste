@@ -16,7 +16,7 @@ export interface Document {
 
 export type SourceModule =
   | 'trocas' | 'ferias' | 'epis' | 'certificacoes' | 'ocorrencias'
-  | 'bona' | 'ordem_servico' | 'lro' | 'ptrba' | 'rae'
+  | 'ordem_servico' | 'lro' | 'ptrba'
   | 'taf' | 'tpepr' | 'checklists'
   | 'exercicio_posicionamento' | 'exercicio_tempo_resposta' | 'dds';
 
@@ -25,9 +25,7 @@ export const SOURCE_MODULE_OPTIONS: { value: SourceModule; label: string }[] = [
   { value: 'ferias', label: 'Férias' },
   { value: 'epis', label: 'EPIs' },
   { value: 'certificacoes', label: 'Certificações' },
-  { value: 'ocorrencias', label: 'Ocorrências' },
-  { value: 'bona', label: 'BONA' },
-  { value: 'rae', label: 'RAE' },
+  { value: 'ocorrencias', label: 'Ocorrências (BONA / RAE)' },
   { value: 'ordem_servico', label: 'Ordens de Serviço' },
   { value: 'lro', label: 'LRO' },
   { value: 'ptrba', label: 'PTR-BA' },
@@ -148,7 +146,7 @@ export interface DocumentFill {
   document_id: string;
   filled_by: string | null;
   filled_data: Record<string, any>;
-  status: 'draft' | 'pending' | 'signed' | 'cancelled';
+  status: 'draft' | 'pending' | 'signed' | 'cancelled' | 'archived';
   autentique_document_id: string | null;
   autentique_link: string | null;
   created_at: string;

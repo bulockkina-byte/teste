@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   RefreshCw, Plus, ArrowLeft, FileText, Loader2,
   Save, ChevronDown, ChevronUp, Filter,
-  AlertTriangle, AlertCircle, Edit, Trash2, Eye, CheckCircle, Send, X,
+  AlertTriangle, AlertCircle, Edit, Trash2, Eye, CheckCircle, Send, X, ArrowRight, Archive,
 } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
@@ -29,6 +29,7 @@ import {
 import type { AutentiqueSigner } from '../../services/autentiqueService';
 
 type SubView = 'list' | 'form';
+type ViewMode = 'list' | 'report';
 
 const MONTH_NAMES = [
   'Janeiro', 'Fevereiro', 'Marco', 'Abril', 'Maio', 'Junho',
@@ -111,6 +112,10 @@ export function Trocas() {
   const isGerente = user?.role === 'gerente';
   const [loading, setLoading] = useState(true);
   const [subView, setSubView] = useState<SubView>('list');
+  const isRelatorioRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/relatorios');
+  const [viewMode, setViewMode] = useState<ViewMode>(isRelatorioRoute ? 'report' : 'list');
+
+  const [archiveConfirmFill, setArchiveConfirmFill] = useState<DocumentFill | null>(null);
   const [templateDoc, setTemplateDoc] = useState<DocumentWithFields | null>(null);
   const [fills, setFills] = useState<DocumentFill[]>([]);
   const [expandedFill, setExpandedFill] = useState<string | null>(null);
@@ -163,6 +168,7 @@ export function Trocas() {
 
   const filteredFills = useMemo(() => {
     return fills.filter(fill => {
+      if (fill.status === 'archived') return false;
       const d = new Date(fill.created_at);
       if (!isAdmin && fill.filled_by !== user?.username) return false;
       if (filterEquipe) {
@@ -191,10 +197,31 @@ export function Trocas() {
       });
       const p1 = getPessoaByNome(fd.nome_solicitante || '');
       const p2 = getPessoaByNome(fd.nome_solicitado || '');
-      if (p1 && p2) {
-        if (p1.cargo && p2.cargo && p1.cargo !== p2.cargo) ids.add(f.id);
-        if (p1.turno && p2.turno && !mesmoTurnoEfetivo(p1, p2)) ids.add(f.id);
-      }
+      const cargo1 = p1?.cargo || (fd.funcao_solicitante || '').split(' - ')[0] || '';
+      const cargo2 = p2?.cargo || (fd.funcao_solicitado || '').split(' - ')[0] || '';
+      if (cargo1 && cargo2 && cargo1 !== cargo2) ids.add(f.id);
+      if (p1?.turno && p2?.turno && !mesmoTurnoEfetivo(p1, p2)) ids.add(f.id);
+      if (fd.troca_emergencial === 'SIM') ids.add(f.id);
+    });
+    Object.values(pessoaFills).forEach(arr => arr.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()));
+    Object.values(pessoaFills).forEach(arr => {
+      arr.forEach((f, i) => {
+        if (i >= MAX_TROCAS_PER_MONTH - 1) ids.add(f.id);
+      });
+    });
+    return ids;
+  }, [filteredFills]);
+
+  const excessoLimiteIds = useMemo(() => {
+    const pessoaFills: Record<string, { id: string; created_at: string }[]> = {};
+    const ids = new Set<string>();
+    filteredFills.forEach(f => {
+      const fd = f.filled_data as Record<string, string>;
+      const nomes = new Set([fd.nome_solicitante, fd.nome_solicitado].filter(Boolean));
+      nomes.forEach(nome => {
+        if (!pessoaFills[nome]) pessoaFills[nome] = [];
+        pessoaFills[nome].push({ id: f.id, created_at: f.created_at });
+      });
     });
     Object.values(pessoaFills).forEach(arr => arr.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()));
     Object.values(pessoaFills).forEach(arr => {
@@ -246,7 +273,7 @@ export function Trocas() {
       setLoading(true);
       const [docs, bombeiros, apocs] = await Promise.all([
         listarDocumentos(),
-        listarBombeiros(),
+        listarBombeiros().catch(() => { try { return JSON.parse(localStorage.getItem('sescinc-bombeiros') || '[]'); } catch { return []; } }),
         listarAPOCs(),
       ]);
       setBombeirosList(bombeiros);
@@ -353,15 +380,30 @@ export function Trocas() {
     return '';
   }
 
-  function getPessoaByNome(nome: string): { cargo: string; nomeGuerra: string; equipe: string; turno: string } | null {
+  function getCargoLabel(cargo: string): string {
+    if (!cargo) return cargo;
+    return CARGO_OPTIONS.find(c => c.value === cargo)?.label || cargo;
+  }
+
+  function getPessoaByNome(nome: string): { cargo: string; nomeGuerra: string; nomeCompleto: string; equipe: string; turno: string } | null {
     if (!nome) return null;
     const all = getAllFuncionarios();
-    const match = all.find(f => f.label === nome);
+    const lower = nome.toLowerCase().trim();
+    const primeiroNome = lower.split(' ')[0];
+    const match = all.find(f => {
+      if (f.label.toLowerCase() === lower) return true;
+      if (f._raw.nomeGuerra?.toLowerCase() === lower) return true;
+      if (f._raw.nomeGuerra?.toLowerCase() === primeiroNome) return true;
+      if (lower.startsWith(f._raw.nomeGuerra?.toLowerCase() || '')) return true;
+      const completo = (f._raw.nomeCompleto || f.label || '').toLowerCase();
+      const partes = lower.split(' ');
+      return partes.every((p: string) => completo.includes(p));
+    });
     if (!match) return null;
     if (match._type === 'bombeiro') {
-      return { cargo: match._raw.cargo || '', nomeGuerra: match._raw.nomeGuerra || '', equipe: match._raw.equipe || '', turno: match._raw.turno || '' };
+      return { cargo: match._raw.cargo || '', nomeGuerra: match._raw.nomeGuerra || '', nomeCompleto: match._raw.nomeCompleto || '', equipe: match._raw.equipe || '', turno: match._raw.turno || '' };
     }
-    return { cargo: match._raw.funcao || 'APOC', nomeGuerra: match._raw.nomeGuerra || match.label, equipe: match._raw.equipe || '', turno: match._raw.turno || '' };
+    return { cargo: match._raw.funcao || 'APOC', nomeGuerra: match._raw.nomeGuerra || match.label, nomeCompleto: match._raw.nomeCompleto || match.label, equipe: match._raw.equipe || '', turno: match._raw.turno || '' };
   }
 
   function displayNomeGuerra(nome: string): string {
@@ -404,9 +446,7 @@ export function Trocas() {
 
   const personExcessMap = useMemo(() => {
     const countMap: Record<string, number> = {};
-    fills.forEach(fill => {
-      const d = new Date(fill.created_at);
-      if (d.getMonth() !== now.getMonth() || d.getFullYear() !== now.getFullYear()) return;
+    filteredFills.forEach(fill => {
       const data = fill.filled_data as Record<string, string>;
       const nomeSol = data.nome_solicitante || '';
       const nomeSolic = data.nome_solicitado || '';
@@ -418,7 +458,7 @@ export function Trocas() {
       if (count > MAX_TROCAS_PER_MONTH) excessMap[nome] = count - MAX_TROCAS_PER_MONTH;
     });
     return excessMap;
-  }, [fills]);
+  }, [filteredFills]);
 
   function handleNameSelect(fieldName: string, value: string) {
     const all = getAllFuncionarios();
@@ -432,6 +472,7 @@ export function Trocas() {
           next.funcao_solicitante = b.cargo || '';
         } else if (fieldName === 'nome_solicitado') {
           next.cpf_solicitado = formatCpf(b.cpf || '');
+          next.funcao_solicitado = b.cargo || '';
         }
       } else if (match?._type === 'apoc') {
         const a = match._raw;
@@ -440,6 +481,7 @@ export function Trocas() {
           next.funcao_solicitante = a.funcao || 'APOC';
         } else if (fieldName === 'nome_solicitado') {
           next.cpf_solicitado = '';
+          next.funcao_solicitado = a.funcao || 'APOC';
         }
       }
       return next;
@@ -506,11 +548,6 @@ export function Trocas() {
       const pdfBytes = await blob.arrayBuffer();
       const dadosStr: Record<string, string> = {};
       for (const [k, v] of Object.entries(formData)) dadosStr[k] = String(v || '');
-
-      if (dadosStr.funcao_solicitante) {
-        const cargoLabel = CARGO_OPTIONS.find(c => c.value === dadosStr.funcao_solicitante)?.label;
-        if (cargoLabel) dadosStr.funcao_solicitante = cargoLabel;
-      }
 
       if (formData.troca_emergencial === 'SIM') {
         dadosStr.check_troca_sim = 'V';
@@ -619,10 +656,6 @@ export function Trocas() {
       const pdfBytes = await blob.arrayBuffer();
       const dadosStr: Record<string, string> = {};
       for (const [k, v] of Object.entries(formData)) dadosStr[k] = String(v || '');
-      if (dadosStr.funcao_solicitante) {
-        const cargoLabel = CARGO_OPTIONS.find(c => c.value === dadosStr.funcao_solicitante)?.label;
-        if (cargoLabel) dadosStr.funcao_solicitante = cargoLabel;
-      }
       if (formData.troca_emergencial === 'SIM') { dadosStr.check_troca_sim = 'V'; dadosStr.check_troca_nao = ''; }
       else if (formData.troca_emergencial === 'NAO') { dadosStr.check_troca_sim = ''; dadosStr.check_troca_nao = 'V'; }
       if (formData.deferido_indeferido === 'DEFERIDO') { dadosStr.check_deferido = 'V'; dadosStr.check_indeferido = ''; }
@@ -657,10 +690,6 @@ export function Trocas() {
       const dadosStr: Record<string, string> = {};
       const data = fill.filled_data as Record<string, string>;
       for (const [k, v] of Object.entries(data)) dadosStr[k] = String(v || '');
-      if (dadosStr.funcao_solicitante) {
-        const cargoLabel = CARGO_OPTIONS.find(c => c.value === dadosStr.funcao_solicitante)?.label;
-        if (cargoLabel) dadosStr.funcao_solicitante = cargoLabel;
-      }
       if (data.troca_emergencial === 'SIM') { dadosStr.check_troca_sim = 'V'; dadosStr.check_troca_nao = ''; }
       else if (data.troca_emergencial === 'NAO') { dadosStr.check_troca_sim = ''; dadosStr.check_troca_nao = 'V'; }
       if (data.deferido_indeferido === 'DEFERIDO') { dadosStr.check_deferido = 'V'; dadosStr.check_indeferido = ''; }
@@ -709,6 +738,17 @@ export function Trocas() {
     setFormData(initialData);
     setEditingFillId(fill.id);
     setSubView('form');
+  }
+
+  async function handleArchiveFill(fill: DocumentFill) {
+    try {
+      await atualizarPreenchimento(fill.id, { status: 'archived' as any });
+      setFills(prev => prev.filter(f => f.id !== fill.id));
+      setArchiveConfirmFill(null);
+      setShowNotifPopup({ msg: 'Documento arquivado com sucesso!', type: 'success' });
+    } catch {
+      setShowNotifPopup({ msg: 'Erro ao arquivar documento.', type: 'error' });
+    }
   }
 
   function handleDeleteFill(fillId: string) {
@@ -780,6 +820,11 @@ export function Trocas() {
     if (field.conditional_on) {
       const [depFieldName, depValue] = field.conditional_on.split('=');
       if ((formData[depFieldName] || '') !== depValue) return null;
+    }
+
+    if (field.field_name === 'funcao_solicitante' || field.field_name === 'funcao_solicitado') {
+      const fullLabel = CARGO_OPTIONS.find(c => c.value === value)?.label || value;
+      return <input type="text" value={fullLabel} readOnly className={`${readonlyBase} ${cls}`} />;
     }
 
     if (field.read_only) {
@@ -859,6 +904,7 @@ export function Trocas() {
     const fFuncaoSol = getF('funcao_solicitante');
     const fNomeSolic = getF('nome_solicitado');
     const fCpfSolic = getF('cpf_solicitado');
+    const fFuncaoSolic = getF('funcao_solicitado');
     const fDataSol = getF('data_solicitada');
     const fDataFolga = getF('data_folga_solicitado');
     const fTrocaEmerg = getF('troca_emergencial');
@@ -917,7 +963,7 @@ export function Trocas() {
               <div className="flex gap-3">
                 <div className="w-[45%] shrink-0"><Label field={fNomeSolic} />{renderField(fNomeSolic)}</div>
                 {fCpfSolic && <div className="w-[180px] shrink-0"><Label field={fCpfSolic} />{renderField(fCpfSolic)}</div>}
-                <div className="min-w-0 flex-1" />
+                {fFuncaoSolic && <div className="min-w-0 flex-1"><Label field={fFuncaoSolic} />{renderField(fFuncaoSolic)}</div>}
               </div>
             </div>
           )}
@@ -1106,7 +1152,37 @@ export function Trocas() {
           </div>
         )}
 
-        {showNotifPopup && (
+      {archiveConfirmFill && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-graphite-800">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40">
+                <Archive className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-graphite-900 dark:text-graphite-100">Arquivar Troca</h3>
+            </div>
+            <p className="mb-6 text-sm text-graphite-600 dark:text-graphite-300">
+              Tem certeza que deseja arquivar esta troca? Ela <strong>desaparecerá da lista de Trocas</strong> e ficará disponível apenas no <strong>Arquivo</strong>.
+              {(() => {
+                const fd = archiveConfirmFill.filled_data as Record<string, string>;
+                const sol = fd.nome_solicitante || '';
+                const solic = fd.nome_solicitado || '';
+                return sol || solic ? ` (${sol} → ${solic})` : '';
+              })()}
+            </p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setArchiveConfirmFill(null)} className="rounded-lg border border-graphite-200 px-4 py-2 text-sm font-medium text-graphite-700 hover:bg-graphite-50 dark:border-graphite-600 dark:text-graphite-200 dark:hover:bg-graphite-700">
+                Cancelar
+              </button>
+              <button onClick={() => handleArchiveFill(archiveConfirmFill)} className="flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700">
+                <Archive className="h-4 w-4" /> Arquivar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showNotifPopup && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowNotifPopup(null)}>
             <div className="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-graphite-800" onClick={e => e.stopPropagation()}>
               <div className="mb-4 flex items-center gap-3">
@@ -1141,9 +1217,21 @@ export function Trocas() {
       <div className="flex items-center justify-between">
         <PageTitle icon={RefreshCw} title="Trocas de Servico" />
         <div className="flex items-center gap-2">
+          {!isRelatorioRoute && (
+          <button onClick={() => setViewMode(viewMode === 'list' ? 'report' : 'list')}
+            className={`flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-all ${
+              viewMode === 'report'
+                ? 'bg-aviation-600 text-white border-aviation-600'
+                : 'border-graphite-300 text-graphite-700 hover:bg-graphite-50 dark:border-border-dark dark:text-graphite-200'
+            }`}>
+            <FileText className="h-4 w-4" /> {viewMode === 'report' ? 'Voltar à Lista' : 'Pré Relatório'}
+          </button>
+          )}
+          {!isRelatorioRoute && (
           <button onClick={startNewTroca} className="flex items-center gap-2 rounded-lg bg-aviation-600 px-4 py-2 text-sm font-medium text-white hover:bg-aviation-700">
             <Plus className="h-4 w-4" /> Criar Troca
           </button>
+          )}
         </div>
       </div>
       <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-graphite-400 bg-white p-3 dark:border-graphite-500 dark:bg-graphite-800">
@@ -1160,52 +1248,226 @@ export function Trocas() {
             {EQUIPE_OPTIONS.map(eq => (<option key={eq} value={eq}>{eq}</option>))}
           </select>
         )}
+        {isRelatorioRoute && (
+          <button onClick={() => window.print()}
+            className="flex items-center gap-1 rounded-lg border border-graphite-300 bg-white px-3 py-1.5 text-xs font-medium hover:bg-graphite-50 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200 dark:hover:bg-surface-hover">
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+            Imprimir Relatório
+          </button>
+        )}
         <span className="ml-auto text-xs text-graphite-500 dark:text-graphite-400">{filteredFills.length} troca(s) encontrada(s)</span>
       </div>
 
-      {Object.keys(personExcessMap).length > 0 && (
-        <div className="mb-4 flex items-center gap-3 rounded-xl border border-red-300 bg-red-50 px-5 py-4 dark:border-red-800 dark:bg-red-900/20">
-          <AlertTriangle className="h-5 w-5 shrink-0 text-red-600 dark:text-red-400" />
-          <div className="text-sm text-red-800 dark:text-red-200">
-            <strong>Atenção:</strong>{' '}
+      {!isRelatorioRoute && Object.keys(personExcessMap).length > 0 && (
+        <div className="mb-4 rounded-xl border border-red-400 bg-red-50 px-5 py-4 shadow-sm dark:border-red-800 dark:bg-red-900/20">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-200 dark:bg-red-800/50">
+              <AlertTriangle className="h-4 w-4 text-red-700 dark:text-red-300" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-red-800 dark:text-red-200 uppercase tracking-wider">Limite de Trocas Excedido</p>
+              <p className="text-xs text-red-600 dark:text-red-400">Limite máximo de {MAX_TROCAS_PER_MONTH} trocas por mês por pessoa.</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
             {Object.entries(personExcessMap).map(([nome, excesso]) => (
-              <span key={nome}>{nome} excedeu o limite em {excesso} troca(s). </span>
+              <span key={nome} className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-1 text-[10px] font-bold text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                {nome} ({excesso} excedente)
+              </span>
             ))}
-            O limite é de {MAX_TROCAS_PER_MONTH} trocas por mês por pessoa.
           </div>
         </div>
       )}
 
       {(() => {
-        const warnings: string[] = [];
+        const turnWarnings: string[] = [];
+        const funcWarnings: string[] = [];
         filteredFills.forEach(fill => {
           const fd = fill.filled_data as Record<string, string>;
           const p1 = getPessoaByNome(fd.nome_solicitante || '');
           const p2 = getPessoaByNome(fd.nome_solicitado || '');
-          if (p1 && p2 && p1.turno && p2.turno && !mesmoTurnoEfetivo(p1, p2)) {
-            const label = `Troca entre turnos (${p1.turno} x ${p2.turno}): ${displayNomeGuerra(fd.nome_solicitante || '')} x ${displayNomeGuerra(fd.nome_solicitado || '')}`;
-            if (!warnings.includes(label)) warnings.push(label);
+          const cargo1 = p1?.cargo || (fd.funcao_solicitante || '').split(' - ')[0] || '';
+          const cargo2 = p2?.cargo || (fd.funcao_solicitado || '').split(' - ')[0] || '';
+          const nome1 = p1?.nomeGuerra || fd.nome_solicitante?.split(' ')[0] || '';
+          const nome2 = p2?.nomeGuerra || fd.nome_solicitado?.split(' ')[0] || '';
+          if (p1?.turno && p2?.turno && !mesmoTurnoEfetivo(p1, p2)) {
+            const label = `${cargo1} ${nome1} x ${cargo2} ${nome2} (${p1.turno} x ${p2.turno})`;
+            if (!turnWarnings.includes(label)) turnWarnings.push(label);
           }
-          if (p1 && p2 && p1.cargo && p2.cargo && p1.cargo !== p2.cargo) {
-            const label = `Troca entre funções (${p1.cargo} x ${p2.cargo}): ${displayNomeGuerra(fd.nome_solicitante || '')} x ${displayNomeGuerra(fd.nome_solicitado || '')}`;
-            if (!warnings.includes(label)) warnings.push(label);
+          if (cargo1 && cargo2 && cargo1 !== cargo2) {
+            const label = `${cargo1} ${nome1} x ${cargo2} ${nome2}`;
+            if (!funcWarnings.includes(label)) funcWarnings.push(label);
           }
         });
-        if (warnings.length === 0) return null;
+        if (isRelatorioRoute || (turnWarnings.length === 0 && funcWarnings.length === 0)) return null;
         return (
-          <div className="mb-4 flex items-center gap-3 rounded-xl border border-red-300 bg-red-50 px-5 py-4 dark:border-red-800 dark:bg-red-900/20">
-            <AlertTriangle className="h-5 w-5 shrink-0 text-red-600 dark:text-red-400" />
-            <div className="text-sm text-red-800 dark:text-red-200">
-              <strong>Atenção - Trocas que necessitam autorização do gerente:</strong>
-              <ul className="ml-4 mt-1 list-disc">
-                {warnings.map((w, i) => <li key={i}>{w}</li>)}
-              </ul>
-            </div>
+          <div className="space-y-3 mb-4">
+            {turnWarnings.length > 0 && (
+              <div className="rounded-xl border border-orange-400 bg-orange-50 px-5 py-4 shadow-sm dark:border-orange-800 dark:bg-orange-900/20">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-200 dark:bg-orange-800/50">
+                    <AlertTriangle className="h-4 w-4 text-orange-700 dark:text-orange-300" />
+                  </div>
+                  <p className="text-xs font-bold text-orange-800 dark:text-orange-200 uppercase tracking-wider">Trocas entre Turnos Diferentes</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {turnWarnings.map((w, i) => (
+                    <span key={i} className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2.5 py-1 text-[10px] font-bold text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+                      {w}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {funcWarnings.length > 0 && (
+              <div className="rounded-xl border border-amber-400 bg-amber-50 px-5 py-4 shadow-sm dark:border-amber-800 dark:bg-amber-900/20">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-200 dark:bg-amber-800/50">
+                    <AlertTriangle className="h-4 w-4 text-amber-700 dark:text-amber-300" />
+                  </div>
+                  <p className="text-xs font-bold text-amber-800 dark:text-amber-200 uppercase tracking-wider">Trocas entre Funções Diferentes</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {funcWarnings.map((w, i) => (
+                    <span key={i} className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                      {w}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         );
       })()}
 
-      {filteredFills.length === 0 ? (
+      {viewMode === 'report' ? (
+        (() => {
+          const baseList = isRelatorioRoute
+            ? filteredFills.filter(f => f.status === 'signed')
+            : filteredFills;
+          // Remove duplicates (same solicitante + same solicitado)
+          const unique = new Map<string, typeof baseList[0]>();
+          baseList.forEach(f => {
+            const fd = f.filled_data as Record<string, string>;
+            const key = `${fd.nome_solicitante || ''}|${fd.nome_solicitado || ''}`.toLowerCase();
+            if (!unique.has(key) || new Date(f.created_at) > new Date(unique.get(key)!.created_at)) {
+              unique.set(key, f);
+            }
+          });
+          const alfabetico = [...unique.values()].sort((a, b) => {
+            const nomeA = ((a.filled_data as Record<string, string>)?.nome_solicitante || '').toLowerCase();
+            const nomeB = ((b.filled_data as Record<string, string>)?.nome_solicitante || '').toLowerCase();
+            const cmp = nomeA.localeCompare(nomeB);
+            if (cmp !== 0) return cmp;
+            return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          });
+          const assinados = alfabetico.filter(f => f.status === 'signed');
+          const naoAssinados = alfabetico.filter(f => f.status !== 'signed');
+          return (
+            <div className="space-y-6">
+              <div className="rounded-2xl border border-graphite-200 bg-white overflow-hidden dark:border-border-dark dark:bg-surface-card">
+                {!isRelatorioRoute && (
+                <div className="border-b border-graphite-200 px-5 py-4 dark:border-border-dark">
+                  <h3 className="text-sm font-bold text-graphite-900 dark:text-graphite-100">
+                    Trocas de {MONTH_NAMES[filterMonth]} de {filterYear}
+                    <span className="ml-2 text-xs font-normal text-graphite-400">({naoAssinados.length} pendentes · {assinados.length} assinadas)</span>
+                  </h3>
+                </div>
+                )}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-graphite-200 bg-graphite-50 dark:border-border-dark dark:bg-surface-hover">
+                          <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Solicitante</th>
+                          <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Solicitado</th>
+                          <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Data Solicitada</th>
+                          <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Data a Trabalhar</th>
+                          <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(isRelatorioRoute ? alfabetico : naoAssinados).map((fill, idx, arr) => {
+                        const da = fill.filled_data as Record<string, string>;
+                        return (
+                          <tr key={fill.id} className={`border-b border-graphite-100 dark:border-border-dark ${idx === arr.length - 1 ? 'border-b-0' : ''}`}>
+                            <td className="px-4 py-3 text-graphite-900 dark:text-graphite-100">{da.nome_solicitante || '-'}</td>
+                            <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{da.nome_solicitado || '-'}</td>
+                            <td className="px-4 py-3 text-xs text-graphite-500 dark:text-graphite-400">{da.data_solicitada ? new Date(da.data_solicitada + 'T12:00:00').toLocaleDateString('pt-BR') : '-'}</td>
+                            <td className="px-4 py-3 text-xs text-graphite-500 dark:text-graphite-400">{da.data_folga_solicitado ? new Date(da.data_folga_solicitado + 'T12:00:00').toLocaleDateString('pt-BR') : '-'}</td>
+                            <td className="px-4 py-3 text-center">
+                              <div className="flex items-center justify-center gap-1">
+                              <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                                fill.status === 'signed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
+                                fill.status === 'pending' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
+                                fill.status === 'draft' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300' :
+                                'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                              }`}>
+                                {fill.status === 'signed' ? 'Assinado' : fill.status === 'pending' ? 'Aguardando' : fill.status === 'draft' ? 'Rascunho' : 'Cancelado'}
+                              </span>
+                              <a href={fill.autentique_link || '#'} target={fill.autentique_link ? '_blank' : '_self'} rel="noopener noreferrer"
+                                onClick={!fill.autentique_link ? (e => e.preventDefault()) : undefined}
+                                className="rounded-lg p-1 text-graphite-400 hover:bg-aviation-50 hover:text-aviation-600 dark:hover:bg-aviation-900/20"
+                                title={fill.autentique_link ? "Ver no Autentique" : "Sem link"}>
+                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                              </a>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              {!isRelatorioRoute && assinados.length > 0 && (
+                <div className="rounded-2xl border border-green-200 bg-green-50/50 overflow-hidden dark:border-green-800/30 dark:bg-green-900/10">
+                  <div className="border-b border-green-200 px-5 py-4 dark:border-green-800/30">
+                    <h3 className="flex items-center gap-2 text-sm font-bold text-green-800 dark:text-green-300">
+                      <CheckCircle className="h-4 w-4" /> Trocas Assinadas via Autentique ({assinados.length})
+                    </h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-green-200 bg-green-100/50 dark:border-green-800/30 dark:bg-green-900/20">
+                          <th className="px-4 py-3 text-left text-[10px] font-bold uppercase text-green-700 dark:text-green-400">Solicitante</th>
+                          <th className="px-4 py-3 text-left text-[10px] font-bold uppercase text-green-700 dark:text-green-400">Solicitado</th>
+                          <th className="px-4 py-3 text-left text-[10px] font-bold uppercase text-green-700 dark:text-green-400">Data Solicitada</th>
+                          <th className="px-4 py-3 text-left text-[10px] font-bold uppercase text-green-700 dark:text-green-400">Data a Trabalhar</th>
+                          <th className="px-4 py-3 text-center text-[10px] font-bold uppercase text-green-700 dark:text-green-400">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {assinados.map((fill, idx, arr) => {
+                          const da = fill.filled_data as Record<string, string>;
+                          return (
+                            <tr key={fill.id} className={`border-b border-green-100 dark:border-green-800/20 ${idx === arr.length - 1 ? 'border-b-0' : ''}`}>
+                              <td className="px-4 py-3 text-green-900 dark:text-green-100">{da.nome_solicitante || '-'}</td>
+                              <td className="px-4 py-3 text-green-800 dark:text-green-300">{da.nome_solicitado || '-'}</td>
+                              <td className="px-4 py-3 text-xs text-green-600 dark:text-green-400">{da.data_solicitada ? new Date(da.data_solicitada + 'T12:00:00').toLocaleDateString('pt-BR') : '-'}</td>
+                              <td className="px-4 py-3 text-xs text-green-600 dark:text-green-400">{da.data_folga_solicitado ? new Date(da.data_folga_solicitado + 'T12:00:00').toLocaleDateString('pt-BR') : '-'}</td>
+                              <td className="px-4 py-3 text-center">
+                                <span className="inline-flex items-center gap-1 rounded-full bg-green-200 px-2 py-0.5 text-[10px] font-bold text-green-800 dark:bg-green-800/40 dark:text-green-300">
+                                  <CheckCircle className="h-3 w-3" /> Assinado
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+              {alfabetico.length === 0 && (
+                <div className="rounded-xl border border-dashed border-graphite-400 bg-graphite-50 py-12 text-center">
+                  <p className="text-graphite-500">Nenhuma troca em {MONTH_NAMES[filterMonth]} de {filterYear}</p>
+                </div>
+              )}
+            </div>
+          );
+        })()
+      ) : filteredFills.length === 0 ? (
         <div className="rounded-xl border border-dashed border-graphite-400 bg-graphite-50 py-12 text-center dark:border-graphite-500 dark:bg-graphite-800/50">
           <FileText className="mx-auto mb-3 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
           <p className="text-graphite-500 dark:text-graphite-400">Nenhuma troca em {MONTH_NAMES[filterMonth]} de {filterYear}</p>
@@ -1220,7 +1482,7 @@ export function Trocas() {
             const nomeSolic = data.nome_solicitado || '';
             const pessoaSol = getPessoaByNome(nomeSol);
             const pessoaSolic = getPessoaByNome(nomeSolic);
-            const isExcess = violationFillIds.has(fill.id);
+            const isExcessoLimite = excessoLimiteIds.has(fill.id);
 
             let dotColor = 'bg-yellow-500 dark:bg-yellow-400';
             let dotLabel = 'Rascunho';
@@ -1237,41 +1499,50 @@ export function Trocas() {
 
             const displaySol = displayNomeGuerra(nomeSol);
             const displaySolic = displayNomeGuerra(nomeSolic);
-            const turnosDiferentes = pessoaSol?.turno && pessoaSolic?.turno && pessoaSol.turno !== pessoaSolic.turno;
-            const funcoesDiferentes = pessoaSol?.cargo && pessoaSolic?.cargo && pessoaSol.cargo !== pessoaSolic.cargo;
+            const cargoSolAbr = pessoaSol?.cargo || (data.funcao_solicitante || '').split(' - ')[0] || '';
+            const cargoSolicAbr = pessoaSolic?.cargo || (data.funcao_solicitado || '').split(' - ')[0] || '';
+            const cargoSolBadge = getCargoLabel(cargoSolAbr);
+            const cargoSolicBadge = getCargoLabel(cargoSolicAbr);
+            const turnoSol = pessoaSol?.turno || bombeirosList.find((b: any) => nomeSol.includes(b.nomeGuerra))?.turno || '';
+            const turnoSolic = pessoaSolic?.turno || bombeirosList.find((b: any) => nomeSolic.includes(b.nomeGuerra))?.turno || '';
+            const isFeirista = pessoaSol?.equipe === 'Feirista' || pessoaSolic?.equipe === 'Feirista' || bombeirosList.some((b: any) => (nomeSol.includes(b.nomeGuerra) || nomeSolic.includes(b.nomeGuerra)) && b.equipe === 'Feirista');
+            const turnosDiferentes = !isFeirista && turnoSol && turnoSolic && turnoSol !== turnoSolic;
+            const funcoesDiferentes = cargoSolAbr && cargoSolicAbr && cargoSolAbr !== cargoSolicAbr;
 
             return (
               <div key={fill.id} className={`rounded-xl border bg-white dark:bg-graphite-800 ${
-                isExcess
+                isExcessoLimite
                   ? 'border-red-500 ring-1 ring-red-300 dark:border-red-500 dark:ring-red-600'
-                  : 'border-graphite-200 dark:border-graphite-600'
+                  : turnosDiferentes
+                    ? 'border-orange-400 ring-1 ring-orange-200 dark:border-orange-500 dark:ring-orange-800/40'
+                    : funcoesDiferentes
+                      ? 'border-amber-400 ring-1 ring-amber-200 dark:border-amber-500 dark:ring-amber-800/40'
+                      : 'border-graphite-200 dark:border-graphite-600'
               }`}>
                 <div className="flex items-center justify-between p-4">
                   <button onClick={() => setExpandedFill(isExpanded ? null : fill.id)} className="flex flex-1 items-center gap-3 text-left">
                     <span className={`h-2.5 w-2.5 flex-shrink-0 rounded-full ${dotColor}`} title={dotLabel} />
                     <div className="min-w-0">
-                      <div className="text-sm font-medium text-graphite-900 dark:text-graphite-100">
-                        {displaySol} {'\u2192'} {displaySolic}
-                        {data.troca_emergencial === 'SIM' && <AlertTriangle className="ml-1 inline h-4 w-4 text-red-500" />}
+                      <div className="text-sm font-medium text-graphite-900 dark:text-graphite-100 flex items-center gap-1.5 flex-wrap">
+                        <span className="rounded-md bg-aviation-100 px-1.5 py-0.5 text-[9px] font-bold text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-300">{cargoSolAbr || '—'}</span>
+                        <span>{pessoaSol?.nomeCompleto || nomeSol}</span>
+                        <span className="text-graphite-400 text-xs">{'\u2192'}</span>
+                        <span className="rounded-md bg-aviation-100 px-1.5 py-0.5 text-[9px] font-bold text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-300">{cargoSolicAbr || '—'}</span>
+                        <span>{pessoaSolic?.nomeCompleto || nomeSolic}</span>
+                        {isExcessoLimite && <span className="inline-flex items-center gap-0.5 rounded bg-red-100 px-1.5 py-0.5 text-[9px] font-bold text-red-700 dark:bg-red-900/30 dark:text-red-400"><AlertTriangle className="h-2.5 w-2.5" /> LIMITE</span>}
+                        {data.troca_emergencial === 'SIM' && <span className="inline-flex items-center gap-0.5 rounded bg-red-100 px-1.5 py-0.5 text-[9px] font-bold text-red-700 dark:bg-red-900/30 dark:text-red-400"><AlertTriangle className="h-2.5 w-2.5" /> EMERG.</span>}
+                        {turnosDiferentes && <span className="inline-flex items-center gap-0.5 rounded bg-orange-100 px-1.5 py-0.5 text-[9px] font-bold text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"><AlertTriangle className="h-2.5 w-2.5" /> TURNOS</span>}
+                        {funcoesDiferentes && <span className="inline-flex items-center gap-0.5 rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"><AlertTriangle className="h-2.5 w-2.5" /> FUNÇÕES</span>}
                       </div>
-                      <div className="text-xs text-graphite-500 dark:text-graphite-400">
+                      <div className="text-xs text-graphite-500 dark:text-graphite-400 mt-0.5">
                         Criado por: {data.criado_por || fill.filled_by || 'Desconhecido'}
                         {' '}&bull;{' '}
                         {new Date(fill.created_at).toLocaleDateString('pt-BR')}
+                        {!pessoaSol?.cargo && data.funcao_solicitante && <span className="ml-2 text-graphite-400">({getCargoLabel(data.funcao_solicitante)})</span>}
                       </div>
                     </div>
                   </button>
                   <div className="flex items-center gap-2">
-                    {fill.status === 'draft' && (
-                      <>
-                        <button onClick={() => handleEditFill(fill)} title="Editar" className="rounded-lg border border-graphite-200 p-1.5 text-graphite-500 hover:bg-graphite-50 dark:border-graphite-600 dark:text-graphite-400 dark:hover:bg-graphite-700">
-                          <Edit className="h-4 w-4" />
-                        </button>
-                        <button onClick={() => handleDeleteFill(fill.id)} title="Excluir" className="rounded-lg border border-graphite-200 p-1.5 text-red-500 hover:bg-red-50 dark:border-graphite-600 dark:text-red-400 dark:hover:bg-red-900/20">
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </>
-                    )}
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                       fill.status === 'draft' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300' :
                       fill.status === 'signed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
@@ -1289,9 +1560,19 @@ export function Trocas() {
                     <button onClick={() => setExpandedFill(isExpanded ? null : fill.id)} className="rounded p-1 text-graphite-400 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-700">
                       {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                     </button>
+                    {isAdmin && fill.status === 'draft' && (
+                      <button onClick={() => handleEditFill(fill)} title="Editar" className="rounded p-1 text-graphite-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20 dark:hover:text-blue-400">
+                        <Edit className="h-4 w-4" />
+                      </button>
+                    )}
                     {isAdmin && templateDoc?.template_pdf_url && (
                       <button onClick={() => handleVisualizarPdf(fill)} title="Visualizar PDF" className="rounded p-1 text-graphite-400 hover:bg-graphite-100 hover:text-aviation-600 dark:hover:bg-graphite-700 dark:hover:text-aviation-400">
                         <Eye className="h-4 w-4" />
+                      </button>
+                    )}
+                    {isAdmin && (
+                      <button onClick={() => setArchiveConfirmFill(fill)} title="Arquivar" className="rounded p-1 text-graphite-400 hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-900/20 dark:hover:text-amber-400">
+                        <Archive className="h-4 w-4" />
                       </button>
                     )}
                     {isAdmin && (
@@ -1302,40 +1583,101 @@ export function Trocas() {
                   </div>
                 </div>
                 {isExpanded && (
-                  <div className="border-t border-graphite-100 px-4 py-3 dark:border-graphite-600">
-                    <div className="mb-3 grid grid-cols-1 gap-2 text-sm md:grid-cols-4">
-                      {data.data_solicitada && (
+                  <div className="border-t border-graphite-100 px-4 py-4 dark:border-graphite-600">
+                    {/* Warning banners */}
+                    {isExcessoLimite && (
+                      <div className="mb-4 flex items-center gap-3 rounded-lg border border-red-400 bg-red-50 px-4 py-3 dark:border-red-800 dark:bg-red-900/20 shadow-sm">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-200 dark:bg-red-800/50">
+                          <AlertTriangle className="h-4 w-4 text-red-700 dark:text-red-300" />
+                        </div>
                         <div>
-                          <span className="text-xs text-graphite-400 dark:text-graphite-500">Data Solicitada</span>
-                          <p className="text-graphite-900 dark:text-graphite-100">{new Date(data.data_solicitada + 'T12:00:00').toLocaleDateString('pt-BR')}</p>
+                          <p className="text-xs font-bold text-red-800 dark:text-red-200 uppercase tracking-wider">Limite Excedido</p>
+                          <p className="text-xs text-red-700 dark:text-red-300">Esta pessoa excedeu o limite de {MAX_TROCAS_PER_MONTH} trocas no mês.</p>
                         </div>
-                      )}
-                      {data.data_folga_solicitado && (
+                      </div>
+                    )}
+                    {turnosDiferentes && (
+                      <div className="mb-4 flex items-center gap-3 rounded-lg border border-orange-400 bg-orange-50 px-4 py-3 dark:border-orange-800 dark:bg-orange-900/20 shadow-sm">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-200 dark:bg-orange-800/50">
+                          <AlertTriangle className="h-4 w-4 text-orange-700 dark:text-orange-300" />
+                        </div>
                         <div>
-                          <span className="text-xs text-graphite-400 dark:text-graphite-500">Data Folga</span>
-                          <p className="text-graphite-900 dark:text-graphite-100">{new Date(data.data_folga_solicitado + 'T12:00:00').toLocaleDateString('pt-BR')}</p>
+                          <p className="text-xs font-bold text-orange-800 dark:text-orange-200 uppercase tracking-wider">Turnos Diferentes</p>
+                          <p className="text-xs text-orange-700 dark:text-orange-300">Troca entre turnos diferentes ({pessoaSol?.turno} x {pessoaSolic?.turno}). Necessita autorização do gerente.</p>
                         </div>
-                      )}
-                      {data.troca_emergencial === 'SIM' && (
-                        <div className="flex items-center gap-2">
-                          <AlertTriangle className="h-5 w-5 text-orange-500" />
-                          <button onClick={() => setShowJustificativaPopup(fill.id)} className="text-sm font-medium text-orange-600 underline hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300">
-                            Troca Emergencial
-                          </button>
+                      </div>
+                    )}
+                    {funcoesDiferentes && (
+                      <div className="mb-4 flex items-center gap-3 rounded-lg border border-amber-400 bg-amber-50 px-4 py-3 dark:border-amber-800 dark:bg-amber-900/20 shadow-sm">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-200 dark:bg-amber-800/50">
+                          <AlertTriangle className="h-4 w-4 text-amber-700 dark:text-amber-300" />
                         </div>
-                      )}
-                      {fill.status === 'signed' && violationFillIds.has(fill.id) && (
-                        <div className="flex items-center gap-2">
-                          <span className="inline-flex flex-col items-center gap-0 rounded-full bg-green-100 px-4 py-1.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-300">
-                            <span className="inline-flex items-center gap-1"><CheckCircle className="h-3.5 w-3.5" /> AUTORIZADO PELO GERENTE</span>
-                            <span className="text-[10px] leading-tight">{data.data_autorizacao ? new Date(data.data_autorizacao + 'T12:00:00').toLocaleDateString('pt-BR') : new Date(fill.created_at).toLocaleDateString('pt-BR')}</span>
+                        <div>
+                          <p className="text-xs font-bold text-amber-800 dark:text-amber-200 uppercase tracking-wider">Funções Diferentes</p>
+                          <p className="text-xs text-amber-700 dark:text-amber-300">Troca entre funções diferentes ({cargoSolAbr} x {cargoSolicAbr}). Necessita autorização do gerente.</p>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-2 lg:grid-cols-4">
+                      <div className="rounded-lg border border-graphite-100 bg-graphite-50/50 p-3 dark:border-graphite-600 dark:bg-graphite-700/30">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-graphite-400 dark:text-graphite-500">Solicitante</span>
+                        <div className="mt-1 flex items-center gap-2">
+                          <span className="rounded-md bg-aviation-100 px-2 py-0.5 text-[10px] font-bold text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-300">{cargoSolAbr || '—'}</span>
+                          <span className="text-sm font-bold uppercase text-graphite-900 dark:text-graphite-100">{pessoaSol?.nomeCompleto || nomeSol || '—'}</span>
+                        </div>
+                        <p className="mt-1 text-xs text-graphite-500">{pessoaSol?.equipe ? `Equipe ${pessoaSol.equipe}` : (() => { const b = bombeirosList.find((x: any) => nomeSol.includes(x.nomeGuerra)); return b?.equipe ? `Equipe ${b.equipe}` : ''; })()}</p>
+                        <p className="mt-1.5 text-[10px] text-graphite-400">Vai tirar o plantão como: <span className="font-semibold text-graphite-700 dark:text-graphite-300">{cargoSolicAbr || '—'}</span></p>
+                      </div>
+                      <div className="rounded-lg border border-graphite-100 bg-graphite-50/50 p-3 dark:border-graphite-600 dark:bg-graphite-700/30">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-graphite-400 dark:text-graphite-500">Solicitado</span>
+                        <div className="mt-1 flex items-center gap-2">
+                          <span className="rounded-md bg-aviation-100 px-2 py-0.5 text-[10px] font-bold text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-300">{cargoSolicAbr || '—'}</span>
+                          <span className="text-sm font-bold uppercase text-graphite-900 dark:text-graphite-100">{pessoaSolic?.nomeCompleto || nomeSolic || '—'}</span>
+                        </div>
+                        <p className="mt-1 text-xs text-graphite-500">{pessoaSolic?.equipe ? `Equipe ${pessoaSolic.equipe}` : (() => { const b = bombeirosList.find((x: any) => nomeSolic.includes(x.nomeGuerra)); return b?.equipe ? `Equipe ${b.equipe}` : ''; })()}</p>
+                        <p className="mt-1.5 text-[10px] text-graphite-400">Vai tirar o plantão como: <span className="font-semibold text-graphite-700 dark:text-graphite-300">{cargoSolAbr || '—'}</span></p>
+                      </div>
+                      <div className="rounded-lg border border-graphite-100 bg-graphite-50/50 p-3 dark:border-graphite-600 dark:bg-graphite-700/30">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-graphite-400 dark:text-graphite-500">Datas</span>
+                        {data.data_folga_solicitado && <p className="mt-1 text-graphite-900 dark:text-graphite-100">Folga do Solicitante: {new Date(data.data_folga_solicitado + 'T12:00:00').toLocaleDateString('pt-BR')}</p>}
+                        {data.data_solicitada && <p className="text-graphite-900 dark:text-graphite-100">Plantão do Solicitado: {new Date(data.data_solicitada + 'T12:00:00').toLocaleDateString('pt-BR')}</p>}
+                        <p className="mt-1 text-xs text-graphite-500">Documento criado por {data.criado_por || fill.filled_by || 'Desconhecido'} em {new Date(fill.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</p>
+                      </div>
+                      <div className="rounded-lg border border-graphite-100 bg-graphite-50/50 p-3 dark:border-graphite-600 dark:bg-graphite-700/30">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-graphite-400 dark:text-graphite-500">Status</span>
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                          <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${
+                            fill.status === 'signed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
+                            fill.status === 'pending' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
+                            fill.status === 'draft' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300' :
+                            'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                          }`}>
+                            {fill.status === 'signed' && <CheckCircle className="h-3.5 w-3.5" />}
+                            {fill.status === 'draft' ? 'Rascunho' : fill.status === 'signed' ? 'Assinado' : fill.status === 'pending' ? 'Aguardando' : 'Cancelado'}
                           </span>
+                          {data.troca_emergencial === 'SIM' && (
+                            <button onClick={() => setShowJustificativaPopup(fill.id)} className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-400">
+                              <AlertTriangle className="h-3 w-3" /> Emergencial
+                            </button>
+                          )}
                         </div>
-                      )}
+                        {violationFillIds.has(fill.id) && (
+                          <div className="mt-2 rounded-lg border border-green-200 bg-green-50/80 p-2.5 text-center dark:border-green-800/40 dark:bg-green-900/20">
+                            <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-green-700 dark:text-green-300">
+                              <CheckCircle className="h-4 w-4" /> AUTORIZADO PELO EMBAIXADOR
+                            </div>
+                            <p className="text-[10px] text-green-600 dark:text-green-400">
+                              {data.data_autorizacao ? new Date(data.data_autorizacao + 'T12:00:00').toLocaleDateString('pt-BR') : new Date(fill.created_at).toLocaleDateString('pt-BR')}
+                              {data.autorizado_por ? ` · ${data.autorizado_por}` : ''}
+                            </p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     {data.motivo_troca && (
-                      <div className="rounded-lg border border-graphite-200 bg-graphite-50 p-3 dark:border-graphite-600 dark:bg-graphite-700/50">
-                        <span className="text-xs text-graphite-400 dark:text-graphite-500">Motivo da Troca</span>
+                      <div className="mt-3 rounded-lg border border-graphite-200 bg-graphite-50 p-3 dark:border-graphite-600 dark:bg-graphite-700/50">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-graphite-400 dark:text-graphite-500">Motivo da Troca</span>
                         <p className="mt-1 text-sm text-graphite-900 dark:text-graphite-100">{data.motivo_troca}</p>
                       </div>
                     )}

@@ -349,59 +349,137 @@ function FuncionarioCard({
       {expanded && (
         <div className="border-t border-graphite-200 px-5 py-4 dark:border-border-dark">
 
-          {/* ── Cursos do Cadastro (verde/cinza) ── */}
+          {/* ── Cursos do Cadastro (cores dinâmicas) ── */}
           <div className="mb-4">
             <h4 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">
               <GraduationCap className="h-3.5 w-3.5" /> Cursos do Cadastro
             </h4>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              <div className={`flex items-center gap-3 rounded-xl border p-3 ${funcionario.cursoChefeEquipe
-                  ? 'border-green-200 bg-green-50/50 dark:border-green-800/40 dark:bg-green-900/10'
-                  : 'border-graphite-200 bg-graphite-50/50 dark:border-border-dark dark:bg-surface-card/50'}`}>
-                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${funcionario.cursoChefeEquipe
-                    ? 'bg-gradient-to-br from-green-500 to-green-600 text-white'
-                    : 'bg-graphite-200 text-graphite-400 dark:bg-graphite-700 dark:text-graphite-500'}`}>
-                  <BadgeCheck className="h-5 w-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold text-graphite-900 dark:text-graphite-100">Chefe de Equipe</p>
-                  <p className={`text-[10px] font-medium ${funcionario.cursoChefeEquipe ? 'text-green-600 dark:text-green-400' : 'text-graphite-400 dark:text-graphite-500'}`}>
-                    {funcionario.cursoChefeEquipe ? 'Possui o curso' : 'Não possui'}
-                  </p>
-                </div>
-              </div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              {(() => {
+                const cargoExigeChefe = funcionario.cargo === 'BA-CE' || funcionario.cargo === 'BA-LR';
+                const temCursoChefe = funcionario.cursoChefeEquipe;
+                const corChefe = temCursoChefe ? 'green' : (cargoExigeChefe ? 'red' : 'gray');
+                const labelChefe = temCursoChefe ? 'Possui' : 'Não possui';
+                return (
+                  <div className={`flex items-center gap-3 rounded-xl border p-3 ${
+                    corChefe === 'green' ? 'border-green-200 bg-green-50/50 dark:border-green-800/40 dark:bg-green-900/10' :
+                    corChefe === 'red' ? 'border-red-200 bg-red-50/50 dark:border-red-800/40 dark:bg-red-900/10' :
+                    'border-graphite-200 bg-graphite-50/50 dark:border-border-dark dark:bg-surface-card/50'
+                  }`}>
+                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+                      corChefe === 'green' ? 'bg-gradient-to-br from-green-500 to-green-600 text-white' :
+                      corChefe === 'red' ? 'bg-gradient-to-br from-red-500 to-red-600 text-white' :
+                      'bg-graphite-200 text-graphite-400 dark:bg-graphite-700 dark:text-graphite-500'
+                    }`}>
+                      <BadgeCheck className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-graphite-900 dark:text-graphite-100">Chefe de Equipe</p>
+                      <p className={`text-[10px] font-medium ${
+                        corChefe === 'green' ? 'text-green-600 dark:text-green-400' :
+                        corChefe === 'red' ? 'text-red-600 dark:text-red-400' :
+                        'text-graphite-400 dark:text-graphite-500'
+                      }`}>{labelChefe}</p>
+                    </div>
+                  </div>
+                );
+              })()}
 
-              <div className={`flex items-center gap-3 rounded-xl border p-3 ${funcionario.cursoMotoristaCCI
-                  ? 'border-green-200 bg-green-50/50 dark:border-green-800/40 dark:bg-green-900/10'
-                  : 'border-graphite-200 bg-graphite-50/50 dark:border-border-dark dark:bg-surface-card/50'}`}>
-                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${funcionario.cursoMotoristaCCI
-                    ? 'bg-gradient-to-br from-green-500 to-green-600 text-white'
-                    : 'bg-graphite-200 text-graphite-400 dark:bg-graphite-700 dark:text-graphite-500'}`}>
-                  <Car className="h-5 w-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold text-graphite-900 dark:text-graphite-100">Motorista/Condutor CCI</p>
-                  <p className={`text-[10px] font-medium ${funcionario.cursoMotoristaCCI ? 'text-green-600 dark:text-green-400' : 'text-graphite-400 dark:text-graphite-500'}`}>
-                    {funcionario.cursoMotoristaCCI ? 'Possui o curso' : 'Não possui'}
-                  </p>
-                </div>
-              </div>
+              {(() => {
+                const cargoExigeMotorista = funcionario.cargo === 'BA-MC';
+                const temCursoMotorista = funcionario.cursoMotoristaCCI;
+                const temCNHD = temCategoriaD(funcionario.cnhCategoria);
+                const temCVE = funcionario.cursoCVE;
+                const podeDirigirCRS = !temCursoMotorista && temCNHD && temCVE;
+                const corMotorista = temCursoMotorista ? 'green' : (podeDirigirCRS ? 'orange' : (cargoExigeMotorista ? 'red' : 'gray'));
+                const labelMotorista = temCursoMotorista ? 'Possui' : (podeDirigirCRS ? 'Pode dirigir CRS' : 'Não possui');
+                return (
+                  <div className={`flex items-center gap-3 rounded-xl border p-3 ${
+                    corMotorista === 'green' ? 'border-green-200 bg-green-50/50 dark:border-green-800/40 dark:bg-green-900/10' :
+                    corMotorista === 'orange' ? 'border-orange-200 bg-orange-50/50 dark:border-orange-800/40 dark:bg-orange-900/10' :
+                    corMotorista === 'red' ? 'border-red-200 bg-red-50/50 dark:border-red-800/40 dark:bg-red-900/10' :
+                    'border-graphite-200 bg-graphite-50/50 dark:border-border-dark dark:bg-surface-card/50'
+                  }`}>
+                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+                      corMotorista === 'green' ? 'bg-gradient-to-br from-green-500 to-green-600 text-white' :
+                      corMotorista === 'orange' ? 'bg-gradient-to-br from-orange-500 to-orange-600 text-white' :
+                      corMotorista === 'red' ? 'bg-gradient-to-br from-red-500 to-red-600 text-white' :
+                      'bg-graphite-200 text-graphite-400 dark:bg-graphite-700 dark:text-graphite-500'
+                    }`}>
+                      <Car className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-graphite-900 dark:text-graphite-100">Motorista/Condutor CCI</p>
+                      <p className={`text-[10px] font-medium ${
+                        corMotorista === 'green' ? 'text-green-600 dark:text-green-400' :
+                        corMotorista === 'orange' ? 'text-orange-600 dark:text-orange-400' :
+                        corMotorista === 'red' ? 'text-red-600 dark:text-red-400' :
+                        'text-graphite-400 dark:text-graphite-500'
+                      }`}>{labelMotorista}</p>
+                    </div>
+                  </div>
+                );
+              })()}
 
-              <div className={`flex items-center gap-3 rounded-xl border p-3 ${temCategoriaD(funcionario.cnhCategoria)
-                  ? 'border-blue-200 bg-blue-50/50 dark:border-blue-800/40 dark:bg-blue-900/10'
-                  : 'border-graphite-200 bg-graphite-50/50 dark:border-border-dark dark:bg-surface-card/50'}`}>
-                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${temCategoriaD(funcionario.cnhCategoria)
-                    ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white'
-                    : 'bg-graphite-200 text-graphite-400 dark:bg-graphite-700 dark:text-graphite-500'}`}>
-                  <Car className="h-5 w-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold text-graphite-900 dark:text-graphite-100">CNH Categoria D</p>
-                  <p className={`text-[10px] font-medium ${temCategoriaD(funcionario.cnhCategoria) ? 'text-blue-600 dark:text-blue-400' : 'text-graphite-400 dark:text-graphite-500'}`}>
-                    {funcionario.cnhCategoria} {temCategoriaD(funcionario.cnhCategoria) ? '— Habilitado para CRS' : '— Sem habilitação D'}
-                  </p>
-                </div>
-              </div>
+              {(() => {
+                const temCNHD = temCategoriaD(funcionario.cnhCategoria);
+                const temCVE = funcionario.cursoCVE;
+                const corCNH = temCNHD ? (temCVE ? 'green' : 'orange') : 'gray';
+                const labelCNH = temCNHD ? (temCVE ? 'Possui' : 'Possui CNH D') : 'Não possui';
+                return (
+                  <div className={`flex items-center gap-3 rounded-xl border p-3 ${
+                    corCNH === 'green' ? 'border-green-200 bg-green-50/50 dark:border-green-800/40 dark:bg-green-900/10' :
+                    corCNH === 'orange' ? 'border-orange-200 bg-orange-50/50 dark:border-orange-800/40 dark:bg-orange-900/10' :
+                    'border-graphite-200 bg-graphite-50/50 dark:border-border-dark dark:bg-surface-card/50'
+                  }`}>
+                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+                      corCNH === 'green' ? 'bg-gradient-to-br from-green-500 to-green-600 text-white' :
+                      corCNH === 'orange' ? 'bg-gradient-to-br from-orange-500 to-orange-600 text-white' :
+                      'bg-graphite-200 text-graphite-400 dark:bg-graphite-700 dark:text-graphite-500'
+                    }`}>
+                      <Car className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-graphite-900 dark:text-graphite-100">CNH Categoria D</p>
+                      <p className={`text-[10px] font-medium ${
+                        corCNH === 'green' ? 'text-green-600 dark:text-green-400' :
+                        corCNH === 'orange' ? 'text-orange-600 dark:text-orange-400' :
+                        'text-graphite-400 dark:text-graphite-500'
+                      }`}>{labelCNH}</p>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {(() => {
+                const temCNHD = temCategoriaD(funcionario.cnhCategoria);
+                const temCVE = funcionario.cursoCVE;
+                const corCVE = temCVE ? 'green' : (temCNHD ? 'red' : 'gray');
+                const labelCVE = temCVE ? 'Possui' : 'Não possui';
+                return (
+                  <div className={`flex items-center gap-3 rounded-xl border p-3 ${
+                    corCVE === 'green' ? 'border-green-200 bg-green-50/50 dark:border-green-800/40 dark:bg-green-900/10' :
+                    corCVE === 'red' ? 'border-red-200 bg-red-50/50 dark:border-red-800/40 dark:bg-red-900/10' :
+                    'border-graphite-200 bg-graphite-50/50 dark:border-border-dark dark:bg-surface-card/50'
+                  }`}>
+                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+                      corCVE === 'green' ? 'bg-gradient-to-br from-green-500 to-green-600 text-white' :
+                      corCVE === 'red' ? 'bg-gradient-to-br from-red-500 to-red-600 text-white' :
+                      'bg-graphite-200 text-graphite-400 dark:bg-graphite-700 dark:text-graphite-500'
+                    }`}>
+                      <BadgeCheck className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-graphite-900 dark:text-graphite-100">CVE</p>
+                      <p className={`text-[10px] font-medium ${
+                        corCVE === 'green' ? 'text-green-600 dark:text-green-400' :
+                        corCVE === 'red' ? 'text-red-600 dark:text-red-400' :
+                        'text-graphite-400 dark:text-graphite-500'
+                      }`}>{labelCVE}</p>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
 

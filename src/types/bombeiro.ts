@@ -43,6 +43,7 @@ export interface Bombeiro {
   sexo: Sexo;
   cursoChefeEquipe: boolean;
   cursoMotoristaCCI: boolean;
+  cursoCVE: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -69,10 +70,28 @@ export const UF_OPTIONS = [
   'PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO',
 ];
 
+export const ABBR_CARGO: Record<Cargo, string> = {
+  'BA-2': 'BA-2',
+  'BA-MC': 'BA-MC',
+  'BA-CE': 'BA-CE',
+  'BA-LR': 'BA-LR',
+  'BA-RE': 'BA-RE',
+  'GS': 'GS',
+  'OC': 'OC',
+};
+
 export function turnoAutoPorEquipe(equipe: Equipe, cargo?: Cargo): Turno {
   if (cargo === 'GS' || equipe === 'Embaixador') return 'Administrativo';
   if (equipe === 'Alfa' || equipe === 'Charlie') return 'Diurno';
   if (equipe === 'Bravo' || equipe === 'Delta') return 'Noturno';
   if (equipe === 'Feirista') return 'Feirista';
+  return 'Diurno';
+}
+
+export function getHorarioTrabalho(equipe: Equipe, cargo?: Cargo): string {
+  if (cargo === 'GS' || equipe === 'Embaixador') return 'Administrativo';
+  if (equipe === 'Alfa' || equipe === 'Charlie') return '07:00 às 19:00';
+  if (equipe === 'Bravo' || equipe === 'Delta') return '19:00 às 07:00';
+  if (equipe === 'Feirista') return 'Flexível';
   return 'Diurno';
 }

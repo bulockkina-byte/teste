@@ -8,7 +8,9 @@ import {
   CNH_OPTIONS,
   SEXO_OPTIONS,
   UF_OPTIONS,
+  ABBR_CARGO,
   turnoAutoPorEquipe,
+  getHorarioTrabalho,
 } from '../../types/bombeiro';
 import { Autocomplete } from '../../components/documentos/Autocomplete';
 
@@ -97,6 +99,7 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
   const [sexo, setSexo] = useState<Sexo>('M');
   const [cursoChefeEquipe, setCursoChefeEquipe] = useState(false);
   const [cursoMotoristaCCI, setCursoMotoristaCCI] = useState(false);
+  const [cursoCVE, setCursoCVE] = useState(false);
   const [municipios, setMunicipios] = useState<string[]>([]);
   const [loadingMunicipios, setLoadingMunicipios] = useState(false);
   const prevUfRef = useRef(uf);
@@ -132,6 +135,7 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
       setSexo(bombeiro.sexo || 'M');
       setCursoChefeEquipe(bombeiro.cursoChefeEquipe || false);
       setCursoMotoristaCCI(bombeiro.cursoMotoristaCCI || false);
+      setCursoCVE(bombeiro.cursoCVE || false);
     }
   }, [bombeiro]);
 
@@ -211,6 +215,7 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
       sexo,
       cursoChefeEquipe,
       cursoMotoristaCCI,
+      cursoCVE,
     });
   }
 
@@ -377,6 +382,10 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
                   </select>
                 </div>
                 <div>
+                  <label className={labelClass}>Função Abreviada</label>
+                  <input value={ABBR_CARGO[cargo] || cargo} disabled className={disabledClass} />
+                </div>
+                <div>
                   <label className={labelClass}>Data de Admissão *</label>
                   <input type="date" value={dataAdmissao} onChange={e => setDataAdmissao(e.target.value)}
                     className={inputClass} />
@@ -386,6 +395,10 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
                   <select value={equipe} onChange={e => handleEquipeChange(e.target.value as Equipe)} className={selectClass}>
                     {EQUIPE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
                   </select>
+                </div>
+                <div>
+                  <label className={labelClass}>Horário de Trabalho</label>
+                  <input value={getHorarioTrabalho(equipe, cargo)} disabled className={disabledClass} />
                 </div>
                 <div>
                   <label className={labelClass}>Turno *</label>
@@ -454,6 +467,15 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
                     className="h-4 w-4 rounded border-graphite-300 text-aviation-600 focus:ring-aviation-500"
                   />
                   <span className="text-sm font-medium text-graphite-700 dark:text-graphite-200">Curso de Motorista/Condutor de CCI</span>
+                </label>
+                <label className="flex items-center gap-3 rounded-xl border border-graphite-300/60 bg-white/70 px-4 py-3 transition-all duration-200 hover:border-aviation-500/50 cursor-pointer dark:border-border-dark dark:bg-surface-card">
+                  <input
+                    type="checkbox"
+                    checked={cursoCVE}
+                    onChange={e => setCursoCVE(e.target.checked)}
+                    className="h-4 w-4 rounded border-graphite-300 text-aviation-600 focus:ring-aviation-500"
+                  />
+                  <span className="text-sm font-medium text-graphite-700 dark:text-graphite-200">Curso de Veículo de Emergência (CVE)</span>
                 </label>
               </div>
             </fieldset>

@@ -51,6 +51,7 @@ function substituicaoToRow(data: Partial<SubstituicaoTemporaria>): Record<string
   if (data.substitutoNome !== undefined) row.substituto_nome = data.substitutoNome;
   if (data.substitutoCargo !== undefined) row.substituto_cargo = data.substitutoCargo;
   if (data.tipo !== undefined) row.tipo = data.tipo;
+  if (data.plantaoExtra !== undefined) row.plantao_extra = data.plantaoExtra;
   if (data.motivo !== undefined) row.motivo = data.motivo;
   if (data.motivoOutro !== undefined) row.motivo_outro = data.motivoOutro;
   if (data.dataInicio !== undefined) row.data_inicio = data.dataInicio;

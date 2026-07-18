@@ -1,0 +1,67 @@
+const API_URL = 'https://api.autentique.com.br/v2/graphql';
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const contentType = req.headers['content-type'] || '';
+
+  try {
+    if (contentType.includes('multipart/form-data')) {
+      const buffer = await new Promise((resolve) => {
+        const chunks = [];
+        req.on('data', chunk => chunks.push(chunk));
+        req.on('end', () => resolve(Buffer.concat(chunks)));
+      });
+
+      const formData = new FormData();
+      const boundary = contentType.split('boundary=')[1];
+      if (!boundary) return res.status(400).json({ error: 'No boundary in multipart' });
+
+      const parts = buffer.toString('latin1').split(`--${boundary}`);
+      for (const part of parts) {
+        if (part.includes('Content-Disposition: form-data; name="operations"')) {
+          const m = part.match(/\r\n\r\n([\s\S]*?)\r\n--/);
+          if (m) formData.append('operations', m[1].trim());
+        } else if (part.includes('Content-Disposition: form-data; name="map"')) {
+          const m = part.match(/\r\n\r\n([\s\S]*?)\r\n--/);
+          if (m) formData.append('map', m[1].trim());
+        } else if (part.includes('Content-Disposition: form-data; name="file"')) {
+          const nm = part.match(/filename="([^"]+)"/);
+          const fileName = nm ? nm[1] : 'file.pdf';
+          const bodyStart = part.indexOf('\r\n\r\n') + 4;
+          const endIdx = part.lastIndexOf('\r\n');
+          const fileBuf = Buffer.from(part.substring(bodyStart, endIdx), 'latin1');
+          formData.append('file', new Blob([fileBuf]), fileName);
+        }
+      }
+
+      const auth = req.headers['authorization'] || '';
+      const apiRes = await fetch(API_URL, {
+        method: 'POST',
+        headers: auth ? { 'Authorization': auth } : {},
+        body: formData,
+      });
+      const data = await apiRes.json();
+      return res.status(apiRes.ok ? 200 : apiRes.status).json(data);
+    } else {
+      let body = '';
+      await new Promise(resolve => { req.on('data', c => { body += c; }); req.on('end', resolve); });
+      const auth = req.headers['authorization'] || '';
+      const apiRes = await fetch(API_URL, {
+        method: 'POST',
+        headers: {
+          ...(auth ? { 'Authorization': auth } : {}),
+          'Content-Type': 'application/json',
+        },
+        body,
+      });
+      const data = await apiRes.json();
+      return res.status(apiRes.ok ? 200 : apiRes.status).json(data);
+    }
+  } catch (err) {
+    console.error('Autentique proxy error:', err);
+    return res.status(500).json({ error: err.message });
+  }
+}

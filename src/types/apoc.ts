@@ -1,8 +1,8 @@
-export type FuncaoAPOC = 'APOC' | 'supervisor';
+export type FuncaoAPOC = 'APOC' | 'SUPERVISOR';
 
 export const FUNCAO_APOC_OPTIONS: { value: FuncaoAPOC; label: string }[] = [
   { value: 'APOC', label: 'APOC' },
-  { value: 'supervisor', label: 'Supervisor' },
+  { value: 'SUPERVISOR', label: 'SUPERVISOR' },
 ];
 export const EQUIPE_APOC = 'MOTIVA';
 
