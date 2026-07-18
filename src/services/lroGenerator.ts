@@ -1,19 +1,67 @@
 import jsPDF from 'jspdf';
 import { criarDocumento, type AutentiqueSigner } from './autentiqueService';
 
+function cb(checked: boolean) {
+  const fill = checked ? '✓' : '';
+  return `<span style="display:inline-flex; align-items:center; justify-content:center; width:9px; height:9px; border:1px solid #000; font-size:8px; line-height:1; position:relative; top:1px; font-weight:bold; color:#000;">${fill}</span>`;
+}
+
+function cbUp(checked: boolean) {
+  const fill = checked ? '✓' : '';
+  return `<span style="display:inline-flex; align-items:center; justify-content:center; width:9px; height:9px; border:1px solid #000; font-size:8px; line-height:1; position:relative; top:-2px; font-weight:bold; color:#000;">${fill}</span>`;
+}
+
+function cbSub(checked: boolean) {
+  const fill = checked ? '✓' : '';
+  return `<span style="display:inline-flex; align-items:center; justify-content:center; width:9px; height:9px; border:1px solid #000; font-size:8px; line-height:1; position:relative; top:-3px; font-weight:bold; color:#000;">${fill}</span>`;
+}
+
+function cbSubUp(checked: boolean) {
+  const fill = checked ? '✓' : '';
+  return `<span style="display:inline-flex; align-items:center; justify-content:center; width:9px; height:9px; border:1px solid #000; font-size:8px; line-height:1; position:relative; top:1px; font-weight:bold; color:#000;">${fill}</span>`;
+}
+
+function secaoCheckbox(titulo: string, temAlteracao: boolean, texto: string): string {
+  return `<table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
+    <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:11px; background:#d4d4d4; text-align:center; padding:2px 3px;">${titulo}</td></tr>
+    <tr><td style="border:none; padding:2px 40px; font-size:11px;">${cb(temAlteracao)} ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${cbUp(!temAlteracao)} SEM ALTERAÇÕES</td></tr>
+    <tr><td style="border:none; border-top:1px solid #000; padding:6px 8px; font-size:11px;">${texto || 'SEM ALTERAÇÕES'}</td></tr>
+  </table>`;
+}
+
 export function montarHTML(dados: Record<string, unknown>): string {
   const e = (k: string, fallback = '') => String(dados[k] ?? fallback);
 
   const logoUrl = e('logoUrl', '/LOGOLRO.jpeg');
-  const equipeNome = e('equipeNome');
+  const equipeNome = e('equipeNome').toUpperCase();
   const dataInicio = e('dataInicio');
   const dataFim = e('dataFim');
-  const chefeEquipe = e('chefeEquipe');
-  const comunic = e('comunicacao');
+  const chefeEquipe = e('chefeEquipe').toUpperCase();
+  const comunic = e('comunicacao').toUpperCase();
   const dataAss = e('dataAssinatura', new Date().toLocaleDateString('pt-BR'));
-  const chefeAss = e('chefeAssinatura', chefeEquipe);
-  const gerenteAss = e('gerenteAssinatura');
-  const coordAss = e('coordenadorAssinatura');
+  const cidade = e('cidade', 'NAVEGANTES');
+  const uf = e('uf', 'SC');
+  const extTexto = e('extTexto');
+  const equipTexto = e('equipTexto');
+  const edifTexto = e('edifTexto');
+  const tpTexto = e('tpTexto');
+  const tpTemAlteracao = !!dados.tpTemAlteracao;
+  const extTemAlteracao = !!dados.extTemAlteracao;
+  const equipTemAlteracao = !!dados.equipTemAlteracao;
+  const edifTemAlteracao = !!dados.edifTemAlteracao;
+
+  const dataObj = dataAss.split('/').length === 3
+    ? { dia: dataAss.split('/')[0], mes: dataAss.split('/')[1], ano: dataAss.split('/')[2] }
+    : { dia: new Date().getDate().toString().padStart(2, '0'), mes: (new Date().getMonth() + 1).toString(), ano: new Date().getFullYear().toString() };
+
+  const nomeMes = (m: string) => {
+    const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+    return meses[parseInt(m) - 1] || m;
+  };
+
+  const chefeAss = e('chefeAssinatura', chefeEquipe).toUpperCase();
+  const gerenteAss = e('gerenteAssinatura').toUpperCase();
+  const coordAss = e('coordenadorAssinatura').toUpperCase();
 
   const instrucoes = (dados.instrucoes as string[]) || [];
   const instrucoesHorarios = (dados.instrucoesHorarios as string[]) || [];
@@ -24,30 +72,32 @@ export function montarHTML(dados: Record<string, unknown>): string {
   const cci2 = (dados.cci2 as Array<Record<string, string>>) || [];
   const cci3 = (dados.cci3 as Array<Record<string, string>>) || [];
   const crs = (dados.crs as Array<Record<string, string>>) || [];
-  const temEmergencia = dados.emergenciaXI;
+  const temEmergencia = dados.emergenciaXI as string | undefined;
   const temSubstituicao = substituicao.length > 0;
+  const ocorrenciasNA = e('ocorrenciasNA');
+  const inspecoes = e('inspecoes');
 
-  const grid3 = (items: Array<Record<string, string>>) =>
-    `<div style="display:grid; grid-template-columns:1fr 1fr 1fr; font-size:11px;">${items.map(i => `<div><span class="b">${i.funcao}</span> ${i.nome}</div>`).join('')}</div>`;
-  const grid4 = (items: Array<Record<string, string>>) =>
-    `<div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; font-size:11px;">${items.map(i => `<div><span class="b">${i.funcao}</span> ${i.nome}</div>`).join('')}</div>`;
+  const nome = (items: Array<Record<string, string>>, idx: number) => (items[idx]?.nome || '').toUpperCase();
+  const cci2HTML = `<div style="display:grid; grid-template-columns:1fr 1fr 1fr; text-align:left;"><div><span class="b">BA-CE</span> <span>${nome(cci2, 0)}</span></div><div><span class="b">BA-MC</span> <span>${nome(cci2, 1)}</span></div><div><span class="b">BA-2</span> <span>${nome(cci2, 2)}</span></div></div>`;
+  const cci3HTML = `<div style="display:grid; grid-template-columns:1fr 1fr 1fr; text-align:left;"><div><span class="b">BA-MC</span> <span>${nome(cci3, 0)}</span></div><div><span class="b">BA-2</span> <span>${nome(cci3, 1)}</span></div><div><span class="b">BA-2</span> <span>${nome(cci3, 2)}</span></div></div>`;
+  const crsHTML = `<div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; text-align:left;"><div><span class="b">BA-LR</span> <span>${nome(crs, 0)}</span></div><div><span class="b">BA-MC</span> <span>${nome(crs, 1)}</span></div><div><span class="b">BA-RE</span> <span>${nome(crs, 2)}</span></div><div><span class="b">BA-RE</span> <span>${nome(crs, 3)}</span></div></div>`;
 
   const instrucoesHTML = instrucoes.length > 0
-    ? `<tr><td colspan="7" style="border-left:1px solid #000; border-right:1px solid #000; padding:4px 5px; font-size:10px; vertical-align:top; min-height:40px;"><div style="height:1em;"></div>${instrucoes.map((item, i) => `${i > 0 ? '<div style="height:1em;"></div>' : ''}<div style="font-size:10px;">${item}</div>`).join('')}<div style="height:1em;"></div></td></tr>`
-    : `<tr><td colspan="7" style="border-left:1px solid #000; border-right:1px solid #000; padding:4px 5px; font-size:10px; vertical-align:top; min-height:40px;"></td></tr>`;
+    ? `<tr><td colspan="7" style="border-left:1px solid #000; border-right:1px solid #000; padding:4px 5px; font-size:10px; vertical-align:top; min-height:40px;"><div style="height:1em;"></div>${instrucoes.map((item, i) => `<div style="display:flex; justify-content:space-between; font-size:10px; padding-right:90px;"><span>${item}</span><span style="white-space:nowrap;">${instrucoesHorarios[i] || ''}</span></div>${i < instrucoes.length - 1 ? '<div style=\"height:1em;\"></div>' : ''}`).join('')}<div style="height:1em;"></div></td></tr>`
+    : `<tr><td colspan="7" style="border-left:1px solid #000; border-right:1px solid #000; padding:4px 5px; font-size:10px; vertical-align:top; min-height:40px;"><div style="height:1em;"></div></td></tr>`;
 
-  const frotaLinhas = frota.length > 0 ? frota.map(f => `
-    <tr><td style="border:1px solid #000; font-size:10px; padding:2px 4px; font-weight:bold; width:45px;">${f.viatura || ''}</td><td style="border:1px solid #000; font-size:10px; padding:2px 4px; width:35px;">${f.prefixo || ''}</td><td style="border:1px solid #000; font-size:10px; padding:2px 4px;">KM: ${f.kmIni || '—'}→${f.kmFim || '—'}</td><td style="border:1px solid #000; font-size:10px; padding:2px 4px;">COMB: ${f.combIni || '—'}→${f.combFim || '—'}</td><td style="border:1px solid #000; font-size:10px; padding:2px 4px; width:100%;">${f.situacao || ''}</td></tr>
+  const PREFIXOS_FIXOS = ['F2 X6', 'F3 X6', 'FRT X6'];
+  const frotaLinhas = frota.length > 0 ? frota.map((f, i) => `
+    <tr style="border-top:1px solid #000; border-bottom:1px solid #000;"><td class="b" style="border:none; border-left:1px solid #000; font-size:11px; padding-right:16px; white-space:nowrap; width:50px;">${f.viatura || '—'}</td><td style="border:none; font-size:11px; padding-left:0; white-space:nowrap; width:40px;">${PREFIXOS_FIXOS[i] || ''}</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 8px; white-space:nowrap;">KM INICIAL</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 16px; white-space:nowrap;">${f.kmIni || ''}</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 8px; white-space:nowrap;">KM FINAL</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 16px; white-space:nowrap;">${f.kmFim || ''}</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 5px; width:100%;">${f.situacao || ''}</td></tr>
   `).join('') : `
-    <tr><td style="border:1px solid #000; font-size:10px; padding:2px 4px; font-weight:bold;">CCI 319</td><td style="border:1px solid #000;"></td><td style="border:1px solid #000;">KM: —→—</td><td style="border:1px solid #000;">COMB: —→—</td><td style="border:1px solid #000;"></td></tr>
-    <tr><td style="border:1px solid #000; font-weight:bold;">CCI 320</td><td style="border:1px solid #000;"></td><td style="border:1px solid #000;">KM: —→—</td><td style="border:1px solid #000;">COMB: —→—</td><td style="border:1px solid #000;"></td></tr>
-    <tr><td style="border:1px solid #000; font-weight:bold;">CCI 333</td><td style="border:1px solid #000;"></td><td style="border:1px solid #000;">KM: —→—</td><td style="border:1px solid #000;">COMB: —→—</td><td style="border:1px solid #000;"></td></tr>
+    <tr style="border-top:1px solid #000; border-bottom:1px solid #000;"><td class="b" style="border:none; border-left:1px solid #000; font-size:11px; padding-right:16px; white-space:nowrap; width:50px;">CCI 319</td><td style="border:none; font-size:11px; padding-left:0; white-space:nowrap; width:40px;">F2 X6</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 8px; white-space:nowrap;">KM INICIAL</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 16px; white-space:nowrap;"></td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 8px; white-space:nowrap;">KM FINAL</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 16px; white-space:nowrap;"></td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 5px; width:100%;"></td></tr>
+    <tr style="border-top:1px solid #000; border-bottom:1px solid #000;"><td class="b" style="border:none; border-left:1px solid #000; font-size:11px; padding-right:16px; white-space:nowrap; width:50px;">CCI 320</td><td style="border:none; font-size:11px; padding-left:0; white-space:nowrap; width:40px;">F3 X6</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 8px; white-space:nowrap;">KM INICIAL</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 16px; white-space:nowrap;"></td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 8px; white-space:nowrap;">KM FINAL</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 16px; white-space:nowrap;"></td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 5px; width:100%;"></td></tr>
+    <tr style="border-top:1px solid #000; border-bottom:1px solid #000;"><td class="b" style="border:none; border-left:1px solid #000; font-size:11px; padding-right:16px; white-space:nowrap; width:50px;">CCI 333</td><td style="border:none; font-size:11px; padding-left:0; white-space:nowrap; width:40px;">FRT X6</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:4px 8px; white-space:nowrap;">KM INICIAL</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:4px 16px; white-space:nowrap;"></td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:4px 8px; white-space:nowrap;">KM FINAL</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:4px 16px; white-space:nowrap;"></td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:4px 5px; width:100%;"></td></tr>
   `;
-  const frotaHTML = `<tr><td colspan="7" style="border:none; padding:0;"><table style="width:100%; border-collapse:collapse;">${frotaLinhas}</table></td></tr>`;
 
   const subHTML = temSubstituicao
     ? substituicao.map(s => `
-      <tr><td colspan="7" style="padding:4px 4px; font-size:11px;"><div style="display:grid; grid-template-columns:2fr 1fr 2fr; text-align:center;"><div><span class="b" style="font-size:11px;">${s.funcao1 || 'BA-2'}</span> <span style="font-size:11px; text-transform:uppercase;">${s.nome1 || ''}</span></div><div style="align-self:center;"><span style="font-size:14px;">→</span></div><div><span class="b" style="font-size:11px;">${s.funcao2 || 'BA-2'}</span> <span style="font-size:11px; text-transform:uppercase;">${s.nome2 || ''}</span></div></div></td></tr>
+      <tr><td colspan="7" style="padding:4px 4px; font-size:11px;"><div style="display:grid; grid-template-columns:2fr 1fr 2fr; text-align:center;"><div><span class="b" style="font-size:11px;">${s.funcao1 || 'BA-2'}</span> <span style="font-size:11px;">${(s.nome1 || '').toUpperCase()}</span></div><div style="align-self:center;"><span style="font-size:14px;">→</span></div><div><span class="b" style="font-size:11px;">${s.funcao2 || 'BA-2'}</span> <span style="font-size:11px;">${(s.nome2 || '').toUpperCase()}</span></div></div></td></tr>
     `).join('')
     : '';
 
@@ -59,19 +109,40 @@ export function montarHTML(dados: Record<string, unknown>): string {
     ? solicitacoes.map(s => `<tr><td style="border:none; padding:2px 8px; font-size:11px;">${s}</td></tr>`).join('')
     : '<tr><td style="border:none; height:16px;"></td></tr>';
 
+  const ocorrenciasNAHTML = ocorrenciasNA
+    ? ocorrenciasNA.split('\n').filter(Boolean).map(o => `<tr><td style="border:none; padding:2px 8px; font-size:11px;">${o}</td></tr>`).join('')
+    : '<tr><td style="border:none; height:14px;"></td></tr>';
+
+  const inspecoesHTML = inspecoes
+    ? inspecoes.split('\n').filter(Boolean).map(o => `<tr><td style="border:none; padding:2px 8px; font-size:11px;">${o}</td></tr>`).join('')
+    : '<tr><td style="border:none; height:14px;"></td></tr>';
+
+  const frotaCombinada = frota.map(f => `${f.combIni || '—'}→${f.combFim || '—'}`).join(', ') || '';
+
   return `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><title>LIVRO ATA DE CHEFE DE EQUIPE</title>
 <style>
   @page { size: A4; margin: 15mm 10mm; }
-  body { font-family: Arial, sans-serif; margin: 0; padding: 0; font-size: 7.5px; line-height: 1.2; color: #000; }
-  table { width: 100%; border-collapse: collapse; margin-bottom: 3px; page-break-inside: avoid; }
+  body { background: #ddd; display: flex; justify-content: center; padding: 10px; font-family: Arial, sans-serif; }
+  .page {
+    background: #fff; width: 210mm; min-height: 297mm; padding: 4mm 6mm;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2); font-size: 7.5px; line-height: 1.2; color: #000; margin-bottom: 10px;
+  }
+  @media print {
+    body { background: #fff; padding: 0; }
+    .page { box-shadow: none; margin: 0; padding: 0; width: 100%; min-height: auto; }
+    table { page-break-inside: avoid; }
+    .sec-title { page-break-after: avoid; }
+  }
+  table { width: 100%; border-collapse: collapse; page-break-inside: avoid; }
   td, th { border: 1px solid #000; padding: 5px 5px; font-size: 7.5px; text-align: left; vertical-align: top; }
   .b { font-weight: bold; }
   .c { text-align: center; }
-  .sec-title td { font-weight: bold; font-size: 11px; background: #d4d4d4; padding: 2px 3px; text-align:center; }
+  .sec-title td { font-weight: bold; font-size: 11px; background: #d4d4d4; padding: 5px 5px; text-align:center; }
   .mb { margin-top: 2px; margin-bottom: 2px; }
 </style>
 </head><body>
+<div class="page">
 
   <!-- HEADER -->
   <table style="margin-bottom:3px;">
@@ -82,7 +153,7 @@ export function montarHTML(dados: Record<string, unknown>): string {
       <td style="width:70%; padding:2px 2px; text-align:center; vertical-align:middle;">
         <div style="font-size:8px; font-weight:bold;">FORMULÁRIO (FOR)</div>
       </td>
-      <td colspan="2" style="text-align:center; padding:2px 2px; font-size:11px; vertical-align:middle;"><span class="b">Código:</span></td>
+      <td colspan="2" style="text-align:center; padding:2px 2px; font-size:7px; vertical-align:middle;"><span class="b">Código:</span></td>
     </tr>
     <tr>
       <td rowspan="3" style="width:70%; padding:4px 6px; text-align:center; vertical-align:middle;">
@@ -91,8 +162,8 @@ export function montarHTML(dados: Record<string, unknown>): string {
       <td colspan="2" style="text-align:center; padding:2px 3px; font-size:9px; vertical-align:middle;">MMS.BR.BA.FOR.001</td>
     </tr>
     <tr>
-      <td style="width:9%; text-align:center; padding:2px 2px; font-size:11px; vertical-align:middle;"><span class="b">Revisão:</span></td>
-      <td style="width:9%; text-align:center; padding:2px 2px; font-size:11px; vertical-align:middle;"><span class="b">Página:</span></td>
+      <td style="width:9%; text-align:center; padding:2px 2px; font-size:7px; vertical-align:middle;"><span class="b">Revisão:</span></td>
+      <td style="width:9%; text-align:center; padding:2px 2px; font-size:7px; vertical-align:middle;"><span class="b">Página:</span></td>
     </tr>
     <tr>
       <td style="text-align:center; padding:2px 3px; font-size:9px; vertical-align:middle;">00</td>
@@ -115,21 +186,19 @@ export function montarHTML(dados: Record<string, unknown>): string {
     <tr><td class="b" colspan="3" style="font-size:11px; width:22%">1.1. Chefe de Equipe:</td><td style="font-size:11px;" colspan="4">${chefeEquipe}</td></tr>
     <tr><td class="b" colspan="3" style="font-size:11px;">1.2. Comunicação BA-OC:</td><td style="font-size:11px;" colspan="4">${comunic}</td></tr>
     <tr><td class="b" colspan="7" style="font-size:11px; padding:5px 5px;">1.3. Equipagem dos CCI - EM LINHA, CCI - RT e CRS:</td></tr>
-    <tr><td class="b" style="font-size:11px; width:1%; border-bottom:none; border-right:none;">CCI 2</td><td colspan="6" style="font-size:11px; border-bottom:none; border-left:none;">${grid3(cci2)}</td></tr>
-    <tr><td class="b" style="font-size:11px; border-top:none; border-bottom:none; border-right:none;">CCI 3</td><td colspan="6" style="font-size:11px; border-top:none; border-bottom:none; border-left:none;">${grid3(cci3)}</td></tr>
-    <tr><td class="b" style="font-size:11px; border-top:none; border-right:none;">CRS</td><td colspan="6" style="font-size:11px; border-top:none; border-left:none;">${grid4(crs)}</td></tr>
-    <tr><td class="b" colspan="7" style="font-size:11px;">1.3. Substituições de BA: ${temSubstituicao ? '✓ ABAIXO' : '☐ ABAIXO'} &nbsp;&nbsp;&nbsp; ${temSubstituicao ? '☐ NÃO HOUVE' : '✓ NÃO HOUVE'}</td></tr>
+    <tr><td class="b" style="font-size:11px; width:1%; white-space:nowrap; border-bottom:none; border-right:none;">CCI 2</td><td colspan="6" style="font-size:11px; border-bottom:none; border-left:none;">${cci2HTML}</td></tr>
+    <tr><td class="b" style="font-size:11px; white-space:nowrap; border-top:none; border-bottom:none; border-right:none;">CCI 3</td><td colspan="6" style="font-size:11px; border-top:none; border-bottom:none; border-left:none;">${cci3HTML}</td></tr>
+    <tr><td class="b" style="font-size:11px; white-space:nowrap; border-top:none; border-right:none;">CRS</td><td colspan="6" style="font-size:11px; border-top:none; border-left:none;">${crsHTML}</td></tr>
+    <tr><td class="b" colspan="7" style="font-size:11px;">1.3. Substituições de BA: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${cbSub(temSubstituicao)} ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${cbSubUp(!temSubstituicao)} NÃO HOUVE</td></tr>
     ${subHTML}
     <tr><td style="border-top:1px solid #000; border-bottom:1px solid #000; padding:2px 3px; font-weight:bold; font-size:11px; background:#d4d4d4; text-align:center;" colspan="7">II. INSTRUÇÕES</td></tr>
     ${instrucoesHTML}
-    <tr><td style="border-bottom:1px solid #000;" colspan="7"></td></tr>
-    <tr><td colspan="7" style="border:1px solid #000; padding:2px 8px; font-size:11px; min-height:40px; vertical-align:top;">${e('ptrba', '')}</td></tr>
     <tr class="sec-title"><td colspan="7">III. SITUAÇÃO OPERACIONAL DA FROTA DO SESCINC:</td></tr>
-    ${frotaHTML}
+    ${frotaLinhas}
   </table>
 
   <!-- IV -->
-  <table style="border:1px solid #000; border-collapse:separate; border-spacing:0; margin-top:3px;">
+  <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
     <tr><td style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:11px; background:#d4d4d4; text-align:center; padding:2px 3px;">IV. SITUAÇÃO OPERACIONAL DA CENTRAL FAÍSCA, EQUIPAMENTOS DE COMUNICAÇÃO E ALARME:</td></tr>
     <tr><td style="border:none; border-bottom:1px solid #000; padding:2px 8px; font-size:11px;"><span class="b">3.1 CENTRAL FAÍSCA:</span></td></tr>
     <tr><td style="border:none; border-bottom:1px solid #000; padding:2px 8px; font-size:11px;">${e('centralFaisca', 'SEM ALTERAÇÕES')}</td></tr>
@@ -137,78 +206,45 @@ export function montarHTML(dados: Record<string, unknown>): string {
     <tr><td style="border:none; padding:2px 8px; font-size:11px;">${e('radioComunicacao', 'SEM ALTERAÇÕES')}</td></tr>
   </table>
 
-  <!-- V -->
-  <table style="border:1px solid #000; border-collapse:separate; border-spacing:0; margin-top:3px;">
-    <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:11px; background:#d4d4d4; text-align:center; padding:2px 3px;">V. SITUAÇÃO OPERACIONAL DOS TP, EPR EM LINHA E EM ESTOQUE</td></tr>
-    ${e('tpTexto') ? `
-    <tr><td style="border:none; padding:2px 40px; font-size:11px;"><span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:-2px;">✓</span> ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:1px;"></span> SEM ALTERAÇÕES</td></tr>
-    <tr><td style="border:none; border-top:1px solid #000; padding:6px 8px; font-size:11px;">${e('tpTexto')}</td></tr>` : `
-    <tr><td style="border:none; padding:2px 40px; font-size:11px;"><span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:-2px;"></span> ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:1px;">✓</span> SEM ALTERAÇÕES</td></tr>
-    <tr><td style="border:none; border-top:1px solid #000; padding:6px 8px; font-size:11px;">SEM ALTERAÇÕES</td></tr>`}
-  </table>
+  ${secaoCheckbox('V. SITUAÇÃO OPERACIONAL DOS TP, EPR EM LINHA E EM ESTOQUE', tpTemAlteracao, tpTexto)}
+  ${secaoCheckbox('VI. SITUAÇÃO OPERACIONAL DOS AGENTES EXTINTORES (LGE E PQ) E NITROGÊNIO EM LINHA E ESTOQUE', extTemAlteracao, extTexto)}
+  ${secaoCheckbox('VII. SITUAÇÃO OPERACIONAL DOS EQUIPAMENTOS E MATERIAIS DO SESCINC', equipTemAlteracao, equipTexto)}
+  ${secaoCheckbox('VIII. SITUAÇÃO OPERACIONAL DAS EDIFICAÇÕES / INSTALAÇÕES DA SCI', edifTemAlteracao, edifTexto)}
 
-  <!-- VI -->
-  <table style="border:1px solid #000; border-collapse:separate; border-spacing:0; margin-top:3px;">
-    <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:11px; background:#d4d4d4; text-align:center; padding:2px 3px;">VI. SITUAÇÃO OPERACIONAL DOS AGENTES EXTINTORES (LGE E PQ) E NITROGÊNIO EM LINHA E ESTOQUE</td></tr>
-    ${e('extTexto') ? `
-    <tr><td style="border:none; padding:2px 40px; font-size:11px;"><span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:-2px;">✓</span> ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:1px;"></span> SEM ALTERAÇÕES</td></tr>
-    <tr><td style="border:none; border-top:1px solid #000; padding:6px 8px; font-size:11px;">${e('extTexto')}</td></tr>` : `
-    <tr><td style="border:none; padding:2px 40px; font-size:11px;"><span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:-2px;"></span> ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:1px;">✓</span> SEM ALTERAÇÕES</td></tr>
-    <tr><td style="border:none; border-top:1px solid #000; padding:6px 8px; font-size:11px;">SEM ALTERAÇÕES</td></tr>`}
-  </table>
-
-  <!-- VII -->
-  <table style="border:1px solid #000; border-collapse:separate; border-spacing:0; margin-top:3px;">
-    <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:11px; background:#d4d4d4; text-align:center; padding:2px 3px;">VII. SITUAÇÃO OPERACIONAL DOS EQUIPAMENTOS E MATERIAIS DO SESCINC</td></tr>
-    ${e('equipTexto') ? `
-    <tr><td style="border:none; padding:2px 40px; font-size:11px;"><span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:-2px;">✓</span> ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:1px;"></span> SEM ALTERAÇÕES</td></tr>
-    <tr><td style="border:none; border-top:1px solid #000; padding:6px 8px; font-size:11px;">${e('equipTexto')}</td></tr>` : `
-    <tr><td style="border:none; padding:2px 40px; font-size:11px;"><span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:-2px;"></span> ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:1px;">✓</span> SEM ALTERAÇÕES</td></tr>
-    <tr><td style="border:none; border-top:1px solid #000; padding:6px 8px; font-size:11px;">SEM ALTERAÇÕES</td></tr>`}
-  </table>
-
-  <!-- VIII -->
-  <table style="border:1px solid #000; border-collapse:separate; border-spacing:0; margin-top:3px;">
-    <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:11px; background:#d4d4d4; text-align:center; padding:2px 3px;">VIII. SITUAÇÃO OPERACIONAL DAS EDIFICAÇÕES / INSTALAÇÕES DA SCI</td></tr>
-    ${e('edifTexto') ? `
-    <tr><td style="border:none; padding:2px 40px; font-size:11px;"><span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:-2px;">✓</span> ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:1px;"></span> SEM ALTERAÇÕES</td></tr>
-    <tr><td style="border:none; border-top:1px solid #000; padding:6px 8px; font-size:11px;">${e('edifTexto')}</td></tr>` : `
-    <tr><td style="border:none; padding:2px 40px; font-size:11px;"><span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:-2px;"></span> ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span style="display:inline-block; width:9px; height:9px; border:1px solid black; text-align:center; line-height:8px; font-size:7px; vertical-align:baseline; position:relative; top:1px;">✓</span> SEM ALTERAÇÕES</td></tr>
-    <tr><td style="border:none; border-top:1px solid #000; padding:6px 8px; font-size:11px;">SEM ALTERAÇÕES</td></tr>`}
-  </table>
-
-  <!-- IX a XI -->
-  <table style="border:1px solid #000; border-collapse:separate; border-spacing:0; margin-top:3px;">
+  <!-- IX -->
+  <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
     <tr><td style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:11px; background:#d4d4d4; text-align:center; padding:2px 3px;">IX. OCORRÊNCIAS NÃO AERONÁUTICAS</td></tr>
-    <tr><td style="border:none; height:14px;"></td></tr>
+    ${ocorrenciasNAHTML}
   </table>
 
-  <table style="border:1px solid #000; border-collapse:separate; border-spacing:0; margin-top:3px;">
+  <!-- X -->
+  <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
     <tr><td style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:11px; background:#d4d4d4; text-align:center; padding:2px 3px;">X. INSPEÇÕES TÉCNICAS E VISTORIAS</td></tr>
-    <tr><td style="border:none; height:14px;">${e('inspecoes')}</td></tr>
+    ${inspecoesHTML}
   </table>
 
-  <table style="border:1px solid #000; border-collapse:separate; border-spacing:0; margin-top:3px;">
+  <!-- XI -->
+  <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
     <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:11px; background:#d4d4d4; text-align:center; padding:2px 3px;">XI. EMERGÊNCIAS AERONÁUTICAS</td></tr>
     ${temEmergencia ? `<tr><td style="border:none; padding:2px 8px; font-size:11px;">${temEmergencia}</td></tr>` : '<tr><td style="border:none; height:14px;"></td></tr>'}
   </table>
 
   <!-- XII -->
-  <table style="border:1px solid #000; border-collapse:separate; border-spacing:0; margin-top:3px;">
+  <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
     <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:11px; background:#d4d4d4; text-align:center; padding:2px 3px;">XII. OUTRAS OCORRÊNCIAS</td></tr>
     ${ocorrenciasHTML}
   </table>
 
   <!-- XIII -->
-  <table style="border:1px solid #000; border-collapse:separate; border-spacing:0; margin-top:3px;">
+  <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
     <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:11px; background:#d4d4d4; text-align:center; padding:2px 3px;">XIII. SOLICITAÇÕES EFETUADAS A CCR</td></tr>
     ${solicitacoesHTML}
   </table>
 
   <!-- ASSINATURAS -->
-  <table style="border:1px solid #000; border-collapse:separate; border-spacing:0; margin-top:3px;">
+  <table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
     <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:10px; background:#d4d4d4; text-align:center; padding:2px 3px;">LOCAL, DATA E ASSINATURAS</td></tr>
-    <tr><td colspan="6" style="border:none; padding:6px 4px; font-size:10px; text-align:right;">${cidade} - ${uf}, ${dia} de ${mes} de ${ano}</td></tr>
+    <tr><td colspan="6" style="border:none; padding:6px 4px; font-size:10px; text-align:right;">${cidade} - ${uf}, ${dataObj.dia} de ${nomeMes(dataObj.mes)} de ${dataObj.ano}</td></tr>
     <tr><td colspan="6" style="border:none; padding:0 4px; font-size:10px; text-align:right;">(cidade) &nbsp;&nbsp;&nbsp; (dia) &nbsp;&nbsp;&nbsp; (mês) &nbsp;&nbsp;&nbsp; (ano)</td></tr>
     <tr><td style="border:none; height:40px;"></td></tr>
     <tr>
@@ -227,6 +263,27 @@ export function montarHTML(dados: Record<string, unknown>): string {
     </tr>
   </table>
 
+</div>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    var pages = document.querySelectorAll('.page');
+    pages.forEach(function(page, index) {
+      var pageNum = page.querySelector('.page-num');
+      var pageTotal = page.querySelector('.page-total');
+      if (pageNum) pageNum.textContent = (index + 1);
+      if (pageTotal) pageTotal.textContent = pages.length;
+    });
+  });
+  window.onbeforeprint = function() {
+    var pages = document.querySelectorAll('.page');
+    pages.forEach(function(page, index) {
+      var pageNum = page.querySelector('.page-num');
+      var pageTotal = page.querySelector('.page-total');
+      if (pageNum) pageNum.textContent = (index + 1);
+      if (pageTotal) pageTotal.textContent = pages.length;
+    });
+  };
+</script>
 </body></html>`;
 }
 
@@ -236,9 +293,18 @@ export async function gerarPDF(dados: Record<string, unknown>): Promise<Blob> {
   return new Promise((resolve, reject) => {
     doc.html(html, {
       callback: () => {
-        try { resolve(doc.output('blob')); } catch (err) { reject(err); }
+        try {
+          const totalPages = doc.getNumberOfPages();
+          for (let i = 1; i <= totalPages; i++) {
+            doc.setPage(i);
+            doc.setFontSize(9);
+            doc.setTextColor(0);
+            doc.text(`${i} de ${totalPages}`, 192, 36, { align: 'right' });
+          }
+          resolve(doc.output('blob'));
+        } catch (err) { reject(err); }
       },
-      margin: [10, 10, 10, 10],
+      margin: [15, 10, 15, 10],
       autoPaging: 'text',
       width: 190,
       windowWidth: 1900,

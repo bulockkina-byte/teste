@@ -7,10 +7,11 @@ import { useAuth } from '../../context/AuthContext';
 import { listarAtivos } from '../../services/bombeiroService';
 import { listarFeriasGozo } from '../../services/feriasService';
 import { listarSubstituicoesTemporarias } from '../../services/substituicaoTemporariaService';
-import { listarDocumentos, listarPreenchimentos } from '../../services/documentoService';
+import { listarDocumentos, listarPreenchimentos, criarPreenchimento } from '../../services/documentoService';
 import { listarViaturas } from '../../services/viaturaService';
 import { listarPTRBs } from '../../services/ptrbService';
 import { listarOcorrencias } from '../../services/ocorrenciaService';
+import { listarAPOCs } from '../../services/apocService';
 import { salvarDraft, listarDrafts, atualizarStatus, excluirDraft, type LRODraft, type LRODraftStatus } from '../../services/lroDraftService';
 import { gerarPDF } from '../../services/lroGenerator';
 import { criarDocumento as criarDocumentoAutentique } from '../../services/autentiqueService';
@@ -99,6 +100,7 @@ export function GerarLRO() {
   const [ptrbs, setPtrbs] = useState<PTRB[]>([]);
   const [ocorrencias, setOcorrencias] = useState<any[]>([]);
   const [drafts, setDrafts] = useState<LRODraft[]>([]);
+  const [apocs, setApocs] = useState<any[]>([]);
   const [draftId, setDraftId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -116,9 +118,13 @@ export function GerarLRO() {
   const [equipe, setEquipe] = useState<EquipeOpcao>('Alfa');
   const [dataInicio, setDataInicio] = useState(new Date().toISOString().split('T')[0]);
   const [dataFim, setDataFim] = useState('');
+  const [trocaDocId, setTrocaDocId] = useState<string | null>(null);
   const [houveTrocas, setHouveTrocas] = useState<'sim' | 'nao' | null>(null);
   const [trocaSolicitante, setTrocaSolicitante] = useState('');
   const [trocaSolicitado, setTrocaSolicitado] = useState('');
+  const [trocaDataFolga, setTrocaDataFolga] = useState('');
+  const [trocaMotivo, setTrocaMotivo] = useState('');
+  const [trocasManuais, setTrocasManuais] = useState<Array<{ solicitante: string; solicitado: string; dataFolga: string; motivo: string }>>([]);
   const [substituicoesDetectadas, setSubstituicoesDetectadas] = useState<{ id: string; tipo: 'troca' | 'substituicao'; substituido: string; substituto: string; dataSolicitada?: string; dataFolga?: string; confirmada: boolean | null }[]>([]);
 
   // -- LRO Sections --
@@ -162,6 +168,7 @@ export function GerarLRO() {
   const [trocaRecusadaIdx, setTrocaRecusadaIdx] = useState<number | null>(null);
   const [showConfirmCorreta, setShowConfirmCorreta] = useState(false);
   const [trocaConfirmadaIdx, setTrocaConfirmadaIdx] = useState<number | null>(null);
+  const [showConfirmAdicionar, setShowConfirmAdicionar] = useState(false);
   const [filtroAno, setFiltroAno] = useState(new Date().getFullYear().toString());
   const [filtroMes, setFiltroMes] = useState('');
   const [filtroEquipeLista, setFiltroEquipeLista] = useState('');
@@ -170,9 +177,10 @@ export function GerarLRO() {
   useEffect(() => {
     async function load() {
       try {
-        const [b, f, v, p, o, subs, docs] = await Promise.all([
-          listarAtivos(), listarFeriasGozo(), listarViaturas(), listarPTRBs(), listarOcorrencias(), listarSubstituicoesTemporarias(), listarDocumentos(),
+        const [b, f, v, p, o, subs, docs, a] = await Promise.all([
+          listarAtivos(), listarFeriasGozo(), listarViaturas(), listarPTRBs(), listarOcorrencias(), listarSubstituicoesTemporarias(), listarDocumentos(), listarAPOCs(),
         ]);
+        setApocs(a);
         setBombeiros(b);
         setFeriasGozo(f);
         setTodasSubstituicoes(subs);
@@ -182,8 +190,9 @@ export function GerarLRO() {
 
         const trocaDoc = docs.find((d: any) => d.name?.includes('TROCA') || d.source_module === 'trocas');
         if (trocaDoc) {
+          setTrocaDocId(trocaDoc.id);
           const fills = await listarPreenchimentos(trocaDoc.id);
-          setTrocaFills(fills.filter((fl: any) => fl.status !== 'archived'));
+          setTrocaFills(fills.filter((fl: any) => fl.status === 'signed'));
         } else {
           // Fallback: procura fills com nome_solicitante em qualquer documento
           const todosFills = await Promise.all(docs.map((d: any) => listarPreenchimentos(d.id).catch(() => [])));
@@ -191,7 +200,7 @@ export function GerarLRO() {
             const fd = fl.filled_data || {};
             return fd.nome_solicitante || fd.nome_solicitado;
           });
-          setTrocaFills(comNome.filter((fl: any) => fl.status !== 'archived'));
+          setTrocaFills(comNome.filter((fl: any) => fl.status === 'signed'));
         }
         const d = isAdmin
           ? await listarDrafts('').catch(() => [])
@@ -202,6 +211,46 @@ export function GerarLRO() {
         const frotaInit: Record<string, any> = {};
         cci.forEach((veiculo: any) => { frotaInit[veiculo.id || veiculo.prefixo] = { kmIni: '', kmFim: '', combIni: '', combFim: '', situacao: '' }; });
         setFrotaDados(frotaInit);
+        const saved = sessionStorage.getItem('lro_form_backup');
+        if (saved) {
+          try {
+            const p = JSON.parse(saved);
+            sessionStorage.removeItem('lro_form_backup');
+            setStep(p.step || 'equipe');
+            setEquipe(p.equipe || 'Alfa');
+            setDataInicio(p.dataInicio || new Date().toISOString().split('T')[0]);
+            setDataFim(p.dataFim || '');
+            setChefeEquipe(p.chefeEquipe || '');
+            setComunicacao(p.comunicacao || '');
+            setEquipagemCCI(p.equipagemCCI || {});
+            setEquipagemCCIRT(p.equipagemCCIRT || {});
+            setEquipagemCRS(p.equipagemCRS || {});
+            setInstrucoes(p.instrucoes || '');
+            setInstrucoesHorarios(p.instrucoesHorarios || '');
+            setFrotaDados(p.frotaDados || {});
+            setCentralFaisca(p.centralFaisca || 'SEM ALTERAÇÕES');
+            setRadioComunicacao(p.radioComunicacao || 'SEM ALTERAÇÕES');
+            setTpTemAlteracao(p.tpTemAlteracao || false);
+            setTpTexto(p.tpTexto || '');
+            setExtTemAlteracao(p.extTemAlteracao || false);
+            setExtTexto(p.extTexto || '');
+            setEquipTemAlteracao(p.equipTemAlteracao || false);
+            setEquipTexto(p.equipTexto || '');
+            setEdifTemAlteracao(p.edifTemAlteracao || false);
+            setEdifTexto(p.edifTexto || '');
+            setOcorrenciasNA(p.ocorrenciasNA || '');
+            setInspecoes(p.inspecoes || '');
+            setEmergenciaXI(p.emergenciaXI || '');
+            setOutrasOcorrencias(p.outrasOcorrencias || '');
+            setSolicitacoesCCR(p.solicitacoesCCR || '');
+            setTrocaSolicitante(p.trocaSolicitante || '');
+            setTrocaSolicitado(p.trocaSolicitado || '');
+            if (p.trocasManuais) setTrocasManuais(p.trocasManuais);
+            if (p.substituicoesDetectadas) setSubstituicoesDetectadas(p.substituicoesDetectadas);
+            if (p.draftId) setDraftId(p.draftId);
+            setView('wizard');
+          } catch { /* ignore restore errors */ }
+        }
       } catch { /* ignore */ }
       setLoading(false);
     }
@@ -255,11 +304,8 @@ export function GerarLRO() {
     );
     if (ptrbsFiltrados.length > 0) {
       const linhas = ptrbsFiltrados.map(p => {
-        const assunto = p.assuntoMinistrado || '';
-        const desc = p.descricao || '';
-        const hora = p.horaInicio || '';
-        const texto = assunto && desc ? `${assunto} - ${desc}` : (assunto || desc);
-        return `${texto}  ${hora}`;
+        const assunto = (p.assuntoMinistrado || '').trim();
+        return assunto;
       });
       setInstrucoes(linhas.join('\n\n'));
       setInstrucoesHorarios(ptrbsFiltrados.map(p => p.horaInicio || ''));
@@ -311,6 +357,7 @@ export function GerarLRO() {
     return b?.nomeGuerra || nome;
   }
 
+  const jaTemManual = trocasManuais.length > 0;
   const substituicoesMap = useMemo(() => {
     if (!dataInicio) return {};
     const map: Record<string, { substitutoNome: string; substitutoId: string; tipo: 'troca' | 'substituicao' }> = {};
@@ -343,8 +390,16 @@ export function GerarLRO() {
         map[idSubstituto] = { substitutoNome: nomeSubstituido, substitutoId: idSubstituido, tipo: 'substituicao' };
       }
     });
+    // De trocasManuais (troca emergencial) — solicitante sai, solicitado entra
+    trocasManuais.forEach(tm => {
+      const solicitante = bombeiros.find((b: any) => b.nomeGuerra === tm.solicitante);
+      const solicitado = bombeiros.find((b: any) => b.nomeGuerra === tm.solicitado);
+      if (solicitante && solicitado) {
+        map[solicitante.id] = { substitutoNome: tm.solicitado, substitutoId: solicitado.id, tipo: 'troca' };
+      }
+    });
     return map;
-  }, [dataInicio, trocaFills, todasSubstituicoes, bombeiros]);
+  }, [dataInicio, trocaFills, todasSubstituicoes, trocasManuais, bombeiros]);
 
   const disponiveis = useMemo(() => {
     const feriasIds = new Set(emFerias.map(f => f.funcionarioId));
@@ -408,16 +463,26 @@ export function GerarLRO() {
         ocorrenciasXII: Array.isArray(outrasOcorrencias) ? outrasOcorrencias : (typeof outrasOcorrencias === 'string' ? outrasOcorrencias.split('\n').filter(Boolean) : []),
         solicitacoes: solicitacoesCCR.split('\n').filter(Boolean),
         substituicao: [
-          ...substituicoesDetectadas.filter(s => s.confirmada === true).map(s => ({ funcao1: 'BA-2', nome1: s.substituido, funcao2: 'BA-2', nome2: s.substituto })),
-          ...(houveTrocas === 'sim' && trocaSolicitante && trocaSolicitado ? [{ funcao1: 'BA-2', nome1: trocaSolicitante, funcao2: 'BA-2', nome2: trocaSolicitado }] : []),
+          ...substituicoesDetectadas.filter(s => s.tipo === 'troca' && s.confirmada === true).map(s => {
+            const p1 = bombeiros.find((b: any) => s.substituido.includes(b.nomeCompleto) || s.substituido.includes(b.nomeGuerra));
+            const p2 = bombeiros.find((b: any) => s.substituto.includes(b.nomeCompleto) || s.substituto.includes(b.nomeGuerra));
+            return { funcao1: p1?.cargo || 'BA-2', nome1: p1?.nomeCompleto || s.substituido, funcao2: p2?.cargo || 'BA-2', nome2: p2?.nomeCompleto || s.substituto };
+          }),
+          ...trocasManuais.filter(tm => tm.solicitante && tm.solicitado).map(tm => {
+            const p1 = bombeiros.find((b: any) => b.nomeGuerra === tm.solicitante || b.nomeCompleto === tm.solicitante);
+            const p2 = bombeiros.find((b: any) => b.nomeGuerra === tm.solicitado || b.nomeCompleto === tm.solicitado);
+            return { funcao1: p1?.cargo || 'BA-2', nome1: p1?.nomeCompleto || tm.solicitante, funcao2: p2?.cargo || 'BA-2', nome2: p2?.nomeCompleto || tm.solicitado };
+          }),
         ],
         cci2: Object.entries(equipagemCCI).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
         cci3: Object.entries(equipagemCCIRT).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
         crs: Object.entries(equipagemCRS).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
         dataAssinatura: new Date().toLocaleDateString('pt-BR'),
-        chefeAssinatura: chefeEquipe,
-        gerenteAssinatura: '',
-        coordenadorAssinatura: '',
+        chefeAssinatura: bombeiros.find((b: any) => b.nomeGuerra === chefeEquipe || b.nomeCompleto === chefeEquipe)?.nomeCompleto || chefeEquipe,
+        gerenteAssinatura: bombeiros.find((b: any) => b.cargo === 'GS')?.nomeCompleto || bombeiros.find((b: any) => b.cargo === 'GS')?.nomeGuerra || '',
+        coordenadorAssinatura: apocs.find((a: any) => a.funcao === 'SUPERVISOR')?.nomeCompleto || '',
+        _trocasManuais: trocasManuais,
+        _substituicoesDetectadas: substituicoesDetectadas.filter(s => s.tipo === 'troca' && s.confirmada === true),
       };
       const saved = await salvarDraft(dados, equipe, dataInicio, username, draftId || undefined);
       setDraftId(saved.id);
@@ -455,14 +520,22 @@ export function GerarLRO() {
         ocorrenciasXII: Array.isArray(outrasOcorrencias) ? outrasOcorrencias : (typeof outrasOcorrencias === 'string' ? outrasOcorrencias.split('\n').filter(Boolean) : []),
         solicitacoes: solicitacoesCCR.split('\n').filter(Boolean),
         substituicao: [
-          ...substituicoesDetectadas.filter(s => s.confirmada === true).map(s => ({ funcao1: 'BA-2', nome1: s.substituido, funcao2: 'BA-2', nome2: s.substituto })),
-          ...(houveTrocas === 'sim' && trocaSolicitante && trocaSolicitado ? [{ funcao1: 'BA-2', nome1: trocaSolicitante, funcao2: 'BA-2', nome2: trocaSolicitado }] : []),
+          ...substituicoesDetectadas.filter(s => s.tipo === 'troca' && s.confirmada === true).map(s => {
+            const p1 = bombeiros.find((b: any) => s.substituido.includes(b.nomeCompleto) || s.substituido.includes(b.nomeGuerra));
+            const p2 = bombeiros.find((b: any) => s.substituto.includes(b.nomeCompleto) || s.substituto.includes(b.nomeGuerra));
+            return { funcao1: p1?.cargo || 'BA-2', nome1: p1?.nomeCompleto || s.substituido, funcao2: p2?.cargo || 'BA-2', nome2: p2?.nomeCompleto || s.substituto };
+          }),
+          ...trocasManuais.filter(tm => tm.solicitante && tm.solicitado).map(tm => {
+            const p1 = bombeiros.find((b: any) => b.nomeGuerra === tm.solicitante || b.nomeCompleto === tm.solicitante);
+            const p2 = bombeiros.find((b: any) => b.nomeGuerra === tm.solicitado || b.nomeCompleto === tm.solicitado);
+            return { funcao1: p1?.cargo || 'BA-2', nome1: p1?.nomeCompleto || tm.solicitante, funcao2: p2?.cargo || 'BA-2', nome2: p2?.nomeCompleto || tm.solicitado };
+          }),
         ],
         cci2: Object.entries(equipagemCCI).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
         cci3: Object.entries(equipagemCCIRT).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
         crs: Object.entries(equipagemCRS).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
         dataAssinatura: new Date().toLocaleDateString('pt-BR'),
-        chefeAssinatura: chefeEquipe,
+        chefeAssinatura: bombeiros.find((b: any) => b.nomeGuerra === chefeEquipe || b.nomeCompleto === chefeEquipe)?.nomeCompleto || chefeEquipe,
       };
 
       if (draftId) {
@@ -477,10 +550,73 @@ export function GerarLRO() {
     setSaving(false);
   }
 
+  function handlePreview() {
+    sessionStorage.setItem('lro_form_backup', JSON.stringify({
+      step, equipe, dataInicio, dataFim,
+      chefeEquipe, comunicacao,
+      equipagemCCI, equipagemCCIRT, equipagemCRS,
+      instrucoes, instrucoesHorarios,
+      frotaDados,
+      centralFaisca, radioComunicacao,
+      tpTemAlteracao, tpTexto,
+      extTemAlteracao, extTexto,
+      equipTemAlteracao, equipTexto,
+      edifTemAlteracao, edifTexto,
+      ocorrenciasNA, inspecoes,
+      emergenciaXI, outrasOcorrencias, solicitacoesCCR,
+      trocasManuais,
+      substituicoesDetectadas, draftId,
+    }));
+    const dados = {
+      equipeNome: equipe, dataInicio, dataFim, chefeEquipe, comunicacao,
+      frota: Array.from({ length: FROTA_ROWS }).map((_, i) => {
+        const d = frotaDados[`row_${i}`] || {};
+        const frotaLista = viaturas.length > 0 ? viaturas : DEFAULT_VIATURAS;
+        const sel = frotaLista.find((vv: any) => vv.id === d.viaturaId);
+        return { viatura: sel?.prefixo || sel?.nome || '—', prefixo: d.prefixo || '', kmIni: d.kmIni || '', kmFim: d.kmFim || '', combIni: d.combIni || '', combFim: d.combFim || '', situacao: d.situacao || '' };
+      }),
+      instrucoes: Array.isArray(instrucoes) ? instrucoes : (typeof instrucoes === 'string' ? instrucoes.split('\n').filter(Boolean) : []),
+      instrucoesHorarios: Array.isArray(instrucoesHorarios) ? instrucoesHorarios : (typeof instrucoesHorarios === 'string' ? instrucoesHorarios.split('\n').filter(Boolean) : []),
+      centralFaisca: centralFaisca || 'SEM ALTERAÇÕES',
+      radioComunicacao: radioComunicacao || 'SEM ALTERAÇÕES',
+      tpTemAlteracao, tpTexto,
+      extTemAlteracao, extTexto,
+      equipTemAlteracao, equipTexto,
+      edifTemAlteracao, edifTexto,
+      ocorrenciasNA, inspecoes,
+      emergenciaXI,
+      ocorrenciasXII: Array.isArray(outrasOcorrencias) ? outrasOcorrencias : (typeof outrasOcorrencias === 'string' ? outrasOcorrencias.split('\n').filter(Boolean) : []),
+      solicitacoes: solicitacoesCCR.split('\n').filter(Boolean),
+      substituicao: [
+        ...substituicoesDetectadas.filter(s => s.tipo === 'troca' && s.confirmada === true).map(s => {
+          const p1 = bombeiros.find((b: any) => s.substituido.includes(b.nomeCompleto) || s.substituido.includes(b.nomeGuerra));
+          const p2 = bombeiros.find((b: any) => s.substituto.includes(b.nomeCompleto) || s.substituto.includes(b.nomeGuerra));
+            return { funcao1: p1?.cargo || 'BA-2', nome1: p1?.nomeCompleto || s.substituido, funcao2: p2?.cargo || 'BA-2', nome2: p2?.nomeCompleto || s.substituto };
+          }),
+          ...trocasManuais.filter(tm => tm.solicitante && tm.solicitado).map(tm => {
+            const p1 = bombeiros.find((b: any) => b.nomeGuerra === tm.solicitante || b.nomeCompleto === tm.solicitante);
+            const p2 = bombeiros.find((b: any) => b.nomeGuerra === tm.solicitado || b.nomeCompleto === tm.solicitado);
+            return { funcao1: p1?.cargo || 'BA-2', nome1: p1?.nomeCompleto || tm.solicitante, funcao2: p2?.cargo || 'BA-2', nome2: p2?.nomeCompleto || tm.solicitado };
+          }),
+        ],
+        cci2: Object.entries(equipagemCCI).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
+      cci3: Object.entries(equipagemCCIRT).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
+      crs: Object.entries(equipagemCRS).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
+      dataAssinatura: new Date().toLocaleDateString('pt-BR'),
+      chefeAssinatura: bombeiros.find((b: any) => b.nomeGuerra === chefeEquipe || b.nomeCompleto === chefeEquipe)?.nomeCompleto || chefeEquipe,
+      gerenteAssinatura: bombeiros.find((b: any) => b.cargo === 'GS')?.nomeCompleto || '',
+      coordenadorAssinatura: apocs.find((a: any) => a.funcao === 'SUPERVISOR')?.nomeCompleto || '',
+      cidade: 'NAVEGANTES',
+      uf: 'SC',
+    };
+    navigate('/registros-diarios/preview-lro', { state: dados });
+  }
+
   async function handleEnviarAutentique() {
     setShowConfirm(false);
     setSaving(true);
     try {
+      const gerenteEncontrado = bombeiros.find((b: any) => b.cargo === 'GS');
       const dados = {
         equipeNome: equipe, dataInicio, dataFim, chefeEquipe, comunicacao,
         frota: Array.from({ length: FROTA_ROWS }).map((_, i) => {
@@ -498,14 +634,24 @@ export function GerarLRO() {
         ocorrenciasXII: Array.isArray(outrasOcorrencias) ? outrasOcorrencias : (typeof outrasOcorrencias === 'string' ? outrasOcorrencias.split('\n').filter(Boolean) : []),
         solicitacoes: solicitacoesCCR.split('\n').filter(Boolean),
         substituicao: [
-          ...substituicoesDetectadas.filter(s => s.confirmada === true).map(s => ({ funcao1: 'BA-2', nome1: s.substituido, funcao2: 'BA-2', nome2: s.substituto })),
-          ...(houveTrocas === 'sim' && trocaSolicitante && trocaSolicitado ? [{ funcao1: 'BA-2', nome1: trocaSolicitante, funcao2: 'BA-2', nome2: trocaSolicitado }] : []),
+          ...substituicoesDetectadas.filter(s => s.tipo === 'troca' && s.confirmada === true).map(s => {
+            const p1 = bombeiros.find((b: any) => s.substituido.includes(b.nomeCompleto) || s.substituido.includes(b.nomeGuerra));
+            const p2 = bombeiros.find((b: any) => s.substituto.includes(b.nomeCompleto) || s.substituto.includes(b.nomeGuerra));
+            return { funcao1: p1?.cargo || 'BA-2', nome1: p1?.nomeCompleto || s.substituido, funcao2: p2?.cargo || 'BA-2', nome2: p2?.nomeCompleto || s.substituto };
+          }),
+          ...trocasManuais.filter(tm => tm.solicitante && tm.solicitado).map(tm => {
+            const p1 = bombeiros.find((b: any) => b.nomeGuerra === tm.solicitante || b.nomeCompleto === tm.solicitante);
+            const p2 = bombeiros.find((b: any) => b.nomeGuerra === tm.solicitado || b.nomeCompleto === tm.solicitado);
+            return { funcao1: p1?.cargo || 'BA-2', nome1: p1?.nomeCompleto || tm.solicitante, funcao2: p2?.cargo || 'BA-2', nome2: p2?.nomeCompleto || tm.solicitado };
+          }),
         ],
         cci2: Object.entries(equipagemCCI).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
         cci3: Object.entries(equipagemCCIRT).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
         crs: Object.entries(equipagemCRS).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
         dataAssinatura: new Date().toLocaleDateString('pt-BR'),
-        chefeAssinatura: chefeEquipe,
+        chefeAssinatura: bombeiros.find((b: any) => b.nomeGuerra === chefeEquipe || b.nomeCompleto === chefeEquipe)?.nomeCompleto || chefeEquipe,
+        gerenteAssinatura: gerenteEncontrado?.nomeCompleto || gerenteEncontrado?.nomeGuerra || '',
+        coordenadorAssinatura: apocs.find((a: any) => a.funcao === 'SUPERVISOR')?.nomeCompleto || '',
       };
 
       const blob = await gerarPDF(dados);
@@ -513,17 +659,31 @@ export function GerarLRO() {
       const emailChefe = getEmailByNome(chefeEquipe);
       const signers: AutentiqueSigner[] = [];
       if (emailChefe) {
-        signers.push({ email: emailChefe, action: 'SIGN' });
+        signers.push({
+          email: emailChefe,
+          action: 'SIGN',
+          positions: [
+            { x: '5%', y: '86%', z: 0, element: 'SIGNATURE' },
+            { x: '5%', y: '87.5%', z: 1, element: 'NAME' },
+          ],
+        });
       } else {
-        signers.push({ name: chefeEquipe || 'Chefe de Equipe', action: 'SIGN' });
+        signers.push({ name: 'Chefe de Equipe', action: 'SIGN', positions: [{ x: '5%', y: '86%', z: 0, element: 'SIGNATURE' }] });
       }
       const gerente = bombeiros.find(b => b.cargo === 'GS');
       if (gerente?.email) {
-        signers.push({ email: gerente.email, action: 'SIGN' });
+        signers.push({
+          email: gerente.email,
+          action: 'SIGN',
+          positions: [
+            { x: '37%', y: '86%', z: 0, element: 'SIGNATURE' },
+            { x: '37%', y: '87.5%', z: 1, element: 'NAME' },
+          ],
+        });
       } else {
-        signers.push({ name: 'Gerente SESCINC', action: 'SIGN' });
+        signers.push({ name: 'Gerente SESCINC', action: 'SIGN', positions: [{ x: '37%', y: '86%', z: 0, element: 'SIGNATURE' }] });
       }
-      signers.push({ name: 'Coordenador', action: 'SIGN' });
+      signers.push({ name: 'Coordenador', action: 'SIGN', positions: [{ x: '66%', y: '86%', z: 0, element: 'SIGNATURE' }] });
 
       const result = await criarDocumentoAutentique(blob, nomeArquivo, signers, undefined, true);
       if (draftId) await atualizarStatus(draftId, 'aguardando');
@@ -624,7 +784,49 @@ export function GerarLRO() {
                   <span className={`rounded-full px-3 py-1 text-[11px] font-medium ${STATUS_CORES[d.status] || STATUS_CORES.rascunho}`}>
                     {STATUS_LABELS[d.status] || d.status}
                   </span>
-                  <button onClick={() => { setDraftId(d.id); setView('wizard'); }}
+                  <button onClick={() => {
+                    const dd = d.dados as Record<string, any> || {};
+                    setDraftId(d.id);
+                    setStep('preencher');
+                    setEquipe((dd.equipeNome || d.equipe || 'Alfa') as EquipeOpcao);
+                    setDataInicio(dd.dataInicio || d.data_plantao || new Date().toISOString().split('T')[0]);
+                    setDataFim(dd.dataFim || '');
+                    setChefeEquipe(dd.chefeEquipe || '');
+                    setComunicacao(dd.comunicacao || '');
+                    setEquipagemCCI(dd.cci2 ? Object.fromEntries((dd.cci2 as any[]).map((c: any, i: number) => [`${c.funcao}_${i}`, c.nome])) : {});
+                    setEquipagemCCIRT(dd.cci3 ? Object.fromEntries((dd.cci3 as any[]).map((c: any, i: number) => [`${c.funcao}_${i}`, c.nome])) : {});
+                    setEquipagemCRS(dd.crs ? Object.fromEntries((dd.crs as any[]).map((c: any, i: number) => [`${c.funcao}_${i}`, c.nome])) : {});
+                    setInstrucoes(Array.isArray(dd.instrucoes) ? dd.instrucoes.join('\n') : (dd.instrucoes || ''));
+                    setInstrucoesHorarios(dd.instrucoesHorarios || '');
+                    if (dd.frota) {
+                      const fDados: Record<string, any> = {};
+                      (dd.frota as any[]).forEach((f: any, i: number) => {
+                        fDados[`row_${i}`] = { viaturaId: '', prefixo: f.prefixo || '', kmIni: f.kmIni || '', kmFim: f.kmFim || '', combIni: f.combIni || '', combFim: f.combFim || '', situacao: f.situacao || '' };
+                      });
+                      setFrotaDados(fDados);
+                    }
+                    setCentralFaisca(dd.centralFaisca || 'SEM ALTERAÇÕES');
+                    setRadioComunicacao(dd.radioComunicacao || 'SEM ALTERAÇÕES');
+                    setTpTemAlteracao(!!dd.tpTemAlteracao);
+                    setTpTexto(dd.tpTexto || '');
+                    setExtTemAlteracao(!!dd.extTemAlteracao);
+                    setExtTexto(dd.extTexto || '');
+                    setEquipTemAlteracao(!!dd.equipTemAlteracao);
+                    setEquipTexto(dd.equipTexto || '');
+                    setEdifTemAlteracao(!!dd.edifTemAlteracao);
+                    setEdifTexto(dd.edifTexto || '');
+                    setOcorrenciasNA(dd.ocorrenciasNA || '');
+                    setInspecoes(dd.inspecoes || '');
+                    setEmergenciaXI(dd.emergenciaXI || '');
+                    setOutrasOcorrencias(Array.isArray(dd.ocorrenciasXII) ? dd.ocorrenciasXII.join('\n') : (dd.ocorrenciasXII || ''));
+                    setSolicitacoesCCR(Array.isArray(dd.solicitacoes) ? dd.solicitacoes.join('\n') : (dd.solicitacoes || ''));
+                    if (dd._trocasManuais) setTrocasManuais(dd._trocasManuais);
+                    if (dd._substituicoesDetectadas) {
+                      const manuais = (dd._substituicoesDetectadas as any[]).filter((s: any) => s.tipo === 'troca' && s.confirmada === true);
+                      if (manuais.length > 0) setSubstituicoesDetectadas(manuais);
+                    }
+                    setView('wizard');
+                  }}
                     className="rounded-lg border border-graphite-200 px-3 py-1.5 text-xs font-medium text-graphite-600 transition-all hover:bg-graphite-50 dark:border-border-dark dark:hover:bg-surface-hover">
                     {d.status === 'rascunho' ? 'Continuar' : 'Visualizar'}
                   </button>
@@ -862,105 +1064,120 @@ export function GerarLRO() {
             </div>
           )}
 
-          {/* Substitições detectadas do sistema */}
-          {substituicoesDetectadas.length > 0 && (
+          {/* SUBSTITUIÇÕES TEMPORÁRIAS (informativo) */}
+          {substituicoesDetectadas.filter(s => s.tipo === 'substituicao').length > 0 && (
+            <div className="rounded-2xl border border-blue-200 bg-blue-50/50 p-6 dark:border-blue-800/30 dark:bg-blue-900/10">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-200 dark:bg-blue-800">
+                  <span className="text-sm">📋</span>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-blue-800 dark:text-blue-200">Substituições Temporárias</h3>
+                  <p className="text-sm text-blue-600 dark:text-blue-400">
+                    Apenas informativo — o substituto já está incluído nos slots da equipe
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {substituicoesDetectadas.filter(s => s.tipo === 'substituicao').map(sub => {
+                  const findB = (nome: string) => {
+                    const n = (nome || '').toLowerCase().trim();
+                    return bombeiros.find((x: any) => n.includes(x.nomeGuerra.toLowerCase().trim()) || n.includes(x.nomeCompleto.toLowerCase().trim().split(' ')[0]));
+                  };
+                  const bSubdo = findB(sub.substituido);
+                  const bSub = findB(sub.substituto);
+                  return (
+                    <div key={sub.id} className="rounded-xl border border-blue-200 bg-white p-4 dark:border-blue-700 dark:bg-surface-card">
+                      <div className="mb-2">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-1 text-[10px] font-bold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                          📋 Substituição
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-4">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-base font-bold text-graphite-800 dark:text-graphite-200">{sub.substituido || '—'}</p>
+                          {bSubdo && <p className="text-xs text-graphite-500 mt-0.5">{bSubdo.cargo} · EQ {bSubdo.equipe}</p>}
+                          {bSubdo?.nomeCompleto !== sub.substituido && <p className="text-xs text-graphite-400 truncate">{bSubdo?.nomeCompleto || ''}</p>}
+                        </div>
+                        <div className="text-graphite-400 text-sm font-bold shrink-0 pt-1">→</div>
+                        <div className="text-left min-w-0 flex-1">
+                          <p className="text-base font-bold text-blue-700 dark:text-blue-300">{sub.substituto || '—'}</p>
+                          {bSub && <p className="text-xs text-graphite-500 mt-0.5">{bSub.cargo} · EQ {bSub.equipe}</p>}
+                          {bSub?.nomeCompleto !== sub.substituto && <p className="text-xs text-graphite-400 truncate">{bSub?.nomeCompleto || ''}</p>}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* TROCAS DE SERVIÇO (assinadas — confirmar) */}
+          {substituicoesDetectadas.filter(s => s.tipo === 'troca').length > 0 && (
             <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-6 dark:border-amber-800/30 dark:bg-amber-900/10">
               <div className="flex items-center gap-3 mb-4">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-200 dark:bg-amber-800">
                   <AlertTriangle className="h-5 w-5 text-amber-700 dark:text-amber-300" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-amber-800 dark:text-amber-200">Trocas Detectadas</h3>
+                  <h3 className="text-lg font-bold text-amber-800 dark:text-amber-200">Trocas de Serviço</h3>
                   <p className="text-sm text-amber-600 dark:text-amber-400">
-                    {substituicoesDetectadas.length} troca(s) encontrada(s) no sistema para esta equipe. Confirme cada uma:
+                    {substituicoesDetectadas.filter(s => s.tipo === 'troca').length} troca(s) encontrada(s). Confirme cada uma:
                   </p>
                 </div>
               </div>
               <div className="space-y-3">
-                {substituicoesDetectadas.map((sub, idx) => {
-                  const isTroca = sub.tipo === 'troca';
-                  const borderCor = isTroca ? 'border-amber-300 dark:border-amber-700' : 'border-blue-300 dark:border-blue-700';
-                  const bgCor = isTroca ? 'bg-amber-50/50 dark:bg-amber-900/10' : 'bg-blue-50/50 dark:bg-blue-900/10';
-                  const labelCor = isTroca ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
-                  const textCor = isTroca ? 'text-amber-700 dark:text-amber-300' : 'text-blue-700 dark:text-blue-300';
+                {substituicoesDetectadas.filter(s => s.tipo === 'troca').map((sub, idx) => {
+                  const findB = (nome: string) => {
+                    const n = (nome || '').toLowerCase().trim();
+                    return bombeiros.find((x: any) => n.includes(x.nomeGuerra.toLowerCase().trim()) || n.includes(x.nomeCompleto.toLowerCase().trim().split(' ')[0]));
+                  };
+                  const bSubdo = findB(sub.substituido);
+                  const bSub = findB(sub.substituto);
+                  const getTurno = (e: string) => e === 'Alfa' || e === 'Charlie' ? 'DIURNO' : e === 'Bravo' || e === 'Delta' ? 'NOTURNO' : '';
+                  const realIdx = substituicoesDetectadas.indexOf(sub);
                   return (
-                  <div key={sub.id || idx} className={`rounded-xl border ${borderCor} ${bgCor} p-4`}>
+                  <div key={sub.id || idx} className="rounded-xl border border-amber-300 bg-amber-50/50 p-4 dark:border-amber-700 dark:bg-amber-900/10">
                     <div className="mb-2">
-                      <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold ${labelCor}`}>
-                        {isTroca ? '🔄 Troca' : '📋 Substituição'}
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                        🔄 Troca
                       </span>
                     </div>
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex flex-col gap-1 text-sm flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className={`text-sm font-bold truncate ${sub.tipo === 'troca' ? 'text-graphite-600 dark:text-graphite-300' : 'text-blue-700 dark:text-blue-300'}`}>{sub.substituido || '—'}</span>
-                          <span className="text-graphite-400 text-xs">{sub.tipo === 'troca' ? '↔' : '→'}</span>
-                          <span className={`text-sm font-bold truncate ${textCor}`}>{sub.substituto || '—'}</span>
-                        </div>
-                      <div className="flex items-center gap-2 text-[10px] text-graphite-400 uppercase">
-                        <span>{(() => {
-                          const nome = (sub.substituido || '').toLowerCase().trim();
-                          const b = bombeiros.find((x: any) => nome.includes(x.nomeGuerra.toLowerCase().trim()) || nome.includes(x.nomeCompleto.toLowerCase().trim().split(' ')[0]));
-                          return b?.cargo || '—';
-                        })()}</span>
-                        <span className="text-graphite-300">→</span>
-                        <span>{(() => {
-                          const nome = (sub.substituto || '').toLowerCase().trim();
-                          const b = bombeiros.find((x: any) => nome.includes(x.nomeGuerra.toLowerCase().trim()) || nome.includes(x.nomeCompleto.toLowerCase().trim().split(' ')[0]));
-                          return b?.cargo || '—';
-                        })()}</span>
+                    <div className="flex items-start gap-4">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-base font-bold text-graphite-800 dark:text-graphite-200">{sub.substituido || '—'}</p>
+                        {bSubdo && <p className="text-xs text-graphite-500 mt-0.5">{bSubdo.cargo} · EQ {bSubdo.equipe}</p>}
+                        {bSubdo?.nomeCompleto !== sub.substituido && <p className="text-xs text-graphite-400 truncate">{bSubdo?.nomeCompleto || ''}</p>}
                       </div>
-                      {sub.dataSolicitada && (() => {
-                        const dataFmt = new Date(sub.dataSolicitada + 'T12:00:00').toLocaleDateString('pt-BR');
-                        const findB = (nome: string) => {
-                          const n = (nome || '').toLowerCase().trim();
-                          return bombeiros.find((x: any) => n.includes(x.nomeGuerra.toLowerCase().trim()) || n.includes(x.nomeCompleto.toLowerCase().trim().split(' ')[0]));
-                        };
-                        const getTurno = (e: string) => e === 'Alfa' || e === 'Charlie' ? 'DIURNO' : e === 'Bravo' || e === 'Delta' ? 'NOTURNO' : '';
-                        const bSub = findB(sub.substituto);
-                        const bSubdo = findB(sub.substituido);
-                        const eSub = bSub?.equipe || '';
-                        const eSubdo = bSubdo?.equipe || '';
-                        const tSub = getTurno(eSub);
-                        const tSubdo = getTurno(eSubdo);
-                        if (eSub && eSubdo && eSub !== eSubdo) {
-                          return (
-                            <div className="mt-1 space-y-0.5 uppercase">
-                              <div className="flex items-center gap-1 text-[10px] text-graphite-400">
-                                <span>{dataFmt} {tSubdo}</span>
-                                <span className="text-graphite-300">{sub.tipo === 'troca' ? '↔' : '→'}</span>
-                                <span>{dataFmt} {tSub}</span>
-                              </div>
-                              <div className="flex items-center gap-1 text-[10px] font-semibold text-graphite-500">
-                                <span>EQUIPE {eSubdo}</span>
-                                <span className="text-graphite-300">·</span>
-                                <span>EQUIPE {eSub}</span>
-                              </div>
-                            </div>
-                          );
-                        }
-                        const eq = eSub || eSubdo;
-                        const turno = getTurno(eq);
-                        return (
-                          <div className="text-[10px] text-graphite-400 mt-1 uppercase">
-                            {dataFmt} {turno}{eq ? ` · EQUIPE ${eq}` : ''}
-                          </div>
-                        );
-                      })()}
+                      <div className="text-graphite-400 text-sm font-bold shrink-0 pt-1">↔</div>
+                      <div className="text-left min-w-0 flex-1">
+                        <p className="text-base font-bold text-amber-700 dark:text-amber-300">{sub.substituto || '—'}</p>
+                        {bSub && <p className="text-xs text-graphite-500 mt-0.5">{bSub.cargo} · EQ {bSub.equipe}</p>}
+                        {bSub?.nomeCompleto !== sub.substituto && <p className="text-xs text-graphite-400 truncate">{bSub?.nomeCompleto || ''}</p>}
+                      </div>
                     </div>
-                    <div className="flex gap-2 shrink-0">
+                    {sub.dataSolicitada && (() => {
+                      const dataFmt = new Date(sub.dataSolicitada + 'T12:00:00').toLocaleDateString('pt-BR');
+                      const eSub = bSub?.equipe || '';
+                      const eSubdo = bSubdo?.equipe || '';
+                      const tSub = getTurno(eSub);
+                      const tSubdo = getTurno(eSubdo);
+                      return (
+                        <div className="mt-2 text-[10px] text-graphite-400 uppercase">
+                          {dataFmt} {tSubdo} · EQ {eSubdo} ↔ {dataFmt} {tSub} · EQ {eSub}
+                        </div>
+                      );
+                    })()}
+                    <div className="mt-3 flex gap-2">
                       {sub.confirmada === null ? (
                         <>
-                          <button
-                            onClick={() => { setTrocaConfirmadaIdx(idx); setShowConfirmCorreta(true); }}
-                            className="flex items-center gap-1 rounded-lg bg-green-100 px-3 py-1.5 text-xs font-bold text-green-700 transition-all hover:bg-green-200 dark:bg-green-900/20 dark:text-green-400"
-                          >
+                          <button onClick={() => { setTrocaConfirmadaIdx(realIdx); setShowConfirmCorreta(true); }}
+                            className="flex items-center gap-1 rounded-lg bg-green-100 px-3 py-1.5 text-xs font-bold text-green-700 transition-all hover:bg-green-200 dark:bg-green-900/20 dark:text-green-400">
                             <Check className="h-3.5 w-3.5" /> Correta
                           </button>
-                          <button
-                            onClick={() => { setTrocaRecusadaIdx(idx); setShowConfirmTroca(true); }}
-                            className="flex items-center gap-1 rounded-lg bg-red-100 px-3 py-1.5 text-xs font-bold text-red-700 transition-all hover:bg-red-200 dark:bg-red-900/20 dark:text-red-400"
-                          >
+                          <button onClick={() => { setTrocaRecusadaIdx(realIdx); setShowConfirmTroca(true); }}
+                            className="flex items-center gap-1 rounded-lg bg-red-100 px-3 py-1.5 text-xs font-bold text-red-700 transition-all hover:bg-red-200 dark:bg-red-900/20 dark:text-red-400">
                             <X className="h-3.5 w-3.5" /> Incorreta
                           </button>
                         </>
@@ -975,76 +1192,161 @@ export function GerarLRO() {
                       )}
                     </div>
                   </div>
-                  </div>
                   );
                 })}
               </div>
             </div>
           )}
 
-          {/* Adicionar troca manual (emergencial ou não detectada) — só aparece se não houver trocas detectadas */}
-          {substituicoesDetectadas.length === 0 && (
+          {/* TROCAS EMERGENCIAIS (formulário manual) */}
           <div className="rounded-2xl border border-graphite-200 bg-white p-6 dark:border-border-dark dark:bg-surface-card">
             <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
-                <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+                <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">Houve troca de BA neste plantão?</h3>
-                <p className="text-sm text-graphite-500">Se alguma troca não foi detectada acima ou ocorreu emergencialmente, informe aqui</p>
+                <h3 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">🚨 Troca Extra Emergencial</h3>
+                <p className="text-sm text-graphite-500">Registre aqui trocas que ocorreram emergencialmente sem documento no sistema</p>
               </div>
             </div>
-            <div className="flex gap-4">
-              <button onClick={() => { setHouveTrocas('sim'); if (substituicoesDetectadas.length === 0) { setSubstituicoesDetectadas([{ id: 'manual', substituido: '', substituto: '', confirmada: true }]); } }} className={`flex-1 rounded-xl border-2 p-4 text-center transition-all ${houveTrocas === 'sim' ? 'border-aviation-500 bg-aviation-50 dark:bg-aviation-900/20 ring-2 ring-aviation-500/20' : 'border-graphite-200 hover:border-graphite-300 dark:border-border-dark'}`}>
-                <p className="text-sm font-semibold text-graphite-900 dark:text-graphite-100">Sim</p>
-                <p className="text-xs text-graphite-500">Houve troca extra</p>
-              </button>
-              <button onClick={() => setHouveTrocas('nao')} className={`flex-1 rounded-xl border-2 p-4 text-center transition-all ${houveTrocas === 'nao' ? 'border-aviation-500 bg-aviation-50 dark:bg-aviation-900/20 ring-2 ring-aviation-500/20' : 'border-graphite-200 hover:border-graphite-300 dark:border-border-dark'}`}>
-                <p className="text-sm font-semibold text-graphite-900 dark:text-graphite-100">Não</p>
-                <p className="text-xs text-graphite-500">Nenhuma troca extra</p>
-              </button>
+
+            <div className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <SearchSelect
+                  label="Solicitante (quem pediu a troca)"
+                  value={trocaSolicitante}
+                  onChange={setTrocaSolicitante}
+                  options={disponiveis
+                    .filter(b => b.nomeGuerra !== trocaSolicitado && !trocasManuais.some(t => t.solicitante === b.nomeGuerra || t.solicitado === b.nomeGuerra))
+                    .map(b => ({ value: b.nomeGuerra, label: `${b.nomeGuerra} - ${b.nomeCompleto} (${b.cargo})` }))}
+                  placeholder="Buscar solicitante..."
+                />
+                <SearchSelect
+                  label="Solicitado (quem foi chamado)"
+                  value={trocaSolicitado}
+                  onChange={setTrocaSolicitado}
+                  options={(() => {
+                    const inversa = equipeInversa[equipe] || '';
+                    const nomesOcupados = new Set(trocasManuais.flatMap(t => [t.solicitante, t.solicitado]));
+                    const equipeInversaMembros = bombeiros.filter(b => b.equipe === inversa && !b.dataDesligamento && b.nomeGuerra !== trocaSolicitante && !nomesOcupados.has(b.nomeGuerra));
+                    const outrosMembros = bombeiros.filter(b => b.equipe !== equipe && b.equipe !== inversa && !b.dataDesligamento && b.nomeGuerra !== trocaSolicitante && !nomesOcupados.has(b.nomeGuerra));
+                    return [
+                      ...equipeInversaMembros.map(b => ({ value: b.nomeGuerra, label: `${b.nomeGuerra} - ${b.nomeCompleto} (${b.cargo}) [${b.equipe}]` })),
+                      ...outrosMembros.map(b => ({ value: b.nomeGuerra, label: `${b.nomeGuerra} - ${b.nomeCompleto} (${b.cargo}) [${b.equipe}]` })),
+                    ];
+                  })()}
+                  placeholder="Buscar substituto..."
+                />
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Data da Folga</label>
+                  <input type="date" value={trocaDataFolga} onChange={e => setTrocaDataFolga(e.target.value)} className={inputClass} />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Motivo</label>
+                  <input type="text" value={trocaMotivo} onChange={e => setTrocaMotivo(e.target.value)} placeholder="Ex: Problema pessoal, emergência médica..." className={inputClass} />
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <button
+                  onClick={() => setShowConfirmAdicionar(true)}
+                  disabled={!trocaSolicitante || !trocaSolicitado}
+                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-500 to-red-600 px-4 py-2 text-sm font-medium text-white transition-all hover:from-red-400 hover:to-red-500 disabled:opacity-50"
+                >
+                  <Check className="h-4 w-4" /> Adicionar Troca Emergencial
+                </button>
+              </div>
             </div>
 
-            {houveTrocas === 'sim' && (
-              <div className="mt-6 space-y-4 rounded-xl border border-amber-200 bg-amber-50/50 p-4 dark:border-amber-800/30 dark:bg-amber-900/10">
-                <h4 className="text-sm font-bold text-graphite-900 dark:text-graphite-100">Dados da troca</h4>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <SearchSelect
-                    label="Solicitante (quem pediu a troca)"
-                    value={trocaSolicitante}
-                    onChange={setTrocaSolicitante}
-                    options={disponiveis.map(b => ({ value: b.nomeGuerra, label: `${b.nomeGuerra} - ${b.nomeCompleto} (${b.cargo})` }))}
-                    placeholder="Buscar solicitante..."
-                  />
-                  <SearchSelect
-                    label="Solicitado (quem foi chamado)"
-                    value={trocaSolicitado}
-                    onChange={setTrocaSolicitado}
-                    options={(() => {
-                      const inversa = equipeInversa[equipe] || '';
-                      const equipeInversaMembros = bombeiros.filter(b => b.equipe === inversa && !b.dataDesligamento);
-                      const outrosMembros = bombeiros.filter(b => b.equipe !== equipe && b.equipe !== inversa && !b.dataDesligamento);
-                      return [
-                        ...equipeInversaMembros.map(b => ({ value: b.nomeGuerra, label: `${b.nomeGuerra} - ${b.nomeCompleto} (${b.cargo}) [${b.equipe}]` })),
-                        ...outrosMembros.map(b => ({ value: b.nomeGuerra, label: `${b.nomeGuerra} - ${b.nomeCompleto} (${b.cargo}) [${b.equipe}]` })),
-                      ];
-                    })()}
-                    placeholder="Buscar substituto..."
-                  />
-                </div>
+            {/* Lista de trocas manuais adicionadas */}
+            {trocasManuais.length > 0 && (
+              <div className="mt-6 space-y-3">
+                <h4 className="text-sm font-bold text-graphite-700 dark:text-graphite-300">Trocas adicionadas ({trocasManuais.length})</h4>
+                {trocasManuais.map((tm, i) => {
+                  const findB = (nome: string) => {
+                    const n = (nome || '').toLowerCase().trim();
+                    return bombeiros.find((x: any) => n.includes(x.nomeGuerra.toLowerCase().trim()) || n.includes(x.nomeCompleto.toLowerCase().trim().split(' ')[0]));
+                  };
+                  const bSol = findB(tm.solicitante);
+                  const bSolic = findB(tm.solicitado);
+                  return (
+                  <div key={i} className="rounded-xl border border-red-200 bg-red-50/50 p-4 dark:border-red-800/30 dark:bg-red-900/10">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-1 text-[10px] font-bold text-red-700 dark:bg-red-900/30 dark:text-red-300">
+                        🚨 Emergencial
+                      </span>
+                      <button onClick={() => setTrocasManuais(prev => prev.filter((_, j) => j !== i))}
+                        className="rounded-lg p-1 text-alert-red transition-all hover:bg-red-50 dark:hover:bg-red-900/20">
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <div className="flex items-start gap-4">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-base font-bold text-graphite-800 dark:text-graphite-200">{tm.solicitante}</p>
+                        {bSol && <p className="text-xs text-graphite-500 mt-0.5">{bSol.cargo} · EQ {bSol.equipe}</p>}
+                        {bSol?.nomeCompleto !== tm.solicitante && <p className="text-xs text-graphite-400 truncate">{bSol?.nomeCompleto || ''}</p>}
+                        <p className="text-xs text-graphite-400 mt-1">📅 Plantão: {new Date(dataInicio + 'T12:00:00').toLocaleDateString('pt-BR')}</p>
+                      </div>
+                      <div className="text-graphite-400 text-sm font-bold shrink-0 pt-1">↔</div>
+                      <div className="text-left min-w-0 flex-1">
+                        <p className="text-base font-bold text-red-700 dark:text-red-300">{tm.solicitado}</p>
+                        {bSolic && <p className="text-xs text-graphite-500 mt-0.5">{bSolic.cargo} · EQ {bSolic.equipe}</p>}
+                        {bSolic?.nomeCompleto !== tm.solicitado && <p className="text-xs text-graphite-400 truncate">{bSolic?.nomeCompleto || ''}</p>}
+                        {tm.dataFolga && <p className="text-xs text-graphite-400 mt-1">📅 Folga: {new Date(tm.dataFolga + 'T12:00:00').toLocaleDateString('pt-BR')}</p>}
+                      </div>
+                    </div>
+                    <div className="mt-1">
+                      {tm.motivo && <p className="text-xs text-graphite-500">📝 {tm.motivo}</p>}
+                    </div>
+                  </div>
+                  );
+                })}
               </div>
             )}
           </div>
-          )}
 
           <div className="flex justify-between">
             <button onClick={() => setStep('equipe')} className="flex items-center gap-1 rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 transition-all hover:bg-graphite-50 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">
               <ArrowLeft className="h-4 w-4" /> Voltar
             </button>
-            <button onClick={() => {
-              const naoConfirmadas = substituicoesDetectadas.filter(s => s.confirmada === null);
-              if (naoConfirmadas.length > 0) { setErroValidacao(`Confirme ou rejeite todas as trocas detectadas (${naoConfirmadas.length} pendente(s)).`); return; }
+            <button onClick={async () => {
+              const trocasNaoConfirmadas = substituicoesDetectadas.filter(s => s.tipo === 'troca' && s.confirmada === null);
+              if (trocasNaoConfirmadas.length > 0) { setErroValidacao(`Confirme ou rejeite todas as trocas (${trocasNaoConfirmadas.length} pendente(s)).`); return; }
               setErroValidacao('');
+              // Criar documentos para trocas manuais
+              if (trocasManuais.length > 0 && trocaDocId) {
+                try {
+                  for (const tm of trocasManuais) {
+                    const bSol = bombeiros.find((b: any) => b.nomeGuerra === tm.solicitante || b.nomeCompleto === tm.solicitante);
+                    const bSolic = bombeiros.find((b: any) => b.nomeGuerra === tm.solicitado || b.nomeCompleto === tm.solicitado);
+                    await criarPreenchimento({
+                      document_id: trocaDocId,
+                      filled_by: username,
+                      filled_data: {
+                        nome_solicitante: tm.solicitante,
+                        cpf_solicitante: bSol?.cpf || '',
+                        funcao_solicitante: bSol?.cargo || '',
+                        nome_solicitado: tm.solicitado,
+                        cpf_solicitado: bSolic?.cpf || '',
+                        data_solicitada: dataInicio,
+                        data_folga_solicitado: tm.dataFolga || '',
+                        motivo_troca: tm.motivo || '',
+                        troca_emergencial: 'SIM',
+                        justificativa_emergencial: tm.motivo || '',
+                        check_troca_sim: 'V',
+                        check_troca_nao: '',
+                        deferido_indeferido: 'DEFERIDO',
+                        check_deferido: 'V',
+                        check_indeferido: '',
+                      },
+                      status: 'draft',
+                      autentique_document_id: null,
+                      autentique_link: null,
+                    });
+                  }
+                } catch (err) {
+                  console.error('Erro ao criar documento de troca:', err);
+                }
+              }
               setStep('preencher');
             }} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-6 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
               Próximo <ArrowRight className="h-4 w-4" />
@@ -1139,36 +1441,86 @@ export function GerarLRO() {
             <h3 className="mb-4 font-bold text-graphite-900 dark:text-graphite-100">1.3 Substituições de BA</h3>
             <div className="flex items-center gap-6 mb-4">
               <label className="flex items-center gap-2 text-sm text-graphite-700 dark:text-graphite-300">
-                <input type="checkbox" checked={substituicoesDetectadas.some(s => s.confirmada === true)} readOnly className="h-4 w-4 rounded border-graphite-300 text-aviation-600" />
+                <input type="checkbox" checked={substituicoesDetectadas.some(s => s.tipo === 'troca' && s.confirmada === true) || trocasManuais.length > 0} readOnly className="h-4 w-4 rounded border-graphite-300 text-aviation-600" />
                 ABAIXO
               </label>
               <label className="flex items-center gap-2 text-sm text-graphite-700 dark:text-graphite-300">
-                <input type="checkbox" checked={!substituicoesDetectadas.some(s => s.confirmada === true)} readOnly className="h-4 w-4 rounded border-graphite-300 text-aviation-600" />
+                <input type="checkbox" checked={!substituicoesDetectadas.some(s => s.tipo === 'troca' && s.confirmada === true) && trocasManuais.length === 0} readOnly className="h-4 w-4 rounded border-graphite-300 text-aviation-600" />
                 NÃO HOUVE
               </label>
             </div>
-            {substituicoesDetectadas.filter(s => s.confirmada === true).map(sub => {
-              const p1 = bombeiros.find((b: any) => sub.substituido.includes(b.nomeCompleto) || sub.substituido.includes(b.nomeGuerra));
-              const p2 = bombeiros.find((b: any) => sub.substituto.includes(b.nomeCompleto) || sub.substituto.includes(b.nomeGuerra));
+            {substituicoesDetectadas.filter(s => s.tipo === 'troca' && s.confirmada === true).map(sub => {
+              const findB = (nome: string) => {
+                const n = (nome || '').toLowerCase().trim();
+                return bombeiros.find((x: any) => n.includes(x.nomeGuerra.toLowerCase().trim()) || n.includes(x.nomeCompleto.toLowerCase().trim().split(' ')[0]));
+              };
+              const p1 = findB(sub.substituido);
+              const p2 = findB(sub.substituto);
               return (
                 <div key={sub.id} className="mb-2 rounded-lg border border-graphite-200 bg-graphite-50 p-3 dark:border-border-dark dark:bg-graphite-800">
-                  <div className="flex items-center gap-4 text-sm">
-                    <span className="font-bold text-graphite-800 dark:text-graphite-200">
-                      {p1?.cargo || 'BA-2'} {p1?.nomeCompleto || sub.substituido}
-                    </span>
-                    <span className="text-graphite-400 text-xs">→</span>
-                    <span className="font-bold text-graphite-800 dark:text-graphite-200">
-                      {p2?.cargo || 'BA-2'} {p2?.nomeCompleto || sub.substituto}
-                    </span>
+                  <div className="flex items-start gap-4">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-graphite-800 dark:text-graphite-200">{p1?.nomeGuerra || sub.substituido}</p>
+                      <p className="text-xs text-graphite-500">{p1?.cargo || 'BA-2'} · EQ {p1?.equipe || '—'}</p>
+                      {p1?.nomeCompleto !== p1?.nomeGuerra && <p className="text-xs text-graphite-400 truncate">{p1?.nomeCompleto || ''}</p>}
+                    </div>
+                    <div className="text-graphite-400 text-xs font-bold shrink-0 pt-1">↔</div>
+                    <div className="text-left min-w-0 flex-1">
+                      <p className="font-bold text-graphite-800 dark:text-graphite-200">{p2?.nomeGuerra || sub.substituto}</p>
+                      <p className="text-xs text-graphite-500">{p2?.cargo || 'BA-2'} · EQ {p2?.equipe || '—'}</p>
+                      {p2?.nomeCompleto !== p2?.nomeGuerra && <p className="text-xs text-graphite-400 truncate">{p2?.nomeCompleto || ''}</p>}
+                    </div>
+                  </div>
+                  <p className="text-xs text-graphite-400 mt-1">📅 Plantão: {new Date(dataInicio + 'T12:00:00').toLocaleDateString('pt-BR')}</p>
+                </div>
+              );
+            })}
+            {trocasManuais.map((tm, i) => {
+              const findB = (nome: string) => {
+                const n = (nome || '').toLowerCase().trim();
+                return bombeiros.find((x: any) => n.includes(x.nomeGuerra.toLowerCase().trim()) || n.includes(x.nomeCompleto.toLowerCase().trim().split(' ')[0]));
+              };
+              const p1 = findB(tm.solicitante);
+              const p2 = findB(tm.solicitado);
+              return (
+              <div key={`manual-${i}`} className="mb-2 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800/30 dark:bg-red-900/10">
+                <div className="flex items-start gap-4">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-graphite-800 dark:text-graphite-200">{tm.solicitante}</p>
+                    {p1 && <p className="text-xs text-graphite-500">{p1.cargo} · EQ {p1.equipe}</p>}
+                    {p1?.nomeCompleto !== tm.solicitante && <p className="text-xs text-graphite-400 truncate">{p1?.nomeCompleto || ''}</p>}
+                    <p className="text-xs text-graphite-400 mt-0.5">📅 Plantão: {new Date(dataInicio + 'T12:00:00').toLocaleDateString('pt-BR')}</p>
+                  </div>
+                  <div className="text-graphite-400 text-xs font-bold shrink-0 pt-1">↔</div>
+                  <div className="text-left min-w-0 flex-1">
+                    <p className="font-bold text-red-700 dark:text-red-300">{tm.solicitado}</p>
+                    {p2 && <p className="text-xs text-graphite-500">{p2.cargo} · EQ {p2.equipe}</p>}
+                    {p2?.nomeCompleto !== tm.solicitado && <p className="text-xs text-graphite-400 truncate">{p2?.nomeCompleto || ''}</p>}
+                    {tm.dataFolga && <p className="text-xs text-graphite-400 mt-0.5">📅 Folga: {new Date(tm.dataFolga + 'T12:00:00').toLocaleDateString('pt-BR')}</p>}
                   </div>
                 </div>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700 dark:bg-red-900/30 dark:text-red-300">
+                    🚨 Emergencial
+                  </span>
+                  {tm.motivo && <span className="text-xs text-graphite-500">📝 {tm.motivo}</span>}
+                </div>
+              </div>
               );
             })}
           </div>
 
           {/* II. Instruções */}
           <div className="rounded-2xl border border-graphite-200 bg-white p-6 dark:border-border-dark dark:bg-surface-card">
-            <h3 className="mb-4 font-bold text-graphite-900 dark:text-graphite-100">II. Instruções</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-graphite-900 dark:text-graphite-100">II. Instruções</h3>
+              <button onClick={async () => {
+                const p = await listarPTRBs();
+                setPtrbs(p);
+              }} className="flex items-center gap-1 rounded-lg border border-graphite-300 bg-white px-3 py-1.5 text-xs font-medium text-graphite-600 transition-all hover:bg-graphite-50 dark:border-border-dark dark:bg-surface-card dark:text-graphite-300">
+                🔄 Recarregar
+              </button>
+            </div>
             <textarea value={instrucoes} readOnly placeholder={"14. PCINC - Verificar conformidade dos extintores e hidrantes\n\n15. EQUIPAMENTOS DE PROTEÇÃO - Manter EPIs atualizados"} rows={4} className={inputClass + ' resize-y cursor-not-allowed opacity-80'} />
             {ptrbs.filter(p => p.equipe === equipe && p.data?.startsWith(dataInicio)).length > 0 && (
               <p className="mt-2 text-[11px] text-green-600">✓ Instruções carregadas automaticamente do PTR-BA deste plantão.</p>
@@ -1302,10 +1654,13 @@ export function GerarLRO() {
           </div>
 
           <div className="flex justify-between">
-            <button onClick={() => setStep('trocas')} className="flex items-center gap-1 rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 transition-all hover:bg-graphite-50 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">
+            <button onClick={() => draftId ? setView('lista') : setStep('trocas')} className="flex items-center gap-1 rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 transition-all hover:bg-graphite-50 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">
               <ArrowLeft className="h-4 w-4" /> Voltar
             </button>
             <div className="flex gap-3">
+              <button onClick={handlePreview} className="flex items-center gap-2 rounded-xl border border-aviation-300 bg-white px-4 py-2.5 text-sm font-medium text-aviation-700 transition-all hover:bg-aviation-50 disabled:opacity-50 dark:border-aviation-700 dark:bg-transparent dark:text-aviation-400">
+                <Eye className="h-4 w-4" /> Visualizar
+              </button>
               <button onClick={handleSalvarRascunho} disabled={saving} className="flex items-center gap-2 rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 transition-all hover:bg-graphite-50 disabled:opacity-50 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">
                 <Save className="h-4 w-4" /> {saving ? 'Salvando...' : 'Salvar Rascunho'}
               </button>
@@ -1332,7 +1687,7 @@ export function GerarLRO() {
               <p><span className="font-semibold">Plantão:</span> {dataInicio} a {dataFim}</p>
               <p><span className="font-semibold">Chefe de Equipe:</span> {chefeEquipe || '-'}</p>
               <p><span className="font-semibold">Comunicação:</span> {comunicacao || '-'}</p>
-              <p><span className="font-semibold">Houve trocas:</span> {houveTrocas === 'sim' ? `Sim (${trocaSolicitante} → ${trocaSolicitado})` : 'Não'}</p>
+              <p><span className="font-semibold">Trocas:</span> {substituicoesDetectadas.filter(s => s.tipo === 'troca' && s.confirmada === true).length} confirmada(s) + {trocasManuais.length} emergencial(is)</p>
               {instrucoes && (Array.isArray(instrucoes) ? instrucoes.length : instrucoes.split('\n').filter(Boolean).length) > 0 && <p><span className="font-semibold">Instruções:</span> {Array.isArray(instrucoes) ? instrucoes.length : instrucoes.split('\n').filter(Boolean).length} registro(s)</p>}
               {emergenciaXI && <p><span className="font-semibold">Emergência Aeronáutica:</span> Sim</p>}
             </div>
@@ -1343,47 +1698,7 @@ export function GerarLRO() {
               <ArrowLeft className="h-4 w-4" /> Voltar
             </button>
             <div className="flex gap-3">
-              <button onClick={() => {
-                const dados = {
-                  equipeNome: equipe, dataInicio, dataFim, chefeEquipe, comunicacao,
-                  frota: Array.from({ length: FROTA_ROWS }).map((_, i) => {
-                    const d = frotaDados[`row_${i}`] || {};
-                    const frotaLista = viaturas.length > 0 ? viaturas : DEFAULT_VIATURAS;
-                    const sel = frotaLista.find((vv: any) => vv.id === d.viaturaId);
-                    return { viatura: sel?.prefixo || sel?.nome || '—', prefixo: d.prefixo || '', kmIni: d.kmIni || '', kmFim: d.kmFim || '', combIni: d.combIni || '', combFim: d.combFim || '', situacao: d.situacao || '' };
-                  }),
-                  instrucoes: Array.isArray(instrucoes) ? instrucoes : (typeof instrucoes === 'string' ? instrucoes.split('\n').filter(Boolean) : []),
-                  instrucoesHorarios: Array.isArray(instrucoesHorarios) ? instrucoesHorarios : (typeof instrucoesHorarios === 'string' ? instrucoesHorarios.split('\n').filter(Boolean) : []),
-                  centralFaisca: centralFaisca || 'SEM ALTERAÇÕES',
-                  radioComunicacao: radioComunicacao || 'SEM ALTERAÇÕES',
-                  tpTemAlteracao, tpTexto,
-                  extTemAlteracao, extTexto,
-                  equipTemAlteracao, equipTexto,
-                  edifTemAlteracao, edifTexto,
-                  ocorrenciasNA, inspecoes,
-                  emergenciaXI,
-                  ocorrenciasXII: Array.isArray(outrasOcorrencias) ? outrasOcorrencias : (typeof outrasOcorrencias === 'string' ? outrasOcorrencias.split('\n').filter(Boolean) : []),
-                  solicitacoes: solicitacoesCCR.split('\n').filter(Boolean),
-        substituicao: [
-          ...substituicoesDetectadas.filter(s => s.confirmada === true).map(s => {
-            const p1 = bombeiros.find((b: any) => s.substituido.includes(b.nomeCompleto) || s.substituido.includes(b.nomeGuerra));
-            const p2 = bombeiros.find((b: any) => s.substituto.includes(b.nomeCompleto) || s.substituto.includes(b.nomeGuerra));
-            return { funcao1: p1?.cargo || 'BA-2', nome1: p1?.nomeGuerra || p1?.nomeCompleto || s.substituido, funcao2: p2?.cargo || 'BA-2', nome2: p2?.nomeGuerra || p2?.nomeCompleto || s.substituto };
-          }),
-          ...(houveTrocas === 'sim' && trocaSolicitante && trocaSolicitado ? (() => {
-            const p1 = bombeiros.find((b: any) => trocaSolicitante.includes(b.nomeGuerra) || b.nomeCompleto === trocaSolicitante);
-            const p2 = bombeiros.find((b: any) => trocaSolicitado.includes(b.nomeGuerra) || b.nomeCompleto === trocaSolicitado);
-            return [{ funcao1: p1?.cargo || 'BA-2', nome1: p1?.nomeGuerra || trocaSolicitante, funcao2: p2?.cargo || 'BA-2', nome2: p2?.nomeGuerra || trocaSolicitado }];
-          })() : []),
-        ],
-                  cci2: Object.entries(equipagemCCI).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
-        cci3: Object.entries(equipagemCCIRT).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
-        crs: Object.entries(equipagemCRS).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
-                  dataAssinatura: new Date().toLocaleDateString('pt-BR'),
-                  chefeAssinatura: chefeEquipe,
-                };
-                navigate('/registros-diarios/preview-lro', { state: dados });
-              }} className="flex items-center gap-2 rounded-xl border border-aviation-300 bg-white px-4 py-2.5 text-sm font-medium text-aviation-700 transition-all hover:bg-aviation-50 disabled:opacity-50 dark:border-aviation-700 dark:bg-transparent dark:text-aviation-400">
+              <button onClick={handlePreview} className="flex items-center gap-2 rounded-xl border border-aviation-300 bg-white px-4 py-2.5 text-sm font-medium text-aviation-700 transition-all hover:bg-aviation-50 disabled:opacity-50 dark:border-aviation-700 dark:bg-transparent dark:text-aviation-400">
                 <Eye className="h-4 w-4" /> Preview LRO
               </button>
               <button onClick={() => setShowConfirm(true)} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-green-600 to-green-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-green-500/20 transition-all hover:from-green-500 hover:to-green-600 active:scale-[0.98]">
@@ -1426,6 +1741,40 @@ export function GerarLRO() {
                 setTrocaRecusadaIdx(null);
               }} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-red-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
                 <X className="h-4 w-4" /> Sim, marcar como Incorreta
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmar adicionar troca manual */}
+      {showConfirmAdicionar && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-surface-card">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
+                <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <h3 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">Adicionar Troca Manual</h3>
+            </div>
+            <p className="mb-6 text-sm text-graphite-500">
+              Após adicionar esta troca, ela será incluída no LRO como uma troca confirmada e <span className="font-semibold text-graphite-700 dark:text-graphite-300">não será mais possível removê-la</span>.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setShowConfirmAdicionar(false)}
+                className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 transition-all hover:bg-graphite-50 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">
+                Voltar
+              </button>
+              <button onClick={() => {
+                if (!trocaSolicitante || !trocaSolicitado) return;
+                setTrocasManuais(prev => [...prev, { solicitante: trocaSolicitante, solicitado: trocaSolicitado, dataFolga: trocaDataFolga, motivo: trocaMotivo }]);
+                setTrocaSolicitante('');
+                setTrocaSolicitado('');
+                setTrocaDataFolga('');
+                setTrocaMotivo('');
+                setShowConfirmAdicionar(false);
+              }} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-amber-500/20 transition-all hover:from-amber-400 hover:to-amber-500 active:scale-[0.98]">
+                <Check className="h-4 w-4" /> Sim, Adicionar
               </button>
             </div>
           </div>

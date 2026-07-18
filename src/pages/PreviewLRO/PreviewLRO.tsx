@@ -79,19 +79,7 @@ export function PreviewLRO() {
 
   const html = useMemo(() => montarHTML(dados), [dados]);
 
-  const htmlWithStyles = `<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><title>LIVRO ATA DE CHEFE DE EQUIPE</title>
-<style>
-  @page { size: A4; margin: 15mm 10mm; }
-  body { font-family: Arial, sans-serif; margin: 0; padding: 8mm 10mm; font-size: 7.5px; line-height: 1.2; color: #000; background: #fff; }
-  table { width: 100%; border-collapse: collapse; margin-bottom: 3px; page-break-inside: avoid; }
-  td, th { border: 1px solid #000; padding: 1.5px 3px; font-size: 7.5px; text-align: left; vertical-align: top; }
-  .b { font-weight: bold; }
-  .c { text-align: center; }
-  .sec-title td { font-weight: bold; font-size: 11px; background: #d4d4d4; padding: 2px 3px; text-align:center; }
-  .mb { margin-bottom: 3px; }
-</style>
-</head><body>${html.replace(/<!DOCTYPE html>.*<body>/s, '').replace(/<\/body><\/html>$/, '')}</body></html>`;
+  const htmlWithStyles = html;
 
   async function handleGerarPDF() {
     setGenerating(true);
@@ -118,7 +106,6 @@ export function PreviewLRO() {
               <ArrowLeft className="h-4 w-4" /> Voltar
             </button>
             <div>
-              <h1 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">Preview - Livro Ata de Chefe de Equipe</h1>
               {isSample && (
                 <p className="text-xs text-amber-600 dark:text-amber-400">Dados de exemplo — edite no wizard para visualizar seus dados</p>
               )}
