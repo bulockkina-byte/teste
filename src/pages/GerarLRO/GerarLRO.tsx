@@ -612,84 +612,64 @@ export function GerarLRO() {
     navigate('/registros-diarios/preview-lro', { state: dados });
   }
 
-  async function handleEnviarAutentique() {
+  function handleEnviarAutentique() {
     setShowConfirm(false);
-    setSaving(true);
-    try {
-      const gerenteEncontrado = bombeiros.find((b: any) => b.cargo === 'GS');
-      const dados = {
-        equipeNome: equipe, dataInicio, dataFim, chefeEquipe, comunicacao,
-        frota: Array.from({ length: FROTA_ROWS }).map((_, i) => {
-          const d = frotaDados[`row_${i}`] || {};
-          const frotaLista = viaturas.length > 0 ? viaturas : DEFAULT_VIATURAS;
-          const sel = frotaLista.find((vv: any) => vv.id === d.viaturaId);
-          return { viatura: sel?.prefixo || sel?.nome || '—', prefixo: d.prefixo || '', kmIni: d.kmIni || '', kmFim: d.kmFim || '', combIni: d.combIni || '', combFim: d.combFim || '', situacao: d.situacao || '' };
+    const gerenteEncontrado = bombeiros.find((b: any) => b.cargo === 'GS');
+    const dados = {
+      equipeNome: equipe, dataInicio, dataFim, chefeEquipe, comunicacao,
+      frota: Array.from({ length: FROTA_ROWS }).map((_, i) => {
+        const d = frotaDados[`row_${i}`] || {};
+        const frotaLista = viaturas.length > 0 ? viaturas : DEFAULT_VIATURAS;
+        const sel = frotaLista.find((vv: any) => vv.id === d.viaturaId);
+        return { viatura: sel?.prefixo || sel?.nome || '—', prefixo: d.prefixo || '', kmIni: d.kmIni || '', kmFim: d.kmFim || '', combIni: d.combIni || '', combFim: d.combFim || '', situacao: d.situacao || '' };
+      }),
+      instrucoes: Array.isArray(instrucoes) ? instrucoes : (typeof instrucoes === 'string' ? instrucoes.split('\n').filter(Boolean) : []),
+      instrucoesHorarios: Array.isArray(instrucoesHorarios) ? instrucoesHorarios : (typeof instrucoesHorarios === 'string' ? instrucoesHorarios.split('\n').filter(Boolean) : []),
+      centralFaisca: centralFaisca || 'SEM ALTERAÇÕES',
+      radioComunicacao: radioComunicacao || 'SEM ALTERAÇÕES',
+      tpTexto, extTexto, equipTexto, edifTexto,
+      emergenciaXI,
+      ocorrenciasXII: Array.isArray(outrasOcorrencias) ? outrasOcorrencias : (typeof outrasOcorrencias === 'string' ? outrasOcorrencias.split('\n').filter(Boolean) : []),
+      solicitacoes: solicitacoesCCR.split('\n').filter(Boolean),
+      substituicao: [
+        ...substituicoesDetectadas.filter(s => s.tipo === 'troca' && s.confirmada === true).map(s => {
+          const p1 = bombeiros.find((b: any) => s.substituido.includes(b.nomeCompleto) || s.substituido.includes(b.nomeGuerra));
+          const p2 = bombeiros.find((b: any) => s.substituto.includes(b.nomeCompleto) || s.substituto.includes(b.nomeGuerra));
+          return { funcao1: p1?.cargo || 'BA-2', nome1: p1?.nomeCompleto || s.substituido, funcao2: p2?.cargo || 'BA-2', nome2: p2?.nomeCompleto || s.substituto };
         }),
-        instrucoes: Array.isArray(instrucoes) ? instrucoes : (typeof instrucoes === 'string' ? instrucoes.split('\n').filter(Boolean) : []),
-        instrucoesHorarios: Array.isArray(instrucoesHorarios) ? instrucoesHorarios : (typeof instrucoesHorarios === 'string' ? instrucoesHorarios.split('\n').filter(Boolean) : []),
-        centralFaisca: centralFaisca || 'SEM ALTERAÇÕES',
-        radioComunicacao: radioComunicacao || 'SEM ALTERAÇÕES',
-        tpTexto, extTexto, equipTexto, edifTexto,
-        emergenciaXI,
-        ocorrenciasXII: Array.isArray(outrasOcorrencias) ? outrasOcorrencias : (typeof outrasOcorrencias === 'string' ? outrasOcorrencias.split('\n').filter(Boolean) : []),
-        solicitacoes: solicitacoesCCR.split('\n').filter(Boolean),
-        substituicao: [
-          ...substituicoesDetectadas.filter(s => s.tipo === 'troca' && s.confirmada === true).map(s => {
-            const p1 = bombeiros.find((b: any) => s.substituido.includes(b.nomeCompleto) || s.substituido.includes(b.nomeGuerra));
-            const p2 = bombeiros.find((b: any) => s.substituto.includes(b.nomeCompleto) || s.substituto.includes(b.nomeGuerra));
-            return { funcao1: p1?.cargo || 'BA-2', nome1: p1?.nomeCompleto || s.substituido, funcao2: p2?.cargo || 'BA-2', nome2: p2?.nomeCompleto || s.substituto };
-          }),
-          ...trocasManuais.filter(tm => tm.solicitante && tm.solicitado).map(tm => {
-            const p1 = bombeiros.find((b: any) => b.nomeGuerra === tm.solicitante || b.nomeCompleto === tm.solicitante);
-            const p2 = bombeiros.find((b: any) => b.nomeGuerra === tm.solicitado || b.nomeCompleto === tm.solicitado);
-            return { funcao1: p1?.cargo || 'BA-2', nome1: p1?.nomeCompleto || tm.solicitante, funcao2: p2?.cargo || 'BA-2', nome2: p2?.nomeCompleto || tm.solicitado };
-          }),
-        ],
-        cci2: Object.entries(equipagemCCI).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
-        cci3: Object.entries(equipagemCCIRT).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
-        crs: Object.entries(equipagemCRS).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
-        dataAssinatura: new Date().toLocaleDateString('pt-BR'),
-        chefeAssinatura: bombeiros.find((b: any) => b.nomeGuerra === chefeEquipe || b.nomeCompleto === chefeEquipe)?.nomeCompleto || chefeEquipe,
-        gerenteAssinatura: gerenteEncontrado?.nomeCompleto || gerenteEncontrado?.nomeGuerra || '',
-        coordenadorAssinatura: apocs.find((a: any) => a.funcao === 'SUPERVISOR')?.nomeCompleto || '',
-      };
+        ...trocasManuais.filter(tm => tm.solicitante && tm.solicitado).map(tm => {
+          const p1 = bombeiros.find((b: any) => b.nomeGuerra === tm.solicitante || b.nomeCompleto === tm.solicitante);
+          const p2 = bombeiros.find((b: any) => b.nomeGuerra === tm.solicitado || b.nomeCompleto === tm.solicitado);
+          return { funcao1: p1?.cargo || 'BA-2', nome1: p1?.nomeCompleto || tm.solicitante, funcao2: p2?.cargo || 'BA-2', nome2: p2?.nomeCompleto || tm.solicitado };
+        }),
+      ],
+      cci2: Object.entries(equipagemCCI).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
+      cci3: Object.entries(equipagemCCIRT).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
+      crs: Object.entries(equipagemCRS).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
+      dataAssinatura: new Date().toLocaleDateString('pt-BR'),
+      chefeAssinatura: bombeiros.find((b: any) => b.nomeGuerra === chefeEquipe || b.nomeCompleto === chefeEquipe)?.nomeCompleto || chefeEquipe,
+      gerenteAssinatura: gerenteEncontrado?.nomeCompleto || gerenteEncontrado?.nomeGuerra || '',
+      coordenadorAssinatura: apocs.find((a: any) => a.funcao === 'SUPERVISOR')?.nomeCompleto || '',
+    };
 
-      const blob = await gerarPDF(dados);
-      const nomeArquivo = `LRO_${equipe}_${dataInicio}_${new Date().toISOString().split('T')[0]}`;
-      const emailChefe = getEmailByNome(chefeEquipe);
-      const signers: AutentiqueSigner[] = [];
-      if (emailChefe) {
-        signers.push({
-          email: emailChefe,
-          action: 'SIGN',
-          positions: [
-            { x: '5%', y: '86%', z: 0, element: 'SIGNATURE' },
-          ],
-        });
-      } else {
-        signers.push({ name: 'Chefe de Equipe', action: 'SIGN', positions: [{ x: '5%', y: '86%', z: 0, element: 'SIGNATURE' }] });
-      }
-      const gerente = bombeiros.find(b => b.cargo === 'GS');
-      if (gerente?.email) {
-        signers.push({
-          email: gerente.email,
-          action: 'SIGN',
-          positions: [
-            { x: '37%', y: '86%', z: 0, element: 'SIGNATURE' },
-          ],
-        });
-      } else {
-        signers.push({ name: 'Gerente SESCINC', action: 'SIGN', positions: [{ x: '37%', y: '86%', z: 0, element: 'SIGNATURE' }] });
-      }
-      signers.push({ name: 'Coordenador', action: 'SIGN', positions: [{ x: '66%', y: '86%', z: 0, element: 'SIGNATURE' }] });
-
-      const result = await criarDocumentoAutentique(blob, nomeArquivo, signers, undefined, true);
-      if (draftId) await atualizarStatus(draftId, 'aguardando');
-    } catch (err) {
-      console.error('Erro ao enviar para Autentique:', err);
-      alert('Erro ao enviar para Autentique: ' + (err instanceof Error ? err.message : 'Erro desconhecido'));
+    const emailChefe = getEmailByNome(chefeEquipe);
+    const signers: AutentiqueSigner[] = [];
+    if (emailChefe) {
+      signers.push({ email: emailChefe, action: 'SIGN', positions: [{ x: '5%', y: '86%', z: 0, element: 'SIGNATURE' }] });
+    } else {
+      signers.push({ name: 'Chefe de Equipe', action: 'SIGN', positions: [{ x: '5%', y: '86%', z: 0, element: 'SIGNATURE' }] });
     }
-    setSaving(false);
+    const gerente = bombeiros.find(b => b.cargo === 'GS');
+    if (gerente?.email) {
+      signers.push({ email: gerente.email, action: 'SIGN', positions: [{ x: '37%', y: '86%', z: 0, element: 'SIGNATURE' }] });
+    } else {
+      signers.push({ name: 'Gerente SESCINC', action: 'SIGN', positions: [{ x: '37%', y: '86%', z: 0, element: 'SIGNATURE' }] });
+    }
+    signers.push({ name: 'Coordenador', action: 'SIGN', positions: [{ x: '66%', y: '86%', z: 0, element: 'SIGNATURE' }] });
+
+    navigate('/registros-diarios/preview-lro', {
+      state: { ...dados, modoAutentique: true, signers, draftId },
+    });
   }
 
   if (loading) return (
@@ -1696,9 +1676,6 @@ export function GerarLRO() {
               <ArrowLeft className="h-4 w-4" /> Voltar
             </button>
             <div className="flex gap-3">
-              <button onClick={handlePreview} className="flex items-center gap-2 rounded-xl border border-aviation-300 bg-white px-4 py-2.5 text-sm font-medium text-aviation-700 transition-all hover:bg-aviation-50 disabled:opacity-50 dark:border-aviation-700 dark:bg-transparent dark:text-aviation-400">
-                <Eye className="h-4 w-4" /> Preview LRO
-              </button>
               <button onClick={() => setShowConfirm(true)} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-green-600 to-green-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-green-500/20 transition-all hover:from-green-500 hover:to-green-600 active:scale-[0.98]">
                 <Send className="h-4 w-4" /> Enviar para Assinatura
               </button>

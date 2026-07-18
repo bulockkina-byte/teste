@@ -1,7 +1,9 @@
 import { useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Download, Printer } from 'lucide-react';
-import { montarHTML } from '../../services/lroGenerator';
+import { ArrowLeft, Download, Printer, Send } from 'lucide-react';
+import { montarHTML, gerarPDF } from '../../services/lroGenerator';
+import { criarDocumento as criarDocumentoAutentique } from '../../services/autentiqueService';
+import type { AutentiqueSigner } from '../../services/autentiqueService';
 import { useAuth } from '../../context/AuthContext';
 
 const SAMPLE_DATA: Record<string, unknown> = {
@@ -70,8 +72,10 @@ export function PreviewLRO() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const iframeRef = useRef<HTMLIFrameElement>(null);
-
+  const [enviando, setEnviando] = useState(false);
   const isAdmin = user?.role === 'admin' || user?.role === 'desenvolvedor';
+  const modoAutentique = (location.state as any)?.modoAutentique;
+  const signersAutentique = (location.state as any)?.signers as AutentiqueSigner[] | undefined;
 
   const dados = useMemo(() => {
     const stateData = location.state as Record<string, unknown> | null;
@@ -80,7 +84,7 @@ export function PreviewLRO() {
 
   const isSample = !location.state || Object.keys(location.state).length <= 3;
 
-  const html = useMemo(() => montarHTML(dados, true), [dados]);
+  const html = useMemo(() => montarHTML(dados, !modoAutentique), [dados, modoAutentique]);
 
   const htmlWithStyles = html;
 
@@ -105,6 +109,24 @@ export function PreviewLRO() {
       };
       setTimeout(checkReady, 500);
     }
+  }
+
+  async function handleEnviarAutentique() {
+    if (!iframeRef.current || !signersAutentique) return;
+    setEnviando(true);
+    try {
+      const iframeWin = iframeRef.current.contentWindow;
+      if (!iframeWin) return;
+      const iframeDoc = iframeWin.document;
+      const nomeArquivo = `LRO_${new Date().toISOString().split('T')[0]}`;
+      const blob = await gerarPDF(dados);
+      await criarDocumentoAutentique(blob, nomeArquivo, signersAutentique, undefined, true);
+      navigate('/registros-diarios/gerar-lro');
+    } catch (err) {
+      console.error('Erro ao enviar para Autentique:', err);
+      alert('Erro ao enviar: ' + (err instanceof Error ? err.message : 'Erro'));
+    }
+    setEnviando(false);
   }
 
   function handleImprimir() {
@@ -134,6 +156,11 @@ export function PreviewLRO() {
             <button onClick={handleBaixarPDF} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:from-aviation-500 hover:to-aviation-600">
               <Download className="h-4 w-4" /> Baixar PDF
             </button>
+            {modoAutentique && signersAutentique && (
+              <button onClick={handleEnviarAutentique} disabled={enviando} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-green-600 to-green-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-green-500/20 transition-all hover:from-green-500 hover:to-green-600 active:scale-[0.98]">
+                <Send className="h-4 w-4" /> {enviando ? 'Enviando...' : 'Confirmar e Enviar para Assinatura'}
+              </button>
+            )}
           </div>
         </div>
       </div>

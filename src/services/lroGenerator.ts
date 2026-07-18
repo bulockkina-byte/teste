@@ -291,41 +291,58 @@ export function montarHTML(dados: Record<string, unknown>, showMarkers = false, 
 }
 
 export async function gerarPDF(dados: Record<string, unknown>): Promise<Blob> {
-  const html = montarHTML(dados);
   const A4_W = 794;
   const A4_H = 1123;
 
+  const html = montarHTML(dados).replace(
+    '</head>',
+    `<base href="${window.location.origin}/">\n</head>`
+  );
+
   const iframe = document.createElement('iframe');
   iframe.style.width = `${A4_W}px`;
-  iframe.style.height = '1px';
   iframe.style.position = 'fixed';
-  iframe.style.left = '0';
+  iframe.style.left = '-9999px';
   iframe.style.top = '0';
   iframe.style.border = 'none';
   iframe.style.background = '#fff';
-  iframe.style.opacity = '0.01';
-  iframe.style.pointerEvents = 'none';
   document.body.appendChild(iframe);
 
-  const win = iframe.contentWindow!;
   const idoc = iframe.contentDocument!;
   idoc.open();
   idoc.write(html);
   idoc.close();
 
-  await new Promise(r => { win.onload = r; setTimeout(r, 3000); });
-  await new Promise(r => setTimeout(r, 300));
-  iframe.style.height = `${Math.max(idoc.body.scrollHeight, A4_H)}px`;
+  await new Promise<void>(resolve => {
+    let check = () => {
+      const body = idoc.body;
+      if (body && body.querySelectorAll('img').length > 0) {
+        const allLoaded = Array.from(body.querySelectorAll('img')).every(i => i.complete && i.naturalWidth > 0);
+        if (allLoaded) { resolve(); return; }
+      }
+      if (body && body.scrollHeight > 100) { resolve(); return; }
+      setTimeout(check, 200);
+    };
+    setTimeout(check, 300);
+    setTimeout(() => resolve(), 5000);
+  });
+
+  await new Promise(r => setTimeout(r, 500));
+
+  const idocBody = idoc.body;
 
   try {
-    const totalHeight = idoc.body.scrollHeight;
+    const totalHeight = idocBody.scrollHeight;
     const pages = Math.ceil(totalHeight / A4_H);
     const doc = new jsPDF({ format: 'a4', unit: 'mm' });
 
     for (let i = 0; i < pages; i++) {
-      idoc.body.style.transform = `translateY(-${i * A4_H}px)`;
+      idocBody.style.transform = `translateY(-${i * A4_H}px)`;
+      idocBody.style.width = `${A4_W}px`;
+      idocBody.style.height = `${A4_H}px`;
+      idocBody.style.overflow = 'hidden';
 
-      const canvas = await toPng(idoc.body, {
+      const canvas = await toPng(idocBody, {
         width: A4_W,
         height: A4_H,
         pixelRatio: 2,
