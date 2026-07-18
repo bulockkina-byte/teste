@@ -173,6 +173,28 @@ export function GerarLRO() {
   const [filtroMes, setFiltroMes] = useState('');
   const [filtroEquipeLista, setFiltroEquipeLista] = useState('');
   const [cloneOrigem, setCloneOrigem] = useState<LRODraft | null>(null);
+  const [draftCountdowns, setDraftCountdowns] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const tick = () => {
+      const now = Date.now();
+      const next: Record<string, string> = {};
+      drafts.forEach(d => {
+        if (d.status !== 'rascunho' || !d.expires_at) return;
+        const diff = new Date(d.expires_at).getTime() - now;
+        if (diff <= 0) { next[d.id] = 'Excluindo...'; return; }
+        const dias = Math.floor(diff / 86400000);
+        const horas = Math.floor((diff % 86400000) / 3600000);
+        const mins = Math.floor((diff % 3600000) / 60000);
+        const segs = Math.floor((diff % 60000) / 1000);
+        next[d.id] = `${dias}d ${String(horas).padStart(2,'0')}:${String(mins).padStart(2,'0')}:${String(segs).padStart(2,'0')}`;
+      });
+      setDraftCountdowns(next);
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [drafts]);
 
   useEffect(() => {
     async function load() {
@@ -747,80 +769,96 @@ export function GerarLRO() {
           </div>
         ) : (
           <div className="space-y-3">
-            {filtradas.map(d => (
-              <div key={d.id} className="flex items-center justify-between rounded-2xl border border-graphite-200 bg-white p-4 transition-all hover:shadow-md dark:border-border-dark dark:bg-surface-card">
-                <div className="flex items-center gap-4">
-                  <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${d.status === 'assinado' ? 'bg-green-100 dark:bg-green-900/30' : d.status === 'aguardando' ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-graphite-100 dark:bg-graphite-800'}`}>
-                    <FileText className={`h-5 w-5 ${d.status === 'assinado' ? 'text-green-600 dark:text-green-400' : d.status === 'aguardando' ? 'text-amber-600 dark:text-amber-400' : 'text-graphite-500'}`} />
+            {filtradas.map(d => {
+              const dotColor = d.status === 'assinado' ? 'bg-green-500' : d.status === 'aguardando' ? 'bg-blue-500' : d.status === 'cancelado' ? 'bg-red-500' : 'bg-yellow-500';
+              const dd = d.dados as Record<string, any> || {};
+              return (
+              <div key={d.id} className="rounded-xl border border-graphite-200 bg-white transition-all hover:shadow-md dark:border-border-dark dark:bg-surface-card">
+                <div className="flex items-center justify-between p-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className={`h-2.5 w-2.5 flex-shrink-0 rounded-full ${dotColor}`} />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap text-sm font-medium text-graphite-900 dark:text-graphite-100">
+                        <FileText className="h-4 w-4 text-graphite-400" />
+                        <span>LRO - Equipe {d.equipe}</span>
+                      </div>
+                      <div className="text-xs text-graphite-500 mt-0.5">
+                        {new Date(d.data_plantao + 'T12:00:00').toLocaleDateString('pt-BR')}
+                        {' · '}Criado em {new Date(d.created_at).toLocaleDateString('pt-BR')}
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-semibold text-graphite-900 dark:text-graphite-100">LRO - Equipe {d.equipe}</p>
-                    <p className="text-xs text-graphite-500">{d.data_plantao} · {new Date(d.created_at).toLocaleDateString('pt-BR')}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={`rounded-full px-3 py-1 text-[11px] font-medium ${STATUS_CORES[d.status] || STATUS_CORES.rascunho}`}>
-                    {STATUS_LABELS[d.status] || d.status}
-                  </span>
-                  <button onClick={() => {
-                    const dd = d.dados as Record<string, any> || {};
-                    setDraftId(d.id);
-                    setStep('preencher');
-                    setEquipe((dd.equipeNome || d.equipe || 'Alfa') as EquipeOpcao);
-                    setDataInicio(dd.dataInicio || d.data_plantao || new Date().toISOString().split('T')[0]);
-                    setDataFim(dd.dataFim || '');
-                    setChefeEquipe(dd.chefeEquipe || '');
-                    setComunicacao(dd.comunicacao || '');
-                    setEquipagemCCI(dd.cci2 ? Object.fromEntries((dd.cci2 as any[]).map((c: any, i: number) => [`${c.funcao}_${i}`, c.nome])) : {});
-                    setEquipagemCCIRT(dd.cci3 ? Object.fromEntries((dd.cci3 as any[]).map((c: any, i: number) => [`${c.funcao}_${i}`, c.nome])) : {});
-                    setEquipagemCRS(dd.crs ? Object.fromEntries((dd.crs as any[]).map((c: any, i: number) => [`${c.funcao}_${i}`, c.nome])) : {});
-                    setInstrucoes(Array.isArray(dd.instrucoes) ? dd.instrucoes.join('\n') : (dd.instrucoes || ''));
-                    setInstrucoesHorarios(dd.instrucoesHorarios || '');
-                    if (dd.frota) {
-                      const fDados: Record<string, any> = {};
-                      (dd.frota as any[]).forEach((f: any, i: number) => {
-                        fDados[`row_${i}`] = { viaturaId: '', prefixo: f.prefixo || '', kmIni: f.kmIni || '', kmFim: f.kmFim || '', combIni: f.combIni || '', combFim: f.combFim || '', situacao: f.situacao || '' };
-                      });
-                      setFrotaDados(fDados);
-                    }
-                    setCentralFaisca(dd.centralFaisca || 'SEM ALTERAÇÕES');
-                    setRadioComunicacao(dd.radioComunicacao || 'SEM ALTERAÇÕES');
-                    setTpTemAlteracao(!!dd.tpTemAlteracao);
-                    setTpTexto(dd.tpTexto || '');
-                    setExtTemAlteracao(!!dd.extTemAlteracao);
-                    setExtTexto(dd.extTexto || '');
-                    setEquipTemAlteracao(!!dd.equipTemAlteracao);
-                    setEquipTexto(dd.equipTexto || '');
-                    setEdifTemAlteracao(!!dd.edifTemAlteracao);
-                    setEdifTexto(dd.edifTexto || '');
-                    setOcorrenciasNA(dd.ocorrenciasNA || '');
-                    setInspecoes(dd.inspecoes || '');
-                    setEmergenciaXI(dd.emergenciaXI || '');
-                    setOutrasOcorrencias(Array.isArray(dd.ocorrenciasXII) ? dd.ocorrenciasXII.join('\n') : (dd.ocorrenciasXII || ''));
-                    setSolicitacoesCCR(Array.isArray(dd.solicitacoes) ? dd.solicitacoes.join('\n') : (dd.solicitacoes || ''));
-                    if (dd._trocasManuais) setTrocasManuais(dd._trocasManuais);
-                    if (dd._substituicoesDetectadas) {
-                      const manuais = (dd._substituicoesDetectadas as any[]).filter((s: any) => s.tipo === 'troca' && s.confirmada === true);
-                      if (manuais.length > 0) setSubstituicoesDetectadas(manuais);
-                    }
-                    setView('wizard');
-                  }}
-                    className="rounded-lg border border-graphite-200 px-3 py-1.5 text-xs font-medium text-graphite-600 transition-all hover:bg-graphite-50 dark:border-border-dark dark:hover:bg-surface-hover">
-                    {d.status === 'rascunho' ? 'Continuar' : 'Visualizar'}
-                  </button>
-                  <button onClick={() => setCloneOrigem(d)} title="Clonar LRO"
-                    className="rounded-lg p-1.5 text-graphite-400 transition-all hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover">
-                    <FileText className="h-4 w-4" />
-                  </button>
-                  {(d.status === 'rascunho' || isAdmin) && (
-                    <button onClick={() => excluirDraft(d.id).then(() => setDrafts(prev => prev.filter(x => x.id !== d.id)))}
-                      className="rounded-lg p-1.5 text-alert-red transition-all hover:bg-red-50 dark:hover:bg-red-900/20">
-                      <Trash2 className="h-4 w-4" />
+                  <div className="flex items-center gap-2">
+                    <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${STATUS_CORES[d.status] || STATUS_CORES.rascunho}`}>
+                      {STATUS_LABELS[d.status] || d.status}
+                    </span>
+                    {d.status === 'rascunho' && draftCountdowns[d.id] && (
+                      <span className="text-[10px] text-yellow-600 dark:text-yellow-400" title="Tempo até exclusão automática">
+                        Exclui em: {draftCountdowns[d.id]}
+                      </span>
+                    )}
+                    <button onClick={() => setCloneOrigem(d)} title="Clonar LRO"
+                      className="rounded-lg p-1.5 text-graphite-400 transition-all hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-900/20">
+                      <FileText className="h-4 w-4" />
                     </button>
-                  )}
+                    {d.status === 'rascunho' ? (
+                      <button onClick={() => {
+                        setDraftId(d.id);
+                        setStep('preencher');
+                        setEquipe((dd.equipeNome || d.equipe || 'Alfa') as EquipeOpcao);
+                        setDataInicio(dd.dataInicio || d.data_plantao || new Date().toISOString().split('T')[0]);
+                        setDataFim(dd.dataFim || '');
+                        setChefeEquipe(dd.chefeEquipe || '');
+                        setComunicacao(dd.comunicacao || '');
+                        setEquipagemCCI(dd.cci2 ? Object.fromEntries((dd.cci2 as any[]).map((c: any, i: number) => [`${c.funcao}_${i}`, c.nome])) : {});
+                        setEquipagemCCIRT(dd.cci3 ? Object.fromEntries((dd.cci3 as any[]).map((c: any, i: number) => [`${c.funcao}_${i}`, c.nome])) : {});
+                        setEquipagemCRS(dd.crs ? Object.fromEntries((dd.crs as any[]).map((c: any, i: number) => [`${c.funcao}_${i}`, c.nome])) : {});
+                        setInstrucoes(Array.isArray(dd.instrucoes) ? dd.instrucoes.join('\n') : (dd.instrucoes || ''));
+                        setInstrucoesHorarios(dd.instrucoesHorarios || '');
+                        if (dd.frota) {
+                          const fDados: Record<string, any> = {};
+                          (dd.frota as any[]).forEach((f: any, i: number) => {
+                            fDados[`row_${i}`] = { viaturaId: '', prefixo: f.prefixo || '', kmIni: f.kmIni || '', kmFim: f.kmFim || '', combIni: f.combIni || '', combFim: f.combFim || '', situacao: f.situacao || '' };
+                          });
+                          setFrotaDados(fDados);
+                        }
+                        setCentralFaisca(dd.centralFaisca || 'SEM ALTERAÇÕES');
+                        setRadioComunicacao(dd.radioComunicacao || 'SEM ALTERAÇÕES');
+                        setTpTemAlteracao(!!dd.tpTemAlteracao);
+                        setTpTexto(dd.tpTexto || '');
+                        setExtTemAlteracao(!!dd.extTemAlteracao);
+                        setExtTexto(dd.extTexto || '');
+                        setEquipTemAlteracao(!!dd.equipTemAlteracao);
+                        setEquipTexto(dd.equipTexto || '');
+                        setEdifTemAlteracao(!!dd.edifTemAlteracao);
+                        setEdifTexto(dd.edifTexto || '');
+                        setOcorrenciasNA(dd.ocorrenciasNA || '');
+                        setInspecoes(dd.inspecoes || '');
+                        setEmergenciaXI(dd.emergenciaXI || '');
+                        setOutrasOcorrencias(Array.isArray(dd.ocorrenciasXII) ? dd.ocorrenciasXII.join('\n') : (dd.ocorrenciasXII || ''));
+                        setSolicitacoesCCR(Array.isArray(dd.solicitacoes) ? dd.solicitacoes.join('\n') : (dd.solicitacoes || ''));
+                        if (dd._trocasManuais) setTrocasManuais(dd._trocasManuais);
+                        if (dd._substituicoesDetectadas) {
+                          const manuais = (dd._substituicoesDetectadas as any[]).filter((s: any) => s.tipo === 'troca' && s.confirmada === true);
+                          if (manuais.length > 0) setSubstituicoesDetectadas(manuais);
+                        }
+                        setView('wizard');
+                      }}
+                        className="rounded-lg bg-aviation-50 px-3 py-1.5 text-xs font-medium text-aviation-700 transition-all hover:bg-aviation-100 dark:bg-aviation-900/20 dark:text-aviation-300">
+                        Continuar
+                      </button>
+                    ) : null}
+                    {(d.status === 'rascunho' || isAdmin) && (
+                      <button onClick={() => excluirDraft(d.id).then(() => setDrafts(prev => prev.filter(x => x.id !== d.id)))}
+                        className="rounded-lg p-1.5 text-alert-red transition-all hover:bg-red-50 dark:hover:bg-red-900/20">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
