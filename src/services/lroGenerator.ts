@@ -292,38 +292,47 @@ export function montarHTML(dados: Record<string, unknown>, showMarkers = false):
 
 export async function gerarPDF(dados: Record<string, unknown>): Promise<Blob> {
   const html = montarHTML(dados);
-  const doc = new jsPDF({ format: 'a4', unit: 'mm' });
   const A4_W = 794;
   const A4_H = 1123;
 
-  const container = document.createElement('div');
-  container.innerHTML = html;
-  container.style.width = `${A4_W}px`;
-  container.style.position = 'fixed';
-  container.style.left = '-9999px';
-  container.style.top = '0';
-  container.style.background = '#fff';
-  document.body.appendChild(container);
+  const iframe = document.createElement('iframe');
+  iframe.style.width = `${A4_W}px`;
+  iframe.style.height = '1px';
+  iframe.style.position = 'fixed';
+  iframe.style.left = '0';
+  iframe.style.top = '0';
+  iframe.style.border = 'none';
+  iframe.style.background = '#fff';
+  iframe.style.opacity = '0.01';
+  iframe.style.pointerEvents = 'none';
+  document.body.appendChild(iframe);
+
+  const win = iframe.contentWindow!;
+  const idoc = iframe.contentDocument!;
+  idoc.open();
+  idoc.write(html);
+  idoc.close();
+
+  await new Promise(r => { win.onload = r; setTimeout(r, 3000); });
+  await new Promise(r => setTimeout(r, 300));
+  iframe.style.height = `${Math.max(idoc.body.scrollHeight, A4_H)}px`;
 
   try {
-    const totalHeight = container.scrollHeight;
+    const totalHeight = idoc.body.scrollHeight;
     const pages = Math.ceil(totalHeight / A4_H);
+    const doc = new jsPDF({ format: 'a4', unit: 'mm' });
 
     for (let i = 0; i < pages; i++) {
-      const canvas = await toPng(container, {
+      idoc.body.style.transform = `translateY(-${i * A4_H}px)`;
+
+      const canvas = await toPng(idoc.body, {
         width: A4_W,
         height: A4_H,
-        style: {
-          transform: `translateY(-${i * A4_H}px)`,
-          width: `${A4_W}px`,
-          height: `${A4_H}px`,
-        },
         pixelRatio: 2,
       });
 
       if (i > 0) doc.addPage();
-      const imgData = canvas;
-      doc.addImage(imgData, 'PNG', 0, 0, 210, 297, undefined, 'FAST');
+      doc.addImage(canvas, 'PNG', 0, 0, 210, 297, undefined, 'FAST');
       doc.setFontSize(9);
       doc.setTextColor(0);
       doc.text(`${i + 1} de ${pages}`, 192, 36, { align: 'right' });
@@ -331,7 +340,7 @@ export async function gerarPDF(dados: Record<string, unknown>): Promise<Blob> {
 
     return doc.output('blob');
   } finally {
-    document.body.removeChild(container);
+    document.body.removeChild(iframe);
   }
 }
 
