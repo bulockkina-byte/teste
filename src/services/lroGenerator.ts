@@ -1,4 +1,5 @@
 import jsPDF from 'jspdf';
+import { toPng } from 'html-to-image';
 import { criarDocumento, type AutentiqueSigner } from './autentiqueService';
 
 function cb(checked: boolean) {
@@ -29,7 +30,7 @@ function secaoCheckbox(titulo: string, temAlteracao: boolean, texto: string): st
   </table>`;
 }
 
-export function montarHTML(dados: Record<string, unknown>, showMarkers = false, isPdf = false): string {
+export function montarHTML(dados: Record<string, unknown>, showMarkers = false): string {
   const e = (k: string, fallback = '') => String(dados[k] ?? fallback);
 
   const logoUrl = e('logoUrl', '/LOGOLRO.jpeg');
@@ -78,23 +79,12 @@ export function montarHTML(dados: Record<string, unknown>, showMarkers = false, 
   const inspecoes = e('inspecoes');
 
   const nome = (items: Array<Record<string, string>>, idx: number) => (items[idx]?.nome || '').toUpperCase();
-  const grid = (items: Array<Record<string, string>>, cols: number) => {
-    const html = items.map(i => `<td style="border:none; font-size:11px;"><span class="b">${i.funcao}</span> <span>${i.nome}</span></td>`).join('');
-    return `<table style="width:100%; border:none; border-collapse:collapse;"><tr>${html}</tr></table>`;
-  };
-  const cci2HTML = grid(cci2, 3);
-  const cci3HTML = grid(cci3, 3);
-  const crsHTML = grid(crs, 4);
+  const cci2HTML = `<div style="display:grid; grid-template-columns:1fr 1fr 1fr; text-align:left;"><div><span class="b">BA-CE</span> <span>${nome(cci2, 0)}</span></div><div><span class="b">BA-MC</span> <span>${nome(cci2, 1)}</span></div><div><span class="b">BA-2</span> <span>${nome(cci2, 2)}</span></div></div>`;
+  const cci3HTML = `<div style="display:grid; grid-template-columns:1fr 1fr 1fr; text-align:left;"><div><span class="b">BA-MC</span> <span>${nome(cci3, 0)}</span></div><div><span class="b">BA-2</span> <span>${nome(cci3, 1)}</span></div><div><span class="b">BA-2</span> <span>${nome(cci3, 2)}</span></div></div>`;
+  const crsHTML = `<div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; text-align:left;"><div><span class="b">BA-LR</span> <span>${nome(crs, 0)}</span></div><div><span class="b">BA-MC</span> <span>${nome(crs, 1)}</span></div><div><span class="b">BA-RE</span> <span>${nome(crs, 2)}</span></div><div><span class="b">BA-RE</span> <span>${nome(crs, 3)}</span></div></div>`;
 
-  const itemInstrucao = (item: string, horario: string, isLast: boolean) => {
-    if (isPdf) {
-      return `<table style="width:100%; border:none; border-collapse:collapse; margin-bottom:4px;"><tr><td style="border:none; padding:0; font-size:10px; vertical-align:top;">${item}</td><td style="border:none; padding:0; font-size:10px; text-align:right; vertical-align:top; width:40px;">${horario || ''}</td></tr></table>`;
-    }
-    const sep = isLast ? '' : '<div style="height:1em;"></div>';
-    return `<div style="display:flex; justify-content:space-between; font-size:10px; padding-right:90px;"><span>${item}</span><span style="white-space:nowrap;">${horario || ''}</span></div>${sep}`;
-  };
   const instrucoesHTML = instrucoes.length > 0
-    ? `<tr><td colspan="7" style="border-left:1px solid #000; border-right:1px solid #000; padding:4px 5px; font-size:10px; vertical-align:top; min-height:40px;"><div style="height:1em;"></div>${instrucoes.map((item, i) => itemInstrucao(item, instrucoesHorarios[i] || '', i === instrucoes.length - 1)).join('')}<div style="height:1em;"></div></td></tr>`
+    ? `<tr><td colspan="7" style="border-left:1px solid #000; border-right:1px solid #000; padding:4px 5px; font-size:10px; vertical-align:top; min-height:40px;"><div style="height:1em;"></div>${instrucoes.map((item, i) => `<div style="display:flex; justify-content:space-between; font-size:10px; padding-right:90px;"><span>${item}</span><span style="white-space:nowrap;">${instrucoesHorarios[i] || ''}</span></div>${i < instrucoes.length - 1 ? '<div style=\"height:1em;\"></div>' : ''}`).join('')}<div style="height:1em;"></div></td></tr>`
     : `<tr><td colspan="7" style="border-left:1px solid #000; border-right:1px solid #000; padding:4px 5px; font-size:10px; vertical-align:top; min-height:40px;"><div style="height:1em;"></div></td></tr>`;
 
   const PREFIXOS_FIXOS = ['F2 X6', 'F3 X6', 'FRT X6'];
@@ -106,15 +96,11 @@ export function montarHTML(dados: Record<string, unknown>, showMarkers = false, 
     <tr style="border-top:1px solid #000; border-bottom:1px solid #000;"><td class="b" style="border:none; border-left:1px solid #000; font-size:11px; padding-right:16px; white-space:nowrap; width:50px;">CCI 333</td><td style="border:none; font-size:11px; padding-left:0; white-space:nowrap; width:40px;">FRT X6</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:4px 8px; white-space:nowrap;">KM INICIAL</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:4px 16px; white-space:nowrap;"></td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:4px 8px; white-space:nowrap;">KM FINAL</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:4px 16px; white-space:nowrap;"></td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:4px 5px; width:100%;"></td></tr>
   `;
 
-  const itemSub = (s: Record<string, string>) => {
-    if (isPdf) {
-      return `<tr><td colspan="7" style="padding:4px 4px; font-size:11px;"><table style="width:100%; border:none; border-collapse:collapse;"><tr><td style="border:none; text-align:center; font-size:11px; width:40%;"><span class="b">${s.funcao1 || 'BA-2'}</span> <span>${(s.nome1 || '').toUpperCase()}</span></td><td style="border:none; text-align:center; font-size:14px; width:20%;">→</td><td style="border:none; text-align:center; font-size:11px; width:40%;"><span class="b">${s.funcao2 || 'BA-2'}</span> <span>${(s.nome2 || '').toUpperCase()}</span></td></tr></table></td></tr>`;
-    }
-    return `<tr><td colspan="7" style="padding:4px 4px; font-size:11px;"><div style="display:grid; grid-template-columns:2fr 1fr 2fr; text-align:center;"><div><span class="b" style="font-size:11px;">${s.funcao1 || 'BA-2'}</span> <span style="font-size:11px;">${(s.nome1 || '').toUpperCase()}</span></div><div style="align-self:center;"><span style="font-size:14px;">→</span></div><div><span class="b" style="font-size:11px;">${s.funcao2 || 'BA-2'}</span> <span style="font-size:11px;">${(s.nome2 || '').toUpperCase()}</span></div></div></td></tr>`;
-  };
   const subHTML = temSubstituicao
-  ? substituicao.map(s => itemSub(s)).join('')
-  : '';
+    ? substituicao.map(s => `
+      <tr><td colspan="7" style="padding:4px 4px; font-size:11px;"><div style="display:grid; grid-template-columns:2fr 1fr 2fr; text-align:center;"><div><span class="b" style="font-size:11px;">${s.funcao1 || 'BA-2'}</span> <span style="font-size:11px;">${(s.nome1 || '').toUpperCase()}</span></div><div style="align-self:center;"><span style="font-size:14px;">→</span></div><div><span class="b" style="font-size:11px;">${s.funcao2 || 'BA-2'}</span> <span style="font-size:11px;">${(s.nome2 || '').toUpperCase()}</span></div></div></td></tr>
+    `).join('')
+    : '';
 
   const ocorrenciasHTML = ocorrenciasXII.length > 0
     ? ocorrenciasXII.map(o => `<tr><td style="border:none; padding:2px 8px; font-size:11px;">${o}</td></tr>`).join('')
@@ -137,14 +123,9 @@ export function montarHTML(dados: Record<string, unknown>, showMarkers = false, 
   return `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><title>LIVRO ATA DE CHEFE DE EQUIPE</title>
 <style>
-  body { margin: 0; padding: 0; font-family: Arial, sans-serif; font-size: 7.5px; line-height: 1.2; color: #000; }
-  ${isPdf ? `
-  .page { padding: 4mm 6mm; }
-  ` : `
   @page { size: A4; margin: 15mm 10mm; }
-  body { background: #ddd; display: flex; justify-content: center; padding: 10px; }
+  body { background: #ddd; display: flex; justify-content: center; padding: 10px; font-family: Arial, sans-serif; font-size: 7.5px; line-height: 1.2; color: #000; }
   .page { background: #fff; width: 210mm; min-height: 297mm; padding: 4mm 6mm; box-shadow: 0 4px 12px rgba(0,0,0,0.2); margin-bottom: 10px; }
-  `}
   @media print {
     @page { size: A4; margin: 15mm 10mm; }
     body { background: #fff; padding: 0; margin: 0; }
@@ -310,28 +291,48 @@ export function montarHTML(dados: Record<string, unknown>, showMarkers = false, 
 }
 
 export async function gerarPDF(dados: Record<string, unknown>): Promise<Blob> {
-  const html = montarHTML(dados, false, true);
+  const html = montarHTML(dados);
   const doc = new jsPDF({ format: 'a4', unit: 'mm' });
-  return new Promise((resolve, reject) => {
-    doc.html(html, {
-      callback: () => {
-        try {
-          const totalPages = doc.getNumberOfPages();
-          for (let i = 1; i <= totalPages; i++) {
-            doc.setPage(i);
-            doc.setFontSize(9);
-            doc.setTextColor(0);
-            doc.text(`${i} de ${totalPages}`, 192, 36, { align: 'right' });
-          }
-          resolve(doc.output('blob'));
-        } catch (err) { reject(err); }
-      },
-      margin: [15, 10, 15, 10],
-      autoPaging: 'text',
-      width: 190,
-      windowWidth: 800,
-    });
-  });
+  const A4_W = 794;
+  const A4_H = 1123;
+
+  const container = document.createElement('div');
+  container.innerHTML = html;
+  container.style.width = `${A4_W}px`;
+  container.style.position = 'fixed';
+  container.style.left = '-9999px';
+  container.style.top = '0';
+  container.style.background = '#fff';
+  document.body.appendChild(container);
+
+  try {
+    const totalHeight = container.scrollHeight;
+    const pages = Math.ceil(totalHeight / A4_H);
+
+    for (let i = 0; i < pages; i++) {
+      const canvas = await toPng(container, {
+        width: A4_W,
+        height: A4_H,
+        style: {
+          transform: `translateY(-${i * A4_H}px)`,
+          width: `${A4_W}px`,
+          height: `${A4_H}px`,
+        },
+        pixelRatio: 2,
+      });
+
+      if (i > 0) doc.addPage();
+      const imgData = canvas;
+      doc.addImage(imgData, 'PNG', 0, 0, 210, 297, undefined, 'FAST');
+      doc.setFontSize(9);
+      doc.setTextColor(0);
+      doc.text(`${i + 1} de ${pages}`, 192, 36, { align: 'right' });
+    }
+
+    return doc.output('blob');
+  } finally {
+    document.body.removeChild(container);
+  }
 }
 
 export async function gerarEEnviarAutentique(
