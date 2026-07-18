@@ -137,9 +137,11 @@ export function PreviewLRO() {
       }
 
       try {
-        await criarDocumentoAutentique(blob, nomeArquivo, signersAutentique, undefined, false);
+        await criarDocumentoAutentique(blob, nomeArquivo, signersAutentique, undefined, true);
       } catch (errAut) {
-        alert('Erro do Autentique: ' + (errAut instanceof Error ? errAut.message : 'Erro') + '\n\nO token foi configurado mas o Autentique rejeitou. Verifique se:\n1. O token é válido no https://app.autentique.com.br (Configurações > API)\n2. O token está ativo e não expirou\n3. É o token correto (produção vs sandbox)');
+        const msg = errAut instanceof Error ? errAut.message : String(errAut);
+        console.error('Erro Autentique:', msg);
+        alert('Erro do Autentique. Abra o console (F12) e veja o erro completo.\n\n' + msg);
         setEnviando('idle');
         return;
       }
