@@ -29,7 +29,7 @@ function secaoCheckbox(titulo: string, temAlteracao: boolean, texto: string): st
   </table>`;
 }
 
-export function montarHTML(dados: Record<string, unknown>, showMarkers = false): string {
+export function montarHTML(dados: Record<string, unknown>, showMarkers = false, isPdf = false): string {
   const e = (k: string, fallback = '') => String(dados[k] ?? fallback);
 
   const logoUrl = e('logoUrl', '/LOGOLRO.jpeg');
@@ -122,17 +122,21 @@ export function montarHTML(dados: Record<string, unknown>, showMarkers = false):
   return `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><title>LIVRO ATA DE CHEFE DE EQUIPE</title>
 <style>
+  body { margin: 0; padding: 0; font-family: Arial, sans-serif; font-size: 7.5px; line-height: 1.2; color: #000; }
+  ${isPdf ? `
+  .page { padding: 4mm 6mm; }
+  ` : `
   @page { size: A4; margin: 15mm 10mm; }
-  body { background: #ddd; display: flex; justify-content: center; padding: 10px; font-family: Arial, sans-serif; }
-  .page {
-    background: #fff; width: 210mm; min-height: 297mm; padding: 4mm 6mm;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2); font-size: 7.5px; line-height: 1.2; color: #000; margin-bottom: 10px;
-  }
+  body { background: #ddd; display: flex; justify-content: center; padding: 10px; }
+  .page { background: #fff; width: 210mm; min-height: 297mm; padding: 4mm 6mm; box-shadow: 0 4px 12px rgba(0,0,0,0.2); margin-bottom: 10px; }
+  `}
   @media print {
-    body { background: #fff; padding: 0; }
+    @page { size: A4; margin: 15mm 10mm; }
+    body { background: #fff; padding: 0; margin: 0; }
     .page { box-shadow: none; margin: 0; padding: 0; width: 100%; min-height: auto; }
     table { page-break-inside: avoid; }
     .sec-title { page-break-after: avoid; }
+    .marker-assinatura { display: none !important; }
   }
   table { width: 100%; border-collapse: collapse; page-break-inside: avoid; }
   td, th { border: 1px solid #000; padding: 5px 5px; font-size: 7.5px; text-align: left; vertical-align: top; }
@@ -249,17 +253,17 @@ export function montarHTML(dados: Record<string, unknown>, showMarkers = false):
     <tr><td style="border:none; height:40px;"></td></tr>
     <tr>
       <td style="width:33%; border:none; text-align:center; padding:0 16px;">
-        ${showMarkers ? '<div style="font-size:7px; color:#2196F3; font-weight:bold; margin-bottom:1px;">▼ ASSINATURA DO BA-CE</div>' : ''}
+        ${showMarkers ? '<div class="marker-assinatura" style="font-size:7px; color:#2196F3; font-weight:bold; margin-bottom:1px;">▼ ASSINATURA DO BA-CE</div>' : ''}
         <div style="border-top:1px solid #000; padding-top:6px; font-size:9px; font-weight:bold;">CHEFE DE EQUIPE:</div>
         <div style="font-size:9px; margin-top:8px; min-height:24px; text-transform:uppercase;">${chefeAss}</div>
       </td>
       <td style="width:33%; border:none; text-align:center; padding:0 16px;">
-        ${showMarkers ? '<div style="font-size:7px; color:#4CAF50; font-weight:bold; margin-bottom:1px;">▼ ASSINATURA DO EMBAIXADOR</div>' : ''}
+        ${showMarkers ? '<div class="marker-assinatura" style="font-size:7px; color:#4CAF50; font-weight:bold; margin-bottom:1px;">▼ ASSINATURA DO EMBAIXADOR</div>' : ''}
         <div style="border-top:1px solid #000; padding-top:6px; font-size:9px; font-weight:bold;">GERENTE DO SESCINC SBNF:</div>
         <div style="font-size:9px; margin-top:8px; min-height:24px; text-transform:uppercase;">${gerenteAss}</div>
       </td>
       <td style="width:33%; border:none; text-align:center; padding:0 16px;">
-        ${showMarkers ? '<div style="font-size:7px; color:#FF9800; font-weight:bold; margin-bottom:1px;">▼ ASSINATURA DO COORDENADOR</div>' : ''}
+        ${showMarkers ? '<div class="marker-assinatura" style="font-size:7px; color:#FF9800; font-weight:bold; margin-bottom:1px;">▼ ASSINATURA DO COORDENADOR</div>' : ''}
         <div style="border-top:1px solid #000; padding-top:6px; font-size:9px; font-weight:bold;">COORD DE PREV E EMERG:</div>
         <div style="font-size:9px; margin-top:8px; min-height:24px; text-transform:uppercase;">${coordAss}</div>
       </td>
@@ -291,7 +295,7 @@ export function montarHTML(dados: Record<string, unknown>, showMarkers = false):
 }
 
 export async function gerarPDF(dados: Record<string, unknown>): Promise<Blob> {
-  const html = montarHTML(dados);
+  const html = montarHTML(dados, false, true);
   const doc = new jsPDF({ format: 'a4', unit: 'mm' });
   return new Promise((resolve, reject) => {
     doc.html(html, {
@@ -310,7 +314,7 @@ export async function gerarPDF(dados: Record<string, unknown>): Promise<Blob> {
       margin: [15, 10, 15, 10],
       autoPaging: 'text',
       width: 190,
-      windowWidth: 1900,
+      windowWidth: 800,
     });
   });
 }

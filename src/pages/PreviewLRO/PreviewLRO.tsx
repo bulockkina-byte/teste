@@ -1,7 +1,8 @@
 import { useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Download, Send, Printer } from 'lucide-react';
+import { ArrowLeft, Download, Printer } from 'lucide-react';
 import { montarHTML, gerarPDF } from '../../services/lroGenerator';
+import { useAuth } from '../../context/AuthContext';
 
 const SAMPLE_DATA: Record<string, unknown> = {
   logoUrl: '/LOGOLRO.jpeg',
@@ -67,8 +68,10 @@ const SAMPLE_DATA: Record<string, unknown> = {
 export function PreviewLRO() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [generating, setGenerating] = useState(false);
+  const isAdmin = user?.role === 'admin' || user?.role === 'desenvolvedor';
 
   const dados = useMemo(() => {
     const stateData = location.state as Record<string, unknown> | null;
@@ -111,15 +114,14 @@ export function PreviewLRO() {
               )}
             </div>
           </div>
-          <div className="flex gap-3">
-            <button onClick={handleImprimir} className="flex items-center gap-2 rounded-xl border border-graphite-300 bg-white px-4 py-2 text-sm font-medium text-graphite-700 transition-all hover:bg-graphite-50 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">
-              <Printer className="h-4 w-4" /> Imprimir
-            </button>
-            <button onClick={handleGerarPDF} disabled={generating} className="flex items-center gap-2 rounded-xl border border-aviation-300 bg-white px-4 py-2 text-sm font-medium text-aviation-700 transition-all hover:bg-aviation-50 disabled:opacity-50 dark:border-aviation-700 dark:bg-transparent dark:text-aviation-400">
-              <Download className="h-4 w-4" /> {generating ? 'Gerando...' : 'Gerar PDF'}
-            </button>
-            <button onClick={() => navigate('/registros-diarios/gerar-lro')} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-green-600 to-green-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-green-500/20 transition-all hover:from-green-500 hover:to-green-600 active:scale-[0.98]">
-              <Send className="h-4 w-4" /> Enviar para Assinatura
+           <div className="flex gap-3">
+            {isAdmin && (
+              <button onClick={handleImprimir} className="flex items-center gap-2 rounded-xl border border-graphite-300 bg-white px-4 py-2 text-sm font-medium text-graphite-700 transition-all hover:bg-graphite-50 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">
+                <Printer className="h-4 w-4" /> Imprimir
+              </button>
+            )}
+            <button onClick={handleGerarPDF} disabled={generating} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:from-aviation-500 hover:to-aviation-600 disabled:opacity-50">
+              <Download className="h-4 w-4" /> {generating ? 'Gerando...' : 'Baixar PDF'}
             </button>
           </div>
         </div>

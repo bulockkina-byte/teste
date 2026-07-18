@@ -1656,10 +1656,10 @@ export function GerarLRO() {
               <ArrowLeft className="h-4 w-4" /> Voltar
             </button>
             <div className="flex gap-3">
-              <button onClick={handlePreview} className="flex items-center gap-2 rounded-xl border border-aviation-300 bg-white px-4 py-2.5 text-sm font-medium text-aviation-700 transition-all hover:bg-aviation-50 disabled:opacity-50 dark:border-aviation-700 dark:bg-transparent dark:text-aviation-400">
+              <button onClick={handlePreview} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-violet-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-violet-500/20 transition-all hover:from-violet-500 hover:to-violet-600 disabled:opacity-50">
                 <Eye className="h-4 w-4" /> Visualizar
               </button>
-              <button onClick={handleSalvarRascunho} disabled={saving} className="flex items-center gap-2 rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 transition-all hover:bg-graphite-50 disabled:opacity-50 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">
+              <button onClick={handleSalvarRascunho} disabled={saving} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-amber-500/20 transition-all hover:from-amber-400 hover:to-amber-500 disabled:opacity-50">
                 <Save className="h-4 w-4" /> {saving ? 'Salvando...' : 'Salvar Rascunho'}
               </button>
               <button onClick={() => {
