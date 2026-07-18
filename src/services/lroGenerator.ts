@@ -78,12 +78,23 @@ export function montarHTML(dados: Record<string, unknown>, showMarkers = false, 
   const inspecoes = e('inspecoes');
 
   const nome = (items: Array<Record<string, string>>, idx: number) => (items[idx]?.nome || '').toUpperCase();
-  const cci2HTML = `<div style="display:grid; grid-template-columns:1fr 1fr 1fr; text-align:left;"><div><span class="b">BA-CE</span> <span>${nome(cci2, 0)}</span></div><div><span class="b">BA-MC</span> <span>${nome(cci2, 1)}</span></div><div><span class="b">BA-2</span> <span>${nome(cci2, 2)}</span></div></div>`;
-  const cci3HTML = `<div style="display:grid; grid-template-columns:1fr 1fr 1fr; text-align:left;"><div><span class="b">BA-MC</span> <span>${nome(cci3, 0)}</span></div><div><span class="b">BA-2</span> <span>${nome(cci3, 1)}</span></div><div><span class="b">BA-2</span> <span>${nome(cci3, 2)}</span></div></div>`;
-  const crsHTML = `<div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; text-align:left;"><div><span class="b">BA-LR</span> <span>${nome(crs, 0)}</span></div><div><span class="b">BA-MC</span> <span>${nome(crs, 1)}</span></div><div><span class="b">BA-RE</span> <span>${nome(crs, 2)}</span></div><div><span class="b">BA-RE</span> <span>${nome(crs, 3)}</span></div></div>`;
+  const grid = (items: Array<Record<string, string>>, cols: number) => {
+    const html = items.map(i => `<td style="border:none; font-size:11px;"><span class="b">${i.funcao}</span> <span>${i.nome}</span></td>`).join('');
+    return `<table style="width:100%; border:none; border-collapse:collapse;"><tr>${html}</tr></table>`;
+  };
+  const cci2HTML = grid(cci2, 3);
+  const cci3HTML = grid(cci3, 3);
+  const crsHTML = grid(crs, 4);
 
+  const itemInstrucao = (item: string, horario: string, isLast: boolean) => {
+    if (isPdf) {
+      return `<table style="width:100%; border:none; border-collapse:collapse; margin-bottom:4px;"><tr><td style="border:none; padding:0; font-size:10px; vertical-align:top;">${item}</td><td style="border:none; padding:0; font-size:10px; text-align:right; vertical-align:top; width:40px;">${horario || ''}</td></tr></table>`;
+    }
+    const sep = isLast ? '' : '<div style="height:1em;"></div>';
+    return `<div style="display:flex; justify-content:space-between; font-size:10px; padding-right:90px;"><span>${item}</span><span style="white-space:nowrap;">${horario || ''}</span></div>${sep}`;
+  };
   const instrucoesHTML = instrucoes.length > 0
-    ? `<tr><td colspan="7" style="border-left:1px solid #000; border-right:1px solid #000; padding:4px 5px; font-size:10px; vertical-align:top; min-height:40px;"><div style="height:1em;"></div>${instrucoes.map((item, i) => `<div style="display:flex; justify-content:space-between; font-size:10px; padding-right:90px;"><span>${item}</span><span style="white-space:nowrap;">${instrucoesHorarios[i] || ''}</span></div>${i < instrucoes.length - 1 ? '<div style=\"height:1em;\"></div>' : ''}`).join('')}<div style="height:1em;"></div></td></tr>`
+    ? `<tr><td colspan="7" style="border-left:1px solid #000; border-right:1px solid #000; padding:4px 5px; font-size:10px; vertical-align:top; min-height:40px;"><div style="height:1em;"></div>${instrucoes.map((item, i) => itemInstrucao(item, instrucoesHorarios[i] || '', i === instrucoes.length - 1)).join('')}<div style="height:1em;"></div></td></tr>`
     : `<tr><td colspan="7" style="border-left:1px solid #000; border-right:1px solid #000; padding:4px 5px; font-size:10px; vertical-align:top; min-height:40px;"><div style="height:1em;"></div></td></tr>`;
 
   const PREFIXOS_FIXOS = ['F2 X6', 'F3 X6', 'FRT X6'];
@@ -95,11 +106,15 @@ export function montarHTML(dados: Record<string, unknown>, showMarkers = false, 
     <tr style="border-top:1px solid #000; border-bottom:1px solid #000;"><td class="b" style="border:none; border-left:1px solid #000; font-size:11px; padding-right:16px; white-space:nowrap; width:50px;">CCI 333</td><td style="border:none; font-size:11px; padding-left:0; white-space:nowrap; width:40px;">FRT X6</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:4px 8px; white-space:nowrap;">KM INICIAL</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:4px 16px; white-space:nowrap;"></td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:4px 8px; white-space:nowrap;">KM FINAL</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:4px 16px; white-space:nowrap;"></td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:4px 5px; width:100%;"></td></tr>
   `;
 
+  const itemSub = (s: Record<string, string>) => {
+    if (isPdf) {
+      return `<tr><td colspan="7" style="padding:4px 4px; font-size:11px;"><table style="width:100%; border:none; border-collapse:collapse;"><tr><td style="border:none; text-align:center; font-size:11px; width:40%;"><span class="b">${s.funcao1 || 'BA-2'}</span> <span>${(s.nome1 || '').toUpperCase()}</span></td><td style="border:none; text-align:center; font-size:14px; width:20%;">→</td><td style="border:none; text-align:center; font-size:11px; width:40%;"><span class="b">${s.funcao2 || 'BA-2'}</span> <span>${(s.nome2 || '').toUpperCase()}</span></td></tr></table></td></tr>`;
+    }
+    return `<tr><td colspan="7" style="padding:4px 4px; font-size:11px;"><div style="display:grid; grid-template-columns:2fr 1fr 2fr; text-align:center;"><div><span class="b" style="font-size:11px;">${s.funcao1 || 'BA-2'}</span> <span style="font-size:11px;">${(s.nome1 || '').toUpperCase()}</span></div><div style="align-self:center;"><span style="font-size:14px;">→</span></div><div><span class="b" style="font-size:11px;">${s.funcao2 || 'BA-2'}</span> <span style="font-size:11px;">${(s.nome2 || '').toUpperCase()}</span></div></div></td></tr>`;
+  };
   const subHTML = temSubstituicao
-    ? substituicao.map(s => `
-      <tr><td colspan="7" style="padding:4px 4px; font-size:11px;"><div style="display:grid; grid-template-columns:2fr 1fr 2fr; text-align:center;"><div><span class="b" style="font-size:11px;">${s.funcao1 || 'BA-2'}</span> <span style="font-size:11px;">${(s.nome1 || '').toUpperCase()}</span></div><div style="align-self:center;"><span style="font-size:14px;">→</span></div><div><span class="b" style="font-size:11px;">${s.funcao2 || 'BA-2'}</span> <span style="font-size:11px;">${(s.nome2 || '').toUpperCase()}</span></div></div></td></tr>
-    `).join('')
-    : '';
+  ? substituicao.map(s => itemSub(s)).join('')
+  : '';
 
   const ocorrenciasHTML = ocorrenciasXII.length > 0
     ? ocorrenciasXII.map(o => `<tr><td style="border:none; padding:2px 8px; font-size:11px;">${o}</td></tr>`).join('')
