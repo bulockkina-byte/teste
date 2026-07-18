@@ -43,7 +43,9 @@ export default async function handler(req, res) {
         headers: auth ? { 'Authorization': auth } : {},
         body: formData,
       });
-      const data = await apiRes.json();
+      const text = await apiRes.text();
+      let data;
+      try { data = JSON.parse(text); } catch { data = { error: text }; }
       return res.status(apiRes.ok ? 200 : apiRes.status).json(data);
     } else {
       let body = '';
@@ -57,7 +59,9 @@ export default async function handler(req, res) {
         },
         body,
       });
-      const data = await apiRes.json();
+      const text = await apiRes.text();
+      let data;
+      try { data = JSON.parse(text); } catch { data = { error: text }; }
       return res.status(apiRes.ok ? 200 : apiRes.status).json(data);
     }
   } catch (err) {
