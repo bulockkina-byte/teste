@@ -29,7 +29,7 @@ function secaoCheckbox(titulo: string, temAlteracao: boolean, texto: string): st
   </table>`;
 }
 
-export function montarHTML(dados: Record<string, unknown>): string {
+export function montarHTML(dados: Record<string, unknown>, showMarkers = false): string {
   const e = (k: string, fallback = '') => String(dados[k] ?? fallback);
 
   const logoUrl = e('logoUrl', '/LOGOLRO.jpeg');
@@ -249,14 +249,17 @@ export function montarHTML(dados: Record<string, unknown>): string {
     <tr><td style="border:none; height:40px;"></td></tr>
     <tr>
       <td style="width:33%; border:none; text-align:center; padding:0 16px;">
+        ${showMarkers ? '<div style="font-size:7px; color:#2196F3; font-weight:bold; margin-bottom:1px;">▼ ASSINATURA AQUI</div>' : ''}
         <div style="border-top:1px solid #000; padding-top:6px; font-size:9px; font-weight:bold;">CHEFE DE EQUIPE:</div>
         <div style="font-size:9px; margin-top:8px; min-height:24px; text-transform:uppercase;">${chefeAss}</div>
       </td>
       <td style="width:33%; border:none; text-align:center; padding:0 16px;">
+        ${showMarkers ? '<div style="font-size:7px; color:#4CAF50; font-weight:bold; margin-bottom:1px;">▼ ASSINATURA AQUI</div>' : ''}
         <div style="border-top:1px solid #000; padding-top:6px; font-size:9px; font-weight:bold;">GERENTE DO SESCINC SBNF:</div>
         <div style="font-size:9px; margin-top:8px; min-height:24px; text-transform:uppercase;">${gerenteAss}</div>
       </td>
       <td style="width:33%; border:none; text-align:center; padding:0 16px;">
+        ${showMarkers ? '<div style="font-size:7px; color:#FF9800; font-weight:bold; margin-bottom:1px;">▼ ASSINATURA AQUI</div>' : ''}
         <div style="border-top:1px solid #000; padding-top:6px; font-size:9px; font-weight:bold;">COORD DE PREV E EMERG:</div>
         <div style="font-size:9px; margin-top:8px; min-height:24px; text-transform:uppercase;">${coordAss}</div>
       </td>

@@ -77,7 +77,7 @@ export function PreviewLRO() {
 
   const isSample = !location.state || Object.keys(location.state).length <= 3;
 
-  const html = useMemo(() => montarHTML(dados), [dados]);
+  const html = useMemo(() => montarHTML(dados, true), [dados]);
 
   const htmlWithStyles = html;
 
