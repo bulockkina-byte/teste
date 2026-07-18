@@ -30,7 +30,7 @@ function secaoCheckbox(titulo: string, temAlteracao: boolean, texto: string): st
   </table>`;
 }
 
-export function montarHTML(dados: Record<string, unknown>, showMarkers = false): string {
+export function montarHTML(dados: Record<string, unknown>, showMarkers = false, isPdf = false): string {
   const e = (k: string, fallback = '') => String(dados[k] ?? fallback);
 
   const logoUrl = e('logoUrl', '/LOGOLRO.jpeg');

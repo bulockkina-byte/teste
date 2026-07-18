@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Download, Printer } from 'lucide-react';
-import { montarHTML, gerarPDF } from '../../services/lroGenerator';
+import { montarHTML } from '../../services/lroGenerator';
 import { useAuth } from '../../context/AuthContext';
 
 const SAMPLE_DATA: Record<string, unknown> = {
@@ -70,7 +70,7 @@ export function PreviewLRO() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [generating, setGenerating] = useState(false);
+
   const isAdmin = user?.role === 'admin' || user?.role === 'desenvolvedor';
 
   const dados = useMemo(() => {
@@ -84,16 +84,15 @@ export function PreviewLRO() {
 
   const htmlWithStyles = html;
 
-  async function handleGerarPDF() {
-    setGenerating(true);
-    try {
-      const blob = await gerarPDF(dados);
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
-    } catch (err) {
-      console.error('Erro ao gerar PDF:', err);
+  function handleBaixarPDF() {
+    const htmlLimpo = montarHTML(dados);
+    const win = window.open('', '_blank');
+    if (win) {
+      win.document.write(htmlLimpo);
+      win.document.close();
+      win.focus();
+      win.print();
     }
-    setGenerating(false);
   }
 
   function handleImprimir() {
@@ -120,8 +119,8 @@ export function PreviewLRO() {
                 <Printer className="h-4 w-4" /> Imprimir
               </button>
             )}
-            <button onClick={handleGerarPDF} disabled={generating} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:from-aviation-500 hover:to-aviation-600 disabled:opacity-50">
-              <Download className="h-4 w-4" /> {generating ? 'Gerando...' : 'Baixar PDF'}
+            <button onClick={handleBaixarPDF} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:from-aviation-500 hover:to-aviation-600">
+              <Download className="h-4 w-4" /> Baixar PDF
             </button>
           </div>
         </div>
