@@ -1,15 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   FileText, Plus, Trash2, Save, Eye, Pencil, Copy, Printer,
   ChevronDown, ChevronUp, Image,
 } from 'lucide-react';
-import { SearchSelect } from '../../components/ui/SearchSelect';
+import { SearchSelect, type AtivoItem } from '../../components/ui/SearchSelect';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { useAuth } from '../../context/AuthContext';
 import { listarPTRBs, criarPTRB, atualizarPTRB, excluirPTRB } from '../../services/ptrbService';
 import { listarBombeiros } from '../../services/bombeiroService';
+import { listarFeriasGozo } from '../../services/feriasService';
+import { listarSubstituicoesTemporarias } from '../../services/substituicaoTemporariaService';
+import { listarDocumentos, listarPreenchimentos } from '../../services/documentoService';
+import { listarAPOCs } from '../../services/apocService';
 import { CARGO_OPTIONS } from '../../types/bombeiro';
+import type { Bombeiro } from '../../types/bombeiro';
+import type { FeriasGozo } from '../../types/ferias';
+import type { SubstituicaoTemporaria } from '../../types/substituicaoTemporaria';
+import type { APOC } from '../../types/apoc';
 import type { PTRB, PTRBParticipante } from '../../types/ptrb';
 import { EQUIPES, SITUACOES, ASSUNTOS } from '../../types/ptrb';
 
@@ -32,10 +40,12 @@ function calcDuracao(inicio: string, termino: string): string {
 }
 
 function autoTurno(equipe: string) {
+  if (equipe === 'Feirista') return 'Feirista';
   return equipe === 'Alfa' || equipe === 'Charlie' ? 'Diurno' : 'Noturno';
 }
 
-const FUNCAO_OPTIONS = CARGO_OPTIONS.map(c => c.value);
+const FUNCAO_OPTIONS = [...CARGO_OPTIONS.map(c => c.value), 'APOC'];
+const HIERARQUIA_EQUIPE = ['BA-CE', 'BA-LR', 'BA-MC', 'BA-MC', 'BA-MC', 'BA-2', 'BA-2', 'BA-2', 'BA-2', 'BA-2'];
 
 function emptyPTRB(): Omit<PTRB, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'> {
   return {
@@ -45,7 +55,7 @@ function emptyPTRB(): Omit<PTRB, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>
     duracao: '12:00',
     equipe: 'Alfa',
     turno: 'Diurno',
-    participantes: [],
+    participantes: HIERARQUIA_EQUIPE.map(funcao => ({ funcao, nomeCompleto: '', situacao: 'P' })),
     observacoes: '',
     instrutor: '',
     assuntoMinistrado: '',
@@ -60,10 +70,20 @@ function PTRBAForm({
   ptrb,
   onSave,
   onCancel,
+  bombeiros,
+  feriasGozo,
+  substituicoesTemporarias,
+  trocaFills,
+  apocs,
 }: {
   ptrb?: PTRB;
   onSave: (data: Omit<PTRB, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) => void;
   onCancel: () => void;
+  bombeiros: Bombeiro[];
+  feriasGozo: FeriasGozo[];
+  substituicoesTemporarias: SubstituicaoTemporaria[];
+  trocaFills: any[];
+  apocs: APOC[];
 }) {
   const [form, setForm] = useState(emptyPTRB());
 
@@ -146,146 +166,222 @@ function PTRBAForm({
     onSave(form);
   }
 
+  const membrosEquipe = useMemo(() => {
+    return bombeiros.filter(b => b.equipe === form.equipe && !b.dataDesligamento);
+  }, [bombeiros, form.equipe]);
+
+  const emFerias = useMemo(() => {
+    return feriasGozo.filter(f => f.equipe === form.equipe && f.status === 'Em Gozo');
+  }, [feriasGozo, form.equipe]);
+
+  const substituicoesMap = useMemo(() => {
+    const map: Record<string, { substitutoNome: string; substitutoId: string; tipo: string }> = {};
+    trocaFills.forEach((fl: any) => {
+      const fd = fl.filled_data || {};
+      const dataSwap = fd.data_solicitada || (fl.created_at ? fl.created_at.split('T')[0] : '');
+      if (dataSwap !== form.data) return;
+      const nomeSol = fd.nome_solicitante || '';
+      const nomeSolic = fd.nome_solicitado || '';
+      const pessoaSol = bombeiros.find((b: any) => b.nomeCompleto === nomeSol || b.nomeGuerra === nomeSol);
+      const pessoaSolic = bombeiros.find((b: any) => b.nomeCompleto === nomeSolic || b.nomeGuerra === nomeSolic);
+      if (pessoaSol && pessoaSolic) {
+        map[pessoaSol.id] = { substitutoNome: nomeSolic, substitutoId: pessoaSolic.id, tipo: 'troca' };
+        map[pessoaSolic.id] = { substitutoNome: nomeSol, substitutoId: pessoaSol.id, tipo: 'troca' };
+      }
+    });
+    substituicoesTemporarias.forEach(s => {
+      if (s.status !== 'Aprovada') return;
+      const dataSubst = s.dataInicio || '';
+      if (dataSubst !== form.data) return;
+      if (s.funcionarioId && s.substitutoNome) {
+        map[s.funcionarioId] = { substitutoNome: s.substitutoNome, substitutoId: s.substitutoId, tipo: 'substituicao' };
+      }
+      if (s.substitutoId && s.funcionarioNome) {
+        map[s.substitutoId] = { substitutoNome: s.funcionarioNome, substitutoId: s.funcionarioId, tipo: 'substituicao' };
+      }
+    });
+    return map;
+  }, [form.data, trocaFills, substituicoesTemporarias, bombeiros]);
+
+  const disponiveis = useMemo(() => {
+    const feriasIds = new Set(emFerias.map(f => f.funcionarioId));
+    const substituidoIds = new Set(Object.keys(substituicoesMap));
+    const idsAdicionados = new Set<string>();
+    const presentes = membrosEquipe.filter(b => {
+      if (feriasIds.has(b.id) || substituidoIds.has(b.id)) return false;
+      idsAdicionados.add(b.id);
+      return true;
+    });
+    Object.entries(substituicoesMap).forEach(([ausenteId, sub]) => {
+      if (idsAdicionados.has(ausenteId)) return;
+      const ausente = bombeiros.find(b => b.id === ausenteId);
+      if (ausente?.equipe !== form.equipe) return;
+      const substituto = bombeiros.find(b => b.nomeGuerra === sub.substitutoNome || b.nomeCompleto === sub.substitutoNome);
+      if (substituto && !idsAdicionados.has(substituto.id)) {
+        presentes.push(substituto);
+        idsAdicionados.add(substituto.id);
+      }
+    });
+    return presentes;
+  }, [membrosEquipe, emFerias, substituicoesMap, bombeiros, form.equipe]);
+
+  const opcoesParticipantes: AtivoItem[] = useMemo(() => {
+    const bombeirosList = disponiveis.map(b => ({
+      id: b.id,
+      nomeGuerra: b.nomeGuerra,
+      nomeCompleto: b.nomeCompleto,
+      cargo: b.cargo,
+      equipe: b.equipe,
+    }));
+    const apocsList = apocs.map(a => ({
+      id: a.id,
+      nomeGuerra: a.nomeGuerra,
+      nomeCompleto: a.nomeCompleto,
+      cargo: 'APOC' as string,
+      equipe: a.equipe,
+    }));
+    return [...bombeirosList, ...apocsList];
+  }, [disponiveis, apocs]);
+
+  const ultimaAutoFill = useRef('');
+
+  useEffect(() => {
+    if (ptrb) return;
+    const chave = `${form.equipe}-${form.data}`;
+    if (ultimaAutoFill.current === chave) return;
+    if (disponiveis.length === 0 && membrosEquipe.length === 0) return;
+    ultimaAutoFill.current = chave;
+
+    const pool = [...disponiveis];
+    const novos = HIERARQUIA_EQUIPE.map(funcao => {
+      const idx = pool.findIndex(p => p.cargo === funcao);
+      if (idx >= 0) {
+        const pessoa = pool[idx];
+        pool.splice(idx, 1);
+        return { funcao, nomeCompleto: pessoa.nomeCompleto, situacao: 'P' as const };
+      }
+      return { funcao, nomeCompleto: '', situacao: 'P' as const };
+    });
+
+    setForm(f => ({ ...f, participantes: novos }));
+  }, [form.equipe, form.data, disponiveis, ptrb]);
+
+  const input = 'w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated';
+  const inputDisabled = 'w-full rounded-xl border border-graphite-200/60 bg-graphite-100/50 px-3 py-2.5 text-sm text-graphite-400 dark:border-border-dark dark:bg-surface-card/50 dark:text-graphite-500';
+  const label = 'mb-1.5 block text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400';
+  const card = 'rounded-2xl border border-graphite-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm dark:border-border-dark dark:bg-surface-card/80';
+  const cardTitle = 'mb-5 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-aviation-600 dark:text-aviation-400';
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
-      {/* Cabeçalho */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
-        <div>
-          <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Data</label>
-          <input type="date" value={form.data} onChange={e => setForm(f => ({ ...f, data: e.target.value }))}
-            className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated" />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Hora Início</label>
-          <input type="time" value={form.horaInicio} onChange={e => updateHoraInicio(e.target.value)}
-            className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated" />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Hora Término</label>
-          <input type="time" value={form.horaTermino} onChange={e => updateHoraTermino(e.target.value)}
-            className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated" />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Duração</label>
-          <input value={form.duracao} disabled
-            className="w-full rounded-xl border border-graphite-200/60 bg-graphite-100/50 px-3 py-2.5 text-sm text-graphite-400 dark:border-border-dark dark:bg-surface-card/50 dark:text-graphite-500" />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Equipe</label>
-          <select value={form.equipe} onChange={e => updateEquipe(e.target.value)}
-            className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated">
-            {EQUIPES.map(eq => <option key={eq} value={eq}>{eq}</option>)}
-          </select>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Card 1: Informações Gerais */}
+      <div className={card}>
+        <h2 className={cardTitle}><FileText className="h-4 w-4" /> Informações Gerais</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
+          <div>
+            <label className={label}>Data</label>
+            <input type="date" value={form.data} onChange={e => setForm(f => ({ ...f, data: e.target.value }))} className={input} />
+          </div>
+          <div>
+            <label className={label}>Hora Início</label>
+            <input type="time" value={form.horaInicio} onChange={e => updateHoraInicio(e.target.value)} className={input} />
+          </div>
+          <div>
+            <label className={label}>Hora Término</label>
+            <input type="time" value={form.horaTermino} onChange={e => updateHoraTermino(e.target.value)} className={input} />
+          </div>
+          <div>
+            <label className={label}>Duração</label>
+            <input value={form.duracao} disabled className={inputDisabled} />
+          </div>
+          <div>
+            <label className={label}>Equipe</label>
+            <select value={form.equipe} onChange={e => updateEquipe(e.target.value)} className={input}>
+              {EQUIPES.map(eq => <option key={eq} value={eq}>{eq}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className={label}>Turno</label>
+            <input value={form.turno} disabled className={inputDisabled} />
+          </div>
         </div>
       </div>
 
-      <div className="w-48">
-        <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Turno</label>
-        <input value={form.turno} disabled
-          className="w-full rounded-xl border border-graphite-200/60 bg-graphite-100/50 px-3 py-2.5 text-sm text-graphite-400 dark:border-border-dark dark:bg-surface-card/50 dark:text-graphite-500" />
-      </div>
-
-      {/* Participantes */}
-      <fieldset>
-        <legend className="mb-4 text-sm font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400">
-          <Plus className="mr-1 inline h-4 w-4" /> Participantes
-        </legend>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-graphite-200 dark:border-border-dark">
-                <th className="px-3 py-2 text-left text-xs font-medium text-graphite-500 dark:text-graphite-400">Função</th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-graphite-500 dark:text-graphite-400">Nome Completo</th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-graphite-500 dark:text-graphite-400">Situação</th>
-                <th className="px-3 py-2 w-10" />
-              </tr>
-            </thead>
-            <tbody>
-              {form.participantes.map((p, i) => (
-                <tr key={i} className="border-b border-graphite-100 dark:border-border-dark">
-                  <td className="px-3 py-2">
-                    <select value={p.funcao} onChange={e => updateParticipante(i, 'funcao', e.target.value)}
-                      className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated">
-                      <option value="">Selecione</option>
-                      {FUNCAO_OPTIONS.map(f => <option key={f} value={f}>{f}</option>)}
-                    </select>
-                  </td>
-                  <td className="px-3 py-2 min-w-56">
-                    <SearchSelect
-                      value={p.nomeCompleto}
-                      onChange={v => updateParticipante(i, 'nomeCompleto', v)}
-                      placeholder="Selecione o nome"
-                      cargo={p.funcao || undefined}
-                      valueField="nomeCompleto"
-                    />
-                  </td>
-                  <td className="px-3 py-2">
-                    <select value={p.situacao} onChange={e => updateParticipante(i, 'situacao', e.target.value)}
-                      className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated">
-                      {SITUACOES.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  </td>
-                  <td className="px-3 py-2">
-                    <button type="button" onClick={() => removeParticipante(i)}
-                      className="rounded-xl p-1.5 text-alert-red transition-all duration-200 hover:bg-red-50 dark:hover:bg-red-900/20">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Card 2: Participantes e Instrutor */}
+      <div className={card}>
+        <h2 className={cardTitle}><Plus className="h-4 w-4" /> Participantes</h2>
+        <div className="space-y-3">
+          {form.participantes.map((p, i) => (
+            <div key={i} className="flex flex-wrap items-end gap-3 rounded-xl border border-graphite-200/60 bg-graphite-50/50 p-3 dark:border-border-dark dark:bg-surface-card/50">
+              <div className="min-w-0 flex-1 sm:min-w-36">
+                <label className={label}>Função</label>
+                <select value={p.funcao} onChange={e => updateParticipante(i, 'funcao', e.target.value)} className={input}>
+                  <option value="">Selecione</option>
+                  {FUNCAO_OPTIONS.map(f => <option key={f} value={f}>{f}</option>)}
+                </select>
+              </div>
+              <div className="min-w-0 flex-[2] sm:min-w-48">
+                <label className={label}>Nome Completo</label>
+                <SearchSelect
+                  value={p.nomeCompleto}
+                  onChange={v => updateParticipante(i, 'nomeCompleto', v)}
+                  placeholder="Selecione o nome"
+                  cargo={p.funcao || undefined}
+                  valueField="nomeCompleto"
+                  options={opcoesParticipantes}
+                />
+              </div>
+              <div className="min-w-0 flex-1 sm:min-w-28">
+                <label className={label}>Situação</label>
+                <select value={p.situacao} onChange={e => updateParticipante(i, 'situacao', e.target.value)} className={input}>
+                  {SITUACOES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              {i >= HIERARQUIA_EQUIPE.length && (
+                <button type="button" onClick={() => removeParticipante(i)}
+                  className="mb-0.5 rounded-xl p-2 text-alert-red transition-all duration-200 hover:bg-red-50 dark:hover:bg-red-900/20">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          ))}
         </div>
         <button type="button" onClick={addParticipante}
-          className="mt-3 flex items-center gap-1 text-sm text-aviation-600 hover:text-aviation-700 dark:text-aviation-400">
+          className="mt-3 flex items-center gap-1 text-sm font-medium text-aviation-600 transition-colors hover:text-aviation-700 dark:text-aviation-400">
           <Plus className="h-4 w-4" /> Adicionar participante
         </button>
-      </fieldset>
-
-      {/* Observações */}
-      <div>
-        <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Observações</label>
-        <textarea value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} rows={3}
-          className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated" />
+        <div className="mt-4 max-w-xs">
+          <label className={label}>Instrutor</label>
+          <input value={form.instrutor} readOnly className={inputDisabled} />
+        </div>
       </div>
 
-      {/* Instrutor */}
-      <div className="w-80">
-        <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Instrutor</label>
-        <input value={form.instrutor} readOnly
-          className="w-full rounded-xl border border-graphite-200/60 bg-graphite-100/50 px-3 py-2.5 text-sm text-graphite-400 dark:border-border-dark dark:bg-surface-card/50 dark:text-graphite-500" />
+      {/* Card 3: Atividades */}
+      <div className={card}>
+        <h2 className={cardTitle}><FileText className="h-4 w-4" /> Atividades</h2>
+        <div className="space-y-5">
+          <div>
+            <label className={label}>Assunto Ministrado</label>
+            <select value={form.assuntoMinistrado} onChange={e => setForm(f => ({ ...f, assuntoMinistrado: e.target.value }))} className={input}>
+              <option value="">Selecione</option>
+              {ASSUNTOS.map(a => <option key={a} value={a}>{a}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className={label}>ATIVIDADES DESENVOLVIDAS</label>
+            <textarea value={form.descricao} onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))} rows={5} className={input + ' resize-y'} />
+          </div>
+          <div>
+            <label className={label}>Informações Complementares</label>
+            <textarea value={form.informacoesComplementares} onChange={e => setForm(f => ({ ...f, informacoesComplementares: e.target.value }))} rows={4} className={input + ' resize-y'} />
+          </div>
+        </div>
       </div>
 
-      {/* Assunto Ministrado */}
-      <div>
-        <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Assunto Ministrado</label>
-        <select value={form.assuntoMinistrado} onChange={e => setForm(f => ({ ...f, assuntoMinistrado: e.target.value }))}
-          className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated">
-          <option value="">Selecione</option>
-          {ASSUNTOS.map(a => <option key={a} value={a}>{a}</option>)}
-        </select>
-      </div>
-
-      {/* Descrição */}
-      <div>
-        <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Descrição</label>
-        <textarea value={form.descricao} onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))} rows={6}
-          className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated" />
-      </div>
-
-      {/* Informações Complementares */}
-      <div>
-        <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Informações Complementares</label>
-        <textarea value={form.informacoesComplementares} onChange={e => setForm(f => ({ ...f, informacoesComplementares: e.target.value }))} rows={6}
-          className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated" />
-      </div>
-
-      {/* Fotos */}
-      <fieldset>
-        <legend className="mb-4 text-sm font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400">
-          <Image className="mr-1 inline h-4 w-4" /> Fotos
-        </legend>
-        <div className="grid grid-cols-3 gap-4">
+      {/* Card 4: Fotos */}
+      <div className={card}>
+        <h2 className={cardTitle}><Image className="h-4 w-4" /> EVIDÊNCIAS</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {[0, 1, 2].map(idx => (
             <div key={idx}
               className="flex aspect-video cursor-pointer items-center justify-center rounded-2xl border-2 border-dashed border-graphite-300/60 bg-graphite-100/30 backdrop-blur-sm transition-all duration-200 hover:border-aviation-400/50 dark:border-border-dark dark:bg-surface-card/30"
@@ -302,7 +398,7 @@ function PTRBAForm({
             </div>
           ))}
         </div>
-      </fieldset>
+      </div>
 
       {/* Actions */}
       <div className="flex items-center justify-end gap-3 border-t border-graphite-200 pt-6 dark:border-border-dark">
@@ -593,6 +689,11 @@ export function PTRBADiario() {
   const canFilterTeam = isAdmin || isGerente;
   const canEdit = isAdmin || role === 'chefe';
   const [ptrbs, setPtrbs] = useState<PTRB[]>([]);
+  const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
+  const [feriasGozo, setFeriasGozo] = useState<FeriasGozo[]>([]);
+  const [substituicoesTemporarias, setSubstituicoesTemporarias] = useState<SubstituicaoTemporaria[]>([]);
+  const [trocaFills, setTrocaFills] = useState<any[]>([]);
+  const [apocs, setApocs] = useState<APOC[]>([]);
   const [mode, setMode] = useState<'list' | 'form' | 'view'>('list');
   const [editando, setEditando] = useState<PTRB | null>(null);
   const [visualizando, setVisualizando] = useState<PTRB | null>(null);
@@ -625,7 +726,27 @@ export function PTRBADiario() {
     }
   }
 
+  async function carregarApoio() {
+    const [b, f, subs, docs, a] = await Promise.all([
+      listarBombeiros(),
+      listarFeriasGozo(),
+      listarSubstituicoesTemporarias(),
+      listarDocumentos(),
+      listarAPOCs(),
+    ]);
+    setBombeiros(b);
+    setFeriasGozo(f);
+    setSubstituicoesTemporarias(subs);
+    setApocs(a);
+    const trocaDoc = docs.find((d: any) => d.name?.includes('TROCA') || d.source_module === 'trocas');
+    if (trocaDoc) {
+      const fills = await listarPreenchimentos(trocaDoc.id);
+      setTrocaFills(fills.filter((fl: any) => fl.status === 'signed'));
+    }
+  }
+
   useEffect(() => { carregar(); }, [isAdmin, isGerente, username, userEquipe]);
+  useEffect(() => { carregarApoio(); }, []);
 
   async function handleSave(data: Omit<PTRB, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) {
     let saved: PTRB | null;
@@ -672,7 +793,16 @@ export function PTRBADiario() {
     return (
       <PageContainer>
         <PageTitle icon={FileText} title={`PTR-BA - ${editando?.id ? 'Editar' : editando && !editando.id ? 'Clonar' : 'Novo'} Registro`} />
-        <PTRBAForm ptrb={editando || undefined} onSave={handleSave} onCancel={() => { setMode('list'); setEditando(null); }} />
+        <PTRBAForm
+          ptrb={editando || undefined}
+          onSave={handleSave}
+          onCancel={() => { setMode('list'); setEditando(null); }}
+          bombeiros={bombeiros}
+          feriasGozo={feriasGozo}
+          substituicoesTemporarias={substituicoesTemporarias}
+          trocaFills={trocaFills}
+          apocs={apocs}
+        />
       </PageContainer>
     );
   }

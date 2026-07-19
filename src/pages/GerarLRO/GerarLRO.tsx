@@ -10,7 +10,6 @@ import { listarSubstituicoesTemporarias } from '../../services/substituicaoTempo
 import { listarDocumentos, listarPreenchimentos, criarPreenchimento } from '../../services/documentoService';
 import { listarViaturas } from '../../services/viaturaService';
 import { listarPTRBs } from '../../services/ptrbService';
-import { listarOcorrencias } from '../../services/ocorrenciaService';
 import { listarAPOCs } from '../../services/apocService';
 import { salvarDraft, listarDrafts, atualizarStatus, excluirDraft, type LRODraft, type LRODraftStatus } from '../../services/lroDraftService';
 import { gerarPDF } from '../../services/lroGenerator';
@@ -98,7 +97,6 @@ export function GerarLRO() {
   const [todasSubstituicoes, setTodasSubstituicoes] = useState<any[]>([]);
   const [viaturas, setViaturas] = useState<any[]>([]);
   const [ptrbs, setPtrbs] = useState<PTRB[]>([]);
-  const [ocorrencias, setOcorrencias] = useState<any[]>([]);
   const [drafts, setDrafts] = useState<LRODraft[]>([]);
   const [apocs, setApocs] = useState<any[]>([]);
   const [draftId, setDraftId] = useState<string | null>(null);
@@ -199,8 +197,8 @@ export function GerarLRO() {
   useEffect(() => {
     async function load() {
       try {
-        const [b, f, v, p, o, subs, docs, a] = await Promise.all([
-          listarAtivos(), listarFeriasGozo(), listarViaturas(), listarPTRBs(), listarOcorrencias(), listarSubstituicoesTemporarias(), listarDocumentos(), listarAPOCs(),
+        const [b, f, v, p, subs, docs, a] = await Promise.all([
+          listarAtivos(), listarFeriasGozo(), listarViaturas(), listarPTRBs(), listarSubstituicoesTemporarias(), listarDocumentos(), listarAPOCs(),
         ]);
         setApocs(a);
         setBombeiros(b);
@@ -208,7 +206,6 @@ export function GerarLRO() {
         setTodasSubstituicoes(subs);
         setViaturas(v);
         setPtrbs(p);
-        setOcorrencias(o);
 
         const trocaDoc = docs.find((d: any) => d.name?.includes('TROCA') || d.source_module === 'trocas');
         if (trocaDoc) {
@@ -333,17 +330,6 @@ export function GerarLRO() {
       setInstrucoesHorarios(ptrbsFiltrados.map(p => p.horaInicio || ''));
     }
   }, [equipe, dataInicio, ptrbs]);
-
-  // Auto-pull Ocorrências (Section XII) when team/date changes
-  useEffect(() => {
-    const ocorrenciasFiltradas = ocorrencias.filter(o =>
-      o.equipe === equipe && o.data && o.data.startsWith(dataInicio)
-    );
-    if (ocorrenciasFiltradas.length > 0) {
-      const linhas = ocorrenciasFiltradas.map(o => `${o.titulo}: ${o.descricao}`.trim());
-      setOutrasOcorrencias(linhas.join('\n'));
-    }
-  }, [equipe, dataInicio, ocorrencias]);
 
   useEffect(() => {
     if (equipe === 'Bravo' || equipe === 'Delta') {
@@ -1658,9 +1644,6 @@ export function GerarLRO() {
           <div className="rounded-2xl border border-graphite-200 bg-white p-6 dark:border-border-dark dark:bg-surface-card">
             <h3 className="mb-2 font-bold text-graphite-900 dark:text-graphite-100">XII. Outras Ocorrências</h3>
             <textarea value={outrasOcorrencias} onChange={e => setOutrasOcorrencias(e.target.value)} rows={3} placeholder="Uma ocorrência por linha..." className={inputClass + ' resize-y'} />
-            {ocorrencias.filter(o => o.equipe === equipe && o.data?.startsWith(dataInicio)).length > 0 && (
-              <p className="mt-2 text-[11px] text-green-600">✓ Ocorrências carregadas automaticamente do dia.</p>
-            )}
           </div>
 
           {/* XIII */}
