@@ -227,7 +227,6 @@ function getPageTitle(pathname: string): string {
     'relatorios/exercicios/tp-epr': 'TP/EPR',
     'relatorios/ordem-servico': 'Ordem de Serviço',
     'relatorios/trocas': 'Trocas',
-    'registros-diarios/lro': 'LRO Diário',
     'registros-diarios/ptr-ba': 'PTR-BA Diário',
     'registros-diarios/lro-ocorrencias': 'LRO/Ocorrências',
     'treinamentos/tp-epr': 'TP/EPR',

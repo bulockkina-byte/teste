@@ -221,12 +221,6 @@ export const menuItems: MenuItem[] = [
     icon: BookOpen,
     children: [
       {
-        label: 'LRO',
-        icon: FileSpreadsheet,
-        path: '/registros-diarios/lro',
-        description: 'Lista de Ronda Operacional - preenchimento diário.',
-      },
-      {
         label: 'PTR-BA',
         icon: FileText,
         path: '/registros-diarios/ptr-ba',

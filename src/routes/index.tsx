@@ -63,7 +63,6 @@ export const router = createBrowserRouter([
       { path: 'funcionarios', element: lazyPage(() => import('../pages/Funcionarios/Funcionarios')) },
       { path: 'funcionarios/substituicoes', element: lazyPage(() => import('../pages/Funcionarios/Substituicoes')) },
       { path: 'estatisticas', element: lazyPage(() => import('../pages/Estatisticas/Estatisticas')) },
-      { path: 'registros-diarios/lro', element: lazyPage(() => import('../pages/RegistrosDiarios/LRODiario')) },
       { path: 'registros-diarios/ptr-ba', element: lazyPage(() => import('../pages/RegistrosDiarios/PTRBADiario')) },
       { path: 'registros-diarios/lro-ocorrencias', element: lazyPage(() => import('../pages/RegistrosDiarios/LROOcorrencias')) },
       { path: 'relatorios/lro', element: lazyPage(() => import('../pages/Relatorios/LRO')) },

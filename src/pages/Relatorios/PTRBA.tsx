@@ -5,12 +5,14 @@ import { PageTitle } from '../../components/layout/PageTitle';
 import { listarPTRBs } from '../../services/ptrbService';
 import { listarBombeiros } from '../../services/bombeiroService';
 import type { PTRB } from '../../types/ptrb';
-import { EQUIPES } from '../../types/ptrb';
+import { EQUIPES, ASSUNTOS } from '../../types/ptrb';
 
 function formatDate(d: string) {
   if (!d) return '-';
   return new Date(d + 'T12:00:00').toLocaleDateString('pt-BR');
 }
+
+const fmt = formatDate;
 
 function calcHoras(inicio: string, termino: string): number {
   if (!inicio || !termino) return 0;
@@ -31,6 +33,9 @@ function horasStr(h: number): string {
 const MESES = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
 const inputClass = 'rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated';
+
+const HIERARQUIA = ['BA-CE', 'BA-LR', 'BA-MC', 'BA-RE', 'BA-2', 'GS', 'OC', 'APOC', ''];
+const EQUIPE_ORDER = ['Alfa', 'Bravo', 'Charlie', 'Delta', 'Feirista'];
 
 type ViewLevel = 'summary' | 'person' | 'detail' | 'view-ptrb';
 
@@ -59,41 +64,62 @@ function expandParticipants(ptrbs: PTRB[]): ExpandedPTRB[] {
 type SortKey = 'label' | 'assunto' | 'horas' | 'qtd';
 
 function gerarHTMLImpressao(titulo: string, colunas: string[], linhas: string[][]): string {
-  const rowsHtml = linhas.map(row => `<tr>${row.map(c => `<td style="border:1px solid #000;padding:4px 8px;font-size:12px;text-align:left;">${c}</td>`).join('')}</tr>`).join('\n');
-  const colsHtml = colunas.map(c => `<th style="border:1px solid #000;padding:6px 8px;font-size:12px;font-weight:bold;text-align:left;background:#eee;">${c}</th>`).join('');
+  const rowsHtml = linhas.map(row => `<tr>${row.map(c => `<td style="border:1px solid #000;padding:3px 6px;font-size:11px;text-align:left;">${c}</td>`).join('')}</tr>`).join('\n');
+  const colsHtml = colunas.map(c => `<th style="border:1px solid #000;padding:4px 6px;font-size:11px;font-weight:bold;text-align:center;background:#4472C4;color:#fff;">${c}</th>`).join('');
   return `
     <!DOCTYPE html>
     <html>
     <head><meta charset="utf-8"><title>${titulo}</title>
     <style>
-      @page { margin: 20mm; size: landscape; }
-      body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
-      h1 { font-size: 18px; margin-bottom: 8px; }
-      p.filtros { font-size: 12px; color: #555; margin-bottom: 16px; }
+      @page { margin: 15mm; size: landscape; }
+      body { font-family: Arial, sans-serif; margin: 0; padding: 15px; }
+      h1 { font-size: 16px; margin-bottom: 4px; }
+      p.filtros { font-size: 11px; color: #555; margin-bottom: 10px; }
       table { width: 100%; border-collapse: collapse; }
-      th, td { border: 1px solid #000; padding: 4px 8px; font-size: 12px; text-align: left; }
-      th { background: #eee; font-weight: bold; }
-      .footer { margin-top: 16px; font-size: 10px; color: #888; }
+      th, td { border: 1px solid #000; padding: 3px 6px; font-size: 11px; text-align: left; }
+      th { background: #4472C4; color: #fff; font-weight: bold; font-size: 11px; text-align: center; }
+      .footer { margin-top: 12px; font-size: 9px; color: #888; }
+      .legenda { margin-top: 16px; font-size: 10px; }
+      .legenda td { border: none; padding: 1px 4px; font-size: 9px; }
     </style>
     </head>
     <body>
       <h1>${titulo}</h1>
       <p class="filtros">Gerado em ${new Date().toLocaleString('pt-BR')}</p>
       <table><thead><tr>${colsHtml}</tr></thead><tbody>${rowsHtml}</tbody></table>
+      <div class="legenda">
+        <p><strong>Legenda — Assuntos Ministrados:</strong></p>
+        <table>${ASSUNTOS.map((a, i) => { const txt = a.replace(/^\d+\.\s*/, ''); return '<tr><td style="border:none;padding:1px 4px;font-size:9px;width:30px;">' + (i + 1) + '.</td><td style="border:none;padding:1px 4px;font-size:9px;">' + txt + '</td></tr>'; }).join('\n')}</table>
+      </div>
       <p class="footer">Relatório PTR-BA - Seção de Instrução</p>
     </body>
     </html>
   `;
 }
 
-function imprimirHTML(titulo: string, colunas: string[], linhas: string[][]) {
-  const html = gerarHTMLImpressao(titulo, colunas, linhas);
-  const win = window.open('', '_blank');
-  if (win) {
-    win.document.write(html);
-    win.document.close();
-    setTimeout(() => win.print(), 500);
-  }
+function imprimirHTMLEfetivo(titulo: string, allAssuntos: string[], equipes: { equipe: string; pessoas: { num: number; funcao: string; nome: string; valores: string[]; totalHoras: string; registros: number }[] }[]) {
+  const colLabels = allAssuntos.map(a => a.length > 20 ? a.substring(0, 20) + '\u2026' : a);
+  const colsHtml = '<th style="width:25px;">N\u00ba</th><th style="width:50px;">Fun\u00e7\u00e3o</th><th>Nome</th>' + colLabels.map(c => '<th style="font-size:9px;max-width:50px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + c + '">' + c + '</th>').join('') + '<th style="width:60px;">Total Horas</th><th style="width:35px;">Reg.</th>';
+
+  const rowsHtml = equipes.map(eq => {
+    const pessoasRows = eq.pessoas.map(p =>
+      '<tr' + (p.funcao === 'BA-CE' ? ' style="background:#e8f0fe;"' : '') + '>' +
+      '<td style="border:1px solid #000;padding:2px 4px;font-size:10px;text-align:center;">' + p.num + '</td>' +
+      '<td style="border:1px solid #000;padding:2px 4px;font-size:10px;text-align:center;font-weight:' + (p.funcao === 'BA-CE' ? 'bold' : 'normal') + ';">' + p.funcao + '</td>' +
+      '<td style="border:1px solid #000;padding:2px 4px;font-size:10px;">' + p.nome + '</td>' +
+      p.valores.map(v => '<td style="border:1px solid #000;padding:2px 4px;font-size:10px;text-align:center;">' + v + '</td>').join('') +
+      '<td style="border:1px solid #000;padding:2px 4px;font-size:10px;text-align:center;font-weight:bold;">' + p.totalHoras + '</td>' +
+      '<td style="border:1px solid #000;padding:2px 4px;font-size:10px;text-align:center;">' + p.registros + '</td>' +
+      '</tr>'
+    ).join('\n');
+    return '<tr style="background:#2b5797;color:#fff;"><td colspan="' + (allAssuntos.length + 4) + '" style="border:1px solid #000;padding:4px 8px;font-size:11px;font-weight:bold;">Equipe ' + eq.equipe + '</td></tr>\n' + pessoasRows;
+  }).join('\n');
+
+  const legendHtml = ASSUNTOS.map((a, i) => { const txt = a.replace(/^\d+\.\s*/, ''); return '<tr><td style="border:none;padding:1px 4px;font-size:8px;width:25px;">' + (i + 1) + '.</td><td style="border:none;padding:1px 4px;font-size:8px;">' + txt + '</td></tr>'; }).join('\n');
+
+  const html = '<!DOCTYPE html>\n<html><head><meta charset="utf-8"><title>' + titulo + '</title>\n<style>\n  @page { margin: 10mm; size: landscape; }\n  body { font-family: Arial, sans-serif; margin: 0; padding: 10px; }\n  h1 { font-size: 14px; margin-bottom: 3px; }\n  p.filtros { font-size: 10px; color: #555; margin-bottom: 8px; }\n  table { width: 100%; border-collapse: collapse; page-break-inside: auto; }\n  th, td { border: 1px solid #000; padding: 2px 4px; font-size: 10px; text-align: left; }\n  th { background: #4472C4; color: #fff; font-weight: bold; font-size: 10px; text-align: center; }\n  tr { page-break-inside: avoid; }\n  .footer { margin-top: 8px; font-size: 8px; color: #888; }\n  .legenda { margin-top: 12px; font-size: 9px; }\n  .legenda td { border: none; padding: 1px 4px; font-size: 8px; }\n</style></head><body>\n  <h1>' + titulo + '</h1>\n  <p class="filtros">Gerado em ' + new Date().toLocaleString('pt-BR') + ' \u00b7 Total de pessoas: ' + equipes.reduce(function(s, e) { return s + e.pessoas.length; }, 0) + '</p>\n  <table><thead><tr>' + colsHtml + '</tr></thead><tbody>' + rowsHtml + '</tbody></table>\n  <div class="legenda">\n    <p><strong>Legenda \u2014 Assuntos Ministrados:</strong></p>\n    <table>' + legendHtml + '</table>\n  </div>\n  <p class="footer">Relat\u00f3rio PTR-BA - Se\u00e7\u00e3o de Instru\u00e7\u00e3o</p>\n</body></html>';
+  var w = window.open('', '_blank');
+  if (w) { w.document.write(html); w.document.close(); setTimeout(function() { w.print(); }, 700); }
 }
 
 export function PTRBA() {
@@ -103,17 +129,19 @@ export function PTRBA() {
   const [view, setView] = useState<ViewLevel>('summary');
   const [filterMode, setFilterMode] = useState<'mes-ano' | 'periodo'>('mes-ano');
   const [filtroMes, setFiltroMes] = useState('');
-  const [filtroAno, setFiltroAno] = useState(new Date().getFullYear().toString());
+  const [filtroAno, setFiltroAno] = useState('');
   const [dataInicio, setDataInicio] = useState('');
   const [dataFinal, setDataFinal] = useState('');
   const [filtroEquipe, setFiltroEquipe] = useState('');
   const [filtroAssunto, setFiltroAssunto] = useState('');
+  const [filtroPessoa, setFiltroPessoa] = useState('');
   const [selectedEquipe, setSelectedEquipe] = useState('');
   const [selectedPessoa, setSelectedPessoa] = useState('');
   const [selectedPTRB, setSelectedPTRB] = useState<PTRB | null>(null);
+  const [visualizandoPtrb, setVisualizandoPtrb] = useState<PTRB | null>(null);
   const [expandedPTRB, setExpandedPTRB] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>('label');
-  const [sortAsc, setSortAsc] = useState(false);
+  const [sortAsc, setSortAsc] = useState(true);
 
   const ANOS = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
 
@@ -159,6 +187,11 @@ export function PTRBA() {
     let lista = ptrbs;
     if (filtroEquipe) lista = lista.filter(p => p.equipe === filtroEquipe);
     if (filtroAssunto) lista = lista.filter(p => p.assuntoMinistrado === filtroAssunto);
+    if (filtroPessoa) {
+      lista = lista.filter(p =>
+        p.participantes.some(part => part.nomeCompleto === filtroPessoa)
+      );
+    }
     lista = applyPeriodFilter(lista);
     if (view === 'detail' && selectedPessoa) {
       lista = lista.filter(p =>
@@ -166,32 +199,26 @@ export function PTRBA() {
       );
     }
     return lista.sort((a, b) => new Date(b.data || '').getTime() - new Date(a.data || '').getTime());
-  }, [ptrbs, filtroMes, filtroAno, dataInicio, dataFinal, filterMode, filtroEquipe, filtroAssunto, view, selectedPessoa]);
+  }, [ptrbs, filtroMes, filtroAno, dataInicio, dataFinal, filterMode, filtroEquipe, filtroAssunto, filtroPessoa, view, selectedPessoa]);
 
   const expanded = useMemo(() => expandParticipants(filtered), [filtered]);
 
-  const pessoasDisponiveis = useMemo(() => {
+  const pessoasFiltro = useMemo(() => {
     const nomes = new Set<string>();
-    let base = ptrbs;
-    if (filtroEquipe) base = base.filter(p => p.equipe === filtroEquipe);
-    base = applyPeriodFilter(base);
-    for (const p of base) {
-      for (const part of p.participantes) {
-        if (part.nomeCompleto) nomes.add(part.nomeCompleto);
-      }
+    for (const [nome, info] of bombeiros) {
+      if (filtroEquipe && info.equipe !== filtroEquipe) continue;
+      nomes.add(nome);
     }
     return [...nomes].sort();
-  }, [ptrbs, filtroEquipe, filtroMes, filtroAno, dataInicio, dataFinal, filterMode]);
+  }, [bombeiros, filtroEquipe]);
 
   const assuntosDisponiveis = useMemo(() => {
-    const set = new Set<string>();
-    let base = ptrbs;
-    if (filtroEquipe) base = base.filter(p => p.equipe === filtroEquipe);
-    for (const p of base) {
+    const set = new Set(ASSUNTOS);
+    for (const p of ptrbs) {
       if (p.assuntoMinistrado) set.add(p.assuntoMinistrado);
     }
     return [...set].sort();
-  }, [ptrbs, filtroEquipe]);
+  }, [ptrbs]);
 
   const equipesPresentes = useMemo(() => {
     return [...EQUIPES];
@@ -255,12 +282,16 @@ export function PTRBA() {
       totalHoras += e.horas;
       totalPessoas.add(e.nome);
     }
+    const totalBombeiros = filtroEquipe
+      ? [...bombeiros.values()].filter(b => b.equipe === filtroEquipe).length
+      : bombeiros.size;
     return {
       registros: filtered.length,
       horas: totalHoras,
       pessoas: totalPessoas.size,
+      totalBombeiros,
     };
-  }, [expanded, filtered]);
+  }, [expanded, filtered, bombeiros, filtroEquipe]);
 
   const equipeAssuntoData = useMemo(() => {
     const map = new Map<string, Map<string, { horas: number; qtd: number }>>();
@@ -359,7 +390,7 @@ export function PTRBA() {
   }
 
   function handlePrintSummary() {
-    const allAssuntos = [...new Set(ptrbs.map(p => p.assuntoMinistrado).filter(Boolean))].sort();
+    const allAssuntos = filtroAssunto ? [filtroAssunto] : assuntosDisponiveis;
     const colunas = ['Equipe', ...allAssuntos, 'Total Horas'];
     const eqMap = new Map<string, Map<string, number>>();
     for (const e of expanded) {
@@ -369,7 +400,13 @@ export function PTRBA() {
       const sub = eqMap.get(eq)!;
       sub.set(as, (sub.get(as) || 0) + e.horas);
     }
-    const linhas = [...eqMap.entries()].map(([equipe, valores]) =>
+    const linhas = [...eqMap.entries()]
+      .sort((a, b) => {
+        const ia = EQUIPE_ORDER.indexOf(a[0]);
+        const ib = EQUIPE_ORDER.indexOf(b[0]);
+        return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+      })
+      .map(([equipe, valores]) =>
       [equipe, ...allAssuntos.map(a => { const v = valores.get(a); return v ? horasStr(v) : '-'; }), horasStr([...valores.values()].reduce((s, v) => s + v, 0))]
     );
     const totalRow = ['TOTAL', ...allAssuntos.map(a => {
@@ -381,12 +418,13 @@ export function PTRBA() {
   }
 
   function handlePrintPerson() {
-    const allAssuntos = [...new Set(ptrbs.map(p => p.assuntoMinistrado).filter(Boolean))].sort();
+    const allAssuntos = filtroAssunto ? [filtroAssunto] : assuntosDisponiveis;
     const colunas = ['Militar', ...allAssuntos, 'Total Horas'];
     const pesMap = new Map<string, { funcao: string; equipe: string; valores: Map<string, number> }>();
     const funcaoCount = new Map<string, Map<string, number>>();
     for (const e of expanded) {
       const as = e.ptrb.assuntoMinistrado || '(sem assunto)';
+      if (filtroAssunto && as !== filtroAssunto) continue;
       if (!pesMap.has(e.nome)) pesMap.set(e.nome, { funcao: e.funcao, equipe: e.ptrb.equipe, valores: new Map() });
       const item = pesMap.get(e.nome)!;
       item.valores.set(as, (item.valores.get(as) || 0) + e.horas);
@@ -397,15 +435,25 @@ export function PTRBA() {
         fc.set(e.funcao, (fc.get(e.funcao) || 0) + 1);
       }
     }
-    const linhas = [...pesMap.entries()].map(([nome, item]) => {
+    const pesEntries = [...pesMap.entries()].map(([nome, item]) => {
       const funcao = [...(funcaoCount.get(nome)?.entries() || [])].sort((a, b) => b[1] - a[1])[0]?.[0] || item.funcao;
       const homeEquipe = getEquipe(nome) || item.equipe;
-      return [
-        `${funcao} ${getNomeGuerra(nome)} (${homeEquipe})`,
-        ...allAssuntos.map(a => { const v = item.valores.get(a); return v ? horasStr(v) : '-'; }),
-        horasStr([...item.valores.values()].reduce((s, v) => s + v, 0)),
-      ];
+      return {
+        nome, funcao, equipe: homeEquipe,
+        linha: [
+          `${funcao} ${getNomeGuerra(nome)} (${homeEquipe})`,
+          ...allAssuntos.map(a => { const v = item.valores.get(a); return v ? horasStr(v) : '-'; }),
+          horasStr([...item.valores.values()].reduce((s, v) => s + v, 0)),
+        ]
+      };
     });
+    pesEntries.sort((a, b) => {
+      const hA = HIERARQUIA.indexOf(a.funcao);
+      const hB = HIERARQUIA.indexOf(b.funcao);
+      if (hA !== hB) return hA - hB;
+      return a.nome.localeCompare(b.nome);
+    });
+    const linhas = pesEntries.map(p => p.linha);
     const totalRow = ['TOTAL', ...allAssuntos.map(a => {
       const t = [...pesMap.values()].reduce((s, item) => s + (item.valores.get(a) || 0), 0);
       return t > 0 ? horasStr(t) : '-';
@@ -427,13 +475,89 @@ export function PTRBA() {
     imprimirHTML(`Relatório PTR-BA - Registros de ${selectedPessoa}`, colunas, linhas);
   }
 
+  function handlePrintEfetivo() {
+    const allAssuntos = filtroAssunto ? [filtroAssunto] : assuntosDisponiveis;
+    const assuntoLabel = filtroAssunto || 'Todos';
+
+    const horasPorPessoa = new Map<string, { assuntos: Map<string, number>; registros: number }>();
+    for (const e of expanded) {
+      const as = e.ptrb.assuntoMinistrado || '';
+      if (filtroAssunto && as !== filtroAssunto) continue;
+      if (!horasPorPessoa.has(e.nome)) horasPorPessoa.set(e.nome, { assuntos: new Map(), registros: 0 });
+      const item = horasPorPessoa.get(e.nome)!;
+      item.assuntos.set(as, (item.assuntos.get(as) || 0) + e.horas);
+      item.registros++;
+    }
+
+    const pessoasMap = new Map<string, { funcao: string; equipe: string }>();
+    const eqFilter = filtroEquipe || '';
+    for (const [nome, info] of bombeiros) {
+      if (eqFilter && info.equipe !== eqFilter) continue;
+      if (filtroPessoa && nome !== filtroPessoa) continue;
+      pessoasMap.set(nome, { funcao: info.cargo, equipe: info.equipe });
+    }
+    for (const nome of horasPorPessoa.keys()) {
+      if (!pessoasMap.has(nome)) {
+        const eq = getEquipe(nome) || '';
+        pessoasMap.set(nome, { funcao: '', equipe: eq });
+      }
+    }
+
+    const pessoas = [...pessoasMap.entries()].map(([nome, { funcao, equipe }]) => {
+      const dados = horasPorPessoa.get(nome);
+      const valores = allAssuntos.map(a => {
+        const v = dados?.assuntos.get(a);
+        return v ? horasStr(v) : '-';
+      });
+      const total = [...(dados?.assuntos.values() || [])].reduce((s, v) => s + v, 0);
+      return { nome, funcao, equipe, valores, totalHoras: horasStr(total), registros: dados?.registros || 0 };
+    });
+
+    pessoas.sort((a, b) => {
+      const eqA = EQUIPE_ORDER.indexOf(a.equipe);
+      const eqB = EQUIPE_ORDER.indexOf(b.equipe);
+      if (eqA !== eqB) return eqA - eqB;
+      const hA = HIERARQUIA.indexOf(a.funcao);
+      const hB = HIERARQUIA.indexOf(b.funcao);
+      if (hA !== hB) return hA - hB;
+      return a.nome.localeCompare(b.nome);
+    });
+
+    const grupos = new Map<string, typeof pessoas>();
+    for (const p of pessoas) {
+      if (!grupos.has(p.equipe)) grupos.set(p.equipe, []);
+      grupos.get(p.equipe)!.push(p);
+    }
+
+    const equipesArr = EQUIPE_ORDER
+      .filter(eq => grupos.has(eq))
+      .map(eq => ({
+        equipe: eq,
+        pessoas: grupos.get(eq)!.map((p, i) => ({
+          num: i + 1,
+          funcao: p.funcao,
+          nome: getNomeGuerra(p.nome),
+          valores: p.valores,
+          totalHoras: p.totalHoras,
+          registros: p.registros,
+        })),
+      }));
+
+    imprimirHTMLEfetivo(
+      `Relatório PTR-BA - Efetivo (${assuntoLabel})${filtrosAtivos}${filtroEquipeLabel}`,
+      allAssuntos,
+      equipesArr,
+    );
+  }
+
   const filtroPeriodoLabel = filterMode === 'mes-ano'
-    ? `${filtroMes ? MESES[Number(filtroMes)] : 'Todos os meses'} ${filtroAno}`
+    ? `${filtroMes ? MESES[Number(filtroMes)] : ''} ${filtroAno || ''}`.trim() || 'Todo período'
     : `${dataInicio || '...'} a ${dataFinal || '...'}`;
   const filtrosAtivos = (filterMode === 'mes-ano' && (filtroMes || filtroAno)) || (filterMode === 'periodo' && (dataInicio || dataFinal))
     ? ` · ${filtroPeriodoLabel}`
     : '';
-  const filtroEquipeLabel = filtroEquipe ? ` · Equipe ${filtroEquipe}` : ' · Todas as equipes';
+  const filtroEquipeLabel = filtroEquipe ? ` · Equipe ${filtroEquipe}` : '';
+  const filtroAssuntoLabel = filtroAssunto ? ` · ${filtroAssunto}` : '';
 
   function FilterBar() {
     return (
@@ -456,6 +580,7 @@ export function PTRBA() {
         {filterMode === 'mes-ano' ? (
           <>
             <select value={filtroAno} onChange={e => setFiltroAno(e.target.value)} className={inputClass}>
+              <option value="">Todos</option>
               {ANOS.map(a => <option key={a} value={a}>{a}</option>)}
             </select>
             <select value={filtroMes} onChange={e => setFiltroMes(e.target.value)} className={inputClass}>
@@ -480,6 +605,10 @@ export function PTRBA() {
         <select value={filtroAssunto} onChange={e => setFiltroAssunto(e.target.value)} className={inputClass}>
           <option value="">Todos os assuntos</option>
           {assuntosDisponiveis.map(a => <option key={a} value={a}>{a}</option>)}
+        </select>
+        <select value={filtroPessoa} onChange={e => setFiltroPessoa(e.target.value)} className={inputClass}>
+          <option value="">Todas as pessoas</option>
+          {pessoasFiltro.map(n => <option key={n} value={n}>{getNomeGuerra(n)}</option>)}
         </select>
         <span className="text-xs text-graphite-400">{filtered.length} registro(s)</span>
       </div>
@@ -577,8 +706,8 @@ export function PTRBA() {
             <p className="text-[10px] font-medium text-emerald-500">Horas totais</p>
           </div>
           <div className="rounded-xl border border-aviation-200 bg-aviation-50 p-3 text-center dark:border-aviation-800 dark:bg-aviation-900/20">
-            <p className="text-xl font-black text-aviation-700 dark:text-aviation-300">{statsFiltered.pessoas}</p>
-            <p className="text-[10px] font-medium text-aviation-500">Pessoas</p>
+            <p className="text-xl font-black text-aviation-700 dark:text-aviation-300">{statsFiltered.pessoas}<span className="text-xl font-black text-aviation-500">/{statsFiltered.totalBombeiros}</span></p>
+            <p className="text-[10px] font-medium text-aviation-500">Pessoas com/total</p>
           </div>
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-center dark:border-amber-800 dark:bg-amber-900/20">
             <p className="text-xl font-black text-amber-700 dark:text-amber-300">{equipesPresentes.length}</p>
@@ -589,12 +718,18 @@ export function PTRBA() {
           <p className="text-sm font-medium text-graphite-700 dark:text-graphite-300">
             Clique em uma equipe para ver detalhamento por pessoa
           </p>
-          {sortedEqRows.length > 0 && (
-            <button onClick={handlePrintSummary}
-              className="flex items-center gap-1 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-3 py-2 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 active:scale-[0.98]">
-              <Printer className="h-4 w-4" /> Imprimir
+          <div className="flex gap-2">
+            {sortedEqRows.length > 0 && (
+              <button onClick={handlePrintSummary}
+                className="flex items-center gap-1 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-3 py-2 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 active:scale-[0.98]">
+                <Printer className="h-4 w-4" /> Horas por Equipe
+              </button>
+            )}
+            <button onClick={handlePrintEfetivo}
+              className="flex items-center gap-1 rounded-xl border border-aviation-300 bg-white px-3 py-2 text-sm font-medium text-aviation-700 shadow-sm transition-all duration-200 hover:bg-aviation-50 dark:border-aviation-700 dark:bg-surface-card dark:text-aviation-300 dark:hover:bg-aviation-900/20">
+              <Printer className="h-4 w-4" /> Efetivo
             </button>
-          )}
+          </div>
         </div>
         <div className="overflow-x-auto rounded-2xl border border-graphite-200/60 bg-white/80 shadow-sm dark:border-border-dark dark:bg-surface-card">
           <table className="w-full text-sm">
@@ -812,11 +947,11 @@ export function PTRBA() {
                     </div>
                   )}
                 </div>
-              ))}
+              )}
             </div>
-          )}
-        </>
-      )}
+          ))}
+          </div>
+        )}
 
       {visualizandoPtrb && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 pt-8 sm:pt-16" onClick={() => setVisualizandoPtrb(null)}>

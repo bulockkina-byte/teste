@@ -21,6 +21,8 @@ import type { APOC } from '../../types/apoc';
 import type { PTRB, PTRBParticipante } from '../../types/ptrb';
 import { EQUIPES, SITUACOES, ASSUNTOS } from '../../types/ptrb';
 
+const EQUIPES_FILTRO = EQUIPES.filter(eq => eq !== 'Feirista');
+
 function formatDate(d: string) {
   if (!d) return '-';
   return new Date(d + 'T12:00:00').toLocaleDateString('pt-BR');
@@ -297,7 +299,7 @@ function PTRBAForm({
           <div>
             <label className={label}>Equipe</label>
             <select value={form.equipe} onChange={e => updateEquipe(e.target.value)} className={input}>
-              {EQUIPES.map(eq => <option key={eq} value={eq}>{eq}</option>)}
+              {EQUIPES_FILTRO.map(eq => <option key={eq} value={eq}>{eq}</option>)}
             </select>
           </div>
           <div>
@@ -831,7 +833,7 @@ export function PTRBADiario() {
           {canFilterTeam && (
             <select value={filtroEquipe} onChange={e => setFiltroEquipe(e.target.value)} className={inputClass}>
               <option value="">Todas as equipes</option>
-              {EQUIPES.map(eq => <option key={eq} value={eq}>{eq}</option>)}
+              {EQUIPES_FILTRO.map(eq => <option key={eq} value={eq}>{eq}</option>)}
             </select>
           )}
           <p className="text-sm text-graphite-500 dark:text-graphite-400">
