@@ -10,7 +10,10 @@ function getDb() {
 
 function handleSupabaseError(err: unknown): never {
   console.error('Erro Supabase:', err);
-  const msg = err instanceof Error ? err.message : 'Erro inesperado no banco de dados';
+  const msg =
+    err instanceof Error ? err.message :
+    err && typeof err === 'object' && 'message' in err ? String((err as any).message) :
+    'Erro inesperado no banco de dados';
   throw new Error(msg);
 }
 
@@ -46,7 +49,7 @@ function rowToBombeiro(row: Record<string, unknown>): Bombeiro {
     sexo: row.sexo as Bombeiro['sexo'],
     cursoChefeEquipe: row.curso_chefe_equipe as boolean,
     cursoMotoristaCCI: row.curso_motorista_cci as boolean,
-    cursoCVE: row.curso_cve as boolean,
+    cursoCVE: false,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -83,7 +86,6 @@ function bombeiroToRow(data: Omit<Bombeiro, 'id' | 'createdAt' | 'updatedAt'>): 
     sexo: data.sexo,
     curso_chefe_equipe: data.cursoChefeEquipe,
     curso_motorista_cci: data.cursoMotoristaCCI,
-    curso_cve: data.cursoCVE,
   };
 }
 
@@ -165,7 +167,6 @@ export async function atualizarBombeiro(id: string, data: Partial<Bombeiro>): Pr
   if (data.sexo !== undefined) row.sexo = data.sexo;
   if (data.cursoChefeEquipe !== undefined) row.curso_chefe_equipe = data.cursoChefeEquipe;
   if (data.cursoMotoristaCCI !== undefined) row.curso_motorista_cci = data.cursoMotoristaCCI;
-  if (data.cursoCVE !== undefined) row.curso_cve = data.cursoCVE;
   row.updated_at = new Date().toISOString();
 
   const { data: updated, error } = await db.from(TABLE).update(row).eq('id', id).select().single();
