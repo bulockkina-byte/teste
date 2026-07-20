@@ -7,9 +7,10 @@ interface Props {
   apoc?: APOC | null;
   onSave: (data: Omit<APOC, 'id' | 'createdAt' | 'updatedAt'>) => void;
   onClose: () => void;
+  serverError?: string;
 }
 
-export function APOCForm({ apoc, onSave, onClose }: Props) {
+export function APOCForm({ apoc, onSave, onClose, serverError }: Props) {
   const [nomeCompleto, setNomeCompleto] = useState('');
   const [nomeGuerra, setNomeGuerra] = useState('');
   const [email, setEmail] = useState('');
@@ -63,9 +64,9 @@ export function APOCForm({ apoc, onSave, onClose }: Props) {
         </div>
 
         <form onSubmit={handleSubmit} className="px-6 py-6 space-y-5">
-          {erro && (
+          {(erro || serverError) && (
             <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-alert-red dark:bg-red-900/20 dark:text-red-400">
-              {erro}
+              {erro || serverError}
             </div>
           )}
 

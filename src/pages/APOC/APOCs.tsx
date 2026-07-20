@@ -16,6 +16,7 @@ export function APOCs() {
   const [formOpen, setFormOpen] = useState(false);
   const [editando, setEditando] = useState<APOC | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState('');
 
   useEffect(() => {
     async function load() {
@@ -29,14 +30,18 @@ export function APOCs() {
   }
 
   async function handleSave(data: Omit<APOC, 'id' | 'createdAt' | 'updatedAt'>) {
-    if (editando) {
-      await atualizarAPOC(editando.id, data);
-    } else {
-      await criarAPOC(data);
+    try {
+      if (editando) {
+        await atualizarAPOC(editando.id, data);
+      } else {
+        await criarAPOC(data);
+      }
+      setFormOpen(false);
+      setEditando(null);
+      carregar();
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Erro ao salvar');
     }
-    setFormOpen(false);
-    setEditando(null);
-    carregar();
   }
 
   async function handleDelete(id: string) {
@@ -154,6 +159,7 @@ export function APOCs() {
           apoc={editando}
           onSave={handleSave}
           onClose={() => { setFormOpen(false); setEditando(null); }}
+          serverError={saveError}
         />
       )}
 

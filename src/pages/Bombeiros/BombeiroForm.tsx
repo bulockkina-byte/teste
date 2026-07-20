@@ -18,6 +18,7 @@ interface Props {
   bombeiro?: Bombeiro | null;
   onSave: (data: Omit<Bombeiro, 'id' | 'createdAt' | 'updatedAt'>) => void;
   onClose: () => void;
+  serverError?: string;
 }
 
 function formatCPF(value: string) {
@@ -68,7 +69,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
+export function BombeiroForm({ bombeiro, onSave, onClose, serverError }: Props) {
   const [matricula, setMatricula] = useState('');
   const [nomeCompleto, setNomeCompleto] = useState('');
   const [nomeGuerra, setNomeGuerra] = useState('');
@@ -234,7 +235,7 @@ export function BombeiroForm({ bombeiro, onSave, onClose }: Props) {
 
         <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
-            {erro && <p className="text-sm text-alert-red dark:text-red-400">{erro}</p>}
+            {(erro || serverError) && <p className="text-sm text-alert-red dark:text-red-400">{erro || serverError}</p>}
 
             {/* Informações Pessoais */}
             <fieldset>

@@ -13,6 +13,15 @@ export function Bombeiros() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin' || user?.role === 'desenvolvedor';
 
+  const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
+  const [termo, setTermo] = useState('');
+  const [filterEquipe, setFilterEquipe] = useState('');
+  const [filterCargo, setFilterCargo] = useState('');
+  const [formOpen, setFormOpen] = useState(false);
+  const [editando, setEditando] = useState<Bombeiro | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState('');
+
   if (!isAdmin) {
     return (
       <PageContainer>
@@ -30,14 +39,6 @@ export function Bombeiros() {
     );
   }
 
-  const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
-  const [termo, setTermo] = useState('');
-  const [filterEquipe, setFilterEquipe] = useState('');
-  const [filterCargo, setFilterCargo] = useState('');
-  const [formOpen, setFormOpen] = useState(false);
-  const [editando, setEditando] = useState<Bombeiro | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-
   const debouncedTermo = useDebounce(termo, 400);
 
   useEffect(() => {
@@ -52,14 +53,19 @@ export function Bombeiros() {
   }
 
   async function handleSave(data: Omit<Bombeiro, 'id' | 'createdAt' | 'updatedAt'>) {
-    if (editando) {
-      await atualizarBombeiro(editando.id, data);
-    } else {
-      await criarBombeiro(data);
+    try {
+      setSaveError('');
+      if (editando) {
+        await atualizarBombeiro(editando.id, data);
+      } else {
+        await criarBombeiro(data);
+      }
+      setFormOpen(false);
+      setEditando(null);
+      carregar();
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Erro ao salvar');
     }
-    setFormOpen(false);
-    setEditando(null);
-    carregar();
   }
 
   function handleEdit(b: Bombeiro) {
@@ -212,6 +218,7 @@ export function Bombeiros() {
           bombeiro={editando}
           onSave={handleSave}
           onClose={() => { setFormOpen(false); setEditando(null); }}
+          serverError={saveError}
         />
       )}
 
