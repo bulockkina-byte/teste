@@ -3,7 +3,7 @@ import { Search, Check, X } from 'lucide-react';
 import { listarAtivos } from '../../services/bombeiroService';
 import { listarAPOCs } from '../../services/apocService';
 
-interface AtivoItem {
+export interface AtivoItem {
   id: string;
   nomeGuerra: string;
   nomeCompleto: string;
@@ -22,15 +22,23 @@ interface Props {
   disabledIds?: Set<string>;
   disabledTooltip?: string;
   showCargo?: boolean;
+  options?: AtivoItem[];
 }
 
-export function SearchSelect({ value, onChange, placeholder, className = '', cargo, equipe, valueField = 'nomeGuerra', disabledIds, disabledTooltip, showCargo }: Props) {
+export function SearchSelect({ value, onChange, placeholder, className = '', cargo, equipe, valueField = 'nomeGuerra', disabledIds, disabledTooltip, showCargo, options }: Props) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const triggerRef = useRef<HTMLDivElement>(null);
   const [ativos, setAtivos] = useState<AtivoItem[]>([]);
 
   useEffect(() => {
+    if (options) {
+      let lista = options;
+      if (cargo) lista = lista.filter(b => b.cargo === cargo);
+      if (equipe) lista = lista.filter(b => b.equipe === equipe);
+      setAtivos(lista);
+      return;
+    }
     async function carregar() {
       let lista: AtivoItem[];
       if (cargo === 'APOC') {
@@ -46,7 +54,7 @@ export function SearchSelect({ value, onChange, placeholder, className = '', car
       setAtivos(lista);
     }
     carregar();
-  }, [cargo, equipe]);
+  }, [cargo, equipe, options]);
 
   const filtered = ativos.filter(b =>
     b.nomeGuerra.toLowerCase().includes(search.toLowerCase()) ||

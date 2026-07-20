@@ -721,6 +721,8 @@ export function PTRBA() {
     );
   }
 
+  const inputClass = 'rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated';
+
   return (
     <PageContainer>
       <div className="mb-4 flex items-center gap-3">
@@ -810,9 +812,87 @@ export function PTRBA() {
                     </div>
                   )}
                 </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {visualizandoPtrb && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 pt-8 sm:pt-16" onClick={() => setVisualizandoPtrb(null)}>
+          <div className="w-full max-w-2xl rounded-2xl bg-white/95 p-6 shadow-2xl shadow-black/10 backdrop-blur-sm dark:bg-surface-elevated/95" onClick={e => e.stopPropagation()}>
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">PTR-BA — {fmt(visualizandoPtrb.data)}</h3>
+              <button onClick={() => setVisualizandoPtrb(null)} className="rounded-lg p-1 text-graphite-400 hover:bg-graphite-100 dark:hover:bg-surface-hover">✕</button>
+            </div>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase text-graphite-500">Data</p>
+                  <p className="text-sm font-medium text-graphite-900 dark:text-graphite-100">{fmt(visualizandoPtrb.data)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase text-graphite-500">Horário</p>
+                  <p className="text-sm font-medium text-graphite-900 dark:text-graphite-100">{visualizandoPtrb.horaInicio} às {visualizandoPtrb.horaTermino} ({visualizandoPtrb.duracao}h)</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase text-graphite-500">Equipe</p>
+                  <p className="text-sm font-medium text-graphite-900 dark:text-graphite-100">{visualizandoPtrb.equipe}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase text-graphite-500">Turno</p>
+                  <p className="text-sm font-medium text-graphite-900 dark:text-graphite-100">{visualizandoPtrb.turno}</p>
+                </div>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold uppercase text-graphite-500">Assunto Ministrado</p>
+                <p className="text-sm text-graphite-900 dark:text-graphite-100">{visualizandoPtrb.assuntoMinistrado}</p>
+              </div>
+              {visualizandoPtrb.instrutor && (
+                <div>
+                  <p className="text-[10px] font-semibold uppercase text-graphite-500">Instrutor</p>
+                  <p className="text-sm text-graphite-900 dark:text-graphite-100">{visualizandoPtrb.instrutor}</p>
+                </div>
+              )}
+              {visualizandoPtrb.participantes?.length > 0 && (
+                <div>
+                  <p className="mb-1 text-[10px] font-semibold uppercase text-graphite-500">Participantes</p>
+                  <div className="flex flex-wrap gap-1">
+                    {visualizandoPtrb.participantes.map((part: any, i: number) => (
+                      <span key={i} className="rounded-full bg-graphite-100 px-2 py-0.5 text-[10px] font-medium text-graphite-700 dark:bg-surface-hover dark:text-graphite-300">
+                        {part.nomeCompleto || part.nome} ({part.funcao || '—'})
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {visualizandoPtrb.descricao && (
+                <div>
+                  <p className="text-[10px] font-semibold uppercase text-graphite-500">Atividades Desenvolvidas</p>
+                  <p className="text-sm whitespace-pre-wrap text-graphite-700 dark:text-graphite-300">{visualizandoPtrb.descricao}</p>
+                </div>
+              )}
+              {visualizandoPtrb.informacoesComplementares && (
+                <div>
+                  <p className="text-[10px] font-semibold uppercase text-graphite-500">Informações Complementares</p>
+                  <p className="text-sm whitespace-pre-wrap text-graphite-700 dark:text-graphite-300">{visualizandoPtrb.informacoesComplementares}</p>
+                </div>
+              )}
+              {visualizandoPtrb.fotos?.some((f: string) => f) && (
+                <div className="grid grid-cols-3 gap-3">
+                  {visualizandoPtrb.fotos.filter((f: string) => f).map((f: string, i: number) => (
+                    <img key={i} src={f} alt={`Foto ${i + 1}`} className="w-full rounded-lg object-cover" />
+                  ))}
+                </div>
               )}
             </div>
-          ))}
+            <div className="mt-6 flex justify-end">
+              <button onClick={() => setVisualizandoPtrb(null)}
+                className="rounded-xl border border-graphite-300/60 bg-white/80 px-4 py-2 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card/80 dark:text-graphite-200">
+                Fechar
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </PageContainer>

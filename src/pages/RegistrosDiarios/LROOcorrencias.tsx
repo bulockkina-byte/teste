@@ -340,7 +340,7 @@ export function LROOcorrencias() {
   const [filtroAno, setFiltroAno] = useState(new Date().getFullYear().toString());
   const [filtroMes, setFiltroMes] = useState((new Date().getMonth() + 1).toString());
   const [filtroEquipe, setFiltroEquipe] = useState('');
-  const [filtroTipo, setFiltroTipo] = useState('');
+
   const [filtroStatus, setFiltroStatus] = useState('');
   const MESES = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   const ANOS = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
@@ -357,9 +357,6 @@ export function LROOcorrencias() {
     if (canFilterTeam && filtroEquipe) {
       list = list.filter(o => o.equipe === filtroEquipe);
     }
-    if (filtroTipo) {
-      list = list.filter(o => o.tipoDocumento === filtroTipo);
-    }
     if (filtroStatus) {
       list = list.filter(o => o.status === filtroStatus);
     }
@@ -373,7 +370,7 @@ export function LROOcorrencias() {
       });
     }
     return list;
-  }, [ocorrencias, canFilterTeam, userEquipe, filtroEquipe, filtroTipo, filtroStatus, filtroAno, filtroMes]);
+  }, [ocorrencias, canFilterTeam, userEquipe, filtroEquipe, filtroStatus, filtroAno, filtroMes]);
 
   async function handleSave(data: Omit<Ocorrencia, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) {
     if (editando && editando.id) {
@@ -423,11 +420,6 @@ export function LROOcorrencias() {
           <select value={filtroMes} onChange={e => setFiltroMes(e.target.value)} className={inputClass}>
             <option value="">Todos os meses</option>
             {MESES.slice(1).map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
-          </select>
-          <select value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)} className={inputClass}>
-            <option value="">Todos os tipos</option>
-            <option value="BONA">BONA</option>
-            <option value="RAE">RAE</option>
           </select>
           <select value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)} className={inputClass}>
             <option value="">Todos os status</option>
