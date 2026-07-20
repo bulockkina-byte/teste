@@ -1,6 +1,6 @@
 import type { Equipe } from './bombeiro';
 
-export type TipoConferencia = 'Extintor' | 'Hidrante';
+export type TipoConferencia = 'Extintor' | 'Hidrante' | 'Inspeção Operacional' | 'Solicitação';
 
 export type StatusItemChecklist = 'OK' | 'Pendência' | 'Não aplicável';
 

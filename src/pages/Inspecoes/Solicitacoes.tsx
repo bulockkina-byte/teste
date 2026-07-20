@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ShieldCheck, Plus, ArrowLeft, Clock, CalendarDays, Users, FileText, ChevronDown, ChevronUp } from 'lucide-react';
+import { ClipboardList, Plus, ArrowLeft, Clock, CalendarDays, Users, FileText, ChevronDown, ChevronUp } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { useAuth } from '../../context/AuthContext';
@@ -7,16 +7,14 @@ import { listarConferencias } from '../../services/conferenciaService';
 import type { Equipe } from '../../types/bombeiro';
 import { EQUIPE_OPTIONS } from '../../types/bombeiro';
 
-const EQUIPES_INSPECAO = EQUIPE_OPTIONS.filter(eq => eq !== 'Feirista' && eq !== 'Embaixador');
+const EQUIPES_SOLICITACAO = EQUIPE_OPTIONS.filter(eq => eq !== 'Feirista' && eq !== 'Embaixador');
 
 const inputClass = 'rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated';
 
 const MESES = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 const ANOS = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
 
-const INPUT_CLASS = "w-full rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all hover:border-graphite-400 focus:border-aviation-500 focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:hover:border-graphite-500 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated dark:focus:ring-aviation-400/10 dark:scheme-dark";
-
-export function Inspecoes() {
+export function Solicitacoes() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin' || user?.role === 'desenvolvedor';
   const userEquipe = user?.equipe as Equipe | undefined;
@@ -41,7 +39,7 @@ export function Inspecoes() {
 
   async function carregar() {
     const [c] = await Promise.all([listarConferencias()]);
-    setRegistros(c.filter(r => r.tipo === 'Inspeção Operacional'));
+    setRegistros(c.filter(r => r.tipo === 'Solicitação'));
   }
 
   const filtrados = useMemo(() => {
@@ -56,15 +54,8 @@ export function Inspecoes() {
     }
 
     if (filterMode === 'mes-ano') {
-      if (filtroMes) {
-        lista = lista.filter(r => {
-          const d = new Date(r.dataConferencia);
-          return (d.getMonth() + 1).toString() === filtroMes;
-        });
-      }
-      if (filtroAno) {
-        lista = lista.filter(r => r.dataConferencia?.startsWith(filtroAno));
-      }
+      if (filtroAno) lista = lista.filter(r => r.dataConferencia?.startsWith(filtroAno));
+      if (filtroMes) lista = lista.filter(r => (new Date(r.dataConferencia).getMonth() + 1).toString() === filtroMes);
     } else {
       if (dataInicio) lista = lista.filter(r => r.dataConferencia >= dataInicio);
       if (dataFinal) lista = lista.filter(r => r.dataConferencia <= dataFinal + 'T23:59:59');
@@ -78,9 +69,10 @@ export function Inspecoes() {
     if (!user || !equipe || !descricao.trim()) return;
     setSaving(true);
     try {
+      const { criarConferencia } = await import('../../services/conferenciaService');
       const dataHora = `${data}T${hora}:00`;
       await criarConferencia({
-        tipo: 'Inspeção Operacional',
+        tipo: 'Solicitação',
         itemId: '',
         itemNome: '',
         itemNumero: '',
@@ -109,11 +101,11 @@ export function Inspecoes() {
   return (
     <PageContainer>
       <div className="mb-6 flex items-center justify-between">
-        <PageTitle icon={ShieldCheck} title="Inspeções Operacionais" />
+        <PageTitle icon={ClipboardList} title="Solicitações" />
         {modo === 'lista' && (
           <button onClick={() => setModo('form')}
             className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
-            <Plus className="h-4 w-4" /> Nova Inspeção
+            <Plus className="h-4 w-4" /> Nova Solicitação
           </button>
         )}
       </div>
@@ -125,7 +117,7 @@ export function Inspecoes() {
               className="flex items-center gap-1 rounded-xl border border-graphite-300/60 bg-white/80 px-3 py-2 text-sm font-medium text-graphite-700 shadow-sm transition-all duration-200 hover:bg-graphite-50 dark:border-border-dark dark:bg-surface-card/80 dark:text-graphite-200">
               <ArrowLeft className="h-4 w-4" /> Voltar
             </button>
-            <span className="text-lg font-bold text-graphite-900 dark:text-graphite-100">Nova Inspeção Operacional</span>
+            <span className="text-lg font-bold text-graphite-900 dark:text-graphite-100">Nova Solicitação</span>
           </div>
 
           <div className="rounded-2xl border border-graphite-200/60 bg-white/80 p-8 shadow-sm dark:border-border-dark dark:bg-surface-card">
@@ -134,32 +126,32 @@ export function Inspecoes() {
                 <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-graphite-500">
                   <CalendarDays className="h-3.5 w-3.5" /> Data
                 </label>
-                <input type="date" value={data} onChange={e => setData(e.target.value)} className={INPUT_CLASS} required />
+                <input type="date" value={data} onChange={e => setData(e.target.value)} className={inputClass} required />
               </div>
               <div>
                 <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-graphite-500">
                   <Clock className="h-3.5 w-3.5" /> Hora
                 </label>
-                <input type="time" value={hora} onChange={e => setHora(e.target.value)} className={INPUT_CLASS} required />
+                <input type="time" value={hora} onChange={e => setHora(e.target.value)} className={inputClass} required />
               </div>
               <div>
                 <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-graphite-500">
                   <Users className="h-3.5 w-3.5" /> Equipe
                 </label>
-                <select value={equipe} onChange={e => setEquipe(e.target.value as Equipe)} className={INPUT_CLASS} required>
+                <select value={equipe} onChange={e => setEquipe(e.target.value as Equipe)} className={inputClass} required>
                   <option value="">Selecione a equipe</option>
-                  {EQUIPES_INSPECAO.map(eq => <option key={eq} value={eq}>{eq}</option>)}
+                  {EQUIPES_SOLICITACAO.map(eq => <option key={eq} value={eq}>{eq}</option>)}
                 </select>
               </div>
             </div>
 
             <div>
               <label className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-graphite-700 dark:text-graphite-300">
-                <FileText className="h-4 w-4" /> Descrição da Inspeção
+                <FileText className="h-4 w-4" /> Descrição da Solicitação
               </label>
               <textarea value={descricao} onChange={e => setDescricao(e.target.value)}
-                className={INPUT_CLASS + ' min-h-[200px] resize-y'} rows={8}
-                placeholder="Descreva detalhadamente o que foi inspecionado, condições encontradas, equipamentos verificados, ações realizadas, não conformidades identificadas..."
+                className={inputClass + ' min-h-[200px] resize-y'} rows={8}
+                placeholder="Descreva detalhadamente a solicitação..."
                 required />
             </div>
           </div>
@@ -171,7 +163,7 @@ export function Inspecoes() {
             </button>
             <button type="submit" disabled={saving || !equipe || !descricao.trim()}
               className="rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-6 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none">
-              {saving ? 'Salvando...' : 'Registrar Inspeção'}
+              {saving ? 'Salvando...' : 'Registrar Solicitação'}
             </button>
           </div>
         </form>
@@ -209,7 +201,7 @@ export function Inspecoes() {
             {isAdmin && (
               <select value={filtroEquipe} onChange={e => setFiltroEquipe(e.target.value as Equipe)} className={inputClass}>
                 <option value="">Todas equipes</option>
-                {EQUIPES_INSPECAO.map(eq => <option key={eq} value={eq}>{eq}</option>)}
+                {EQUIPES_SOLICITACAO.map(eq => <option key={eq} value={eq}>{eq}</option>)}
               </select>
             )}
             <span className="text-xs text-graphite-400">{filtrados.length} registro(s)</span>
@@ -217,9 +209,9 @@ export function Inspecoes() {
 
           {filtrados.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300/60 bg-white/50 p-12 text-center dark:border-border-dark dark:bg-surface-card">
-              <ShieldCheck className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
-              <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhuma inspeção encontrada</h3>
-              <p className="text-sm text-graphite-400">Clique em "Nova Inspeção" para registrar.</p>
+              <ClipboardList className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
+              <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhuma solicitação encontrada</h3>
+              <p className="text-sm text-graphite-400">Clique em "Nova Solicitação" para registrar.</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -227,16 +219,16 @@ export function Inspecoes() {
                 <div key={r.id} className="rounded-2xl border border-graphite-200/60 bg-white/80 shadow-sm dark:border-border-dark dark:bg-surface-card">
                   <button onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}
                     className="flex w-full items-center gap-4 px-5 py-4 text-left">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-aviation-500 to-aviation-700 text-sm font-bold text-white">
-                      <ShieldCheck className="h-5 w-5" />
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 text-sm font-bold text-white">
+                      <ClipboardList className="h-5 w-5" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-bold text-graphite-900 dark:text-graphite-100">
-                        Inspeção Operacional — Equipe {r.equipe}
+                        Solicitação — Equipe {r.equipe}
                       </p>
                       <p className="text-xs text-graphite-500">
                         {r.dataConferencia ? new Date(r.dataConferencia).toLocaleDateString('pt-BR') + ' às ' + new Date(r.dataConferencia).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '-'}
-                        {' · '}<span className="font-medium text-graphite-700 dark:text-graphite-300">{r.createdBy || r.inspetorNomeGuerra || '—'}</span>
+                        {' · '}<span className="font-medium text-graphite-700 dark:text-graphite-300">{r.createdBy || '-'}</span>
                       </p>
                     </div>
                     {expandedId === r.id ? <ChevronUp className="h-4 w-4 text-graphite-400" /> : <ChevronDown className="h-4 w-4 text-graphite-400" />}
@@ -260,4 +252,4 @@ export function Inspecoes() {
   );
 }
 
-export default Inspecoes;
+export default Solicitacoes;

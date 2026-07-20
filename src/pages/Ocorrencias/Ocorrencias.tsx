@@ -490,8 +490,11 @@ export function Ocorrencias() {
   function clearSuccess() { setSuccessMsg(''); }
   useEffect(() => { if (successMsg) { const t = setTimeout(clearSuccess, 3000); return () => clearTimeout(t); } }, [successMsg]);
 
-  const [filtroAno, setFiltroAno] = useState(new Date().getFullYear().toString());
-  const [filtroMes, setFiltroMes] = useState((new Date().getMonth() + 1).toString());
+  const [filtroAno, setFiltroAno] = useState('');
+  const [filtroMes, setFiltroMes] = useState('');
+  const [filterMode, setFilterMode] = useState<'mes-ano' | 'periodo'>('mes-ano');
+  const [dataInicio, setDataInicio] = useState('');
+  const [dataFinal, setDataFinal] = useState('');
   const [filtroEquipe, setFiltroEquipe] = useState('');
   const [filtroTipo, setFiltroTipo] = useState('');
   const MESES = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -512,17 +515,15 @@ export function Ocorrencias() {
     if (filtroTipo) {
       list = list.filter(o => o.tipoDocumento === filtroTipo);
     }
-    if (filtroAno) {
-      list = list.filter(o => o.data.startsWith(filtroAno));
-    }
-    if (filtroMes) {
-      list = list.filter(o => {
-        const d = new Date(o.data);
-        return (d.getMonth() + 1).toString() === filtroMes;
-      });
+    if (filterMode === 'mes-ano') {
+      if (filtroAno) list = list.filter(o => o.data.startsWith(filtroAno));
+      if (filtroMes) list = list.filter(o => (new Date(o.data).getMonth() + 1).toString() === filtroMes);
+    } else {
+      if (dataInicio) list = list.filter(o => o.data >= dataInicio);
+      if (dataFinal) list = list.filter(o => o.data <= dataFinal);
     }
     return list;
-  }, [ocorrencias, canFilterTeam, userEquipe, filtroEquipe, filtroTipo, filtroAno, filtroMes]);
+  }, [ocorrencias, canFilterTeam, userEquipe, filtroEquipe, filtroTipo, filterMode, filtroAno, filtroMes, dataInicio, dataFinal]);
 
   async function handleSave(data: Omit<Ocorrencia, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>, stayInForm = false) {
     let saved: Ocorrencia | null;
@@ -599,26 +600,45 @@ export function Ocorrencias() {
 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3">
+          <div className="flex overflow-hidden rounded-xl border border-graphite-300/60 bg-white/70 text-xs font-medium dark:border-border-dark dark:bg-surface-card">
+            <button onClick={() => setFilterMode('mes-ano')}
+              className={`px-3 py-2 transition-colors ${filterMode === 'mes-ano' ? 'bg-aviation-600 text-white' : 'text-graphite-600 hover:bg-graphite-100 dark:text-graphite-300 dark:hover:bg-surface-hover'}`}>
+              Mês/Ano
+            </button>
+            <button onClick={() => setFilterMode('periodo')}
+              className={`px-3 py-2 transition-colors ${filterMode === 'periodo' ? 'bg-aviation-600 text-white' : 'text-graphite-600 hover:bg-graphite-100 dark:text-graphite-300 dark:hover:bg-surface-hover'}`}>
+              Período
+            </button>
+          </div>
           <select value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)} className={inputClass}>
             <option value="">Todos os tipos</option>
             <option value="BONA">BONA</option>
             <option value="RAE">RAE</option>
           </select>
-          <select value={filtroAno} onChange={e => setFiltroAno(e.target.value)} className={inputClass}>
-            <option value="">Todos os anos</option>
-            {ANOS.map(a => <option key={a} value={a}>{a}</option>)}
-          </select>
-          <select value={filtroMes} onChange={e => setFiltroMes(e.target.value)} className={inputClass}>
-            <option value="">Todos os meses</option>
-            {MESES.slice(1).map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
-          </select>
+          {filterMode === 'mes-ano' ? (
+            <>
+              <select value={filtroAno} onChange={e => setFiltroAno(e.target.value)} className={inputClass}>
+                <option value="">Todos</option>
+                {ANOS.map(a => <option key={a} value={a}>{a}</option>)}
+              </select>
+              <select value={filtroMes} onChange={e => setFiltroMes(e.target.value)} className={inputClass}>
+                <option value="">Todos os meses</option>
+                {MESES.slice(1).map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
+              </select>
+            </>
+          ) : (
+            <>
+              <input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} className={inputClass} placeholder="Data início" />
+              <span className="text-xs text-graphite-400">a</span>
+              <input type="date" value={dataFinal} onChange={e => setDataFinal(e.target.value)} className={inputClass} placeholder="Data fim" />
+            </>
+          )}
           {canFilterTeam && (
             <select value={filtroEquipe} onChange={e => setFiltroEquipe(e.target.value)} className={inputClass}>
               <option value="">Todas as equipes</option>
               {EQUIPES.map(eq => <option key={eq} value={eq}>{eq}</option>)}
             </select>
           )}
-          <p className="text-sm text-graphite-500 dark:text-graphite-400">{filtradas.length} documento(s)</p>
         </div>
         {canEdit && (
           <button onClick={() => { setEditando(null); setMode('form'); }}

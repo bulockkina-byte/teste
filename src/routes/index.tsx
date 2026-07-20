@@ -49,6 +49,7 @@ export const router = createBrowserRouter([
       { path: 'cadastro/documentos', element: lazyPage(() => import('../pages/Documentos/Documentos')) },
       { path: 'ocorrencias', element: lazyPage(() => import('../pages/Ocorrencias/Ocorrencias')) },
       { path: 'inspecoes', element: lazyPage(() => import('../pages/Inspecoes/Inspecoes')) },
+      { path: 'inspecoes/solicitacoes', element: lazyPage(() => import('../pages/Inspecoes/Solicitacoes')) },
       { path: 'inspecoes/check', element: lazyPage(() => import('../pages/Inspecoes/InspecaoCheck')) },
       { path: 'viaturas', element: lazyPage(() => import('../pages/Viaturas/Viaturas')) },
       { path: 'epis', element: lazyPage(() => import('../pages/EPIs/EPIs')) },

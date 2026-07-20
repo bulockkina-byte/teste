@@ -13,6 +13,7 @@ export interface PTRB {
   horaInicio: string;
   horaTermino: string;
   duracao: string;
+  horas: number;
   equipe: string;
   turno: string;
   participantes: PTRBParticipante[];

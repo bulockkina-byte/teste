@@ -23,6 +23,7 @@ function rowToPTRB(row: Record<string, unknown>): PTRB {
     horaInicio: (row.hora_inicio as string) || '',
     horaTermino: (row.hora_termino as string) || '',
     duracao: (row.duracao as string) || '',
+    horas: Number(row.horas) || 0,
     equipe: (row.equipe as string) || '',
     turno: (row.turno as string) || '',
     participantes: parseJSON(row.participantes) || [],
@@ -62,7 +63,7 @@ export async function criarPTRB(data: Omit<PTRB, 'id' | 'createdAt' | 'updatedAt
   const row = {
     created_by: data.createdBy, created_at: now, updated_at: now,
     data: data.data, hora_inicio: data.horaInicio, hora_termino: data.horaTermino,
-    duracao: data.duracao, equipe: data.equipe, turno: data.turno,
+    duracao: data.duracao, horas: data.horas, equipe: data.equipe, turno: data.turno,
     participantes: data.participantes, observacoes: data.observacoes,
     instrutor: data.instrutor, assunto_ministrado: data.assuntoMinistrado,
     descricao: data.descricao, informacoes_complementares: data.informacoesComplementares,
@@ -80,6 +81,7 @@ export async function atualizarPTRB(id: string, data: Partial<PTRB>): Promise<PT
   if (data.horaInicio !== undefined) r.hora_inicio = data.horaInicio;
   if (data.horaTermino !== undefined) r.hora_termino = data.horaTermino;
   if (data.duracao !== undefined) r.duracao = data.duracao;
+  if (data.horas !== undefined) r.horas = data.horas;
   if (data.equipe !== undefined) r.equipe = data.equipe;
   if (data.turno !== undefined) r.turno = data.turno;
   if (data.participantes !== undefined) r.participantes = data.participantes;

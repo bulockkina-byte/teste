@@ -19,6 +19,9 @@ import { validarCursoParaFuncao } from '../../utils/validacaoCursos';
 const EQUIPES = ['Alfa', 'Bravo', 'Charlie', 'Delta'] as const;
 
 const optionCls = 'dark:bg-graphite-700 dark:text-graphite-100';
+const inputClass = 'rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated';
+const MESES = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+const ANOS = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
 
 function emptyGuarnicoes() {
   return {
@@ -577,8 +580,24 @@ export function EscalaDiariaView() {
   const [visualizando, setVisualizando] = useState<EscalaDiaria | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [filtroEquipe, setFiltroEquipe] = useState('');
+  const [filterMode, setFilterMode] = useState<'mes-ano' | 'periodo'>('mes-ano');
+  const [filtroMes, setFiltroMes] = useState('');
+  const [filtroAno, setFiltroAno] = useState('');
+  const [dataInicio, setDataInicio] = useState('');
+  const [dataFinal, setDataFinal] = useState('');
 
-  const escalasFiltradas = filtroEquipe ? escalas.filter(e => e.equipe === filtroEquipe) : escalas;
+  const escalasFiltradas = useMemo(() => {
+    let lista = escalas;
+    if (filtroEquipe) lista = lista.filter(e => e.equipe === filtroEquipe);
+    if (filterMode === 'mes-ano') {
+      if (filtroAno) lista = lista.filter(e => e.dataPlantao?.startsWith(filtroAno));
+      if (filtroMes) lista = lista.filter(e => (new Date(e.dataPlantao).getMonth() + 1).toString() === filtroMes);
+    } else {
+      if (dataInicio) lista = lista.filter(e => e.dataPlantao >= dataInicio);
+      if (dataFinal) lista = lista.filter(e => e.dataPlantao <= dataFinal);
+    }
+    return lista;
+  }, [escalas, filtroEquipe, filterMode, filtroAno, filtroMes, dataInicio, dataFinal]);
 
   async function carregar() {
     const todas = await listarEscalas();
@@ -649,12 +668,41 @@ export function EscalaDiariaView() {
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <select value={filtroEquipe} onChange={e => setFiltroEquipe(e.target.value)}
-            className="rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated">
-            <option value="" className={optionCls}>Todas as equipes</option>
-            {EQUIPES.map(eq => <option key={eq} value={eq} className={optionCls}>{eq}</option>)}
-          </select>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex overflow-hidden rounded-xl border border-graphite-300/60 bg-white/70 text-xs font-medium dark:border-border-dark dark:bg-surface-card">
+            <button onClick={() => setFilterMode('mes-ano')}
+              className={`px-3 py-2 transition-colors ${filterMode === 'mes-ano' ? 'bg-aviation-600 text-white' : 'text-graphite-600 hover:bg-graphite-100 dark:text-graphite-300 dark:hover:bg-surface-hover'}`}>
+              Mês/Ano
+            </button>
+            <button onClick={() => setFilterMode('periodo')}
+              className={`px-3 py-2 transition-colors ${filterMode === 'periodo' ? 'bg-aviation-600 text-white' : 'text-graphite-600 hover:bg-graphite-100 dark:text-graphite-300 dark:hover:bg-surface-hover'}`}>
+              Período
+            </button>
+          </div>
+          {filterMode === 'mes-ano' ? (
+            <>
+              <select value={filtroAno} onChange={e => setFiltroAno(e.target.value)} className={inputClass}>
+                <option value="">Todos</option>
+                {ANOS.map(a => <option key={a} value={a} className={optionCls}>{a}</option>)}
+              </select>
+              <select value={filtroMes} onChange={e => setFiltroMes(e.target.value)} className={inputClass}>
+                <option value="">Todos os meses</option>
+                {MESES.slice(1).map((m, i) => <option key={i + 1} value={i + 1} className={optionCls}>{m}</option>)}
+              </select>
+            </>
+          ) : (
+            <>
+              <input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} className={inputClass} placeholder="Data início" />
+              <span className="text-xs text-graphite-400">a</span>
+              <input type="date" value={dataFinal} onChange={e => setDataFinal(e.target.value)} className={inputClass} placeholder="Data fim" />
+            </>
+          )}
+          {isAdmin && (
+            <select value={filtroEquipe} onChange={e => setFiltroEquipe(e.target.value)} className={inputClass}>
+              <option value="" className={optionCls}>Todas as equipes</option>
+              {EQUIPES.map(eq => <option key={eq} value={eq} className={optionCls}>{eq}</option>)}
+            </select>
+          )}
           <p className="text-sm text-graphite-500 dark:text-graphite-400">
             {escalasFiltradas.length} escala(s)
           </p>

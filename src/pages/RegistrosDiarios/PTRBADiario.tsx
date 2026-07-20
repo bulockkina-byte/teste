@@ -49,12 +49,20 @@ function autoTurno(equipe: string) {
 const FUNCAO_OPTIONS = [...CARGO_OPTIONS.map(c => c.value), 'APOC'];
 const HIERARQUIA_EQUIPE = ['BA-CE', 'BA-LR', 'BA-MC', 'BA-MC', 'BA-MC', 'BA-2', 'BA-2', 'BA-2', 'BA-2', 'BA-2'];
 
+function calcHorasFromDuracao(duracao: string): number {
+  if (!duracao) return 0;
+  const [h, m] = duracao.split(':').map(Number);
+  if (isNaN(h) || isNaN(m)) return 0;
+  return h + m / 60;
+}
+
 function emptyPTRB(): Omit<PTRB, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'> {
   return {
     data: new Date().toISOString().split('T')[0],
     horaInicio: '07:00',
     horaTermino: '19:00',
     duracao: '12:00',
+    horas: 12,
     equipe: 'Alfa',
     turno: 'Diurno',
     participantes: HIERARQUIA_EQUIPE.map(funcao => ({ funcao, nomeCompleto: '', situacao: 'P' })),
@@ -96,6 +104,7 @@ function PTRBAForm({
         horaInicio: ptrb.horaInicio,
         horaTermino: ptrb.horaTermino,
         duracao: ptrb.duracao,
+        horas: ptrb.horas || calcHorasFromDuracao(ptrb.duracao),
         equipe: ptrb.equipe,
         turno: ptrb.turno,
         participantes: ptrb.participantes,
@@ -114,11 +123,17 @@ function PTRBAForm({
   }
 
   function updateHoraInicio(val: string) {
-    setForm(f => ({ ...f, horaInicio: val, duracao: calcDuracao(val, f.horaTermino) }));
+    setForm(f => {
+      const duracao = calcDuracao(val, f.horaTermino);
+      return { ...f, horaInicio: val, duracao, horas: calcHorasFromDuracao(duracao) };
+    });
   }
 
   function updateHoraTermino(val: string) {
-    setForm(f => ({ ...f, horaTermino: val, duracao: calcDuracao(f.horaInicio, val) }));
+    setForm(f => {
+      const duracao = calcDuracao(f.horaInicio, val);
+      return { ...f, horaTermino: val, duracao, horas: calcHorasFromDuracao(duracao) };
+    });
   }
 
   function updateParticipante(idx: number, field: keyof PTRBParticipante, value: string) {

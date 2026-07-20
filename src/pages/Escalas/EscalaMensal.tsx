@@ -59,6 +59,8 @@ export function EscalaMensal() {
   const [paridade, setParidade] = useState<'par' | 'impar'>('impar');
   const [pessoas, setPessoas] = useState<(Partial<PessoaEscala> | null)[]>(SLOTS.map(() => null));
   const [filterListEquipe, setFilterListEquipe] = useState('');
+  const [filterListMes, setFilterListMes] = useState('');
+  const [filterListAno, setFilterListAno] = useState('');
   const [radioExpanded, setRadioExpanded] = useState(true);
   const [faxinaExpanded, setFaxinaExpanded] = useState(true);
 
@@ -166,8 +168,10 @@ export function EscalaMensal() {
     let lista = completas;
     if (!isGlobal && userEquipe) lista = lista.filter(c => c.config.equipe === userEquipe);
     if (filterListEquipe) lista = lista.filter(c => c.config.equipe === filterListEquipe);
+    if (filterListMes) lista = lista.filter(c => c.config.mes === Number(filterListMes));
+    if (filterListAno) lista = lista.filter(c => c.config.ano === Number(filterListAno));
     return lista;
-  }, [completas, isGlobal, userEquipe, filterListEquipe]);
+  }, [completas, isGlobal, userEquipe, filterListEquipe, filterListMes, filterListAno]);
 
   function notificar(texto: string) {
     setMsg(texto);

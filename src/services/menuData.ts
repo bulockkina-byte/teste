@@ -249,8 +249,20 @@ export const menuItems: MenuItem[] = [
   {
     label: 'Inspeções Operacionais',
     icon: ShieldCheck,
-    path: '/inspecoes',
-    description: 'Conferência de extintores, hidrantes e inspeções de segurança.',
+    children: [
+      {
+        label: 'Inspeções',
+        icon: ShieldCheck,
+        path: '/inspecoes',
+        description: 'Registro de inspeções operacionais.',
+      },
+      {
+        label: 'Solicitações',
+        icon: ClipboardList,
+        path: '/inspecoes/solicitacoes',
+        description: 'Registro de solicitações operacionais.',
+      },
+    ],
   },
   {
     label: 'Viaturas CCI',
