@@ -2396,11 +2396,22 @@ function TabQuadroEfetivos() {
             } else {
               ferN = rest.trim();
             }
-            if (!cobreN) continue;
-            const coberto = bombeiros.find(b => b.nomeGuerra === cobreN || b.nomeCompleto === cobreN);
-            if (!coberto || coberto.equipe !== eq) continue;
+            const gInicio = new Date(gozo.dataInicio + 'T00:00:00');
+            const gFim = new Date(gozo.dataFim + 'T00:00:00');
+            if (!(gInicio <= mesFim && gFim >= mesInicio)) continue;
             const fer = bombeiros.find(b => b.nomeCompleto === ferN || b.nomeGuerra === ferN);
-            if (fer) addSub(fer, coberto, (gozo.funcaoSubstituicao || coberto.cargo) as Cargo);
+            if (!fer) continue;
+            if (cobreN) {
+              const coberto = bombeiros.find(b => b.nomeGuerra === cobreN || b.nomeCompleto === cobreN);
+              if (coberto && coberto.equipe === eq) addSub(fer, coberto, (gozo.funcaoSubstituicao || coberto.cargo) as Cargo);
+            } else {
+              const func = bombeiros.find(b => b.id === gozo.funcionarioId);
+              if (func && func.equipe === eq) {
+                const subB = gozo.substitutoId ? bombeiros.find(bb => bb.id === gozo.substitutoId) : null;
+                const alvo = subB || func;
+                addSub(fer, alvo, (gozo.funcaoSubstituicao || alvo.cargo) as Cargo);
+              }
+            }
           }
 
           for (const item of allItems) {
