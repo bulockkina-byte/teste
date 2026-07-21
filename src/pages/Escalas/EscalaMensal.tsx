@@ -58,6 +58,7 @@ export function EscalaMensal() {
   const [ano, setAno] = useState(new Date().getFullYear());
   const [paridade, setParidade] = useState<'par' | 'impar'>('impar');
   const [pessoas, setPessoas] = useState<(Partial<PessoaEscala> | null)[]>(SLOTS.map(() => null));
+  const [feriasGozo, setFeriasGozo] = useState<FeriasGozo[]>([]);
   const [filterListEquipe, setFilterListEquipe] = useState('');
   const [filterListMes, setFilterListMes] = useState('');
   const [filterListAno, setFilterListAno] = useState('');
@@ -103,6 +104,7 @@ export function EscalaMensal() {
   useEffect(() => {
     listarBombeiros().then(setBombeiros).catch(() => {});
     listarCompletas().then(setCompletas).catch(() => {});
+    listarFeriasGozo().then(setFeriasGozo).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -139,7 +141,26 @@ export function EscalaMensal() {
   const veiculosView = useMemo(() => {
     if (!completaAtual || completaAtual.paradas.length === 0) return null;
     const v = completaAtual.paradas[0].veiculos || {} as any;
-    const linha = (label: string, nome: string) => `${label}: ${nome}`;
+    const nomeSubstituto = (nome: string): string => {
+      if (!nome || nome === '-') return nome || '-';
+      const b = bombeiros.find(bb => bb.nomeGuerra === nome);
+      if (!b) return nome;
+      const emFerias = feriasGozo.some(g => {
+        if (g.funcionarioId !== b.id || g.status === 'Gozadas') return false;
+        const gInicio = new Date(g.dataInicio + 'T00:00:00');
+        const gFim = new Date(g.dataFim + 'T00:00:00');
+        const mesIni = new Date(ano, mes - 1, 1);
+        const mesFim = new Date(ano, mes, 0);
+        return gInicio <= mesFim && gFim >= mesIni;
+      });
+      if (!emFerias) return nome;
+      const sub = feriasGozo.find(g => g.funcionarioId === b.id && g.substitutoNome && g.status !== 'Gozadas');
+      return sub?.substitutoNome || nome;
+    };
+    const linha = (label: string, nome: string) => {
+      const substituto = nomeSubstituto(nome);
+      return `${label}: ${substituto}`;
+    };
     return (
       <div className="rounded border-2 border-graphite-300 bg-white/80 p-1 print:border-graphite-500 print:bg-white dark:border-border-dark dark:bg-surface-card">
         <div className="flex items-center gap-1 mb-0.5">
@@ -156,15 +177,24 @@ export function EscalaMensal() {
               <p className="text-[11px] font-bold text-graphite-600 print:text-graphite-700 uppercase">{c.nome}</p>
               {c.itens.map((item, i) => {
                 const [label, ...nomeParts] = item.split(': ');
+                const nomeOrig = v ? (
+                  c.nome === 'CRS' ? ['baMc', 'baLr', 'ba2_1', 'ba2_2'][i]
+                    : c.nome === 'CCI F2' ? ['baMc', 'baCe', 'ba2'][i]
+                    : ['baMc', 'ba2_1', 'ba2_2'][i]
+                ) : null;
+                const nomeKey = nomeOrig ? v?.crs?.[nomeOrig] || v?.cciF2?.[nomeOrig] || v?.cciF3?.[nomeOrig] : '';
                 const nome = nomeParts.join(': ');
-                return <p key={i} className="text-[11px] font-semibold print:font-bold leading-snug text-graphite-800 print:text-graphite-900 dark:text-graphite-200" title={nome !== '-' ? `${nome} · Função: ${label}` : ''}>{item}</p>;
+                const subNome = nomeSubstituto(nomeKey);
+                const temSub = subNome !== nomeKey && nomeKey !== '-';
+                return <p key={i} className="text-[11px] font-semibold print:font-bold leading-snug text-graphite-800 print:text-graphite-900 dark:text-graphite-200"
+                  title={temSub ? `${nomeKey} em gozo · Substituído por ${subNome}` : nome !== '-' ? `${nome} · Função: ${label}` : ''}>{item}</p>;
               })}
             </div>
           ))}
         </div>
       </div>
     );
-  }, [completaAtual, bombeiros]);
+  }, [completaAtual, bombeiros, feriasGozo, ano, mes]);
 
   const qtdPessoas = pessoas.filter(pessoaValida).length;
 

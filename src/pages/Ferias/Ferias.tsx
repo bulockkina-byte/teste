@@ -2360,33 +2360,46 @@ function TabQuadroEfetivos() {
           const emGozo = membros.filter(m => isEmGozo(m, mesSelecionado, ano));
           const disponiveis = membros.filter(m => !isEmGozo(m, mesSelecionado, ano));
 
+          const mesInicio = new Date(ano, mesSelecionado - 1, 1);
+          const mesFim = new Date(ano, mesSelecionado, 0);
           const substitutosDaEquipe: { pessoa: Bombeiro; substituindo: Bombeiro; cargo: Cargo }[] = [];
-          for (const gozo of feriasGozo) {
-            if (gozo.status === 'Gozadas' || !gozo.substitutoId) continue;
-            const func = bombeiros.find(b => b.id === gozo.funcionarioId);
-            if (!func || func.equipe !== eq) continue;
-            const sub = bombeiros.find(b => b.id === gozo.substitutoId);
-            if (!sub || sub.equipe === eq) continue;
-            const mesInicio = new Date(ano, mesSelecionado - 1, 1);
-            const mesFim = new Date(ano, mesSelecionado, 0);
-            const gInicio = new Date(gozo.dataInicio + 'T00:00:00');
-            const gFim = new Date(gozo.dataFim + 'T00:00:00');
-            if (gInicio <= mesFim && gFim >= mesInicio) {
-              substitutosDaEquipe.push({ pessoa: sub, substituindo: func, cargo: (gozo.funcaoSubstituicao || func.cargo) as Cargo });
+
+          function addSub(pessoa: Bombeiro, func: Bombeiro, cargo: Cargo) {
+            if (!substitutosDaEquipe.some(s => s.pessoa.id === pessoa.id)) {
+              substitutosDaEquipe.push({ pessoa, substituindo: func, cargo });
             }
           }
+
+          for (const gozo of feriasGozo) {
+            if (gozo.status === 'Gozadas') continue;
+            const func = bombeiros.find(b => b.id === gozo.funcionarioId);
+            if (!func || func.equipe !== eq) continue;
+            const gInicio = new Date(gozo.dataInicio + 'T00:00:00');
+            const gFim = new Date(gozo.dataFim + 'T00:00:00');
+            if (!(gInicio <= mesFim && gFim >= mesInicio)) continue;
+            if (gozo.substitutoId) {
+              const sub = bombeiros.find(b => b.id === gozo.substitutoId);
+              if (sub && sub.equipe !== eq) addSub(sub, func, (gozo.funcaoSubstituicao || func.cargo) as Cargo);
+            }
+          }
+
           for (const item of allItems) {
-            if (!item.substitutoId || item.rejeitado || item.mes !== mesSelecionado) continue;
+            if (item.rejeitado || item.mes !== mesSelecionado) continue;
             const func = bombeiros.find(b => b.id === item.funcionarioId);
             if (!func || func.equipe !== eq) continue;
-            const sub = bombeiros.find(b => b.id === item.substitutoId);
-            if (!sub || sub.equipe === eq) continue;
-            substitutosDaEquipe.push({ pessoa: sub, substituindo: func, cargo: (item.funcaoSubstituicao || func.cargo) as Cargo });
+            if (item.substitutoId) {
+              const sub = bombeiros.find(b => b.id === item.substitutoId);
+              if (sub && sub.equipe !== eq) addSub(sub, func, (item.funcaoSubstituicao || func.cargo) as Cargo);
+            }
+            if (item.feristaId) {
+              const fer = bombeiros.find(b => b.id === item.feristaId);
+              if (fer) addSub(fer, func, (item.funcaoSubstituicao || func.cargo) as Cargo);
+            }
           }
           const disponiveisComSubstitutos = [...disponiveis, ...substitutosDaEquipe.map(s => s.pessoa).filter(p => !disponiveis.find(d => d.id === p.id))];
           const ordenados = [...disponiveisComSubstitutos].sort((a, b) => {
-            const subA = substitutosDaEquipe.find(s => s.pessoa.id === a.id);
-            const subB = substitutosDaEquipe.find(s => s.pessoa.id === b.id);
+            const subA = substitutosDaEquipe.find(s => s.pessoa.id === a.id) || getSubstituindo(a, mesSelecionado);
+            const subB = substitutosDaEquipe.find(s => s.pessoa.id === b.id) || getSubstituindo(b, mesSelecionado);
             const cargoA = subA ? (CARGO_PRIORITY[subA.cargo] ?? 99) : (CARGO_PRIORITY[a.cargo] ?? 99);
             const cargoB = subB ? (CARGO_PRIORITY[subB.cargo] ?? 99) : (CARGO_PRIORITY[b.cargo] ?? 99);
             return cargoA - cargoB;
