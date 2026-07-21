@@ -140,9 +140,13 @@ export function Equipamentos() {
   }
 
   async function handleDelete(id: string) {
-    await excluirEquipamento(id);
-    setConfirmDelete(null);
-    setLista(await listarEquipamentos());
+    try {
+      await excluirEquipamento(id);
+      setConfirmDelete(null);
+      setLista(await listarEquipamentos());
+    } catch (err) {
+      console.error('Erro ao excluir:', err);
+    }
   }
 
   function updateField<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {

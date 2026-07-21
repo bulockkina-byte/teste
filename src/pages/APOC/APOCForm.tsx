@@ -75,26 +75,26 @@ export function APOCForm({ apoc, onSave, onClose, serverError }: Props) {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-black dark:text-white">Função *</label>
+            <label className="mb-1.5 block text-sm font-semibold text-graphite-900 dark:text-graphite-100">Função *</label>
             <select value={funcao} onChange={e => setFuncao(e.target.value as FuncaoAPOC)} className={selectClass}>
               {FUNCAO_APOC_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-black dark:text-white">Nome Completo *</label>
+            <label className="mb-1.5 block text-sm font-semibold text-graphite-900 dark:text-graphite-100">Nome Completo *</label>
             <input value={nomeCompleto} onChange={e => setNomeCompleto(e.target.value)} placeholder="Nome completo"
               className={inputClass} />
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-black dark:text-white">Nome de Guerra *</label>
+            <label className="mb-1.5 block text-sm font-semibold text-graphite-900 dark:text-graphite-100">Nome de Guerra *</label>
             <input value={nomeGuerra} onChange={e => setNomeGuerra(e.target.value)} placeholder="Nome de guerra"
               className={inputClass} />
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-black dark:text-white">E-mail *</label>
+            <label className="mb-1.5 block text-sm font-semibold text-graphite-900 dark:text-graphite-100">E-mail *</label>
             <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@exemplo.com"
               className={inputClass} />
           </div>

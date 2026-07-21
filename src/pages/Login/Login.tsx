@@ -49,26 +49,26 @@ export function Login() {
               <img src="/logobombeiro.jpeg" alt="SCI NVT" className="h-full w-full object-cover" />
             </div>
             <div>
-              <h1 className="text-3xl font-black text-black">
+              <h1 className="text-3xl font-black text-graphite-900">
                 SCI NVT
               </h1>
-              <p className="text-sm font-semibold text-black">
+              <p className="text-sm font-semibold text-graphite-900">
                 Sistema de Controle Operacional
               </p>
             </div>
           </div>
 
           <div className="animate-slideUp">
-            <h2 className="mb-1 text-2xl font-bold text-black">
+            <h2 className="mb-1 text-2xl font-bold text-graphite-900">
               Bem-vindo de volta
             </h2>
-            <p className="mb-8 text-sm font-medium text-black">
+            <p className="mb-8 text-sm font-medium text-graphite-900">
               Informe suas credenciais para acessar o sistema.
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="mb-1.5 block text-sm font-bold text-black">
+                <label className="mb-1.5 block text-sm font-bold text-graphite-900">
                   Usuário
                 </label>
                 <div className="relative group">
@@ -78,14 +78,13 @@ export function Login() {
                     value={username}
                     onChange={e => setUsername(e.target.value)}
                     placeholder="Usuário"
-                    style={{ backgroundColor: '#ffffff' }}
-                    className="w-full rounded-xl border border-graphite-400 py-3 pl-11 pr-4 text-base font-medium text-black outline-none placeholder:text-gray-500 hover:border-graphite-500 focus:border-graphite-600 focus:ring-0"
+                    className="w-full rounded-xl border border-graphite-400 bg-white py-3 pl-11 pr-4 text-base font-medium text-graphite-900 outline-none placeholder:text-gray-500 hover:border-graphite-500 focus:border-graphite-600 focus:ring-0"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="mb-1.5 block text-sm font-bold text-black">
+                <label className="mb-1.5 block text-sm font-bold text-graphite-900">
                   Senha
                 </label>
                 <div className="relative group">
@@ -95,13 +94,12 @@ export function Login() {
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    style={{ backgroundColor: '#ffffff' }}
-                    className="w-full rounded-xl border border-graphite-400 py-3 pl-11 pr-11 text-base font-medium text-black outline-none placeholder:text-gray-500 hover:border-graphite-500 focus:border-graphite-600 focus:ring-0"
+                    className="w-full rounded-xl border border-graphite-400 bg-white py-3 pl-11 pr-11 text-base font-medium text-graphite-900 outline-none placeholder:text-gray-500 hover:border-graphite-500 focus:border-graphite-600 focus:ring-0"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-black transition-all duration-200 hover:text-gray-600"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-graphite-900 transition-all duration-200 hover:text-gray-600"
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -127,7 +125,7 @@ export function Login() {
             </form>
           </div>
 
-          <p className="mt-8 text-center text-xs font-medium text-black animate-fadeIn">
+          <p className="mt-8 text-center text-xs font-medium text-graphite-900 animate-fadeIn">
             © 2026 SCI NVT. Todos os direitos reservados.
           </p>
         </div>

@@ -83,9 +83,13 @@ export function Bombeiros() {
   }
 
   async function handleDelete(id: string) {
-    await excluirBombeiro(id);
-    setConfirmDelete(null);
-    carregar();
+    try {
+      await excluirBombeiro(id);
+      setConfirmDelete(null);
+      carregar();
+    } catch (err) {
+      console.error('Erro ao excluir:', err);
+    }
   }
 
   return (

@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import type { Viatura, TipoViatura, SituacaoViatura } from '../../types/viatura';
-import { TIPO_VIATURA_OPTIONS, SITUACAO_VIATURA_OPTIONS } from '../../types/viatura';
+import type { Viatura, TipoViatura, StatusViatura } from '../../types/viatura';
+import { TIPO_VIATURA_OPTIONS, STATUS_VIATURA_OPTIONS } from '../../types/viatura';
 
 interface Props {
   viatura?: Viatura | null;
-  onSave: (data: Omit<Viatura, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  onSave: (data: Partial<Viatura>) => void;
   onClose: () => void;
 }
 
@@ -28,7 +28,7 @@ export function ViaturaForm({ viatura, onSave, onClose }: Props) {
   const [modelo, setModelo] = useState('');
   const [ano, setAno] = useState('');
   const [cor, setCor] = useState('');
-  const [situacao, setSituacao] = useState<SituacaoViatura>('Ativa');
+  const [situacao, setSituacao] = useState<StatusViatura>('Operacional');
   const [equipe, setEquipe] = useState('');
   const [observacoes, setObservacoes] = useState('');
   const [erro, setErro] = useState('');
@@ -41,9 +41,7 @@ export function ViaturaForm({ viatura, onSave, onClose }: Props) {
       setMarca(viatura.marca);
       setModelo(viatura.modelo);
       setAno(viatura.ano);
-      setCor(viatura.cor);
-      setSituacao(viatura.situacao);
-      setEquipe(viatura.equipe);
+      setSituacao(viatura.status);
       setObservacoes(viatura.observacoes);
     }
   }, [viatura]);
@@ -62,9 +60,7 @@ export function ViaturaForm({ viatura, onSave, onClose }: Props) {
       marca: marca.replace(/\b\w/g, c => c.toUpperCase()),
       modelo: modelo.replace(/\b\w/g, c => c.toUpperCase()),
       ano,
-      cor: cor.replace(/\b\w/g, c => c.toUpperCase()),
-      situacao,
-      equipe: equipe.replace(/\b\w/g, c => c.toUpperCase()),
+      status: situacao,
       observacoes,
     });
   }
@@ -132,8 +128,8 @@ export function ViaturaForm({ viatura, onSave, onClose }: Props) {
                 </div>
                 <div>
                   <label className={labelClass}>Situação</label>
-                  <select value={situacao} onChange={e => setSituacao(e.target.value as SituacaoViatura)} className={selectClass}>
-                    {SITUACAO_VIATURA_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                  <select value={situacao} onChange={e => setSituacao(e.target.value as StatusViatura)} className={selectClass}>
+                    {STATUS_VIATURA_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>

@@ -45,9 +45,13 @@ export function APOCs() {
   }
 
   async function handleDelete(id: string) {
-    await excluirAPOC(id);
-    setConfirmDelete(null);
-    carregar();
+    try {
+      await excluirAPOC(id);
+      setConfirmDelete(null);
+      carregar();
+    } catch (err) {
+      console.error('Erro ao excluir:', err);
+    }
   }
 
   function capitalize(str: string) {

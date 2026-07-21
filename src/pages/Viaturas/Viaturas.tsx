@@ -78,9 +78,13 @@ export function Viaturas() {
   }
 
   async function handleDelete(id: string) {
-    await excluirViatura(id);
-    setConfirmDelete(null);
-    setLista(await listarViaturas());
+    try {
+      await excluirViatura(id);
+      setConfirmDelete(null);
+      setLista(await listarViaturas());
+    } catch (err) {
+      console.error('Erro ao excluir:', err);
+    }
   }
 
   return (
@@ -107,8 +111,8 @@ export function Viaturas() {
 
       {filtrados.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white/50 p-12 text-center dark:border-border-dark dark:bg-surface-card">
-          <Truck className="mb-4 h-12 w-12 text-graphite-300" />
-          <h3 className="text-lg font-semibold text-graphite-700">Nenhuma viatura encontrada</h3>
+          <Truck className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
+          <h3 className="text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhuma viatura encontrada</h3>
         </div>
       ) : (
         <div className="space-y-3">
@@ -130,7 +134,7 @@ export function Viaturas() {
                       {v.tipo === 'CCI' && <span className="rounded-full bg-graphite-100 px-2 py-0.5 text-xs font-medium dark:bg-graphite-700 dark:text-graphite-300">{v.tipoCCI}</span>}
                       <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusColor(v.status)}`}>{v.status}</span>
                     </div>
-                    <p className="text-sm text-graphite-500">{v.placa ? `Placa: ${v.placa}` : ''}{v.marca ? ` · ${v.marca} ${v.modelo}` : ''}{v.ano ? ` · ${v.ano}` : ''}</p>
+                    <p className="text-sm text-graphite-500 dark:text-graphite-400">{v.placa ? `Placa: ${v.placa}` : ''}{v.marca ? ` · ${v.marca} ${v.modelo}` : ''}{v.ano ? ` · ${v.ano}` : ''}</p>
                   </div>
                 </div>
                 {isAdmin && (
@@ -141,7 +145,7 @@ export function Viaturas() {
                 )}
               </div>
               {v.tipo === 'CCI' && (
-                <div className="mt-3 flex flex-wrap gap-2 text-xs text-graphite-500">
+                <div className="mt-3 flex flex-wrap gap-2 text-xs text-graphite-500 dark:text-graphite-400">
                   {v.capacidadeAgua && <span>Água: {v.capacidadeAgua}L</span>}
                   {v.capacidadeLGE && <span>· LGE: {v.capacidadeLGE}L</span>}
                   {v.moduloPQuimico && <span>· Pó: {v.moduloPQuimico}kg</span>}
@@ -220,7 +224,7 @@ export function Viaturas() {
             <h3 className="mb-2 text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar exclusão</h3>
             <p className="mb-6 text-sm text-graphite-500">Tem certeza que deseja excluir esta viatura?</p>
             <div className="flex justify-end gap-3">
-              <button onClick={() => setConfirmDelete(null)} className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700">Cancelar</button>
+              <button onClick={() => setConfirmDelete(null)} className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 dark:bg-surface-card">Cancelar</button>
               <button onClick={() => handleDelete(confirmDelete)} className="rounded-xl bg-gradient-to-r from-alert-red to-red-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg">Excluir</button>
             </div>
           </div>
