@@ -510,16 +510,24 @@ export function EscalaMensal() {
                     const b = p?.nomeGuerra ? bombeiros.find(bb => bb.nomeGuerra === p!.nomeGuerra) : null;
                     const cargoReq = slot.funcao === 'chefe' ? 'BA-CE' as const : slot.funcao === 'lider' ? 'BA-LR' as const : slot.funcao === 'ba-mc' ? 'BA-MC' as const : undefined;
                     const aviso = b && cargoReq ? validarCursoParaFuncao(b, cargoReq) : null;
-                    const selectedIds = new Set(pessoas.filter(p2 => p2?.id).map(p2 => p2!.id!));
+                    const selectedIds = new Set(pessoas.filter((p2, i2) => p2?.id && i2 !== idx).map(p2 => p2!.id!));
                     return (
                       <div key={idx} className="rounded-xl border border-graphite-200/60 bg-white/70 p-3 dark:border-border-dark dark:bg-surface-card/70">
                         <p className="mb-1.5 text-xs font-medium text-graphite-500 dark:text-graphite-400">{slot.label} <span className="text-red-500">*</span></p>
-                        <SearchSelect value={p?.nomeGuerra || ''} equipe={equipe} cargo={slot.cargoFiltro} showCargo disabledIds={selectedIds} onChange={v => {
-                          const found = bombeiros.find(bb => bb.nomeGuerra === v);
-                          const next = [...pessoas];
-                          next[idx] = found ? { id: found.id, nome: found.nome, nomeGuerra: found.nomeGuerra, funcao: slot.funcao, veiculo: slot.veiculo, funcaoNoVeiculo: slot.funcaoNoVeiculo, isRadioFixo: slot.isRadioFixo } : null;
-                          setPessoas(next);
-                        }} placeholder="Selecione..." />
+                        <div className="flex items-center gap-1">
+                          <SearchSelect value={p?.nomeGuerra || ''} equipe={equipe} cargo={slot.cargoFiltro} showCargo disabledIds={selectedIds} onChange={v => {
+                            const found = bombeiros.find(bb => bb.nomeGuerra === v);
+                            const next = [...pessoas];
+                            next[idx] = found ? { id: found.id, nome: found.nome, nomeGuerra: found.nomeGuerra, funcao: slot.funcao, veiculo: slot.veiculo, funcaoNoVeiculo: slot.funcaoNoVeiculo, isRadioFixo: slot.isRadioFixo } : null;
+                            setPessoas(next);
+                          }} placeholder="Selecione..." />
+                          {p && (
+                            <button type="button" onClick={() => { const next = [...pessoas]; next[idx] = null; setPessoas(next); }}
+                              className="shrink-0 rounded-xl p-1.5 text-alert-red transition-all hover:bg-red-50 dark:hover:bg-red-900/20">
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
                         {aviso && (
                           <div className={`mt-1.5 flex items-start gap-1.5 rounded-lg px-2 py-1.5 text-[10px] leading-tight ${aviso.nivel === 'bloqueado' ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400' : 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400'}`}>
                             <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
