@@ -890,16 +890,24 @@ function TabAprovacoes() {
                     </div>
                   </div>
 
-                  {esc.status === 'Enviado' && (
-                    <div className="flex items-center gap-3 border-t border-graphite-200 pt-4 dark:border-border-dark">
-                      <button onClick={() => handleAprovar(esc.id)} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-green-600 to-green-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-green-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
-                        <Check className="h-4 w-4" /> Aprovar Tudo
+                  <div className="flex items-center gap-3 border-t border-graphite-200 pt-4 dark:border-border-dark">
+                    {esc.status === 'Enviado' && (
+                      <>
+                        <button onClick={() => handleAprovar(esc.id)} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-green-600 to-green-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-green-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
+                          <Check className="h-4 w-4" /> Aprovar Tudo
+                        </button>
+                        <button onClick={() => setRejectModal({ id: esc.id, obs: '' })} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-red-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
+                          <XCircle className="h-4 w-4" /> Rejeitar Tudo
+                        </button>
+                      </>
+                    )}
+                    {(user?.role === 'desenvolvedor' || user?.role === 'admin') && (
+                      <button onClick={async () => { if (confirm('Excluir esta escala?')) { await excluirEscala(esc.id); loadData(); } }}
+                        className="flex items-center gap-2 rounded-xl border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700 transition-all hover:bg-red-100 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400">
+                        <Trash2 className="h-4 w-4" /> Excluir
                       </button>
-                      <button onClick={() => setRejectModal({ id: esc.id, obs: '' })} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-red-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
-                        <XCircle className="h-4 w-4" /> Rejeitar Tudo
-                      </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               )}
             </div>
