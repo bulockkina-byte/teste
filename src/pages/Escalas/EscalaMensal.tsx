@@ -309,27 +309,34 @@ export function EscalaMensal() {
         }
       }
 
+      const mesInicio = new Date(ano, mes - 1, 1);
+      const mesFim = new Date(ano, mes, 0);
+
       const emGozoIds = new Set(
         gozos
           .filter(g => {
-            if (g.funcionarioId && (g.status === 'Em Gozo' || g.status === 'Programadas' || g.status === 'Gozadas')) {
-              const gInicio = new Date(g.dataInicio + 'T00:00:00');
-              const gFim = new Date(g.dataFim + 'T00:00:00');
-              const mesInicio = new Date(ano, mes - 1, 1);
-              const mesFim = new Date(ano, mes, 0);
-              return gInicio <= mesFim && gFim >= mesInicio;
-            }
-            return false;
+            if (!g.funcionarioId || g.status === 'Gozadas') return false;
+            const gInicio = new Date(g.dataInicio + 'T00:00:00');
+            const gFim = new Date(g.dataFim + 'T00:00:00');
+            return gInicio <= mesFim && gFim >= mesInicio;
           })
           .map(g => g.funcionarioId)
       );
 
       const substitutosMap = new Map<string, { id: string; nome: string }>();
       const feristasMap = new Map<string, { id: string; nome: string }>();
+
+      for (const g of gozos) {
+        if (g.substitutoId && g.substitutoNome && emGozoIds.has(g.funcionarioId)) {
+          const b = bombeiros.find(bb => bb.id === g.substitutoId);
+          if (b) substitutosMap.set(g.funcionarioId, { id: g.substitutoId, nome: b.nomeGuerra });
+        }
+      }
+
       for (const item of items) {
         if (item.substitutoId && item.substitutoNome && emGozoIds.has(item.funcionarioId)) {
           const b = bombeiros.find(bb => bb.id === item.substitutoId);
-          if (b) substitutosMap.set(item.funcionarioId, { id: item.substitutoId, nome: item.substitutoNome });
+          if (b && !substitutosMap.has(item.funcionarioId)) substitutosMap.set(item.funcionarioId, { id: item.substitutoId, nome: item.substitutoNome });
         }
         if (item.feristaId && item.feristaNome && emGozoIds.has(item.funcionarioId)) {
           const b = bombeiros.find(bb => bb.id === item.feristaId);

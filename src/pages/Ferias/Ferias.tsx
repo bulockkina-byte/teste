@@ -569,8 +569,12 @@ function TabBombeiros() {
           {filtered.map(b => {
             const isSelected = selectedId === b.id;
             const gozos = feriasGozo.filter(g => g.funcionarioId === b.id);
-            const periodos = calcularPeriodosAquisitivos(b.dataAdmissao);
-            const temGozado = periodos.some(p => gozos.find(x => x.periodoNumero === p.numero)?.status === 'Gozadas');
+            const periodosBase = calcularPeriodosAquisitivos(b.dataAdmissao);
+            const periodos = periodosBase.map(p => {
+              const gozo = gozos.find(g => g.periodoNumero === p.numero);
+              return { ...p, gozo: gozo || null } as PeriodoView;
+            });
+            const temGozado = periodos.some(p => p.gozo?.status === 'Gozadas');
 
             return (
               <div key={b.id}>
@@ -2356,6 +2360,38 @@ function TabQuadroEfetivos() {
           const emGozo = membros.filter(m => isEmGozo(m, mesSelecionado, ano));
           const disponiveis = membros.filter(m => !isEmGozo(m, mesSelecionado, ano));
 
+          const substitutosDaEquipe: { pessoa: Bombeiro; substituindo: Bombeiro; cargo: Cargo }[] = [];
+          for (const gozo of feriasGozo) {
+            if (gozo.status === 'Gozadas' || !gozo.substitutoId) continue;
+            const func = bombeiros.find(b => b.id === gozo.funcionarioId);
+            if (!func || func.equipe !== eq) continue;
+            const sub = bombeiros.find(b => b.id === gozo.substitutoId);
+            if (!sub || sub.equipe === eq) continue;
+            const mesInicio = new Date(ano, mesSelecionado - 1, 1);
+            const mesFim = new Date(ano, mesSelecionado, 0);
+            const gInicio = new Date(gozo.dataInicio + 'T00:00:00');
+            const gFim = new Date(gozo.dataFim + 'T00:00:00');
+            if (gInicio <= mesFim && gFim >= mesInicio) {
+              substitutosDaEquipe.push({ pessoa: sub, substituindo: func, cargo: (gozo.funcaoSubstituicao || func.cargo) as Cargo });
+            }
+          }
+          for (const item of allItems) {
+            if (!item.substitutoId || item.rejeitado || item.mes !== mesSelecionado) continue;
+            const func = bombeiros.find(b => b.id === item.funcionarioId);
+            if (!func || func.equipe !== eq) continue;
+            const sub = bombeiros.find(b => b.id === item.substitutoId);
+            if (!sub || sub.equipe === eq) continue;
+            substitutosDaEquipe.push({ pessoa: sub, substituindo: func, cargo: (item.funcaoSubstituicao || func.cargo) as Cargo });
+          }
+          const disponiveisComSubstitutos = [...disponiveis, ...substitutosDaEquipe.map(s => s.pessoa).filter(p => !disponiveis.find(d => d.id === p.id))];
+          const ordenados = [...disponiveisComSubstitutos].sort((a, b) => {
+            const subA = substitutosDaEquipe.find(s => s.pessoa.id === a.id);
+            const subB = substitutosDaEquipe.find(s => s.pessoa.id === b.id);
+            const cargoA = subA ? (CARGO_PRIORITY[subA.cargo] ?? 99) : (CARGO_PRIORITY[a.cargo] ?? 99);
+            const cargoB = subB ? (CARGO_PRIORITY[subB.cargo] ?? 99) : (CARGO_PRIORITY[b.cargo] ?? 99);
+            return cargoA - cargoB;
+          });
+
           return (
             <div key={eq} className="rounded-2xl border border-graphite-200 bg-white shadow-sm dark:border-border-dark dark:bg-surface-card">
               <div className="flex items-center justify-between border-b border-graphite-200 px-4 py-3 dark:border-border-dark">
@@ -2367,7 +2403,7 @@ function TabQuadroEfetivos() {
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-bold text-green-700 dark:bg-green-900/20 dark:text-green-400">
-                    {disponiveis.length} efetivo(s)
+                    {ordenados.length} efetivo(s)
                   </span>
                   {emGozo.length > 0 && (
                     <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-[10px] font-bold text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400">
@@ -2382,27 +2418,29 @@ function TabQuadroEfetivos() {
                   <p className="py-4 text-center text-xs text-graphite-400 dark:text-graphite-500">Nenhum membro</p>
                 ) : (
                   <>
-                    {disponiveis.length > 0 && (
+                    {ordenados.length > 0 && (
                       <div className="space-y-1">
                         <p className="text-[10px] font-bold uppercase tracking-wider text-green-600 dark:text-green-400 px-1">Efetivos</p>
-                        {disponiveis.map(m => {
-                          const substituindo = getSubstituindo(m, mesSelecionado);
+                        {ordenados.map(m => {
+                          const subCross = substitutosDaEquipe.find(s => s.pessoa.id === m.id);
+                          const substituindo = subCross ? { funcionario: subCross.substituindo, cargo: subCross.cargo } : getSubstituindo(m, mesSelecionado);
                           const item = getItemSubstituicao(m, mesSelecionado);
                           const ferista = getFeristaDesignado(m, mesSelecionado);
                           const temSub = !!(item?.substitutoNome || ferista?.feristaNome);
 
                           if (substituindo) {
                             const func = substituindo.funcionario;
+                            const cargoExibido = substituindo.cargo;
                             return (
                               <div key={m.id} className="group relative rounded-xl border border-amber-300 bg-amber-50/50 px-3 py-2 transition-all dark:border-amber-700 dark:bg-amber-900/10"
-                                title={`${m.nomeGuerra} substituindo ${func.nomeGuerra} (${ABBR_CARGO[substituindo.cargo] || substituindo.cargo})`}>
+                                title={`${m.nomeGuerra} substituindo ${func.nomeGuerra} (${ABBR_CARGO[cargoExibido] || cargoExibido})`}>
                                 <div className="flex items-center gap-2.5 transition-all duration-300 group-hover:opacity-0 group-hover:scale-95">
                                   <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 text-[10px] font-bold text-white">
                                     {m.nomeGuerra.charAt(0)}
                                   </div>
                                   <div className="min-w-0 flex-1">
                                     <p className="text-xs font-bold text-graphite-900 dark:text-graphite-100 truncate">{m.nomeGuerra}</p>
-                                    <p className="text-[10px] text-graphite-500 dark:text-graphite-400">{ABBR_CARGO[substituindo.cargo] || substituindo.cargo} · Substituto</p>
+                                    <p className="text-[10px] text-graphite-500 dark:text-graphite-400">{ABBR_CARGO[cargoExibido] || cargoExibido} · Substituto</p>
                                   </div>
                                 </div>
                                 <div className="absolute inset-0 flex items-center gap-2.5 rounded-xl opacity-0 transition-all duration-300 group-hover:opacity-100 group-hover:scale-100 scale-90 bg-amber-50 dark:bg-amber-900/20 px-3 py-2">
@@ -2413,7 +2451,7 @@ function TabQuadroEfetivos() {
                                     <p className="text-xs font-bold text-red-700 dark:text-red-300 truncate">{func.nomeGuerra}</p>
                                     <div className="flex items-center gap-1 mt-0.5">
                                       <span className="rounded-full bg-red-200 px-1.5 py-0.5 text-[8px] font-bold text-red-800 dark:bg-red-800/40 dark:text-red-300">Em gozo</span>
-                                      <span className="text-[10px] text-red-600 dark:text-red-400">{ABBR_CARGO[substituindo.cargo] || substituindo.cargo}</span>
+                                      <span className="text-[10px] text-red-600 dark:text-red-400">{ABBR_CARGO[cargoExibido] || cargoExibido}</span>
                                     </div>
                                   </div>
                                 </div>
