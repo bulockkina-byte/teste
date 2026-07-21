@@ -144,7 +144,7 @@ export function BombeiroForm({ bombeiro, onSave, onClose, serverError }: Props) 
 
   useEffect(() => {
     if (!uf) { setMunicipios([]); return; }
-    if (prevUfRef.current !== uf) {
+    if (prevUfRef.current !== uf && !bombeiro) {
       setMunicipio('');
     }
     prevUfRef.current = uf;
@@ -172,6 +172,21 @@ export function BombeiroForm({ bombeiro, onSave, onClose, serverError }: Props) 
   function handleEquipeChange(novaEquipe: Equipe) {
     setEquipe(novaEquipe);
     setTurno(turnoAutoPorEquipe(novaEquipe, cargo));
+  }
+
+  function handleCepBuscar() {
+    const cepLimpo = cep.replace(/\D/g, '');
+    if (cepLimpo.length !== 8) return;
+    fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.erro) return;
+        if (d.logradouro) setEndereco(d.logradouro);
+        if (d.bairro) setComplemento(d.bairro);
+        if (d.uf) setUf(d.uf);
+        if (d.localidade) setMunicipio(d.localidade);
+      })
+      .catch(() => {});
   }
 
   function handleCargoChange(novoCargo: Cargo) {
@@ -336,7 +351,7 @@ export function BombeiroForm({ bombeiro, onSave, onClose, serverError }: Props) 
                 </div>
                 <div>
                   <label className={labelClass}>CEP *</label>
-                  <input value={cep} onChange={e => setCep(formatCEP(e.target.value))} placeholder="00000-000"
+                  <input value={cep} onChange={e => setCep(formatCEP(e.target.value))} onBlur={handleCepBuscar} placeholder="00000-000"
                     className={inputClass} />
                 </div>
                 <div>
