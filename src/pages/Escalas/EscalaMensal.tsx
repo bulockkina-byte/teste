@@ -255,11 +255,7 @@ export function EscalaMensal() {
       if (cargo === 'BA-MC') return bombeiros.filter(b => validarCursoParaFuncao(b, 'BA-MC')?.nivel !== 'bloqueado');
       if (cargo === 'BA-CE') return bombeiros.filter(b => validarCursoParaFuncao(b, 'BA-CE')?.nivel !== 'bloqueado');
       if (cargo === 'BA-LR') return bombeiros.filter(b => validarCursoParaFuncao(b, 'BA-LR')?.nivel !== 'bloqueado');
-      return bombeiros.filter(b =>
-        validarCursoParaFuncao(b, 'BA-CE')?.nivel === 'bloqueado' &&
-        validarCursoParaFuncao(b, 'BA-LR')?.nivel === 'bloqueado' &&
-        validarCursoParaFuncao(b, 'BA-MC')?.nivel === 'bloqueado'
-      );
+      return bombeiros;
     };
 
     const escolher = (arr: Bombeiro[], usado: Set<string>) => {
@@ -357,7 +353,7 @@ export function EscalaMensal() {
         if (funcao === 'BA-CE') return disponiveis.filter(b => validarCursoParaFuncao(b, 'BA-CE')?.nivel !== 'bloqueado');
         if (funcao === 'BA-LR') return disponiveis.filter(b => validarCursoParaFuncao(b, 'BA-LR')?.nivel !== 'bloqueado');
         if (funcao === 'BA-MC') return disponiveis.filter(b => validarCursoParaFuncao(b, 'BA-MC')?.nivel !== 'bloqueado');
-        return disponiveis.filter(b => validarCursoParaFuncao(b, 'BA-CE')?.nivel === 'bloqueado' && validarCursoParaFuncao(b, 'BA-LR')?.nivel === 'bloqueado' && validarCursoParaFuncao(b, 'BA-MC')?.nivel === 'bloqueado');
+        return disponiveis;
       };
 
       const escolher = (arr: Bombeiro[], usado: Set<string>) => {
