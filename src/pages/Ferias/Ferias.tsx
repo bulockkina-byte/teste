@@ -1021,11 +1021,16 @@ function TabEscalaGeral() {
   }, [escalas]);
 
   async function handleDeleteEscalaGeral(id: string) {
-    setDeleting(true);
-    await excluirEscala(id);
-    setConfirmDeleteEscala(null);
-    await loadData();
-    setDeleting(false);
+    try {
+      setDeleting(true);
+      await excluirEscala(id);
+      setConfirmDeleteEscala(null);
+      await loadData();
+    } catch (err) {
+      console.error('Erro ao excluir escala:', err);
+    } finally {
+      setDeleting(false);
+    }
   }
 
   if (loading) {
@@ -1404,12 +1409,17 @@ function TabEscalaAnual() {
 
   async function handleDeleteEscala() {
     if (!escala) return;
-    setSaving(true);
-    await excluirEscala(escala.id);
-    setEscala(null);
-    setItens([]);
-    setConfirmDelete(false);
-    setSaving(false);
+    try {
+      setSaving(true);
+      await excluirEscala(escala.id);
+      setEscala(null);
+      setItens([]);
+      setConfirmDelete(false);
+    } catch (err) {
+      console.error('Erro ao excluir escala:', err);
+    } finally {
+      setSaving(false);
+    }
   }
 
   function resetForm() {
@@ -2442,6 +2452,7 @@ function ModalCadastroFeriasManual({ onClose, onSuccess }: { onClose: () => void
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
   const [dias, setDias] = useState(30);
+  const [subTipo, setSubTipo] = useState<'mesma-equipe' | 'outras-equipes' | 'ferista'>('mesma-equipe');
   const [substitutoId, setSubstitutoId] = useState('');
   const [feristaId, setFeristaId] = useState('');
 
@@ -2473,9 +2484,15 @@ function ModalCadastroFeriasManual({ onClose, onSuccess }: { onClose: () => void
 
   const availableSubstitutes = useMemo(() => {
     if (!selectedBombeiro || !dataInicio || !dataFim) return [];
-    const teamMembers = bombeiros.filter(b => b.equipe === equipe && b.id !== selectedBombeiro.id);
-    const feristas = bombeiros.filter(b => b.equipe === 'Ferista');
-    return [...teamMembers, ...feristas].filter(p => {
+    const disponiveis = bombeiros.filter(p => {
+      if (p.id === selectedBombeiro.id) return false;
+      if (subTipo === 'mesma-equipe') {
+        if (p.equipe !== equipe) return false;
+      } else if (subTipo === 'outras-equipes') {
+        if (p.equipe === equipe || p.equipe === 'Ferista') return false;
+      } else if (subTipo === 'ferista') {
+        if (p.equipe !== 'Ferista') return false;
+      }
       const onVacation = feriasGozo.some(g => {
         if (g.funcionarioId !== p.id) return false;
         if (g.status === 'Gozadas') return false;
@@ -2487,7 +2504,8 @@ function ModalCadastroFeriasManual({ onClose, onSuccess }: { onClose: () => void
       });
       return !onVacation;
     });
-  }, [selectedBombeiro, equipe, dataInicio, dataFim, bombeiros, feriasGozo]);
+    return disponiveis;
+  }, [selectedBombeiro, equipe, dataInicio, dataFim, bombeiros, feriasGozo, subTipo]);
 
   const feristas = useMemo(
     () => bombeiros.filter(b => b.equipe === 'Ferista'),
@@ -2603,13 +2621,25 @@ function ModalCadastroFeriasManual({ onClose, onSuccess }: { onClose: () => void
             )}
 
             {selectedFuncId && selectedPeriodo && dataInicio && (
-              <div>
+              <div className="space-y-3">
                 <label className={labelCls}>Substituto</label>
+                <div className="flex gap-2">
+                  {(['mesma-equipe', 'outras-equipes', 'ferista'] as const).map(tipo => (
+                    <button key={tipo} type="button" onClick={() => { setSubTipo(tipo); setSubstitutoId(''); setFeristaId(''); }}
+                      className={`flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-all ${
+                        subTipo === tipo
+                          ? 'bg-aviation-600 text-white shadow-md'
+                          : 'border border-graphite-300 bg-white text-graphite-600 hover:bg-graphite-50 dark:border-border-dark dark:bg-surface-card dark:text-graphite-300'
+                      }`}>
+                      {tipo === 'mesma-equipe' ? 'Mesma Equipe' : tipo === 'outras-equipes' ? 'Outras Equipes' : 'Ferista'}
+                    </button>
+                  ))}
+                </div>
                 <select value={substitutoId} onChange={e => setSubstitutoId(e.target.value)} className={selectCls}>
                   <option value="" className={optionCls}>Nenhum</option>
                   {availableSubstitutes.map(m => (
                     <option key={m.id} value={m.id} className={optionCls}>
-                      {m.nomeCompleto} ({ABBR_CARGO[m.cargo] || m.cargo}){m.equipe === 'Ferista' ? ' [Ferista]' : ''}
+                      {m.nomeCompleto} ({ABBR_CARGO[m.cargo] || m.cargo}) - {m.equipe}
                     </option>
                   ))}
                 </select>
@@ -2624,7 +2654,7 @@ function ModalCadastroFeriasManual({ onClose, onSuccess }: { onClose: () => void
               </div>
             )}
 
-            {substitutoId && (
+            {substitutoId && subTipo !== 'ferista' && (
               <div>
                 <label className={labelCls}>Ferista</label>
                 <select value={feristaId} onChange={e => setFeristaId(e.target.value)} className={selectCls}>
