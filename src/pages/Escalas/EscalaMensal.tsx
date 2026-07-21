@@ -261,11 +261,14 @@ export function EscalaMensal() {
       return b;
     };
 
+    const cargoParaSlot = (slot: typeof SLOTS[0]) =>
+      slot.funcao === 'chefe' ? 'BA-CE' : slot.funcao === 'lider' ? 'BA-LR' : slot.funcao === 'ba-mc' ? 'BA-MC' : 'BA-2';
+
     const novas = SLOTS.map(slot => {
-      const cargoSlot = slot.funcao === 'chefe' ? 'BA-CE' as const : slot.funcao === 'lider' ? 'BA-LR' as const : slot.funcao === 'ba-mc' ? 'BA-MC' as const : null;
-      let b = cargoSlot ? buscar(cargoSlot) : null;
-      if (b && cargoSlot) {
-        const validacao = validarCursoParaFuncao(b, cargoSlot);
+      const cargoSlot = cargoParaSlot(slot);
+      let b = buscar(cargoSlot);
+      if (b && slot.funcao !== 'ba-2') {
+        const validacao = validarCursoParaFuncao(b, cargoSlot as 'BA-CE' | 'BA-LR' | 'BA-MC');
         if (validacao?.nivel === 'bloqueado') b = null;
       }
       if (!b) {
@@ -359,11 +362,14 @@ export function EscalaMensal() {
         return poolDisp[idx];
       };
 
+      const cargoParaSlotDisp = (slot: typeof SLOTS[0]) =>
+        slot.funcao === 'chefe' ? 'BA-CE' : slot.funcao === 'lider' ? 'BA-LR' : slot.funcao === 'ba-mc' ? 'BA-MC' : 'BA-2';
+
       const novas = SLOTS.map(slot => {
-        const cargoSlot = slot.funcao === 'chefe' ? 'BA-CE' as const : slot.funcao === 'lider' ? 'BA-LR' as const : slot.funcao === 'ba-mc' ? 'BA-MC' as const : null;
-        let b = cargoSlot ? buscarDisp(cargoSlot) : null;
-        if (b && cargoSlot) {
-          const validacao = validarCursoParaFuncao(b, cargoSlot);
+        const cargoSlot = cargoParaSlotDisp(slot);
+        let b = buscarDisp(cargoSlot);
+        if (b && slot.funcao !== 'ba-2') {
+          const validacao = validarCursoParaFuncao(b, cargoSlot as 'BA-CE' | 'BA-LR' | 'BA-MC');
           if (validacao?.nivel === 'bloqueado') b = null;
         }
         if (!b) {
