@@ -585,7 +585,6 @@ export function EscalaDiariaView() {
   const [filtroAno, setFiltroAno] = useState('');
   const [dataInicio, setDataInicio] = useState('');
   const [dataFinal, setDataFinal] = useState('');
-
   const escalasFiltradas = useMemo(() => {
     let lista = escalas;
     if (filtroEquipe) lista = lista.filter(e => e.equipe === filtroEquipe);
