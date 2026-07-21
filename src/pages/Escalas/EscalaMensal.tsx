@@ -154,7 +154,11 @@ export function EscalaMensal() {
           ].map(c => (
             <div key={c.nome} className={`flex-1 rounded border-2 ${c.cor} bg-graphite-50/30 px-2 py-0.5 print:bg-white dark:border-border-dark dark:bg-surface-card/30`}>
               <p className="text-[11px] font-bold text-graphite-600 print:text-graphite-700 uppercase">{c.nome}</p>
-              {c.itens.map((item, i) => <p key={i} className="text-[11px] font-semibold print:font-bold leading-snug text-graphite-800 print:text-graphite-900 dark:text-graphite-200">{item}</p>)}
+              {c.itens.map((item, i) => {
+                const [label, ...nomeParts] = item.split(': ');
+                const nome = nomeParts.join(': ');
+                return <p key={i} className="text-[11px] font-semibold print:font-bold leading-snug text-graphite-800 print:text-graphite-900 dark:text-graphite-200" title={nome !== '-' ? `${nome} · Função: ${label}` : ''}>{item}</p>;
+              })}
             </div>
           ))}
         </div>

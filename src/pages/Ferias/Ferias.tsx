@@ -1028,6 +1028,7 @@ function TabEscalaGeral() {
       await loadData();
     } catch (err) {
       console.error('Erro ao excluir escala:', err);
+      alert('Erro ao excluir escala: ' + (err instanceof Error ? err.message : 'Erro desconhecido'));
     } finally {
       setDeleting(false);
     }
@@ -1417,6 +1418,7 @@ function TabEscalaAnual() {
       setConfirmDelete(false);
     } catch (err) {
       console.error('Erro ao excluir escala:', err);
+      alert('Erro ao excluir escala: ' + (err instanceof Error ? err.message : 'Erro desconhecido'));
     } finally {
       setSaving(false);
     }
@@ -2354,7 +2356,7 @@ function TabQuadroEfetivos() {
                                 : 'border-green-200 bg-green-50/50 dark:border-green-800/30 dark:bg-green-900/10'
                             }`}>
                               {temSub ? (
-                                <div className="group relative">
+                                <div className="group relative" title={`${m.nomeGuerra} (${ABBR_CARGO[m.cargo] || m.cargo}) → Substituído por ${item?.substitutoNome || ferista?.feristaNome || ''}`}>
                                   <div className="flex items-center gap-2.5 transition-all duration-300 group-hover:opacity-0 group-hover:scale-95">
                                     <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 text-[10px] font-bold text-white">
                                       {item?.substitutoNome ? item.substitutoNome.charAt(0).toUpperCase() : ferista?.feristaNome?.charAt(0).toUpperCase() || 'S'}
@@ -2407,7 +2409,8 @@ function TabQuadroEfetivos() {
                         {emGozo.map(m => {
                           const gozo = isEmGozo(m, mesSelecionado, ano);
                           return (
-                            <div key={m.id} className="flex items-center gap-2.5 rounded-xl border border-yellow-200 bg-yellow-50/50 px-3 py-2 opacity-70 dark:border-yellow-800/30 dark:bg-yellow-900/10">
+                            <div key={m.id} className="flex items-center gap-2.5 rounded-xl border border-yellow-200 bg-yellow-50/50 px-3 py-2 opacity-70 dark:border-yellow-800/30 dark:bg-yellow-900/10"
+                              title={gozo?.substitutoNome ? `${m.nomeGuerra} (${ABBR_CARGO[m.cargo] || m.cargo}) em gozo · Substituído por ${gozo.substitutoNome}` : `${m.nomeGuerra} (${ABBR_CARGO[m.cargo] || m.cargo}) em gozo`}>
                               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-yellow-400 to-yellow-500 text-[10px] font-bold text-white">
                                 {m.nomeGuerra.charAt(0)}
                               </div>
