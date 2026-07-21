@@ -513,10 +513,11 @@ export function EscalaMensal() {
                     const b = p?.nomeGuerra ? bombeiros.find(bb => bb.nomeGuerra === p!.nomeGuerra) : null;
                     const cargoReq = slot.funcao === 'chefe' ? 'BA-CE' as const : slot.funcao === 'lider' ? 'BA-LR' as const : slot.funcao === 'ba-mc' ? 'BA-MC' as const : undefined;
                     const aviso = b && cargoReq ? validarCursoParaFuncao(b, cargoReq) : null;
+                    const selectedIds = new Set(pessoas.filter(p2 => p2?.id).map(p2 => p2!.id!));
                     return (
                       <div key={idx} className="rounded-xl border border-graphite-200/60 bg-white/70 p-3 dark:border-border-dark dark:bg-surface-card/70">
                         <p className="mb-1.5 text-xs font-medium text-graphite-500 dark:text-graphite-400">{slot.label} <span className="text-red-500">*</span></p>
-                        <SearchSelect value={p?.nomeGuerra || ''} equipe={equipe} cargo={slot.cargoFiltro} showCargo onChange={v => {
+                        <SearchSelect value={p?.nomeGuerra || ''} equipe={equipe} cargo={slot.cargoFiltro} showCargo disabledIds={selectedIds} onChange={v => {
                           const found = bombeiros.find(bb => bb.nomeGuerra === v);
                           const next = [...pessoas];
                           next[idx] = found ? { id: found.id, nome: found.nome, nomeGuerra: found.nomeGuerra, funcao: slot.funcao, veiculo: slot.veiculo, funcaoNoVeiculo: slot.funcaoNoVeiculo, isRadioFixo: slot.isRadioFixo } : null;
