@@ -2381,28 +2381,26 @@ function TabQuadroEfetivos() {
               const sub = bombeiros.find(b => b.id === gozo.substitutoId);
               if (sub && sub.equipe !== eq) addSub(sub, func, (gozo.funcaoSubstituicao || func.cargo) as Cargo);
             }
-            const obsParsing = gozo.observacoes || '';
-            if (obsParsing.startsWith('Ferista: ')) {
-              const rest = obsParsing.substring(9);
-              const cobreIdx = rest.lastIndexOf('(cobre: ');
-              let ferN = '', cobreN = '';
-              if (cobreIdx !== -1) {
-                ferN = rest.substring(0, cobreIdx).trim();
-                cobreN = rest.substring(cobreIdx + 8, rest.lastIndexOf(')')).trim();
-              } else {
-                ferN = rest.trim();
-              }
-              const fer = bombeiros.find(b => b.nomeCompleto === ferN || b.nomeGuerra === ferN);
-              if (fer && cobreN) {
-                const coberto = bombeiros.find(b => b.nomeGuerra === cobreN || b.nomeCompleto === cobreN);
-                if (coberto) {
-                  const cargoFer = (gozo.funcaoSubstituicao || coberto.cargo) as Cargo;
-                  if (coberto.equipe === eq) addSub(fer, coberto, cargoFer);
-                }
-              } else if (fer) {
-                if (func.equipe === eq) addSub(fer, func, (gozo.funcaoSubstituicao || func.cargo) as Cargo);
-              }
+          }
+
+          for (const gozo of feriasGozo) {
+            if (gozo.status === 'Gozadas') continue;
+            const obs = gozo.observacoes || '';
+            if (!obs.startsWith('Ferista: ')) continue;
+            const rest = obs.substring(9);
+            const cobreIdx = rest.lastIndexOf('(cobre: ');
+            let ferN = '', cobreN = '';
+            if (cobreIdx !== -1) {
+              ferN = rest.substring(0, cobreIdx).trim();
+              cobreN = rest.substring(cobreIdx + 8, rest.lastIndexOf(')')).trim();
+            } else {
+              ferN = rest.trim();
             }
+            if (!cobreN) continue;
+            const coberto = bombeiros.find(b => b.nomeGuerra === cobreN || b.nomeCompleto === cobreN);
+            if (!coberto || coberto.equipe !== eq) continue;
+            const fer = bombeiros.find(b => b.nomeCompleto === ferN || b.nomeGuerra === ferN);
+            if (fer) addSub(fer, coberto, (gozo.funcaoSubstituicao || coberto.cargo) as Cargo);
           }
 
           for (const item of allItems) {
