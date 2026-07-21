@@ -2381,6 +2381,11 @@ function TabQuadroEfetivos() {
               const sub = bombeiros.find(b => b.id === gozo.substitutoId);
               if (sub && sub.equipe !== eq) addSub(sub, func, (gozo.funcaoSubstituicao || func.cargo) as Cargo);
             }
+            const feristaNome = (gozo.observacoes || '').match(/Ferista:\s*(.+)/)?.[1];
+            if (feristaNome) {
+              const fer = bombeiros.find(b => b.nomeCompleto === feristaNome || b.nomeGuerra === feristaNome);
+              if (fer) addSub(fer, func, (gozo.funcaoSubstituicao || func.cargo) as Cargo);
+            }
           }
 
           for (const item of allItems) {
