@@ -2494,7 +2494,7 @@ function TabQuadroEfetivos() {
                                   <div className="min-w-0 flex-1">
                                     <p className="text-xs font-bold text-red-700 dark:text-red-300 truncate">{func.nomeGuerra}</p>
                                     <div className="flex items-center gap-1 mt-0.5">
-                                      <span className="rounded-full bg-red-200 px-1.5 py-0.5 text-[8px] font-bold text-red-800 dark:bg-red-800/40 dark:text-red-300">Em gozo</span>
+                                      <span className="rounded-full bg-red-200 px-1.5 py-0.5 text-[8px] font-bold text-red-800 dark:bg-red-800/40 dark:text-red-300">{feriasGozo.some(g => g.funcionarioId === func.id && g.status !== 'Gozadas') ? 'Em gozo' : 'Substituindo'}</span>
                                       <span className="text-[10px] text-red-600 dark:text-red-400">{ABBR_CARGO[cargoExibido] || cargoExibido}</span>
                                     </div>
                                   </div>
