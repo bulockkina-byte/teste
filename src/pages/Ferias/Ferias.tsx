@@ -2429,6 +2429,232 @@ function TabQuadroEfetivos() {
   );
 }
 
+// -- Modal Cadastro Ferias Manual (Admin / Gerente) ---------------------------------
+
+function ModalCadastroFeriasManual({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const { user } = useAuth();
+  const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
+  const [feriasGozo, setFeriasGozo] = useState<FeriasGozo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [selectedFuncId, setSelectedFuncId] = useState('');
+  const [selectedPeriodo, setSelectedPeriodo] = useState<number>(0);
+  const [dataInicio, setDataInicio] = useState('');
+  const [dataFim, setDataFim] = useState('');
+  const [dias, setDias] = useState(30);
+  const [substitutoId, setSubstitutoId] = useState('');
+  const [feristaId, setFeristaId] = useState('');
+
+  useEffect(() => {
+    (async () => {
+      const [b, g] = await Promise.all([listarAtivos(), listarFeriasGozo()]);
+      setBombeiros(b);
+      setFeriasGozo(g);
+      setLoading(false);
+    })();
+  }, []);
+
+  const selectedBombeiro = useMemo(
+    () => bombeiros.find(b => b.id === selectedFuncId),
+    [bombeiros, selectedFuncId],
+  );
+
+  const availablePeriodos = useMemo(() => {
+    if (!selectedBombeiro) return [];
+    const allPeriodos = calcularPeriodosAquisitivos(selectedBombeiro.dataAdmissao);
+    const gozos = feriasGozo.filter(g => g.funcionarioId === selectedBombeiro.id);
+    return allPeriodos.filter(p => {
+      if (p.status === 'Vencido') return false;
+      return !gozos.some(g => g.periodoNumero === p.numero);
+    });
+  }, [selectedBombeiro, feriasGozo]);
+
+  const equipe = selectedBombeiro?.equipe || '';
+
+  const availableSubstitutes = useMemo(() => {
+    if (!selectedBombeiro || !dataInicio || !dataFim) return [];
+    const teamMembers = bombeiros.filter(b => b.equipe === equipe && b.id !== selectedBombeiro.id);
+    const feristas = bombeiros.filter(b => b.equipe === 'Ferista');
+    return [...teamMembers, ...feristas].filter(p => {
+      const onVacation = feriasGozo.some(g => {
+        if (g.funcionarioId !== p.id) return false;
+        if (g.status === 'Gozadas') return false;
+        const gIni = new Date(g.dataInicio + 'T00:00:00');
+        const gFim = new Date(g.dataFim + 'T00:00:00');
+        const selIni = new Date(dataInicio + 'T00:00:00');
+        const selFim = new Date(dataFim + 'T00:00:00');
+        return gIni <= selFim && gFim >= selIni;
+      });
+      return !onVacation;
+    });
+  }, [selectedBombeiro, equipe, dataInicio, dataFim, bombeiros, feriasGozo]);
+
+  const feristas = useMemo(
+    () => bombeiros.filter(b => b.equipe === 'Ferista'),
+    [bombeiros],
+  );
+
+  const formSubAutoFuncao = useMemo(() => selectedBombeiro?.cargo || '', [selectedBombeiro]);
+
+  function handleDataInicioChange(value: string) {
+    setDataInicio(value);
+    if (value) {
+      const d = new Date(value);
+      d.setDate(d.getDate() + 29);
+      setDataFim(d.toISOString().split('T')[0]);
+      setDias(30);
+    }
+  }
+
+  function handleDataFimChange(value: string) {
+    setDataFim(value);
+    if (dataInicio && value) setDias(calcDias(dataInicio, value));
+  }
+
+  async function handleSave() {
+    if (!selectedBombeiro || !user || !selectedPeriodo) return;
+    setSaving(true);
+    const sub = bombeiros.find(b => b.id === substitutoId);
+    await criarFeriasGozo({
+      funcionarioId: selectedBombeiro.id,
+      funcionarioNome: selectedBombeiro.nomeCompleto,
+      equipe: equipe as Equipe,
+      periodoNumero: selectedPeriodo,
+      dataInicio,
+      dataFim,
+      dias,
+      status: 'Programadas',
+      substitutoId: substitutoId || '',
+      substitutoNome: sub?.nomeCompleto || '',
+      funcaoSubstituicao: sub ? (selectedBombeiro.cargo || '') : '',
+      observacoes: feristaId ? `Ferista: ${feristas.find(f => f.id === feristaId)?.nomeCompleto || ''}` : '',
+      modificadoPor: user.username,
+      bloqueado: true,
+    });
+    setSaving(false);
+    onSuccess();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl dark:bg-surface-elevated max-h-[90vh] overflow-y-auto">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">Cadastrar Férias Manual</h2>
+          <button onClick={onClose} className="rounded-xl p-1 text-graphite-400 hover:bg-graphite-100 dark:hover:bg-surface-hover">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-10">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-aviation-500 border-t-transparent" />
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div>
+              <label className={labelCls}>Funcionário *</label>
+              <select value={selectedFuncId} onChange={e => { setSelectedFuncId(e.target.value); setSelectedPeriodo(0); setSubstitutoId(''); setFeristaId(''); setDataInicio(''); setDataFim(''); }} className={selectCls}>
+                <option value="" className={optionCls}>Selecione o funcionário</option>
+                {bombeiros.map(b => (
+                  <option key={b.id} value={b.id} className={optionCls}>
+                    {b.nomeCompleto} ({ABBR_CARGO[b.cargo] || b.cargo}) - {b.equipe}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {selectedFuncId && (
+              <div>
+                <label className={labelCls}>Período Aquisitivo *</label>
+                {availablePeriodos.length > 0 ? (
+                  <select value={selectedPeriodo} onChange={e => setSelectedPeriodo(Number(e.target.value))} className={selectCls}>
+                    <option value={0} className={optionCls}>Selecione o período</option>
+                    {availablePeriodos.map(p => (
+                      <option key={p.numero} value={p.numero} className={optionCls}>
+                        Período {p.numero}: {fmt(p.dataInicio)} - {fmt(p.dataFim)} ({p.diasDireito} dias)
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-3 dark:border-yellow-700 dark:bg-yellow-900/20">
+                    <p className="text-xs font-semibold text-yellow-700 dark:text-yellow-300">Nenhum período disponível para este funcionário.</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelCls}>Data Início *</label>
+                <input type="date" value={dataInicio} onChange={e => handleDataInicioChange(e.target.value)} className={inputCls} />
+              </div>
+              <div>
+                <label className={labelCls}>Data Fim *</label>
+                <input type="date" value={dataFim} onChange={e => handleDataFimChange(e.target.value)} className={inputCls} />
+              </div>
+            </div>
+
+            {dataInicio && dataFim && (
+              <div className="rounded-lg bg-aviation-50 p-3 dark:bg-aviation-900/20">
+                <p className="text-sm font-semibold text-aviation-700 dark:text-aviation-300">
+                  Período: {fmt(dataInicio)} a {fmt(dataFim)} · {dias} dias
+                </p>
+              </div>
+            )}
+
+            {selectedFuncId && selectedPeriodo && dataInicio && (
+              <div>
+                <label className={labelCls}>Substituto</label>
+                <select value={substitutoId} onChange={e => setSubstitutoId(e.target.value)} className={selectCls}>
+                  <option value="" className={optionCls}>Nenhum</option>
+                  {availableSubstitutes.map(m => (
+                    <option key={m.id} value={m.id} className={optionCls}>
+                      {m.nomeCompleto} ({ABBR_CARGO[m.cargo] || m.cargo}){m.equipe === 'Ferista' ? ' [Ferista]' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {substitutoId && formSubAutoFuncao && (
+              <div className="rounded-lg bg-graphite-50 p-2 dark:bg-surface-card">
+                <p className="text-xs text-graphite-600 dark:text-graphite-400">
+                  Substituição automática: <span className="font-bold text-graphite-900 dark:text-graphite-100">{ABBR_CARGO[formSubAutoFuncao] || formSubAutoFuncao}</span> (mesma função do funcionário em gozo)
+                </p>
+              </div>
+            )}
+
+            {substitutoId && (
+              <div>
+                <label className={labelCls}>Ferista</label>
+                <select value={feristaId} onChange={e => setFeristaId(e.target.value)} className={selectCls}>
+                  <option value="" className={optionCls}>Nenhum</option>
+                  {feristas.map(m => (
+                    <option key={m.id} value={m.id} className={optionCls}>{m.nomeCompleto}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-graphite-200 dark:border-border-dark">
+              <button onClick={onClose} className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">
+                Cancelar
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={!selectedFuncId || !selectedPeriodo || !dataInicio || !dataFim || saving}
+                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl disabled:opacity-50 active:scale-[0.98]"
+              >
+                <Save className="h-4 w-4" /> {saving ? 'Salvando...' : 'Cadastrar Férias'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // -- Pagina Principal -------------------------------------------------------------
 
 export function Ferias() {
@@ -2437,6 +2663,7 @@ export function Ferias() {
   const [myEquipe, setMyEquipe] = useState<string | null>(null);
   const [resolving, setResolving] = useState(!canManage);
   const [tab, setTab] = useState<string>('');
+  const [showCadastroManual, setShowCadastroManual] = useState(false);
 
   useEffect(() => {
     if (canManage) { setResolving(false); return; }
@@ -2486,7 +2713,15 @@ export function Ferias() {
 
       <DashboardFerias myEquipe={myEquipe} />
 
-      <div className="mt-6 mb-6 flex flex-wrap gap-2">
+      <div className="mt-6 mb-6 flex flex-wrap items-center gap-2">
+        {canManage && (
+          <button
+            onClick={() => setShowCadastroManual(true)}
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-500/20 transition-all hover:shadow-xl active:scale-[0.98]"
+          >
+            <Plus className="h-4 w-4" /> Cadastrar Férias Manual
+          </button>
+        )}
         {tabs.map(t => (
           <button
             key={t.key}
@@ -2510,6 +2745,13 @@ export function Ferias() {
       {tab === 'feristas' && <TabEscalaFeristas />}
       {tab === 'equipe' && <TabMinhaEquipe />}
       {tab === 'efetivos' && <TabQuadroEfetivos />}
+
+      {showCadastroManual && (
+        <ModalCadastroFeriasManual
+          onClose={() => setShowCadastroManual(false)}
+          onSuccess={() => { setShowCadastroManual(false); }}
+        />
+      )}
     </PageContainer>
   );
 }
