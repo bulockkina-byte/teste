@@ -148,6 +148,18 @@ function itemToRow(data: Partial<EscalaFeriasItem>): Record<string, unknown> {
 
 // ── Ferias Gozo CRUD ─────────────────────────────────────────────────
 
+function gozoComStatusCorrigido(g: FeriasGozo): FeriasGozo {
+  if (!g.dataFim) return g;
+  const hoje = new Date().toISOString().split('T')[0];
+  if (g.dataFim < hoje && g.status !== 'Gozadas') {
+    return { ...g, status: 'Gozadas' };
+  }
+  if (g.dataInicio <= hoje && hoje <= g.dataFim && g.status !== 'Gozadas') {
+    return { ...g, status: 'Em Gozo' };
+  }
+  return g;
+}
+
 export async function listarFeriasGozo(): Promise<FeriasGozo[]> {
   const db = getDb();
   const { data, error } = await db
@@ -155,7 +167,7 @@ export async function listarFeriasGozo(): Promise<FeriasGozo[]> {
     .select('*')
     .order('created_at', { ascending: false });
   if (error) handleSupabaseError(error);
-  return (data || []).map(rowToGozo);
+  return (data || []).map(rowToGozo).map(gozoComStatusCorrigido);
 }
 
 export async function feriasPorFuncionario(funcionarioId: string): Promise<FeriasGozo[]> {
@@ -166,7 +178,7 @@ export async function feriasPorFuncionario(funcionarioId: string): Promise<Feria
     .eq('funcionario_id', funcionarioId)
     .order('data_inicio', { ascending: true });
   if (error) handleSupabaseError(error);
-  return (data || []).map(rowToGozo);
+  return (data || []).map(rowToGozo).map(gozoComStatusCorrigido);
 }
 
 export async function criarFeriasGozo(
