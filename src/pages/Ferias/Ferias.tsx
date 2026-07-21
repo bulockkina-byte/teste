@@ -2403,13 +2403,13 @@ function TabQuadroEfetivos() {
             if (!fer) continue;
             if (cobreN) {
               const coberto = bombeiros.find(b => b.nomeGuerra === cobreN || b.nomeCompleto === cobreN);
-              if (coberto && coberto.equipe === eq) addSub(fer, coberto, (gozo.funcaoSubstituicao || coberto.cargo) as Cargo);
+              if (coberto && coberto.equipe === eq) addSub(fer, coberto, coberto.cargo as Cargo);
             } else {
               const func = bombeiros.find(b => b.id === gozo.funcionarioId);
               if (func && func.equipe === eq) {
                 const subB = gozo.substitutoId ? bombeiros.find(bb => bb.id === gozo.substitutoId) : null;
                 const alvo = subB || func;
-                addSub(fer, alvo, (gozo.funcaoSubstituicao || alvo.cargo) as Cargo);
+                addSub(fer, alvo, alvo.cargo as Cargo);
               }
             }
           }
