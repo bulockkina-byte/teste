@@ -18,7 +18,7 @@ import type {
 } from '../../types/ferias';
 import type { Bombeiro, Cargo, Equipe } from '../../types/bombeiro';
 import {
-  listarFeriasGozo, criarFeriasGozo,
+  listarFeriasGozo, criarFeriasGozo, excluirFeriasGozo,
   listarEscalas, obterEscala, criarEscala,
   excluirEscala, enviarEscala, aprovarEscala, aprovarEscalaEGerarGozos, rejeitarEscala,
   listarItensEscala, criarItemEscala, atualizarItemEscala,
@@ -361,10 +361,11 @@ function DashboardFerias({ myEquipe }: { myEquipe?: string | null }) {
 // -- PeriodoCard -----------------------------------------------------------------
 
 function PeriodoCard({
-  periodo, onSave, saving,
+  periodo, onSave, onDelete, saving,
 }: {
   periodo: PeriodoView;
   onSave: (p: PeriodoAquisitivo, dIni: string, dFim: string) => Promise<void>;
+  onDelete?: (gozoId: string) => Promise<void>;
   saving: boolean;
 }) {
   const [editing, setEditing] = useState(false);
@@ -404,17 +405,28 @@ function PeriodoCard({
 
       {periodo.gozo && (
         <div className="mt-3 rounded-lg border border-aviation-200 bg-aviation-50 p-3 dark:border-aviation-800 dark:bg-aviation-900/20">
-          <p className="text-xs font-semibold text-aviation-700 dark:text-aviation-300">
-            Gozo: {fmt(periodo.gozo.dataInicio)} - {fmt(periodo.gozo.dataFim)} ({periodo.gozo.dias} dias)
-          </p>
-          {periodo.gozo.substitutoNome && (
-            <p className="text-xs text-graphite-600 dark:text-graphite-400">
-              Substituto: {periodo.gozo.substitutoNome}{periodo.gozo.funcaoSubstituicao ? ` (${periodo.gozo.funcaoSubstituicao})` : ''}
-            </p>
-          )}
-          <p className="text-[10px] text-graphite-400 dark:text-graphite-500">
-            Modificado por: {periodo.gozo.modificadoPor}{periodo.gozo.bloqueado ? ' · Bloqueado' : ''}
-          </p>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-aviation-700 dark:text-aviation-300">
+                Gozo: {fmt(periodo.gozo.dataInicio)} - {fmt(periodo.gozo.dataFim)} ({periodo.gozo.dias} dias)
+              </p>
+              {periodo.gozo.substitutoNome && (
+                <p className="text-xs text-graphite-600 dark:text-graphite-400">
+                  Substituto: {periodo.gozo.substitutoNome}{periodo.gozo.funcaoSubstituicao ? ` (${periodo.gozo.funcaoSubstituicao})` : ''}
+                </p>
+              )}
+              <p className="text-[10px] text-graphite-400 dark:text-graphite-500">
+                Modificado por: {periodo.gozo.modificadoPor}{periodo.gozo.bloqueado ? ' · Bloqueado' : ''}
+              </p>
+            </div>
+            {onDelete && (
+              <button onClick={() => onDelete(periodo.gozo!.id)}
+                className="shrink-0 rounded-xl p-1.5 text-alert-red transition-all hover:bg-red-50 dark:hover:bg-red-900/20"
+                title="Excluir férias">
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -617,7 +629,7 @@ function TabBombeiros() {
                     ) : (
                       <div className="space-y-3">
                         {selectedPeriodos.map(p => (
-                          <PeriodoCard key={p.numero} periodo={p} onSave={handleSaveGozo} saving={saving} />
+                          <PeriodoCard key={p.numero} periodo={p} onSave={handleSaveGozo} onDelete={async (gozoId) => { await excluirFeriasGozo(gozoId); loadData(); }} saving={saving} />
                         ))}
                       </div>
                     )}
@@ -2196,7 +2208,7 @@ function TabEscalaFeristas() {
                     ) : (
                       <div className="space-y-3">
                         {periodos.map(p => (
-                          <PeriodoCard key={p.numero} periodo={p} onSave={(periodo, dIni, dFim) => handleSaveGozo(periodo, dIni, dFim, f)} saving={saving} />
+                          <PeriodoCard key={p.numero} periodo={p} onSave={(periodo, dIni, dFim) => handleSaveGozo(periodo, dIni, dFim, f)} onDelete={async (gozoId) => { if (confirm('Excluir estas férias?')) { await excluirFeriasGozo(gozoId); carregar(); } }} saving={saving} />
                         ))}
                       </div>
                     )}
@@ -2268,6 +2280,15 @@ function TabQuadroEfetivos() {
     return allItems.find(i =>
       i.funcionarioId === b.id && i.mes === mes && !i.rejeitado && i.substitutoId
     ) || null;
+  }
+
+  function getSubstituindo(b: Bombeiro, mes: number): { funcionario: Bombeiro; cargo: Cargo } | null {
+    const item = allItems.find(i =>
+      i.substitutoId === b.id && i.mes === mes && !i.rejeitado
+    );
+    if (!item) return null;
+    const func = bombeiros.find(bb => bb.id === item.funcionarioId);
+    return func ? { funcionario: func, cargo: (item.funcaoSubstituicao || func.cargo) as Cargo } : null;
   }
 
   function getFeristaDesignado(b: Bombeiro, mes: number): EscalaFeriasItem | null {
@@ -2346,9 +2367,41 @@ function TabQuadroEfetivos() {
                       <div className="space-y-1">
                         <p className="text-[10px] font-bold uppercase tracking-wider text-green-600 dark:text-green-400 px-1">Efetivos</p>
                         {disponiveis.map(m => {
+                          const substituindo = getSubstituindo(m, mesSelecionado);
                           const item = getItemSubstituicao(m, mesSelecionado);
                           const ferista = getFeristaDesignado(m, mesSelecionado);
                           const temSub = !!(item?.substitutoNome || ferista?.feristaNome);
+
+                          if (substituindo) {
+                            const func = substituindo.funcionario;
+                            return (
+                              <div key={m.id} className="group relative rounded-xl border border-amber-300 bg-amber-50/50 px-3 py-2 transition-all dark:border-amber-700 dark:bg-amber-900/10"
+                                title={`${m.nomeGuerra} substituindo ${func.nomeGuerra} (${ABBR_CARGO[substituindo.cargo] || substituindo.cargo})`}>
+                                <div className="flex items-center gap-2.5 transition-all duration-300 group-hover:opacity-0 group-hover:scale-95">
+                                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 text-[10px] font-bold text-white">
+                                    {m.nomeGuerra.charAt(0)}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-xs font-bold text-graphite-900 dark:text-graphite-100 truncate">{m.nomeGuerra}</p>
+                                    <p className="text-[10px] text-graphite-500 dark:text-graphite-400">{ABBR_CARGO[substituindo.cargo] || substituindo.cargo} · Substituto</p>
+                                  </div>
+                                </div>
+                                <div className="absolute inset-0 flex items-center gap-2.5 rounded-xl opacity-0 transition-all duration-300 group-hover:opacity-100 group-hover:scale-100 scale-90 bg-amber-50 dark:bg-amber-900/20 px-3 py-2">
+                                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-red-500 to-red-600 text-xs font-bold text-white shadow-md shadow-red-500/30">
+                                    {func.nomeGuerra.charAt(0)}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-xs font-bold text-red-700 dark:text-red-300 truncate">{func.nomeGuerra}</p>
+                                    <div className="flex items-center gap-1 mt-0.5">
+                                      <span className="rounded-full bg-red-200 px-1.5 py-0.5 text-[8px] font-bold text-red-800 dark:bg-red-800/40 dark:text-red-300">Em gozo</span>
+                                      <span className="text-[10px] text-red-600 dark:text-red-400">{ABBR_CARGO[substituindo.cargo] || substituindo.cargo}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }
+
                           return (
                             <div key={m.id} className={`group relative rounded-xl border px-3 py-2 transition-all ${
                               temSub
@@ -2356,7 +2409,7 @@ function TabQuadroEfetivos() {
                                 : 'border-green-200 bg-green-50/50 dark:border-green-800/30 dark:bg-green-900/10'
                             }`}>
                               {temSub ? (
-                                <div className="group relative" title={`${m.nomeGuerra} (${ABBR_CARGO[m.cargo] || m.cargo}) → Substituído por ${item?.substitutoNome || ferista?.feristaNome || ''}`}>
+                                <div className="group relative" title={`${m.nomeGuerra} · Substituído por ${item?.substitutoNome || ferista?.feristaNome || ''}`}>
                                   <div className="flex items-center gap-2.5 transition-all duration-300 group-hover:opacity-0 group-hover:scale-95">
                                     <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 text-[10px] font-bold text-white">
                                       {item?.substitutoNome ? item.substitutoNome.charAt(0).toUpperCase() : ferista?.feristaNome?.charAt(0).toUpperCase() || 'S'}
