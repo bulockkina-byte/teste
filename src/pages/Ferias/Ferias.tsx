@@ -37,7 +37,7 @@ const inputCls =
 
 const labelCls = 'block mb-1.5 text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400';
 
-const EQUIPES: Equipe[] = ['Alfa', 'Bravo', 'Charlie', 'Delta', 'Feirista'];
+const EQUIPES: Equipe[] = ['Alfa', 'Bravo', 'Charlie', 'Delta', 'Ferista'];
 
 const PERIODO_STATUS_COLORS: Record<string, string> = {
   'Nao Adquirido': 'bg-graphite-100 text-graphite-600 dark:bg-graphite-700 dark:text-graphite-300',
@@ -541,7 +541,7 @@ function TabBombeiros() {
         <select value={filterEquipe} onChange={e => setFilterEquipe(e.target.value)}
           className="rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm dark:border-border-dark dark:bg-surface-card dark:text-graphite-100">
           <option value="" className={optionCls}>Todas as Equipes</option>
-          {['Alfa','Bravo','Charlie','Delta','Feirista','Embaixador'].map(eq => (
+          {['Alfa','Bravo','Charlie','Delta','Ferista','Embaixador'].map(eq => (
             <option key={eq} value={eq} className={optionCls}>{eq}</option>
           ))}
         </select>
@@ -643,7 +643,7 @@ function TabAprovacoes() {
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
   const [loading, setLoading] = useState(true);
   const [rejectModal, setRejectModal] = useState<{ id: string; obs: string } | null>(null);
-  const [itemRejectModal, setItemRejectModal] = useState<{ itemId: string; tipo: 'pessoa' | 'periodo' | 'substituto' | 'feirista' | 'geral'; obs: string } | null>(null);
+  const [itemRejectModal, setItemRejectModal] = useState<{ itemId: string; tipo: 'pessoa' | 'periodo' | 'substituto' | 'ferista' | 'geral'; obs: string } | null>(null);
 
   useEffect(() => { loadData(); }, []);
 
@@ -709,7 +709,7 @@ function TabAprovacoes() {
       case 'pessoa': return 'Rejeitar pessoa';
       case 'periodo': return 'Rejeitar período';
       case 'substituto': return 'Rejeitar substituto';
-      case 'feirista': return 'Rejeitar feirista';
+      case 'ferista': return 'Rejeitar ferista';
       default: return 'Rejeitar item';
     }
   }
@@ -849,7 +849,7 @@ function TabAprovacoes() {
                         </div>
                       )}
 
-                      {(item.substitutoNome || item.feiristaNome) && !item.rejeitado && (
+                      {(item.substitutoNome || item.feristaNome) && !item.rejeitado && (
                         <div className="mt-2 flex flex-wrap gap-2">
                           {item.substitutoNome && (
                             <span className="inline-flex items-center gap-1 rounded-full bg-aviation-100 px-2 py-0.5 text-[10px] font-semibold text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-300">
@@ -857,9 +857,9 @@ function TabAprovacoes() {
                               {item.funcaoSubstituicao ? ` (${ABBR_CARGO[item.funcaoSubstituicao as Cargo] || item.funcaoSubstituicao})` : ''}
                             </span>
                           )}
-                          {item.feiristaNome && (
+                          {item.feristaNome && (
                             <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
-                              <User className="h-3 w-3" /> Feirista: {item.feiristaNome}
+                              <User className="h-3 w-3" /> Ferista: {item.feristaNome}
                             </span>
                           )}
                         </div>
@@ -942,7 +942,7 @@ function TabAprovacoes() {
                   { tipo: 'pessoa' as const, label: 'Pessoa', desc: 'Rejeitar apenas esta pessoa neste período' },
                   { tipo: 'periodo' as const, label: 'Período', desc: 'Rejeitar este período de férias' },
                   { tipo: 'substituto' as const, label: 'Substituto', desc: 'Rejeitar o substituto indicado' },
-                  { tipo: 'feirista' as const, label: 'Feirista', desc: 'Rejeitar o feirista indicado' },
+                  { tipo: 'ferista' as const, label: 'Ferista', desc: 'Rejeitar o ferista indicado' },
                 ] as const).map(opt => (
                   <button key={opt.tipo} onClick={() => setItemRejectModal(m => m ? { ...m, tipo: opt.tipo } : null)}
                     className={`rounded-xl border px-3 py-2 text-left transition-all ${itemRejectModal.tipo === opt.tipo ? 'border-red-400 bg-red-50 dark:border-red-600 dark:bg-red-900/20' : 'border-graphite-300 bg-white hover:border-graphite-400 dark:border-border-dark dark:bg-surface-card'}`}>
@@ -1155,7 +1155,7 @@ function TabEscalaGeral() {
                               </div>
                             </div>
                           </div>
-                          {(item.substitutoNome || item.feiristaNome) && (
+                          {(item.substitutoNome || item.feristaNome) && (
                             <div className="mt-2 flex flex-wrap gap-2">
                               {item.substitutoNome && (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-aviation-100 px-2 py-0.5 text-[10px] font-semibold text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-300">
@@ -1163,9 +1163,9 @@ function TabEscalaGeral() {
                                   {item.funcaoSubstituicao ? ` (${ABBR_CARGO[item.funcaoSubstituicao as Cargo] || item.funcaoSubstituicao})` : ''}
                                 </span>
                               )}
-                              {item.feiristaNome && (
+                              {item.feristaNome && (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
-                                  <User className="h-3 w-3" /> Feirista: {item.feiristaNome}
+                                  <User className="h-3 w-3" /> Ferista: {item.feristaNome}
                                 </span>
                               )}
                             </div>
@@ -1222,7 +1222,7 @@ function TabEscalaAnual() {
   const [formDias, setFormDias] = useState<number>(30);
   const [formDataInicio, setFormDataInicio] = useState('');
   const [formSubId, setFormSubId] = useState('');
-  const [formFeirista, setFormFeirista] = useState('');
+  const [formFerista, setFormFerista] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const activeEquipe = isAdmin ? (selectedEquipe || '') : (myBombeiro?.equipe || '');
@@ -1232,8 +1232,8 @@ function TabEscalaAnual() {
     [bombeiros, activeEquipe],
   );
 
-  const feiristas = useMemo(
-    () => bombeiros.filter(b => b.equipe === 'Feirista'),
+  const feristas = useMemo(
+    () => bombeiros.filter(b => b.equipe === 'Ferista'),
     [bombeiros],
   );
 
@@ -1250,17 +1250,17 @@ function TabEscalaAnual() {
     });
   }, [formFuncId, bombeiros, feriasGozo]);
 
-  const feiristaConflict = useMemo(() => {
-    if (!formFeirista || !escala) return null;
-    const f = feiristas.find(x => x.id === formFeirista);
+  const feristaConflict = useMemo(() => {
+    if (!formFerista || !escala) return null;
+    const f = feristas.find(x => x.id === formFerista);
     if (!f) return null;
     for (const item of itens) {
-      if (item.feiristaId === formFeirista && item.escalaId !== escala.id) {
+      if (item.feristaId === formFerista && item.escalaId !== escala.id) {
         return { equipe: '', nome: f.nomeCompleto };
       }
     }
     return null;
-  }, [formFeirista, itens, escala, feiristas]);
+  }, [formFerista, itens, escala, feristas]);
 
   const formSubAutoFuncao = useMemo(() => {
     if (!formSubId || !formFuncId) return '';
@@ -1268,7 +1268,7 @@ function TabEscalaAnual() {
     return func?.cargo || '';
   }, [formSubId, formFuncId, bombeiros]);
 
-  const equipes: Equipe[] = ['Alfa', 'Bravo', 'Charlie', 'Delta', 'Feirista'];
+  const equipes: Equipe[] = ['Alfa', 'Bravo', 'Charlie', 'Delta', 'Ferista'];
 
   useEffect(() => {
     (async () => {
@@ -1325,7 +1325,7 @@ function TabEscalaAnual() {
     if (!escala || !user) return;
     const member = teamMembers.find(b => b.id === formFuncId);
     const sub = teamMembers.find(b => b.id === formSubId);
-    const feirista = feiristas.find(b => b.id === formFeirista);
+    const ferista = feristas.find(b => b.id === formFerista);
 
     const dataFim = new Date(formDataInicio);
     dataFim.setDate(dataFim.getDate() + formDias - 1);
@@ -1342,8 +1342,8 @@ function TabEscalaAnual() {
       substitutoId: formSubId,
       substitutoNome: sub?.nomeCompleto || '',
       funcaoSubstituicao: sub ? (member?.cargo || 'BA-2') : '',
-      feiristaId: formFeirista,
-      feiristaNome: feirista?.nomeCompleto || '',
+      feristaId: formFerista,
+      feristaNome: ferista?.nomeCompleto || '',
       periodoNumero: formPeriodo,
     };
 
@@ -1398,7 +1398,7 @@ function TabEscalaAnual() {
     setFormDias(30);
     setFormDataInicio('');
     setFormSubId('');
-    setFormFeirista('');
+    setFormFerista('');
   }
 
   function startEditMonth(mes: number) {
@@ -1415,7 +1415,7 @@ function TabEscalaAnual() {
       setFormDias(existing.dias || 30);
       setFormDataInicio(existing.dataInicio || monthStart(ano, mes));
       setFormSubId(existing.substitutoId);
-      setFormFeirista(existing.feiristaId || '');
+      setFormFerista(existing.feristaId || '');
     } else {
       resetForm();
     }
@@ -1456,8 +1456,8 @@ function TabEscalaAnual() {
   }
 
   const canEditBase = escala?.status === 'Rascunho' || escala?.status === 'Rejeitado';
-  const isFeiristaTeam = activeEquipe === 'Feirista';
-  const canEdit = canEditBase && (!isFeiristaTeam || isAdmin);
+  const isFeristaTeam = activeEquipe === 'Ferista';
+  const canEdit = canEditBase && (!isFeristaTeam || isAdmin);
   const canDelete = effectiveRole === 'desenvolvedor' || effectiveRole === 'admin';
   const canDeleteItem = isAdmin;
   const canSend = escala?.status === 'Rascunho' || escala?.status === 'Rejeitado';
@@ -1500,13 +1500,13 @@ function TabEscalaAnual() {
         </div>
       )}
 
-      {isFeiristaTeam && !isAdmin && (
+      {isFeristaTeam && !isAdmin && (
         <div className="mb-6 rounded-xl border border-orange-300 bg-orange-50 p-4 dark:border-orange-700 dark:bg-orange-900/20">
           <div className="flex items-center gap-2 mb-1">
             <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
             <span className="text-sm font-bold text-orange-700 dark:text-orange-300">Restricao de Acesso</span>
           </div>
-          <p className="text-sm text-orange-800 dark:text-orange-200">Somente gerente/admin pode gerenciar ferias da equipe Feirista</p>
+          <p className="text-sm text-orange-800 dark:text-orange-200">Somente gerente/admin pode gerenciar ferias da equipe Ferista</p>
         </div>
       )}
 
@@ -1581,13 +1581,13 @@ function TabEscalaAnual() {
                           <div className="flex items-center gap-2 text-xs text-graphite-500 dark:text-graphite-400">
                             <span>{fmt(item.dataInicio)} - {fmt(item.dataFim)}</span>
                           </div>
-                          {(item.substitutoNome || item.feiristaNome) && (
+                          {(item.substitutoNome || item.feristaNome) && (
                             <div className="mt-1 flex flex-wrap gap-2">
                               {item.substitutoNome && (
                                 <span className="text-aviation-600 dark:text-aviation-400">Sub: {item.substitutoNome}</span>
                               )}
-                              {item.feiristaNome && (
-                                <span className="text-orange-600 dark:text-orange-400">Feirista: {item.feiristaNome}</span>
+                              {item.feristaNome && (
+                                <span className="text-orange-600 dark:text-orange-400">Ferista: {item.feristaNome}</span>
                               )}
                             </div>
                           )}
@@ -1678,15 +1678,15 @@ function TabEscalaAnual() {
                             const func = bombeiros.find(b => b.id === formFuncId);
                             const isBA2 = func?.cargo === 'BA-2';
                             if (isBA2) {
-                              return feiristas.map(m => (
+                              return feristas.map(m => (
                                 <option key={m.id} value={m.id} className={optionCls}>
-                                  {m.nomeCompleto} ({ABBR_CARGO[m.cargo] || m.cargo}) [Feirista]
+                                  {m.nomeCompleto} ({ABBR_CARGO[m.cargo] || m.cargo}) [Ferista]
                                 </option>
                               ));
                             }
-                            return [...teamMembers.filter(m => m.id !== formFuncId), ...feiristas].map(m => (
+                            return [...teamMembers.filter(m => m.id !== formFuncId), ...feristas].map(m => (
                               <option key={m.id} value={m.id} className={optionCls}>
-                                {m.nomeCompleto} ({ABBR_CARGO[m.cargo] || m.cargo}){m.equipe === 'Feirista' ? ' [Feirista]' : ''}
+                                {m.nomeCompleto} ({ABBR_CARGO[m.cargo] || m.cargo}){m.equipe === 'Ferista' ? ' [Ferista]' : ''}
                               </option>
                             ));
                           })()}
@@ -1703,17 +1703,17 @@ function TabEscalaAnual() {
 
                       {formSubId && (
                         <div>
-                          <label className={labelCls}>Feirista</label>
-                          <select value={formFeirista} onChange={e => setFormFeirista(e.target.value)} className={selectCls}>
+                          <label className={labelCls}>Ferista</label>
+                          <select value={formFerista} onChange={e => setFormFerista(e.target.value)} className={selectCls}>
                             <option value="" className={optionCls}>Nenhum</option>
-                            {feiristas.map(m => (
+                            {feristas.map(m => (
                               <option key={m.id} value={m.id} className={optionCls}>{m.nomeCompleto}</option>
                             ))}
                           </select>
-                          {feiristaConflict && (
+                          {feristaConflict && (
                             <div className="mt-2 rounded-lg border border-yellow-300 bg-yellow-50 p-2 dark:border-yellow-700 dark:bg-yellow-900/20">
                               <p className="text-xs font-semibold text-yellow-700 dark:text-yellow-300">
-                                {feiristaConflict.nome} ja esta designado em outra equipe. O gerente decidira qual equipe permanecera. Caso nao liberem, escolha outro feirista.
+                                {feristaConflict.nome} ja esta designado em outra equipe. O gerente decidira qual equipe permanecera. Caso nao liberem, escolha outro ferista.
                               </p>
                             </div>
                           )}
@@ -1992,10 +1992,10 @@ function TabMinhaEquipe() {
                                   {item.funcaoSubstituicao ? ` (${ABBR_CARGO[item.funcaoSubstituicao] || item.funcaoSubstituicao})` : ''}
                                 </p>
                               )}
-                              {item.feiristaNome && (
+                              {item.feristaNome && (
                                 <p className="text-[10px] text-orange-600 dark:text-orange-400 flex items-center gap-1">
                                   <User className="h-2.5 w-2.5" />
-                                  Feirista: {item.feiristaNome}
+                                  Ferista: {item.feristaNome}
                                 </p>
                               )}
                             </div>
@@ -2047,9 +2047,9 @@ function TabMinhaEquipe() {
   );
 }
 
-// -- Tab Férias Feiristas (Gerente) -------------------------------------------------
+// -- Tab Férias Feristas (Gerente) -------------------------------------------------
 
-function TabEscalaFeiristas() {
+function TabEscalaFeristas() {
   const { effectiveRole, user } = useAuth();
   const canManage = effectiveRole === 'desenvolvedor' || effectiveRole === 'admin' || effectiveRole === 'gerente';
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
@@ -2059,7 +2059,7 @@ function TabEscalaFeiristas() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const feiristas = useMemo(() => bombeiros.filter(b => b.equipe === 'Feirista'), [bombeiros]);
+  const feristas = useMemo(() => bombeiros.filter(b => b.equipe === 'Ferista'), [bombeiros]);
 
   async function carregar() {
     setLoading(true);
@@ -2071,19 +2071,19 @@ function TabEscalaFeiristas() {
 
   useEffect(() => { carregar(); }, []);
 
-  async function handleSaveGozo(periodo: PeriodoAquisitivo, dataInicio: string, dataFim: string, feirista: Bombeiro) {
+  async function handleSaveGozo(periodo: PeriodoAquisitivo, dataInicio: string, dataFim: string, ferista: Bombeiro) {
     if (!user) return;
     setSaving(true);
     const dias = calcDias(dataInicio, dataFim);
     await criarFeriasGozo({
-      funcionarioId: feirista.id,
-      funcionarioNome: feirista.nomeCompleto,
-      equipe: 'Feirista',
+      funcionarioId: ferista.id,
+      funcionarioNome: ferista.nomeCompleto,
+      equipe: 'Ferista',
       periodoNumero: periodo.numero,
       dataInicio, dataFim, dias,
       status: 'Programadas',
       substitutoId: '', substitutoNome: '', funcaoSubstituicao: '',
-      observacoes: 'Férias Feirista',
+      observacoes: 'Férias Ferista',
       modificadoPor: user.username,
       bloqueado: true,
     });
@@ -2104,19 +2104,19 @@ function TabEscalaFeiristas() {
       <div className="mb-4 flex items-center gap-3">
         <User className="h-4 w-4 text-orange-600 dark:text-orange-400" />
         <span className="text-sm font-medium text-graphite-700 dark:text-graphite-300">
-          {feiristas.length} feirista(s) — Gerencie os períodos de férias
+          {feristas.length} ferista(s) — Gerencie os períodos de férias
         </span>
       </div>
 
-      {feiristas.length === 0 ? (
+      {feristas.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">
           <Users className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
-          <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhum feirista cadastrado</h3>
-          <p className="text-sm text-graphite-400">Cadastre bombeiros com equipe "Feirista" para gerenciar férias.</p>
+          <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhum ferista cadastrado</h3>
+          <p className="text-sm text-graphite-400">Cadastre bombeiros com equipe "Ferista" para gerenciar férias.</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {feiristas.map(f => {
+          {feristas.map(f => {
             const periodos = buildPeriodos(f, feriasGozo);
             const isSelected = selectedId === f.id;
             return (
@@ -2187,7 +2187,7 @@ function TabQuadroEfetivos() {
   const [mesSelecionado, setMesSelecionado] = useState(new Date().getMonth() + 1);
   const [loading, setLoading] = useState(true);
 
-  const equipes: Equipe[] = ['Alfa', 'Bravo', 'Charlie', 'Delta', 'Feirista'];
+  const equipes: Equipe[] = ['Alfa', 'Bravo', 'Charlie', 'Delta', 'Ferista'];
 
   const CARGO_PRIORITY: Record<string, number> = {
     'BA-CE': 0,
@@ -2236,9 +2236,9 @@ function TabQuadroEfetivos() {
     ) || null;
   }
 
-  function getFeiristaDesignado(b: Bombeiro, mes: number): EscalaFeriasItem | null {
+  function getFeristaDesignado(b: Bombeiro, mes: number): EscalaFeriasItem | null {
     return allItems.find(i =>
-      i.funcionarioId === b.id && i.mes === mes && !i.rejeitado && i.feiristaId
+      i.funcionarioId === b.id && i.mes === mes && !i.rejeitado && i.feristaId
     ) || null;
   }
 
@@ -2313,8 +2313,8 @@ function TabQuadroEfetivos() {
                         <p className="text-[10px] font-bold uppercase tracking-wider text-green-600 dark:text-green-400 px-1">Efetivos</p>
                         {disponiveis.map(m => {
                           const item = getItemSubstituicao(m, mesSelecionado);
-                          const feirista = getFeiristaDesignado(m, mesSelecionado);
-                          const temSub = !!(item?.substitutoNome || feirista?.feiristaNome);
+                          const ferista = getFeristaDesignado(m, mesSelecionado);
+                          const temSub = !!(item?.substitutoNome || ferista?.feristaNome);
                           return (
                             <div key={m.id} className={`group relative rounded-xl border px-3 py-2 transition-all ${
                               temSub
@@ -2325,11 +2325,11 @@ function TabQuadroEfetivos() {
                                 <div className="group relative">
                                   <div className="flex items-center gap-2.5 transition-all duration-300 group-hover:opacity-0 group-hover:scale-95">
                                     <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 text-[10px] font-bold text-white">
-                                      {item?.substitutoNome ? item.substitutoNome.charAt(0).toUpperCase() : feirista?.feiristaNome?.charAt(0).toUpperCase() || 'S'}
+                                      {item?.substitutoNome ? item.substitutoNome.charAt(0).toUpperCase() : ferista?.feristaNome?.charAt(0).toUpperCase() || 'S'}
                                     </div>
                                     <div className="min-w-0 flex-1">
                                       <p className="text-xs font-bold text-graphite-900 dark:text-graphite-100 truncate flex items-center gap-1">
-                                        {item?.substitutoNome || feirista?.feiristaNome || ''}
+                                        {item?.substitutoNome || ferista?.feristaNome || ''}
                                         <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[8px] font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">↔</span>
                                       </p>
                                       <p className="text-[10px] text-graphite-500 dark:text-graphite-400">Substituto</p>
@@ -2431,7 +2431,7 @@ export function Ferias() {
     { key: 'aprovacoes', label: 'Aprovações', icon: FileText },
     { key: 'escala-geral', label: 'Escala Geral', icon: Eye },
     { key: 'escala', label: 'Escala Anual', icon: CalendarDays },
-    { key: 'feiristas', label: 'Escala Feiristas', icon: User },
+    { key: 'feristas', label: 'Escala Feristas', icon: User },
     { key: 'equipe', label: 'Minha Equipe', icon: Users },
     { key: 'efetivos', label: 'Quadro de Efetivos', icon: BarChart3 },
   ] as const;
@@ -2485,7 +2485,7 @@ export function Ferias() {
       {tab === 'aprovacoes' && <TabAprovacoes />}
       {tab === 'escala-geral' && <TabEscalaGeral />}
       {tab === 'escala' && <TabEscalaAnual />}
-      {tab === 'feiristas' && <TabEscalaFeiristas />}
+      {tab === 'feristas' && <TabEscalaFeristas />}
       {tab === 'equipe' && <TabMinhaEquipe />}
       {tab === 'efetivos' && <TabQuadroEfetivos />}
     </PageContainer>

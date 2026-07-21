@@ -414,7 +414,7 @@ export function Trocas() {
 
   function mesmoTurnoEfetivo(p1: { turno: string; equipe: string }, p2: { turno: string; equipe: string }): boolean {
     if (p1.turno === p2.turno) return true;
-    if (p1.equipe === 'Feirista' || p2.equipe === 'Feirista') return true;
+    if (p1.equipe === 'Ferista' || p2.equipe === 'Ferista') return true;
     return false;
   }
 
@@ -1505,8 +1505,8 @@ export function Trocas() {
             const cargoSolicBadge = getCargoLabel(cargoSolicAbr);
             const turnoSol = pessoaSol?.turno || bombeirosList.find((b: any) => nomeSol.includes(b.nomeGuerra))?.turno || '';
             const turnoSolic = pessoaSolic?.turno || bombeirosList.find((b: any) => nomeSolic.includes(b.nomeGuerra))?.turno || '';
-            const isFeirista = pessoaSol?.equipe === 'Feirista' || pessoaSolic?.equipe === 'Feirista' || bombeirosList.some((b: any) => (nomeSol.includes(b.nomeGuerra) || nomeSolic.includes(b.nomeGuerra)) && b.equipe === 'Feirista');
-            const turnosDiferentes = !isFeirista && turnoSol && turnoSolic && turnoSol !== turnoSolic;
+            const isFerista = pessoaSol?.equipe === 'Ferista' || pessoaSolic?.equipe === 'Ferista' || bombeirosList.some((b: any) => (nomeSol.includes(b.nomeGuerra) || nomeSolic.includes(b.nomeGuerra)) && b.equipe === 'Ferista');
+            const turnosDiferentes = !isFerista && turnoSol && turnoSolic && turnoSol !== turnoSolic;
             const funcoesDiferentes = cargoSolAbr && cargoSolicAbr && cargoSolAbr !== cargoSolicAbr;
 
             return (

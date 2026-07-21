@@ -110,8 +110,8 @@ function rowToItem(row: Record<string, unknown>): EscalaFeriasItem {
     substitutoId: row.substituto_id as string,
     substitutoNome: row.substituto_nome as string,
     funcaoSubstituicao: row.funcao_substituicao as Cargo | '',
-    feiristaId: row.feirista_id as string,
-    feiristaNome: row.feirista_nome as string,
+    feristaId: row.ferista_id as string,
+    feristaNome: row.ferista_nome as string,
     periodoNumero: (row.periodo_numero as number) || 0,
     rejeitado: (row.rejeitado as boolean) || false,
     motivoRejeicao: (row.motivo_rejeicao as string) || '',
@@ -136,8 +136,8 @@ function itemToRow(data: Partial<EscalaFeriasItem>): Record<string, unknown> {
   if (data.substitutoId !== undefined) row.substituto_id = data.substitutoId;
   if (data.substitutoNome !== undefined) row.substituto_nome = data.substitutoNome;
   if (data.funcaoSubstituicao !== undefined) row.funcao_substituicao = data.funcaoSubstituicao;
-  if (data.feiristaId !== undefined) row.feirista_id = data.feiristaId;
-  if (data.feiristaNome !== undefined) row.feirista_nome = data.feiristaNome;
+  if (data.feristaId !== undefined) row.ferista_id = data.feristaId;
+  if (data.feristaNome !== undefined) row.ferista_nome = data.feristaNome;
   if (data.periodoNumero !== undefined) row.periodo_numero = data.periodoNumero;
   if (data.rejeitado !== undefined) row.rejeitado = data.rejeitado;
   if (data.motivoRejeicao !== undefined) row.motivo_rejeicao = data.motivoRejeicao;
@@ -329,7 +329,7 @@ export async function aprovarEscalaEGerarGozos(
       substitutoId: item.substitutoId,
       substitutoNome: item.substitutoNome,
       funcaoSubstituicao: item.funcaoSubstituicao,
-      observacoes: item.feiristaNome ? `Feirista: ${item.feiristaNome}` : '',
+      observacoes: item.feristaNome ? `Ferista: ${item.feristaNome}` : '',
       modificadoPor: aprovadoPor,
       bloqueado: false,
     });

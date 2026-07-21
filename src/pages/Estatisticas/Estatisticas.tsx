@@ -25,7 +25,7 @@ const EQUIPES = ['Alfa', 'Bravo', 'Charlie', 'Delta'] as const;
 
 const CORES = {
   Alfa: '#3b82f6', Bravo: '#f59e0b', Charlie: '#10b981', Delta: '#8b5cf6',
-  Feirista: '#ec4899', Embaixador: '#6b7280',
+  Ferista: '#ec4899', Embaixador: '#6b7280',
 };
 
 const CATEGORIA_CORES: Record<string, string> = {

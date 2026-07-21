@@ -83,8 +83,8 @@ export interface EscalaFeriasItem {
   substitutoId: string;
   substitutoNome: string;
   funcaoSubstituicao: Cargo | '';
-  feiristaId: string;
-  feiristaNome: string;
+  feristaId: string;
+  feristaNome: string;
   periodoNumero: number;
   rejeitado: boolean;
   motivoRejeicao: string;

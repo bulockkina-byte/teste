@@ -294,7 +294,7 @@ export default function Arquivo() {
           <option value="Bravo">Bravo</option>
           <option value="Charlie">Charlie</option>
           <option value="Delta">Delta</option>
-          <option value="Feirista">Feirista</option>
+          <option value="Ferista">Ferista</option>
         </select>
         <span className="text-xs text-graphite-400">{filteredFills.length} documento(s)</span>
       </div>

@@ -297,7 +297,7 @@ export function EscalaMensal() {
 
       const membrosEquipe = bombeiros.filter(b => b.equipe === equipe);
 
-      const items: { funcionarioId: string; substitutoId?: string; substitutoNome?: string; feiristaId?: string; feiristaNome?: string }[] = [];
+      const items: { funcionarioId: string; substitutoId?: string; substitutoNome?: string; feristaId?: string; feristaNome?: string }[] = [];
       for (const esc of escalasFerias) {
         const it = await listarItensEscala(esc.id);
         for (const i of it) {
@@ -321,15 +321,15 @@ export function EscalaMensal() {
       );
 
       const substitutosMap = new Map<string, { id: string; nome: string }>();
-      const feiristasMap = new Map<string, { id: string; nome: string }>();
+      const feristasMap = new Map<string, { id: string; nome: string }>();
       for (const item of items) {
         if (item.substitutoId && item.substitutoNome && emGozoIds.has(item.funcionarioId)) {
           const b = bombeiros.find(bb => bb.id === item.substitutoId);
           if (b) substitutosMap.set(item.funcionarioId, { id: item.substitutoId, nome: item.substitutoNome });
         }
-        if (item.feiristaId && item.feiristaNome && emGozoIds.has(item.funcionarioId)) {
-          const b = bombeiros.find(bb => bb.id === item.feiristaId);
-          if (b) feiristasMap.set(item.funcionarioId, { id: item.feiristaId, nome: item.feiristaNome });
+        if (item.feristaId && item.feristaNome && emGozoIds.has(item.funcionarioId)) {
+          const b = bombeiros.find(bb => bb.id === item.feristaId);
+          if (b) feristasMap.set(item.funcionarioId, { id: item.feristaId, nome: item.feristaNome });
         }
       }
 
@@ -343,7 +343,7 @@ export function EscalaMensal() {
             const b = bombeiros.find(bb => bb.id === sub.id);
             if (b && !jaIncluidos.has(b.id)) { disponiveis.push(b); jaIncluidos.add(b.id); }
           }
-          const feir = feiristasMap.get(m.id);
+          const feir = feristasMap.get(m.id);
           if (feir) {
             const b = bombeiros.find(bb => bb.id === feir.id);
             if (b && !jaIncluidos.has(b.id)) { disponiveis.push(b); jaIncluidos.add(b.id); }

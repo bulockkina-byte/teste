@@ -53,7 +53,7 @@ function fmt(d: string) {
   return new Date(d + 'T12:00:00').toLocaleDateString('pt-BR');
 }
 
-const EQUIPES = ['Alfa', 'Bravo', 'Charlie', 'Delta', 'Feirista'];
+const EQUIPES = ['Alfa', 'Bravo', 'Charlie', 'Delta', 'Ferista'];
 const PRIORIDADES = ['Baixa', 'Média', 'Alta', 'Urgente'];
 const STATUS_LIST = ['Aberta', 'Em Andamento', 'Concluída', 'Cancelada'];
 

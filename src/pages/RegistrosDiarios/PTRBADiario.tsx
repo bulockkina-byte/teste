@@ -21,7 +21,7 @@ import type { APOC } from '../../types/apoc';
 import type { PTRB, PTRBParticipante } from '../../types/ptrb';
 import { EQUIPES, SITUACOES, ASSUNTOS } from '../../types/ptrb';
 
-const EQUIPES_FILTRO = EQUIPES.filter(eq => eq !== 'Feirista');
+const EQUIPES_FILTRO = EQUIPES.filter(eq => eq !== 'Ferista');
 
 function formatDate(d: string) {
   if (!d) return '-';
@@ -42,7 +42,7 @@ function calcDuracao(inicio: string, termino: string): string {
 }
 
 function autoTurno(equipe: string) {
-  if (equipe === 'Feirista') return 'Feirista';
+  if (equipe === 'Ferista') return 'Ferista';
   return equipe === 'Alfa' || equipe === 'Charlie' ? 'Diurno' : 'Noturno';
 }
 

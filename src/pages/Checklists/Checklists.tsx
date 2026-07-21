@@ -24,7 +24,7 @@ interface Checklist {
 }
 
 const STORAGE_KEY = 'sescinc-checklists';
-const EQUIPES = ['Alfa', 'Bravo', 'Charlie', 'Delta', 'Feirista'];
+const EQUIPES = ['Alfa', 'Bravo', 'Charlie', 'Delta', 'Ferista'];
 
 function carregar(): Checklist[] {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }

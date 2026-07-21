@@ -7,8 +7,8 @@ export type Cargo =
   | 'GS'
   | 'OC';
 
-export type Equipe = 'Alfa' | 'Bravo' | 'Charlie' | 'Delta' | 'Feirista' | 'Embaixador';
-export type Turno = 'Diurno' | 'Noturno' | 'Feirista' | 'Administrativo';
+export type Equipe = 'Alfa' | 'Bravo' | 'Charlie' | 'Delta' | 'Ferista' | 'Embaixador';
+export type Turno = 'Diurno' | 'Noturno' | 'Ferista' | 'Administrativo';
 export type CatCNH = 'A' | 'B' | 'C' | 'D' | 'E' | 'AB' | 'AC' | 'AD' | 'AE';
 export type Sexo = 'M' | 'F';
 
@@ -58,8 +58,8 @@ export const CARGO_OPTIONS: { value: Cargo; label: string }[] = [
   { value: 'OC', label: 'OC - Operador de Comunicações' },
 ];
 
-export const EQUIPE_OPTIONS: Equipe[] = ['Alfa', 'Bravo', 'Charlie', 'Delta', 'Feirista', 'Embaixador'];
-export const TURNO_OPTIONS: Turno[] = ['Diurno', 'Noturno', 'Feirista', 'Administrativo'];
+export const EQUIPE_OPTIONS: Equipe[] = ['Alfa', 'Bravo', 'Charlie', 'Delta', 'Ferista', 'Embaixador'];
+export const TURNO_OPTIONS: Turno[] = ['Diurno', 'Noturno', 'Ferista', 'Administrativo'];
 export const CNH_OPTIONS: CatCNH[] = ['A', 'B', 'C', 'D', 'E', 'AB', 'AC', 'AD', 'AE'];
 export const SEXO_OPTIONS: { value: Sexo; label: string }[] = [
   { value: 'M', label: 'Masculino' },
@@ -84,7 +84,7 @@ export function turnoAutoPorEquipe(equipe: Equipe, cargo?: Cargo): Turno {
   if (cargo === 'GS' || equipe === 'Embaixador') return 'Administrativo';
   if (equipe === 'Alfa' || equipe === 'Charlie') return 'Diurno';
   if (equipe === 'Bravo' || equipe === 'Delta') return 'Noturno';
-  if (equipe === 'Feirista') return 'Feirista';
+  if (equipe === 'Ferista') return 'Ferista';
   return 'Diurno';
 }
 
@@ -92,6 +92,6 @@ export function getHorarioTrabalho(equipe: Equipe, cargo?: Cargo): string {
   if (cargo === 'GS' || equipe === 'Embaixador') return 'Administrativo';
   if (equipe === 'Alfa' || equipe === 'Charlie') return '07:00 às 19:00';
   if (equipe === 'Bravo' || equipe === 'Delta') return '19:00 às 07:00';
-  if (equipe === 'Feirista') return 'Flexível';
+  if (equipe === 'Ferista') return 'Flexível';
   return 'Diurno';
 }

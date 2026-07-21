@@ -25,7 +25,7 @@ export interface PTRB {
   fotos: string[];
 }
 
-export const EQUIPES = ['Alfa', 'Bravo', 'Charlie', 'Delta', 'Feirista'] as const;
+export const EQUIPES = ['Alfa', 'Bravo', 'Charlie', 'Delta', 'Ferista'] as const;
 export const SITUACOES = ['A', 'INSTR', 'OC', 'P'] as const;
 export const ASSUNTOS = [
   '01. FAMILIARIZAÇÃO COM AERÓDROMO',
