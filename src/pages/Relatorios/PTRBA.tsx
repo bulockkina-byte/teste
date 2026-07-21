@@ -211,20 +211,24 @@ export function PTRBA() {
 
   const ANOS = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
 
+  function carregarDados() {
+    setLoading(true);
+    Promise.all([listarPTRBs(), listarBombeiros()]).then(([p, b]) => {
+      setPtrbs(p);
+      const map = new Map<string, { nomeGuerra: string; cargo: string; equipe: string }>();
+      for (const bom of b) {
+        map.set(bom.nomeCompleto, { nomeGuerra: bom.nomeGuerra, cargo: bom.cargo, equipe: bom.equipe });
+      }
+      setBombeiros(map);
+    }).catch(() => {}).finally(() => setLoading(false));
+  }
+
+  useEffect(() => { carregarDados(); }, []);
+
   useEffect(() => {
-    async function load() {
-      try {
-        const [p, b] = await Promise.all([listarPTRBs(), listarBombeiros()]);
-        setPtrbs(p);
-        const map = new Map<string, { nomeGuerra: string; cargo: string; equipe: string }>();
-        for (const bom of b) {
-          map.set(bom.nomeCompleto, { nomeGuerra: bom.nomeGuerra, cargo: bom.cargo, equipe: bom.equipe });
-        }
-        setBombeiros(map);
-      } catch {}
-      setLoading(false);
-    }
-    load();
+    const onFocus = () => carregarDados();
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
   }, []);
 
   function applyPeriodFilter(lista: PTRB[]): PTRB[] {
