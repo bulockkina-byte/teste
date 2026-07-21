@@ -2381,10 +2381,20 @@ function TabQuadroEfetivos() {
               const sub = bombeiros.find(b => b.id === gozo.substitutoId);
               if (sub && sub.equipe !== eq) addSub(sub, func, (gozo.funcaoSubstituicao || func.cargo) as Cargo);
             }
-            const feristaNome = (gozo.observacoes || '').match(/Ferista:\s*(.+)/)?.[1];
-            if (feristaNome) {
-              const fer = bombeiros.find(b => b.nomeCompleto === feristaNome || b.nomeGuerra === feristaNome);
-              if (fer) addSub(fer, func, (gozo.funcaoSubstituicao || func.cargo) as Cargo);
+            const ferMatch = (gozo.observacoes || '').match(/Ferista:\s*(.+?)(?:\s*\(cobre:\s*(.+?)\))?\s*$/);
+            if (ferMatch) {
+              const ferNome = ferMatch[1].trim();
+              const cobreNome = ferMatch[2]?.trim();
+              const fer = bombeiros.find(b => b.nomeCompleto === ferNome || b.nomeGuerra === ferNome);
+              if (fer && cobreNome) {
+                const coberto = bombeiros.find(b => b.nomeGuerra === cobreNome || b.nomeCompleto === cobreNome);
+                if (coberto) {
+                  const cargoFer = (gozo.funcaoSubstituicao || coberto.cargo) as Cargo;
+                  if (coberto.equipe === eq || eq === 'Ferista') addSub(fer, coberto, cargoFer);
+                }
+              } else if (fer) {
+                if (func.equipe === eq) addSub(fer, func, (gozo.funcaoSubstituicao || func.cargo) as Cargo);
+              }
             }
           }
 
@@ -2676,7 +2686,7 @@ function ModalCadastroFeriasManual({ onClose, onSuccess }: { onClose: () => void
       substitutoId: substitutoId || '',
       substitutoNome: sub?.nomeCompleto || '',
       funcaoSubstituicao: sub ? (selectedBombeiro.cargo || '') : '',
-      observacoes: feristaId ? `Ferista: ${feristas.find(f => f.id === feristaId)?.nomeCompleto || ''}` : '',
+      observacoes: feristaId ? `Ferista: ${feristas.find(f => f.id === feristaId)?.nomeCompleto || ''}${sub ? ` (cobre: ${sub.nomeGuerra})` : ''}` : '',
       modificadoPor: user.username,
       bloqueado: true,
     });

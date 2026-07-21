@@ -145,7 +145,7 @@ export function EscalaMensal() {
       if (!nome || nome === '-') return nome || '-';
       const b = bombeiros.find(bb => bb.nomeGuerra === nome);
       if (!b) return nome;
-      const emFerias = feriasGozo.some(g => {
+      const feriasNoMes = feriasGozo.filter(g => {
         if (g.funcionarioId !== b.id || g.status === 'Gozadas') return false;
         const gInicio = new Date(g.dataInicio + 'T00:00:00');
         const gFim = new Date(g.dataFim + 'T00:00:00');
@@ -153,9 +153,28 @@ export function EscalaMensal() {
         const mesFim = new Date(ano, mes, 0);
         return gInicio <= mesFim && gFim >= mesIni;
       });
-      if (!emFerias) return nome;
-      const sub = feriasGozo.find(g => g.funcionarioId === b.id && g.substitutoNome && g.status !== 'Gozadas');
-      return sub?.substitutoNome || nome;
+      if (feriasNoMes.length > 0) {
+        const sub = feriasNoMes.find(g => g.substitutoNome);
+        if (sub?.substitutoNome) {
+          const subB = bombeiros.find(bb => bb.nomeGuerra === sub.substitutoNome || bb.nomeCompleto === sub.substitutoNome);
+          if (subB) return subB.nomeGuerra;
+          return sub.substitutoNome;
+        }
+      }
+      const cobreFerista = feriasGozo.find(g => {
+        if (g.status === 'Gozadas') return false;
+        const obs = g.observacoes || '';
+        const match = obs.match(/cobre:\s*(.+?)\)/);
+        return match && (match[1] === b.nomeGuerra || match[1] === b.nomeCompleto);
+      });
+      if (cobreFerista) {
+        const ferMatch = cobreFerista.observacoes?.match(/Ferista:\s*(.+?)(?:\s*\(|$)/);
+        if (ferMatch) {
+          const fer = bombeiros.find(bb => bb.nomeCompleto === ferMatch[1].trim() || bb.nomeGuerra === ferMatch[1].trim());
+          if (fer) return fer.nomeGuerra;
+        }
+      }
+      return nome;
     };
     const linha = (label: string, nome: string) => {
       const substituto = nomeSubstituto(nome);
@@ -217,15 +236,60 @@ export function EscalaMensal() {
   }
 
   async function handleGerar() {
-    const validadas = pessoas.filter(pessoaValida);
     if (!equipe) {
       notificar('Selecione uma equipe antes de gerar.');
       return;
     }
-    if (validadas.length < 10) {
-      notificar(`Preencha todas as 10 pessoas (${validadas.length}/10).`);
-      return;
+    const nenhumaPreenchida = pessoas.every(p => !p);
+    if (nenhumaPreenchida) {
+      const gozos = await listarFeriasGozo();
+      const escalasFerias = await listarEscalasFerias(equipe, ano);
+      const items: any[] = [];
+      for (const esc of escalasFerias) {
+        const it = await listarItensEscala(esc.id);
+        for (const i of it) if (i.mes === mes) items.push(i);
+      }
+      const emGozoIds = new Set(gozos.filter(g => {
+        if (!g.funcionarioId || g.status === 'Gozadas') return false;
+        const gInicio = new Date(g.dataInicio + 'T00:00:00');
+        const gFim = new Date(g.dataFim + 'T00:00:00');
+        const mesIni = new Date(ano, mes - 1, 1);
+        const mesFim = new Date(ano, mes, 0);
+        return gInicio <= mesFim && gFim >= mesIni;
+      }).map(g => g.funcionarioId));
+      const membrosEq = bombeiros.filter(b => b.equipe === equipe);
+      const subs: Bombeiro[] = [];
+      const ja = new Set<string>();
+      for (const m of membrosEq) {
+        if (emGozoIds.has(m.id)) {
+          const gozo = gozos.find(g => g.funcionarioId === m.id && g.substitutoId);
+          if (gozo) {
+            const subB = bombeiros.find(bb => bb.id === gozo.substitutoId);
+            if (subB && !ja.has(subB.id)) { subs.push(subB); ja.add(subB.id); }
+          }
+        } else {
+          if (!ja.has(m.id)) { subs.push(m); ja.add(m.id); }
+        }
+      }
+      if (subs.length < 10) {
+        notificar(`Apenas ${subs.length} efetivos disponiveis. Cadastre mais pessoas ou ajuste as ferias.`);
+        return;
+      }
+      const usado = new Set<string>();
+      const poolG = [...subs];
+      const buscarG = (cargo: string) => { const idx = poolG.findIndex(b => b.cargo === cargo && !usado.has(b.id)); if (idx === -1) return null; usado.add(poolG[idx].id); return poolG[idx]; };
+      const novas = SLOTS.map(slot => {
+        const cargoS = slot.funcao === 'chefe' ? 'BA-CE' : slot.funcao === 'lider' ? 'BA-LR' : slot.funcao === 'ba-mc' ? 'BA-MC' : 'BA-2';
+        let b = buscarG(cargoS);
+        if (b && slot.funcao !== 'ba-2') { const v = validarCursoParaFuncao(b, cargoS as 'BA-CE' | 'BA-LR' | 'BA-MC'); if (v?.nivel === 'bloqueado') b = null; }
+        if (!b) { const r = poolG.find(p => !usado.has(p.id)); if (!r) return null; usado.add(r.id); b = r; }
+        return { id: b.id, nome: b.nome, nomeGuerra: b.nomeGuerra, funcao: slot.funcao, veiculo: slot.veiculo, funcaoNoVeiculo: slot.funcaoNoVeiculo, isRadioFixo: slot.isRadioFixo } as Partial<PessoaEscala>;
+      });
+      setPessoas(novas);
+      const validadas = novas.filter(pessoaValida);
+      if (validadas.length < 10) { notificar(`Preenchimento automatico: ${validadas.length}/10 pessoas. Complete manualmente.`); return; }
     }
+    const validadas = pessoas.filter(pessoaValida);
 
     const cfg: EscalaMensalConfig = {
       id: novaConfigId(),
