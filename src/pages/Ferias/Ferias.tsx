@@ -990,6 +990,7 @@ function TabEscalaGeral() {
   const [expandedEquipe, setExpandedEquipe] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [confirmDeleteEscala, setConfirmDeleteEscala] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => { loadData(); }, [ano, mes]);
 
@@ -1020,9 +1021,11 @@ function TabEscalaGeral() {
   }, [escalas]);
 
   async function handleDeleteEscalaGeral(id: string) {
+    setDeleting(true);
     await excluirEscala(id);
     setConfirmDeleteEscala(null);
     await loadData();
+    setDeleting(false);
   }
 
   if (loading) {
@@ -1196,6 +1199,23 @@ function TabEscalaGeral() {
           );
         })}
       </div>
+
+      {confirmDeleteEscala && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl dark:bg-surface-elevated">
+            <h3 className="mb-2 text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar exclusão</h3>
+            <p className="mb-6 text-sm text-graphite-500 dark:text-graphite-400">Tem certeza que deseja excluir esta escala? Todos os itens serão removidos.</p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setConfirmDeleteEscala(null)} className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">
+                Cancelar
+              </button>
+              <button onClick={() => handleDeleteEscalaGeral(confirmDeleteEscala)} disabled={deleting} className="rounded-xl bg-gradient-to-r from-alert-red to-red-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-red-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
+                {deleting ? 'Excluindo...' : 'Excluir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1592,11 +1612,13 @@ function TabEscalaAnual() {
                             </div>
                           )}
                         </div>
-                        {canEdit && (
+                        {(canEdit || canDeleteItem) && (
                           <div className="flex items-center gap-1 shrink-0">
-                            <button onClick={() => startEditExistingItem(mesNum, item.id)} className="rounded-lg p-1.5 text-graphite-400 hover:bg-graphite-100 dark:hover:bg-surface-hover">
-                              <Pencil className="h-4 w-4" />
-                            </button>
+                            {canEdit && (
+                              <button onClick={() => startEditExistingItem(mesNum, item.id)} className="rounded-lg p-1.5 text-graphite-400 hover:bg-graphite-100 dark:hover:bg-surface-hover">
+                                <Pencil className="h-4 w-4" />
+                              </button>
+                            )}
                             {canDeleteItem && (
                               <button onClick={() => handleDeleteItem(item.id)} className="rounded-lg p-1.5 text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">
                                 <Trash2 className="h-4 w-4" />
