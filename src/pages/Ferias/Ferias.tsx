@@ -2381,16 +2381,23 @@ function TabQuadroEfetivos() {
               const sub = bombeiros.find(b => b.id === gozo.substitutoId);
               if (sub && sub.equipe !== eq) addSub(sub, func, (gozo.funcaoSubstituicao || func.cargo) as Cargo);
             }
-            const ferMatch = (gozo.observacoes || '').match(/Ferista:\s*(.+?)(?:\s*\(cobre:\s*(.+?)\))?\s*$/);
-            if (ferMatch) {
-              const ferNome = ferMatch[1].trim();
-              const cobreNome = ferMatch[2]?.trim();
-              const fer = bombeiros.find(b => b.nomeCompleto === ferNome || b.nomeGuerra === ferNome);
-              if (fer && cobreNome) {
-                const coberto = bombeiros.find(b => b.nomeGuerra === cobreNome || b.nomeCompleto === cobreNome);
+            const obsParsing = gozo.observacoes || '';
+            if (obsParsing.startsWith('Ferista: ')) {
+              const rest = obsParsing.substring(9);
+              const cobreIdx = rest.lastIndexOf('(cobre: ');
+              let ferN = '', cobreN = '';
+              if (cobreIdx !== -1) {
+                ferN = rest.substring(0, cobreIdx).trim();
+                cobreN = rest.substring(cobreIdx + 8, rest.lastIndexOf(')')).trim();
+              } else {
+                ferN = rest.trim();
+              }
+              const fer = bombeiros.find(b => b.nomeCompleto === ferN || b.nomeGuerra === ferN);
+              if (fer && cobreN) {
+                const coberto = bombeiros.find(b => b.nomeGuerra === cobreN || b.nomeCompleto === cobreN);
                 if (coberto) {
                   const cargoFer = (gozo.funcaoSubstituicao || coberto.cargo) as Cargo;
-                  if (coberto.equipe === eq || eq === 'Ferista') addSub(fer, coberto, cargoFer);
+                  if (coberto.equipe === eq) addSub(fer, coberto, cargoFer);
                 }
               } else if (fer) {
                 if (func.equipe === eq) addSub(fer, func, (gozo.funcaoSubstituicao || func.cargo) as Cargo);
