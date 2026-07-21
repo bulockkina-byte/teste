@@ -309,6 +309,15 @@ export function EscalaMensal() {
     notificar(`Escala de ${MESES[mes - 1]}/${ano} gerada!`);
   }
 
+  function substituirFerias(p: Partial<PessoaEscala> | null): Partial<PessoaEscala> | null {
+    if (!p?.id) return p;
+    const gozo = feriasGozo.find(g => g.funcionarioId === p.id && g.status !== 'Gozadas' && g.substitutoId);
+    if (!gozo) return p;
+    const sub = bombeiros.find(b => b.id === gozo.substitutoId);
+    if (!sub) return p;
+    return { id: sub.id, nome: sub.nomeCompleto, nomeGuerra: sub.nomeGuerra, funcao: p.funcao, veiculo: p.veiculo, funcaoNoVeiculo: p.funcaoNoVeiculo, isRadioFixo: p.isRadioFixo || false };
+  }
+
   function handleClone() {
     if (!completaAtual) return;
     const { config: atual } = completaAtual;
@@ -320,7 +329,7 @@ export function EscalaMensal() {
     setMes(novoMes);
     setAno(novoAno);
     setParidade(atual.paridade);
-    setPessoas(atual.pessoas.map(p => ({ ...p })));
+    setPessoas(atual.pessoas.map(p => substituirFerias(p)));
     setSelecionada(null);
     setMode('setup');
     notificar(`Configuração clonada para ${MESES[novoMes - 1]}/${novoAno}. Verifique e gere.`);
@@ -342,7 +351,7 @@ export function EscalaMensal() {
     setMes(cfg.mes);
     setAno(cfg.ano);
     setParidade(cfg.paridade);
-    setPessoas(cfg.pessoas.map(p => ({ ...p })));
+    setPessoas(cfg.pessoas.map(p => substituirFerias(p)));
     setMode('setup');
   }
 
@@ -625,7 +634,7 @@ export function EscalaMensal() {
                     return (
                       <div key={idx} className="rounded-xl border border-graphite-200/60 bg-white/70 p-3 dark:border-border-dark dark:bg-surface-card/70">
                         <p className="mb-1.5 text-xs font-medium text-graphite-500 dark:text-graphite-400">{slot.label} <span className="text-red-500">*</span></p>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 w-full">
                           <SearchSelect value={p?.nomeGuerra || ''} equipe={equipe} cargo={slot.cargoFiltro} showCargo disabledIds={selectedIds} onChange={v => {
                             const found = bombeiros.find(bb => bb.nomeGuerra === v);
                             const next = [...pessoas];
