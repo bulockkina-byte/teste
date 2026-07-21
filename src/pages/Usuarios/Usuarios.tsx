@@ -216,6 +216,7 @@ export function Usuarios() {
   }
 
   async function handleDelete(username: string) {
+    if (username === 'serra') return;
     try {
       await excluirUsuario(username);
       setConfirmDelete(null);
@@ -228,6 +229,7 @@ export function Usuarios() {
   }
 
   async function handleToggleAdmin(username: string) {
+    if (username === 'serra') return;
     try {
       const remote = await listarUsuariosDb();
       const target = remote.find(u => u.username === username);
@@ -347,13 +349,14 @@ export function Usuarios() {
                 const isTargetAdmin = data.role === 'admin';
                 const isTargetDev = data.role === 'desenvolvedor';
                 const isSelf = username === user?.username;
+                const isProtegido = username === 'serra';
 
                 const displayRole: UserRole = isTargetAdmin && !isViewerDevOrAdmin && !isSelf
                   ? (data.previousRole as UserRole) || 'sem_funcao'
                   : data.role;
 
-                const canEditThis = isTargetDev ? isViewerDevOrAdmin : (isViewerDevOrAdmin || (!isSelf && data.role !== 'admin'));
-                const canDeleteThis = isTargetDev ? isViewerDevOrAdmin : (isViewerDevOrAdmin || (!isSelf && data.role !== 'admin'));
+                const canEditThis = isProtegido ? isSelf : (isTargetDev ? isViewerDevOrAdmin : (isViewerDevOrAdmin || (!isSelf && data.role !== 'admin')));
+                const canDeleteThis = !isProtegido && (isTargetDev ? isViewerDevOrAdmin : (isViewerDevOrAdmin || (!isSelf && data.role !== 'admin')));
                 const canToggleAdminThis = isViewerDevOrAdmin && !isTargetDev && !isSelf;
 
                 return (

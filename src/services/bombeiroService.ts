@@ -73,6 +73,7 @@ function bombeiroToRow(data: Omit<Bombeiro, 'id' | 'createdAt' | 'updatedAt'>): 
     cnh_numero: data.cnhNumero,
     cnh_categoria: data.cnhCategoria,
     cnh_validade: data.cnhValidade,
+    credencial_validade: data.credencialValidade,
     foto: data.foto,
     data_desligamento: data.dataDesligamento,
     endereco: data.endereco,
