@@ -112,8 +112,8 @@ function seedAdmin() {
     changed = true;
   }
 
-  if (!users['admin']) {
-    users['admin'] = { name: 'Administrador', role: 'admin' };
+  if (users['admin']) {
+    delete users['admin'];
     changed = true;
   }
 
@@ -123,7 +123,7 @@ function seedAdmin() {
 }
 
 async function syncSeedsToSupabase(users: Record<string, StoredUser>) {
-  const seeds = ['serra', 'admin'];
+  const seeds = ['serra'];
   for (const uname of seeds) {
     const local = users[uname];
     if (!local) continue;
@@ -133,8 +133,8 @@ async function syncSeedsToSupabase(users: Record<string, StoredUser>) {
         await criarUsuarioComHash({
           username: uname,
           name: local.name,
-          password: uname === 'serra' ? 'serra' : 'admin',
-          role: uname === 'serra' ? 'desenvolvedor' : 'admin',
+          password: 'serra',
+          role: 'desenvolvedor',
         });
       }
     } catch { /* ignore - Supabase offline */ }
@@ -169,9 +169,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (user?.username === 'serra' && user.role !== 'desenvolvedor') {
       setUser(prev => prev ? { ...prev, role: 'desenvolvedor' } : prev);
-    }
-    if (user?.username === 'admin' && user.role !== 'admin') {
-      setUser(prev => prev ? { ...prev, role: 'admin' } : prev);
     }
   }, [user]);
 
