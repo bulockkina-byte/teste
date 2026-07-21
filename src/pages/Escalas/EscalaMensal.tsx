@@ -251,28 +251,29 @@ export function EscalaMensal() {
   function handleAutoFill() {
     if (bombeiros.length < 10) { notificar('Cadastre pelo menos 10 bombeiros.'); return; }
 
-    const porFuncao = (cargo: string) => {
-      if (cargo === 'BA-MC') return bombeiros.filter(b => validarCursoParaFuncao(b, 'BA-MC')?.nivel !== 'bloqueado');
-      if (cargo === 'BA-CE') return bombeiros.filter(b => validarCursoParaFuncao(b, 'BA-CE')?.nivel !== 'bloqueado');
-      if (cargo === 'BA-LR') return bombeiros.filter(b => validarCursoParaFuncao(b, 'BA-LR')?.nivel !== 'bloqueado');
-      return bombeiros;
-    };
-
-    const escolher = (arr: Bombeiro[], usado: Set<string>) => {
-      const disp = arr.filter(b => !usado.has(b.id));
-      return disp.length > 0 ? disp[Math.floor(Math.random() * disp.length)] : null;
-    };
-
     const usado = new Set<string>();
-    const novas = SLOTS.map(slot => {
-      const pool = slot.funcao === 'chefe' ? porFuncao('BA-CE')
-        : slot.funcao === 'lider' ? porFuncao('BA-LR')
-        : slot.funcao === 'ba-mc' ? porFuncao('BA-MC')
-        : porFuncao('BA-2');
-
-      const b = escolher(pool, usado);
-      if (!b) return null;
+    const pool = [...bombeiros];
+    const buscar = (cargo: string) => {
+      const idx = pool.findIndex(b => b.cargo === cargo && !usado.has(b.id));
+      if (idx === -1) return null;
+      const b = pool[idx];
       usado.add(b.id);
+      return b;
+    };
+
+    const novas = SLOTS.map(slot => {
+      const cargoSlot = slot.funcao === 'chefe' ? 'BA-CE' as const : slot.funcao === 'lider' ? 'BA-LR' as const : slot.funcao === 'ba-mc' ? 'BA-MC' as const : null;
+      let b = cargoSlot ? buscar(cargoSlot) : null;
+      if (b && cargoSlot) {
+        const validacao = validarCursoParaFuncao(b, cargoSlot);
+        if (validacao?.nivel === 'bloqueado') b = null;
+      }
+      if (!b) {
+        const restante = pool.find(p => !usado.has(p.id));
+        if (!restante) return null;
+        usado.add(restante.id);
+        b = restante;
+      }
       return {
         id: b.id, nome: b.nome, nomeGuerra: b.nomeGuerra,
         funcao: slot.funcao, veiculo: slot.veiculo,
@@ -349,28 +350,28 @@ export function EscalaMensal() {
         }
       }
 
-      const poolPorFuncao = (funcao: string) => {
-        if (funcao === 'BA-CE') return disponiveis.filter(b => validarCursoParaFuncao(b, 'BA-CE')?.nivel !== 'bloqueado');
-        if (funcao === 'BA-LR') return disponiveis.filter(b => validarCursoParaFuncao(b, 'BA-LR')?.nivel !== 'bloqueado');
-        if (funcao === 'BA-MC') return disponiveis.filter(b => validarCursoParaFuncao(b, 'BA-MC')?.nivel !== 'bloqueado');
-        return disponiveis;
-      };
-
-      const escolher = (arr: Bombeiro[], usado: Set<string>) => {
-        const disp = arr.filter(b => !usado.has(b.id));
-        return disp.length > 0 ? disp[0] : null;
-      };
-
       const usado = new Set<string>();
-      const novas = SLOTS.map(slot => {
-        const pool = slot.funcao === 'chefe' ? poolPorFuncao('BA-CE')
-          : slot.funcao === 'lider' ? poolPorFuncao('BA-LR')
-          : slot.funcao === 'ba-mc' ? poolPorFuncao('BA-MC')
-          : poolPorFuncao('BA-2');
+      const poolDisp = [...disponiveis];
+      const buscarDisp = (cargo: string) => {
+        const idx = poolDisp.findIndex(b => b.cargo === cargo && !usado.has(b.id));
+        if (idx === -1) return null;
+        usado.add(poolDisp[idx].id);
+        return poolDisp[idx];
+      };
 
-        const b = escolher(pool, usado);
-        if (!b) return null;
-        usado.add(b.id);
+      const novas = SLOTS.map(slot => {
+        const cargoSlot = slot.funcao === 'chefe' ? 'BA-CE' as const : slot.funcao === 'lider' ? 'BA-LR' as const : slot.funcao === 'ba-mc' ? 'BA-MC' as const : null;
+        let b = cargoSlot ? buscarDisp(cargoSlot) : null;
+        if (b && cargoSlot) {
+          const validacao = validarCursoParaFuncao(b, cargoSlot);
+          if (validacao?.nivel === 'bloqueado') b = null;
+        }
+        if (!b) {
+          const restante = poolDisp.find(p => !usado.has(p.id));
+          if (!restante) return null;
+          usado.add(restante.id);
+          b = restante;
+        }
         return {
           id: b.id, nome: b.nome, nomeGuerra: b.nomeGuerra,
           funcao: slot.funcao, veiculo: slot.veiculo,
