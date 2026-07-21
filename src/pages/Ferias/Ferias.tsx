@@ -2286,9 +2286,20 @@ function TabQuadroEfetivos() {
     const item = allItems.find(i =>
       i.substitutoId === b.id && i.mes === mes && !i.rejeitado
     );
-    if (!item) return null;
-    const func = bombeiros.find(bb => bb.id === item.funcionarioId);
-    return func ? { funcionario: func, cargo: (item.funcaoSubstituicao || func.cargo) as Cargo } : null;
+    if (item) {
+      const func = bombeiros.find(bb => bb.id === item.funcionarioId);
+      if (func) return { funcionario: func, cargo: (item.funcaoSubstituicao || func.cargo) as Cargo };
+    }
+    const mesInicio = new Date(ano, mes - 1, 1);
+    const mesFim = new Date(ano, mes, 0);
+    const gozo = feriasGozo.find(g =>
+      g.substitutoId === b.id && g.status !== 'Gozadas' &&
+      new Date(g.dataInicio + 'T00:00:00') <= mesFim &&
+      new Date(g.dataFim + 'T00:00:00') >= mesInicio
+    );
+    if (!gozo) return null;
+    const func = bombeiros.find(bb => bb.id === gozo.funcionarioId);
+    return func ? { funcionario: func, cargo: (gozo.funcaoSubstituicao || func.cargo) as Cargo } : null;
   }
 
   function getFeristaDesignado(b: Bombeiro, mes: number): EscalaFeriasItem | null {
