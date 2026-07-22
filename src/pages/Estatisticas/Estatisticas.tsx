@@ -12,6 +12,7 @@ import { listarOcorrencias } from '../../services/ocorrenciaService';
 import { listarPTRBs } from '../../services/ptrbService';
 import { listarCertificacoes } from '../../services/certificacaoService';
 import { listarFeriasGozo } from '../../services/feriasService';
+import { listarViaturas } from '../../services/viaturaService';
 import { listarSubstituicoesTemporarias } from '../../services/substituicaoTemporariaService';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -126,14 +127,15 @@ function TabVisaoGeral() {
   const [ptrbs, setPtrbs] = useState<any[]>([]);
   const [certsCount, setCertsCount] = useState(0);
   const [subsCount, setSubsCount] = useState(0);
+  const [feriasGozo, setFeriasGozo] = useState<any[]>([]);
+  const [viaturasCount, setViaturasCount] = useState(0);
   useEffect(() => { listarAtivos().then(setBombeiros); }, []);
   useEffect(() => { listarOcorrencias().then(setOcorrencias); }, []);
   useEffect(() => { listarPTRBs().then(setPtrbs); }, []);
   useEffect(() => { listarCertificacoes().then(c => setCertsCount(c.length)); }, []);
   useEffect(() => { listarSubstituicoesTemporarias().then(s => { if (Array.isArray(s)) setSubsCount(s.filter((x: any) => x.status === 'Pendente').length); }); }, []);
-  const feriasGozo = useMemo(() => {
-    try { return JSON.parse(localStorage.getItem('sescinc-ferias-gozo') || '[]'); } catch { return []; }
-  }, []) as any[];
+  useEffect(() => { listarFeriasGozo().then(setFeriasGozo); }, []);
+  useEffect(() => { listarViaturas().then(v => setViaturasCount(v.length)); }, []);
 
   const agora = new Date();
   const mesAtual = agora.getMonth();
@@ -177,7 +179,7 @@ function TabVisaoGeral() {
         <StatCard icon={AlertTriangle} label="Ocorrências (mês)" value={stats.ocorrenciasMes} sub={`${ocorrencias.length} total`} color="bg-gradient-to-br from-red-500 to-red-700" />
         <StatCard icon={Calendar} label="Em Férias" value={stats.emFerias} color="bg-gradient-to-br from-amber-500 to-amber-700" />
         <StatCard icon={Activity} label="Certificações" value={certsCount} color="bg-gradient-to-br from-emerald-500 to-emerald-700" />
-        <StatCard icon={Truck} label="Viaturas CCI" value={useMemo(() => { try { return JSON.parse(localStorage.getItem('sescinc-viaturas') || '[]').length; } catch { return 0; }}, [])} color="bg-gradient-to-br from-cyan-500 to-cyan-700" />
+        <StatCard icon={Truck} label="Viaturas CCI" value={viaturasCount} color="bg-gradient-to-br from-cyan-500 to-cyan-700" />
         <StatCard icon={Clock} label="Substituições" value={subsCount} color="bg-gradient-to-br from-purple-500 to-purple-700" />
       </div>
 

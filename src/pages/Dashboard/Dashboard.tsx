@@ -9,14 +9,15 @@ import {
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { listarAtivos } from '../../services/bombeiroService';
-import { listarFeriasGozo, listarEscalas } from '../../services/feriasService';
+import { listarFeriasGozo } from '../../services/feriasService';
 import { listarOcorrencias } from '../../services/ocorrenciaService';
 import { listarSubstituicoesTemporarias } from '../../services/substituicaoTemporariaService';
 import { listarCertificacoes } from '../../services/certificacaoService';
 import { listarCertificacoesCursos } from '../../services/certificacaoCursoService';
+import { listarVagasPendentes } from '../../services/vagaPendenteService';
 import type { Bombeiro } from '../../types/bombeiro';
-import type { Ocorrencia } from '../../types/ocorrencia';
 import type { FeriasGozo } from '../../types/ferias';
+import type { Ocorrencia } from '../../types/ocorrencia';
 import type { SubstituicaoTemporaria } from '../../types/substituicaoTemporaria';
 import type { CertificacaoNR } from '../../types/certificacao';
 import type { CertificacaoCurso } from '../../types/certificacaoCurso';
@@ -71,20 +72,25 @@ export function Dashboard() {
   const [ocorrencias, setOcorrencias] = useState<Ocorrencia[]>([]);
   const [substituicoes, setSubstituicoes] = useState<SubstituicaoTemporaria[]>([]);
   const [certificacoes, setCertificacoes] = useState<CertificacaoNR[]>([]);
+  const [vagasPendentes, setVagasPendentes] = useState<any[]>([]);
   const [cursos, setCursos] = useState<CertificacaoCurso[]>([]);
-  const [escalas, setEscalas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       try {
-        const [b, g, o, s, c, cr, e] = await Promise.all([
-          listarAtivos(), listarFeriasGozo(), listarOcorrencias(),
-          listarSubstituicoesTemporarias(), listarCertificacoes(),
-          listarCertificacoesCursos(), listarEscalas(),
+        const [b, g, o, s, c, cr, vp] = await Promise.all([
+          listarAtivos(),
+          listarFeriasGozo(),
+          listarOcorrencias({ status: undefined }),
+          listarSubstituicoesTemporarias(),
+          listarCertificacoes(),
+          listarCertificacoesCursos(),
+          listarVagasPendentes({ resolvido: false }),
         ]);
         setBombeiros(b); setFeriasGozo(g); setOcorrencias(o);
-        setSubstituicoes(s); setCertificacoes(c); setCursos(cr); setEscalas(e);
+        setSubstituicoes(s); setCertificacoes(c); setCursos(cr);
+        setVagasPendentes(vp);
       } catch { /* ignore */ }
       setLoading(false);
     })();
@@ -95,15 +101,14 @@ export function Dashboard() {
     const programadas = feriasGozo.filter(g => g.status === 'Programadas');
     const ocorrenciasAbertas = ocorrencias.filter(o => o.status !== 'Fechada');
     const substPendentes = substituicoes.filter(s => s.status === 'Pendente');
-    const escalasPendentes = escalas.filter(e => e.status === 'Enviado');
     const certVencendo = certificacoes.filter(c => {
-      if (!c.validade) return false;
-      const v = new Date(c.validade + 'T00:00:00');
+      if (!c.dataValidade) return false;
+      const v = new Date(c.dataValidade + 'T00:00:00');
       return v > new Date() && v < new Date(Date.now() + 30 * 86400000);
     });
     const cursosVencendo = cursos.filter(c => {
-      if (!c.validade) return false;
-      const v = new Date(c.validade + 'T00:00:00');
+      if (!c.dataValidade) return false;
+      const v = new Date(c.dataValidade + 'T00:00:00');
       return v > new Date() && v < new Date(Date.now() + 30 * 86400000);
     });
 
@@ -113,13 +118,13 @@ export function Dashboard() {
       programadas: programadas.length,
       ocorrenciasAbertas: ocorrenciasAbertas.length,
       substPendentes: substPendentes.length,
-      escalasPendentes: escalasPendentes.length,
+      vagasPendentes: vagasPendentes.length,
       certVencendo: certVencendo.length + cursosVencendo.length,
       equipes: ['Alfa', 'Bravo', 'Charlie', 'Delta'].map(eq => ({
         nome: eq, total: bombeiros.filter(b => b.equipe === eq).length,
       })),
     };
-  }, [bombeiros, feriasGozo, ocorrencias, substituicoes, certificacoes, cursos, escalas]);
+  }, [bombeiros, feriasGozo, ocorrencias, substituicoes, certificacoes, cursos, vagasPendentes]);
 
   const feriasEmAndamento = useMemo(() =>
     feriasGozo.filter(g => g.status === 'Em Gozo').slice(0, 8),
@@ -127,7 +132,7 @@ export function Dashboard() {
   );
 
   const ocorrenciasRecentes = useMemo(() =>
-    ocorrencias.sort((a, b) => new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime()).slice(0, 6),
+    [...ocorrencias].sort((a, b) => new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime()).slice(0, 6),
     [ocorrencias],
   );
 
@@ -159,7 +164,7 @@ export function Dashboard() {
         <CardStat icon={CalendarClock} label="Férias em Gozo" value={stats.emGozo} color="bg-gradient-to-br from-amber-500 to-amber-700" onClick={() => navigate('/cadastro/ferias')} />
         <CardStat icon={Clock} label="Substituições Pendentes" value={stats.substPendentes} color="bg-gradient-to-br from-purple-500 to-purple-700" onClick={() => navigate('/funcionarios/substituicoes')} />
         <CardStat icon={Award} label="Certificações Vencendo" value={stats.certVencendo} color="bg-gradient-to-br from-emerald-500 to-emerald-700" onClick={() => navigate('/certificacoes')} />
-        <CardStat icon={FileText} label="Escalas Pendentes" value={stats.escalasPendentes} color="bg-gradient-to-br from-cyan-500 to-cyan-700" onClick={() => navigate('/cadastro/ferias')} />
+        <CardStat icon={AlertCircle} label="Vagas Pendentes" value={stats.vagasPendentes} color="bg-gradient-to-br from-cyan-500 to-cyan-700" onClick={() => navigate('/cadastro/ferias')} />
       </div>
 
       {/* Charts Row */}

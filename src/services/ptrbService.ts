@@ -36,9 +36,21 @@ function rowToPTRB(row: Record<string, unknown>): PTRB {
   };
 }
 
-export async function listarPTRBs(): Promise<PTRB[]> {
+export async function listarPTRBs(params?: {
+  dataGte?: string;
+  dataLte?: string;
+  equipe?: string;
+  createdBy?: string;
+  assunto?: string;
+}): Promise<PTRB[]> {
   const db = getDb();
-  const { data, error } = await db.from(TABLE).select('*');
+  let query = db.from(TABLE).select('*');
+  if (params?.dataGte) query = query.gte('data', params.dataGte);
+  if (params?.dataLte) query = query.lte('data', params.dataLte);
+  if (params?.equipe) query = query.eq('equipe', params.equipe);
+  if (params?.createdBy) query = query.eq('created_by', params.createdBy);
+  if (params?.assunto) query = query.eq('assunto_ministrado', params.assunto);
+  const { data, error } = await query;
   if (error) throw error;
   return (data || []).map(rowToPTRB);
 }

@@ -91,6 +91,8 @@ export interface EscalaFeriasItem {
   rejeitadoPor: string;
   rejeitadoEm: string;
   enviado: boolean;
+  observacoes: string;
+  feriasGozoId: string;
   createdAt: string;
 }
 
@@ -129,6 +131,73 @@ export const MESES = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
 ];
+
+// ---------------------------------------------------------------------------
+// Hierarquia de Cargos para Corrente de Substituição
+// ---------------------------------------------------------------------------
+
+/**
+ * Hierarquia de cargos para a corrente de substituição de férias.
+ * A seta indica quem cobre quem: BA-CE cobre GS, BA-LR cobre BA-CE, etc.
+ * GS(0) → BA-CE(1) → BA-LR(2) → BA-MC(3) → BA-2(4) → Ferista(5)
+ */
+export const HIERARCHY: Cargo[] = ['GS', 'BA-CE', 'BA-LR', 'BA-MC', 'BA-2'];
+
+/**
+ * Retorna o próximo cargo na cadeia de substituição.
+ * Ex: GS → BA-CE, BA-CE → BA-LR, BA-MC → BA-2, BA-2 → 'Ferista'
+ */
+export function getNextCargoNaCadeia(cargo: Cargo): Cargo | null {
+  if (cargo === 'BA-2') return null;
+  const idx = HIERARCHY.indexOf(cargo);
+  if (idx === -1 || idx >= HIERARCHY.length - 1) return null;
+  return HIERARCHY[idx + 1];
+}
+
+/**
+ * Retorna os cargos permitidos para preencher uma posição vaga.
+ * BA-2 vago → BA-2 (BA-2 pode substituir BA-2, mas eventualmente termina em Ferista da equipe Ferista)
+ * Outros cargos → todos (Ferista é identificado pela equipe, não pelo cargo)
+ */
+export function getCargosPermitidosParaVaga(cargoVacante: Cargo): Cargo[] {
+  if (cargoVacante === 'BA-2') return ['BA-2'];
+  return ['BA-2', 'BA-MC', 'BA-LR', 'BA-CE', 'GS'];
+}
+
+/**
+ * Retorna true se o cargo TEM de ter substituto obrigatório nas férias.
+ * BA-CE, BA-LR, BA-MC, GS são obrigatórios.
+ * BA-2 é obrigatório mas só pode ser substituído por BA-2 ou Ferista.
+ * Ferista não precisa de substituto.
+ */
+export function isSubstitutoObrigatorio(cargo: Cargo): boolean {
+  return cargo !== 'Ferista' && cargo !== 'OC';
+}
+
+/**
+ * Retorna os cargos que podem substituir um determinado cargo.
+ * BA-2 → só BA-2 ou Ferista
+ * BA-CE, BA-LR, BA-MC, GS → qualquer cargo (incluindo Ferista)
+ */
+export function getCargosPermitidosSubstituto(cargoVacante: Cargo): (Cargo | 'Ferista')[] {
+  if (cargoVacante === 'BA-2') return ['BA-2', 'Ferista'];
+  if (cargoVacante === 'Ferista') return [];
+  return ['Ferista', 'BA-2', 'BA-MC', 'BA-LR', 'BA-CE', 'GS'];
+}
+
+/**
+ * Interface para representar um elo da corrente de substituição
+ */
+export interface EloCorrenteSubstituicao {
+  nivel: number;
+  pessoaId: string;
+  pessoaNome: string;
+  cargoOriginal: Cargo;
+  substituindoId: string;
+  substituindoNome: string;
+  cargoExercido: string;
+  motivo: 'ferias' | 'cascata';
+}
 
 // ---------------------------------------------------------------------------
 // Constants - Funções de Substituição

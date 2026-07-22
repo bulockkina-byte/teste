@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+
 import {
   GraduationCap, Plus, Search, Trash2, Save, Users,
   Target, Timer, X,
@@ -48,14 +49,14 @@ function fmt(d: string) {
 const inputCls = 'w-full rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 placeholder-graphite-400 outline-none transition-all focus:border-aviation-500 focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400';
 const labelCls = 'mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300';
 
-export function Treinamentos() {
+export function Treinamentos({ tipoPadrao }: { tipoPadrao?: string }) {
   const [treinos, setTreinos] = useState<Treinamento[]>([]);
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
   const [search, setSearch] = useState('');
   const [formOpen, setFormOpen] = useState(false);
   const [editando, setEditando] = useState<Treinamento | null>(null);
 
-  const [formTipo, setFormTipo] = useState<string>('posicionamento');
+  const [formTipo, setFormTipo] = useState<string>(tipoPadrao || 'posicionamento');
   const [formData, setFormData] = useState(new Date().toISOString().split('T')[0]);
   const [formTitulo, setFormTitulo] = useState('');
   const [formDescricao, setFormDescricao] = useState('');
@@ -70,12 +71,13 @@ export function Treinamentos() {
   }, []);
 
   const filtered = useMemo(() => {
-    if (!search) return treinos.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+    let lista = tipoPadrao ? treinos.filter(tr => tr.tipo === tipoPadrao) : treinos;
+    if (!search) return lista.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
     const t = search.toLowerCase();
-    return treinos.filter(tr =>
+    return lista.filter(tr =>
       TIPO_LABEL[tr.tipo]?.toLowerCase().includes(t) || tr.titulo.toLowerCase().includes(t) || tr.instrutor.toLowerCase().includes(t)
     ).sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
-  }, [treinos, search]);
+  }, [treinos, search, tipoPadrao]);
 
   const participantesFiltrados = useMemo(() => {
     if (!searchPart) return [];
@@ -140,22 +142,28 @@ export function Treinamentos() {
   }
 
   const stats = useMemo(() => ({
-    total: treinos.length,
+    total: tipoPadrao ? treinos.filter(t => t.tipo === tipoPadrao).length : treinos.length,
     posicionamento: treinos.filter(t => t.tipo === 'posicionamento').length,
     tempoResposta: treinos.filter(t => t.tipo === 'tempo-resposta').length,
-  }), [treinos]);
+  }), [treinos, tipoPadrao]);
+
+  const titulo = tipoPadrao === 'tempo-resposta' ? 'Exercício de Tempo Resposta' : tipoPadrao === 'posicionamento' ? 'Exercício de Posicionamento' : 'Treinamentos';
+  const Icone = tipoPadrao === 'tempo-resposta' ? Timer : tipoPadrao === 'posicionamento' ? Target : GraduationCap;
 
   return (
     <PageContainer>
-      <PageTitle icon={GraduationCap} title="Treinamentos" />
+      <PageTitle icon={Icone} title={titulo} />
 
       <div className="space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-center dark:border-blue-800 dark:bg-blue-900/20">
-              <p className="text-xl font-black text-blue-700 dark:text-blue-300">{stats.total}</p>
-              <p className="text-[9px] font-bold uppercase tracking-wider text-blue-500">Total</p>
+            <div className={`rounded-xl border px-4 py-2 text-center dark:bg-opacity-20 ${
+              tipoPadrao ? 'border-aviation-200 bg-aviation-50 dark:border-aviation-800 dark:bg-aviation-900/20' : 'border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20'
+            }`}>
+              <p className="text-xl font-black text-aviation-700 dark:text-aviation-300">{stats.total}</p>
+              <p className="text-[9px] font-bold uppercase tracking-wider text-aviation-500">{tipoPadrao ? (tipoPadrao === 'tempo-resposta' ? 'Tempo Resposta' : 'Posicionamento') : 'Total'}</p>
             </div>
+            {!tipoPadrao && (<>
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-center dark:border-amber-800 dark:bg-amber-900/20">
               <p className="text-xl font-black text-amber-700 dark:text-amber-300">{stats.posicionamento}</p>
               <p className="text-[9px] font-bold uppercase tracking-wider text-amber-500">Posicionamento</p>
@@ -164,6 +172,7 @@ export function Treinamentos() {
               <p className="text-xl font-black text-emerald-700 dark:text-emerald-300">{stats.tempoResposta}</p>
               <p className="text-[9px] font-bold uppercase tracking-wider text-emerald-500">Tempo Resposta</p>
             </div>
+            </>)}
           </div>
           <button onClick={handleNovo}
             className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl active:scale-[0.98]">

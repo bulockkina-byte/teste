@@ -4,7 +4,7 @@ import {
   CheckCheck, Trash2, User, MessageSquare,
 } from 'lucide-react';
 import { useAuth, type UserRole, ROLE_LABELS } from '../../context/AuthContext';
-import { listarBombeiros } from '../../services/bombeiroService';
+import { listarBombeiros, listarBombeirosResumido } from '../../services/bombeiroService';
 import {
   mensagensGerais, conversaCom, enviarMensagem, marcarLida, contarNaoLidas,
 } from '../../services/chatService';
@@ -126,8 +126,8 @@ export function RightPanel({ onClose, openTab = 'chat' }: { onClose: () => void;
     setChatUsers(getChatUsers(username));
     async function carregarEquipes() {
       try {
-        const data = await listarBombeiros();
-        setBombeirosEquipes(data.map(b => ({ nomeGuerra: b.nomeGuerra, equipe: b.equipe })));
+        const data = await listarBombeirosResumido();
+        setBombeirosEquipes(data);
       } catch { /* ignore */ }
     }
     carregarEquipes();
@@ -169,11 +169,23 @@ export function RightPanel({ onClose, openTab = 'chat' }: { onClose: () => void;
     );
   }, [chatUsers, busca]);
 
-  const gerais = useMemo(() => mensagensGerais(), [refresh]);
-  const privadas = useMemo(() =>
-    conversaComUser ? conversaCom(username, conversaComUser) : [], [username, conversaComUser, refresh]);
-  const totalNaoLidas = useMemo(() => contarNaoLidas(username), [username, refresh]);
+  const [gerais, setGerais] = useState<any[]>([]);
+  const [privadas, setPrivadas] = useState<any[]>([]);
+  const [totalNaoLidas, setTotalNaoLidas] = useState(0);
   const naoLidas = notificacoes.filter(n => !n.lida).length;
+
+  useEffect(() => {
+    mensagensGerais().then(setGerais).catch(() => {});
+    contarNaoLidas(username).then(setTotalNaoLidas).catch(() => {});
+  }, [refresh, username]);
+
+  useEffect(() => {
+    if (conversaComUser) {
+      conversaCom(username, conversaComUser).then(setPrivadas).catch(() => {});
+    } else {
+      setPrivadas([]);
+    }
+  }, [username, conversaComUser, refresh]);
 
   useEffect(() => {
     if (chatScrollRef.current) {
@@ -183,9 +195,10 @@ export function RightPanel({ onClose, openTab = 'chat' }: { onClose: () => void;
 
   useEffect(() => {
     if (conversaComUser) {
-      const msgs = conversaCom(username, conversaComUser);
-      msgs.forEach(m => { if (!m.lida && m.de !== username) marcarLida(m.id); });
-      setRefresh(r => r + 1);
+      conversaCom(username, conversaComUser).then(msgs => {
+        msgs.forEach(m => { if (!m.lida && m.de !== username) marcarLida(m.id); });
+        setRefresh(r => r + 1);
+      }).catch(() => {});
     }
   }, [conversaComUser, username]);
 

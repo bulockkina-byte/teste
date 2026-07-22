@@ -22,10 +22,11 @@ interface Props {
   disabledIds?: Set<string>;
   disabledTooltip?: string;
   showCargo?: boolean;
+  showEquipe?: boolean;
   options?: AtivoItem[];
 }
 
-export function SearchSelect({ value, onChange, placeholder, className = '', cargo, equipe, valueField = 'nomeGuerra', disabledIds, disabledTooltip, showCargo, options }: Props) {
+export function SearchSelect({ value, onChange, placeholder, className = '', cargo, equipe, valueField = 'nomeGuerra', disabledIds, disabledTooltip, showCargo, showEquipe, options }: Props) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const triggerRef = useRef<HTMLDivElement>(null);
@@ -43,14 +44,17 @@ export function SearchSelect({ value, onChange, placeholder, className = '', car
       let lista: AtivoItem[];
       if (cargo === 'APOC') {
         lista = (await listarAPOCs()).map(a => ({ id: a.id, nomeGuerra: a.nomeGuerra, nomeCompleto: a.nomeCompleto }));
-      } else if (cargo) {
-        lista = (await listarAtivos()).filter(b => b.cargo === cargo).map(b => ({ id: b.id, nomeGuerra: b.nomeGuerra, nomeCompleto: b.nomeCompleto, cargo: b.cargo, equipe: b.equipe }));
       } else {
-        const bombeiros = (await listarAtivos()).map(b => ({ id: b.id, nomeGuerra: b.nomeGuerra, nomeCompleto: b.nomeCompleto, cargo: b.cargo, equipe: b.equipe }));
-        const apocs = (await listarAPOCs()).map(a => ({ id: a.id, nomeGuerra: a.nomeGuerra, nomeCompleto: a.nomeCompleto }));
-        lista = [...bombeiros, ...apocs];
+        const bombeiros = (await listarAtivos({ equipe, cargo })).map(b => ({
+          id: b.id, nomeGuerra: b.nomeGuerra, nomeCompleto: b.nomeCompleto, cargo: b.cargo, equipe: b.equipe,
+        }));
+        if (cargo) {
+          lista = bombeiros;
+        } else {
+          const apocs = (await listarAPOCs()).map(a => ({ id: a.id, nomeGuerra: a.nomeGuerra, nomeCompleto: a.nomeCompleto }));
+          lista = [...bombeiros, ...apocs];
+        }
       }
-      if (equipe) lista = lista.filter(b => b.equipe === equipe);
       setAtivos(lista);
     }
     carregar();
@@ -115,7 +119,7 @@ export function SearchSelect({ value, onChange, placeholder, className = '', car
                       <span className={`font-semibold ${isDisabled ? 'line-through' : ''}`}>
                         {showCargo && b.cargo ? `${b.cargo} ` : ''}{b.nomeGuerra}
                       </span>
-                      <span className={`ml-2 text-xs ${isDisabled ? 'text-red-400' : 'text-graphite-400 dark:text-graphite-500'}`}>{b.nomeCompleto}</span>
+                      <span className={`ml-2 text-xs ${isDisabled ? 'text-red-400' : 'text-graphite-400 dark:text-graphite-500'}`}>{b.nomeCompleto}{showEquipe && b.equipe ? ` · ${b.equipe}` : ''}</span>
                     </span>
                     {isDisabled && <X className="h-4 w-4 shrink-0 text-red-400" />}
                     {!isDisabled && b[valueField] === value && <Check className="h-4 w-4 shrink-0 text-aviation-600 dark:text-aviation-400" />}

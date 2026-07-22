@@ -11,6 +11,7 @@ import { listarPTRBs, criarPTRB, atualizarPTRB, excluirPTRB } from '../../servic
 import { listarBombeiros } from '../../services/bombeiroService';
 import { listarFeriasGozo } from '../../services/feriasService';
 import { listarSubstituicoesTemporarias } from '../../services/substituicaoTemporariaService';
+import { listarVigencias } from '../../services/vigenciaSubstituicaoService';
 import { listarDocumentos, listarPreenchimentos } from '../../services/documentoService';
 import { listarAPOCs } from '../../services/apocService';
 import { CARGO_OPTIONS } from '../../types/bombeiro';
@@ -84,6 +85,7 @@ function PTRBAForm({
   feriasGozo,
   substituicoesTemporarias,
   trocaFills,
+  vigencias,
   apocs,
 }: {
   ptrb?: PTRB;
@@ -93,6 +95,7 @@ function PTRBAForm({
   feriasGozo: FeriasGozo[];
   substituicoesTemporarias: SubstituicaoTemporaria[];
   trocaFills: any[];
+  vigencias: any[];
   apocs: APOC[];
 }) {
   const [form, setForm] = useState(emptyPTRB());
@@ -188,8 +191,25 @@ function PTRBAForm({
   }, [bombeiros, form.equipe]);
 
   const emFerias = useMemo(() => {
-    return feriasGozo.filter(f => f.equipe === form.equipe && f.status === 'Em Gozo');
-  }, [feriasGozo, form.equipe]);
+    const ferias = feriasGozo.filter(f => f.equipe === form.equipe && f.status === 'Em Gozo');
+    // Incluir também pessoas que estão a ser cobertas por vigências (férias programadas)
+    const vigiados = vigencias
+      .filter(v => v.equipe === form.equipe && v.ativa && v.dataInicio <= form.data && v.dataFim >= form.data)
+      .map(v => {
+        const b = bombeiros.find(bb => bb.id === v.funcionarioOriginalId);
+        if (!b) return null;
+        return {
+          funcionarioId: b.id,
+          funcionarioNome: b.nomeCompleto,
+          equipe: form.equipe,
+          status: 'Em Gozo' as const,
+          dataInicio: v.dataInicio,
+          dataFim: v.dataFim,
+        };
+      })
+      .filter(Boolean);
+    return [...ferias, ...vigiados];
+  }, [feriasGozo, form.equipe, vigencias, form.data, bombeiros]);
 
   const substituicoesMap = useMemo(() => {
     const map: Record<string, { substitutoNome: string; substitutoId: string; tipo: string }> = {};
@@ -217,8 +237,22 @@ function PTRBAForm({
         map[s.substitutoId] = { substitutoNome: s.funcionarioNome, substitutoId: s.funcionarioId, tipo: 'substituicao' };
       }
     });
+    // Vigências de substituição (férias em cascata)
+    vigencias.forEach(v => {
+      if (!v.ativa) return;
+      if (v.dataInicio > form.data || v.dataFim < form.data) return;
+      if (v.funcionarioOriginalId && v.substitutoNome) {
+        if (!map[v.funcionarioOriginalId]) {
+          map[v.funcionarioOriginalId] = {
+            substitutoNome: v.substitutoNome,
+            substitutoId: v.substitutoId,
+            tipo: 'ferias',
+          };
+        }
+      }
+    });
     return map;
-  }, [form.data, trocaFills, substituicoesTemporarias, bombeiros]);
+  }, [form.data, trocaFills, substituicoesTemporarias, vigencias, bombeiros]);
 
   const disponiveis = useMemo(() => {
     const feriasIds = new Set(emFerias.map(f => f.funcionarioId));
@@ -710,7 +744,9 @@ export function PTRBADiario() {
   const [feriasGozo, setFeriasGozo] = useState<FeriasGozo[]>([]);
   const [substituicoesTemporarias, setSubstituicoesTemporarias] = useState<SubstituicaoTemporaria[]>([]);
   const [trocaFills, setTrocaFills] = useState<any[]>([]);
+  const [vigencias, setVigencias] = useState<any[]>([]);
   const [apocs, setApocs] = useState<APOC[]>([]);
+  const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<'list' | 'form' | 'view'>('list');
   const [editando, setEditando] = useState<PTRB | null>(null);
   const [visualizando, setVisualizando] = useState<PTRB | null>(null);
@@ -733,52 +769,75 @@ export function PTRBADiario() {
   });
 
   async function carregar() {
-    const todas = await listarPTRBs();
-    if (isAdmin || isGerente) {
-      setPtrbs(todas);
-    } else if (userEquipe) {
-      setPtrbs(todas.filter(e => e.equipe === userEquipe));
-    } else {
-      setPtrbs(todas.filter(e => e.createdBy === username));
+    try {
+      const todas = await listarPTRBs();
+      if (isAdmin || isGerente) {
+        setPtrbs(todas);
+      } else if (userEquipe) {
+        setPtrbs(todas.filter(e => e.equipe === userEquipe));
+      } else {
+        setPtrbs(todas.filter(e => e.createdBy === username));
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao carregar PTR-BAs');
     }
   }
 
   async function carregarApoio() {
-    const [b, f, subs, docs, a] = await Promise.all([
-      listarBombeiros(),
-      listarFeriasGozo(),
-      listarSubstituicoesTemporarias(),
-      listarDocumentos(),
-      listarAPOCs(),
-    ]);
-    setBombeiros(b);
-    setFeriasGozo(f);
-    setSubstituicoesTemporarias(subs);
-    setApocs(a);
-    const trocaDoc = docs.find((d: any) => d.name?.includes('TROCA') || d.source_module === 'trocas');
-    if (trocaDoc) {
-      const fills = await listarPreenchimentos(trocaDoc.id);
-      setTrocaFills(fills.filter((fl: any) => fl.status === 'signed'));
+    try {
+      const [b, f, subs, docs, a, vigs] = await Promise.all([
+        listarBombeiros(),
+        listarFeriasGozo(),
+        listarSubstituicoesTemporarias(),
+        listarDocumentos(),
+        listarAPOCs(),
+        listarVigencias({ ativa: true }),
+      ]);
+      setBombeiros(b);
+      setFeriasGozo(f);
+      setSubstituicoesTemporarias(subs);
+      setApocs(a);
+      setVigencias(vigs);
+      const trocaDoc = docs.find((d: any) => d.name?.includes('TROCA') || d.source_module === 'trocas');
+      if (trocaDoc) {
+        const fills = await listarPreenchimentos(trocaDoc.id);
+        setTrocaFills(fills.filter((fl: any) => fl.status === 'signed'));
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao carregar dados de apoio');
     }
   }
 
-  useEffect(() => { carregar(); }, [isAdmin, isGerente, username, userEquipe]);
-  useEffect(() => { carregarApoio(); }, []);
+  useEffect(() => {
+    let cancelled = false;
+    async function init() {
+      setLoading(true);
+      await carregar();
+      await carregarApoio();
+      if (!cancelled) setLoading(false);
+    }
+    init();
+    return () => { cancelled = true; };
+  }, [isAdmin, isGerente, username, userEquipe]);
 
   async function handleSave(data: Omit<PTRB, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) {
-    let saved: PTRB | null;
-    if (editando && editando.id) {
-      saved = await atualizarPTRB(editando.id, data);
-    } else {
-      saved = await criarPTRB({ ...data, createdBy: username });
-    }
-    setEditando(null);
-    carregar();
-    if (saved) {
-      setVisualizando(saved);
-      setMode('view');
-    } else {
-      setMode('list');
+    try {
+      let saved: PTRB | null;
+      if (editando && editando.id) {
+        saved = await atualizarPTRB(editando.id, data);
+      } else {
+        saved = await criarPTRB({ ...data, createdBy: username });
+      }
+      setEditando(null);
+      await carregar();
+      if (saved) {
+        setVisualizando(saved);
+        setMode('view');
+      } else {
+        setMode('list');
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao salvar PTR-BA');
     }
   }
 
@@ -801,9 +860,13 @@ export function PTRBADiario() {
   }
 
   async function handleDelete(id: string) {
-    await excluirPTRB(id);
-    setConfirmDelete(null);
-    carregar();
+    try {
+      await excluirPTRB(id);
+      setConfirmDelete(null);
+      await carregar();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao excluir PTR-BA');
+    }
   }
 
   if (mode === 'form') {
@@ -818,6 +881,7 @@ export function PTRBADiario() {
           feriasGozo={feriasGozo}
           substituicoesTemporarias={substituicoesTemporarias}
           trocaFills={trocaFills}
+          vigencias={vigencias}
           apocs={apocs}
         />
       </PageContainer>
@@ -828,6 +892,17 @@ export function PTRBADiario() {
     return (
       <PageContainer>
         <ViewMode ptrb={visualizando} onBack={() => setMode('list')} />
+      </PageContainer>
+    );
+  }
+
+  if (loading) {
+    return (
+      <PageContainer>
+        <PageTitle icon={FileText} title="PTR-BA - Registro Diário" />
+        <div className="flex items-center justify-center py-20">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-aviation-500 border-t-transparent" />
+        </div>
       </PageContainer>
     );
   }

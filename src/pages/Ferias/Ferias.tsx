@@ -12,6 +12,9 @@ import { listarAtivos } from '../../services/bombeiroService';
 import {
   calcularPeriodosAquisitivos, MESES, ABBR_CARGO,
   STATUS_ESCALA_COLORS,
+  isSubstitutoObrigatorio,
+  getCargosPermitidosSubstituto,
+  getCargosPermitidosParaVaga,
 } from '../../types/ferias';
 import type {
   PeriodoAquisitivo, FeriasGozo, EscalaFerias, EscalaFeriasItem,
@@ -24,6 +27,8 @@ import {
   listarItensEscala, criarItemEscala, atualizarItemEscala,
   excluirItemEscala, rejeitarItemEscala, aprovarItemEscala, enviarItemEscala,
 } from '../../services/feriasService';
+import { processarCadeiaSubstituicao, listarVigencias } from '../../services/vigenciaSubstituicaoService';
+import type { EloCadeiaInput, VigenciaSubstituicao } from '../../services/vigenciaSubstituicaoService';
 
 // -- Constants -------------------------------------------------------------------
 
@@ -100,7 +105,8 @@ function buildPeriodos(b: Bombeiro, gozos: FeriasGozo[]): PeriodoView[] {
       switch (gozo.status) {
         case 'Gozadas': status = 'Gozado'; break;
         case 'Em Gozo': status = 'Em Gozo'; break;
-        default: status = 'Em Gozo';
+        case 'Programadas': status = 'Programadas'; break;
+        default: status = 'Programadas';
       }
       return { ...p, status, gozo };
     }
@@ -139,7 +145,13 @@ function calcularStats(bombeiros: Bombeiro[], feriasGozo: FeriasGozo[]): Dashboa
       } else {
         if (p.status === 'Disponivel') {
           comDireitoSet.add(b.id);
-          paraVencerSet.add(b.id);
+          const vencimento = new Date(p.dataVencimento + 'T00:00:00');
+          const dentroPrazo = (vencimento.getTime() - Date.now()) < 90 * 24 * 60 * 60 * 1000;
+          if (vencimento <= new Date()) {
+            vencidasSet.add(b.id);
+          } else if (dentroPrazo) {
+            paraVencerSet.add(b.id);
+          }
         } else if (p.status === 'Vencido') {
           vencidasSet.add(b.id);
         }
@@ -687,9 +699,10 @@ function TabAprovacoes() {
     setItems(it);
   }
 
-  async function handleAprovar(id: string) {
+  async function handleAprovar(esc: EscalaFerias) {
     if (!user) return;
-    await aprovarEscalaEGerarGozos(id, user.username, user.name);
+    const manterStatus = esc.status !== 'Enviado';
+    await aprovarEscalaEGerarGozos(esc.id, user.username, user.name, manterStatus);
     await loadData();
     setExpandedId(null);
   }
@@ -814,10 +827,18 @@ function TabAprovacoes() {
                           const mesNum = idx + 1;
                           const mesItems = items.filter(i => i.escalaId === esc.id && i.mes === mesNum);
                           return (
-                            <div key={mesNum} className={`rounded-xl border p-2 text-center text-[10px] dark:border-border-dark ${mesItems.length > 0 ? (mesItems.some(i => i.rejeitado) ? 'border-yellow-300 bg-yellow-50 dark:bg-yellow-900/20' : 'border-aviation-300 bg-aviation-50 dark:bg-aviation-900/20') : 'border-graphite-200 bg-graphite-50 dark:bg-surface-hover'}`}>
+                            <div key={mesNum} className={`rounded-xl border p-2 text-center text-[10px] dark:border-border-dark ${
+                              mesItems.length > 0
+                                ? mesItems.some(i => i.rejeitado)
+                                  ? 'border-yellow-300 bg-yellow-50 dark:bg-yellow-900/20'
+                                  : mesItems.every(i => i.enviado)
+                                    ? 'border-green-300 bg-green-50 dark:bg-green-900/20'
+                                    : 'border-aviation-300 bg-aviation-50 dark:bg-aviation-900/20'
+                                : 'border-graphite-200 bg-graphite-50 dark:bg-surface-hover'
+                            }`}>
                               <p className="font-bold text-graphite-700 dark:text-graphite-300">{mes.substring(0, 3)}</p>
                               {mesItems.map(mi => (
-                                <p key={mi.id} className={`mt-1 truncate ${mi.rejeitado ? 'text-red-500 line-through dark:text-red-400' : 'text-graphite-600 dark:text-graphite-400'}`} title={mi.funcionarioNome}>
+                                <p key={mi.id} className={`mt-1 truncate ${mi.rejeitado ? 'text-red-500 line-through dark:text-red-400' : mi.enviado ? 'text-green-600 dark:text-green-400' : 'text-graphite-600 dark:text-graphite-400'}`} title={mi.funcionarioNome}>
                                   {mi.funcionarioNome.split(' ')[0]}
                                 </p>
                               ))}
@@ -841,11 +862,11 @@ function TabAprovacoes() {
                             <span>{item.dias} dias</span>
                           </div>
                         </div>
-                        {esc.status === 'Enviado' && (
+                        {(item.enviado || esc.status === 'Enviado') && (
                           <div className="flex shrink-0 items-center gap-1">
                             {!item.rejeitado ? (
                               <>
-                                <button onClick={() => setItemRejectModal({ itemId: item.id, tipo: 'pessoa', obs: '' })} className="rounded-lg px-2 py-1 text-[10px] font-medium text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20" title="Rejeitar pessoa">
+                                <button onClick={() => setItemRejectModal({ itemId: item.id, tipo: 'pessoa', obs: '' })} className="rounded-lg px-2 py-1 text-[10px] font-medium text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20" title="Rejeitar">
                                   Rejeitar
                                 </button>
                               </>
@@ -895,16 +916,21 @@ function TabAprovacoes() {
                   </div>
 
                   <div className="flex items-center gap-3 border-t border-graphite-200 pt-4 dark:border-border-dark">
-                    {esc.status === 'Enviado' && (
+                    {(() => {
+                      const hasSentItems = items.some(i => i.escalaId === esc.id && i.enviado);
+                      return (esc.status === 'Enviado' || hasSentItems) && (
                       <>
-                        <button onClick={() => handleAprovar(esc.id)} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-green-600 to-green-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-green-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
-                          <Check className="h-4 w-4" /> Aprovar Tudo
+                        <button onClick={() => handleAprovar(esc)} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-green-600 to-green-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-green-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
+                          <Check className="h-4 w-4" /> Aprovar {esc.status === 'Enviado' ? 'Tudo' : 'Enviados'}
                         </button>
-                        <button onClick={() => setRejectModal({ id: esc.id, obs: '' })} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-red-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
-                          <XCircle className="h-4 w-4" /> Rejeitar Tudo
-                        </button>
+                        {esc.status === 'Enviado' && (
+                          <button onClick={() => setRejectModal({ id: esc.id, obs: '' })} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-red-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
+                            <XCircle className="h-4 w-4" /> Rejeitar Tudo
+                          </button>
+                        )}
                       </>
-                    )}
+                      );
+                    })()}
                     {(user?.role === 'desenvolvedor' || user?.role === 'admin') && (
                       <button onClick={async () => { if (confirm('Excluir esta escala?')) { await excluirEscala(esc.id); loadData(); } }}
                         className="flex items-center gap-2 rounded-xl border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700 transition-all hover:bg-red-100 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400">
@@ -1264,6 +1290,7 @@ function TabEscalaAnual() {
   const [ano, setAno] = useState(new Date().getFullYear());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [sendingMonth, setSendingMonth] = useState<number | null>(null);
 
   const [editingMonth, setEditingMonth] = useState<number | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -1273,6 +1300,15 @@ function TabEscalaAnual() {
   const [formDataInicio, setFormDataInicio] = useState('');
   const [formSubId, setFormSubId] = useState('');
   const [formFerista, setFormFerista] = useState('');
+  const [subTipo, setSubTipo] = useState<'mesma-equipe' | 'outras-equipes' | 'ferista'>('mesma-equipe');
+  const [chainElos, setChainElos] = useState<{
+    cargoVacante: string;
+    substituindoNome: string;
+    pessoaId: string;
+    pessoaNome: string;
+    pessoaCargo: Cargo | '';
+    pessoaEquipe: string;
+  }[]>([]);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const activeEquipe = isAdmin ? (selectedEquipe || '') : (myBombeiro?.equipe || '');
@@ -1300,23 +1336,24 @@ function TabEscalaAnual() {
     });
   }, [formFuncId, bombeiros, feriasGozo]);
 
-  const feristaConflict = useMemo(() => {
-    if (!formFerista || !escala) return null;
-    const f = feristas.find(x => x.id === formFerista);
-    if (!f) return null;
-    for (const item of itens) {
-      if (item.feristaId === formFerista && item.escalaId !== escala.id) {
-        return { equipe: '', nome: f.nomeCompleto };
-      }
-    }
-    return null;
-  }, [formFerista, itens, escala, feristas]);
-
   const formSubAutoFuncao = useMemo(() => {
     if (!formSubId || !formFuncId) return '';
     const func = bombeiros.find(b => b.id === formFuncId);
     return func?.cargo || '';
   }, [formSubId, formFuncId, bombeiros]);
+
+  const cargoVacationer = useMemo(() => {
+    const func = bombeiros.find(b => b.id === formFuncId);
+    return func?.cargo;
+  }, [formFuncId, bombeiros]);
+
+  const idsUsados = useMemo(() => {
+    const ids = new Set<string>();
+    if (formFuncId) ids.add(formFuncId);
+    if (formSubId) ids.add(formSubId);
+    chainElos.forEach(e => { if (e.pessoaId) ids.add(e.pessoaId); });
+    return ids;
+  }, [formFuncId, formSubId, chainElos]);
 
   const equipes: Equipe[] = ['Alfa', 'Bravo', 'Charlie', 'Delta', 'Ferista'];
 
@@ -1352,6 +1389,53 @@ function TabEscalaAnual() {
     })();
   }, [activeEquipe, ano]);
 
+  function handleChainSelect(index: number, pessoaId: string) {
+    const pessoa = bombeiros.find(b => b.id === pessoaId);
+    if (!pessoa) return;
+    setChainElos(prev => {
+      const updated = prev.map((e, i) => i === index
+        ? { ...e, pessoaId: pessoa.id, pessoaNome: pessoa.nomeCompleto, pessoaCargo: pessoa.cargo, pessoaEquipe: pessoa.equipe }
+        : e
+      );
+      const truncated = updated.slice(0, index + 1);
+      if (pessoa.equipe !== 'Ferista') {
+        truncated.push({
+          cargoVacante: pessoa.cargo,
+          substituindoNome: pessoa.nomeCompleto,
+          pessoaId: '',
+          pessoaNome: '',
+          pessoaCargo: '',
+          pessoaEquipe: '',
+        });
+      }
+      return truncated;
+    });
+  }
+
+  function handleSubstitutoChange(value: string) {
+    setFormSubId(value);
+    setFormFerista('');
+    if (value && cargoVacationer) {
+      const sub = bombeiros.find(b => b.id === value);
+      if (sub) {
+        if (sub.equipe === 'Ferista') {
+          setChainElos([]);
+          return;
+        }
+        setChainElos([{
+          cargoVacante: sub.cargo,
+          substituindoNome: sub.nomeCompleto,
+          pessoaId: '',
+          pessoaNome: '',
+          pessoaCargo: '',
+          pessoaEquipe: '',
+        }]);
+        return;
+      }
+    }
+    setChainElos([]);
+  }
+
   async function handleCreateEscala() {
     if (!activeEquipe || !user) return;
     setSaving(true);
@@ -1373,12 +1457,31 @@ function TabEscalaAnual() {
 
   async function handleSaveItem(mes: number) {
     if (!escala || !user) return;
-    const member = teamMembers.find(b => b.id === formFuncId);
-    const sub = teamMembers.find(b => b.id === formSubId);
-    const ferista = feristas.find(b => b.id === formFerista);
+    const member = bombeiros.find(b => b.id === formFuncId);
+    const sub = bombeiros.find(b => b.id === formSubId);
+    const ferista = bombeiros.find(b => b.id === formFerista);
 
     const dataFim = new Date(formDataInicio);
     dataFim.setDate(dataFim.getDate() + formDias - 1);
+
+    // Build chain JSON for observacoes
+    const chainData = chainElos
+      .filter(e => e.pessoaId && e.pessoaNome)
+      .map(e => ({
+        cargoVacante: e.cargoVacante,
+        substituindoNome: e.substituindoNome,
+        pessoaId: e.pessoaId,
+        pessoaNome: e.pessoaNome,
+        pessoaCargo: e.pessoaCargo,
+        pessoaEquipe: e.pessoaEquipe,
+      }));
+    const observacoes = chainData.length > 0 ? `cad_sup:${JSON.stringify(chainData)}` : '';
+
+    // Derive feristaId from chain's last link if it's a Ferista
+    const lastChain = chainElos.length > 0 ? chainElos[chainElos.length - 1] : null;
+    const chainFerista = lastChain?.pessoaEquipe === 'Ferista' ? lastChain : null;
+    const effectiveFeristaId = chainFerista ? chainFerista.pessoaId : formFerista;
+    const effectiveFeristaNome = chainFerista ? chainFerista.pessoaNome : (ferista?.nomeCompleto || '');
 
     const data: Omit<EscalaFeriasItem, 'id' | 'createdAt'> = {
       escalaId: escala.id,
@@ -1392,9 +1495,10 @@ function TabEscalaAnual() {
       substitutoId: formSubId,
       substitutoNome: sub?.nomeCompleto || '',
       funcaoSubstituicao: sub ? (member?.cargo || 'BA-2') : '',
-      feristaId: formFerista,
-      feristaNome: ferista?.nomeCompleto || '',
+      feristaId: effectiveFeristaId,
+      feristaNome: effectiveFeristaNome,
       periodoNumero: formPeriodo,
+      observacoes,
     };
 
     setSaving(true);
@@ -1426,10 +1530,19 @@ function TabEscalaAnual() {
   async function handleSendApproval() {
     if (!escala) return;
     setSaving(true);
-    await enviarEscala(escala.id);
-    const e = await obterEscala(escala.id);
-    setEscala(e);
-    setSaving(false);
+    try {
+      for (const item of itens) {
+        await enviarItemEscala(item.id);
+      }
+      await enviarEscala(escala.id);
+      const [e, it] = await Promise.all([obterEscala(escala.id), listarItensEscala(escala.id)]);
+      setEscala(e);
+      setItens(it);
+    } catch (err) {
+      alert('Erro ao enviar escala: ' + (err instanceof Error ? err.message : 'Erro desconhecido'));
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleDeleteEscala() {
@@ -1455,6 +1568,8 @@ function TabEscalaAnual() {
     setFormDataInicio('');
     setFormSubId('');
     setFormFerista('');
+    setSubTipo('mesma-equipe');
+    setChainElos([]);
   }
 
   function startEditMonth(mes: number) {
@@ -1472,6 +1587,20 @@ function TabEscalaAnual() {
       setFormDataInicio(existing.dataInicio || monthStart(ano, mes));
       setFormSubId(existing.substitutoId);
       setFormFerista(existing.feristaId || '');
+      // Restore chain from observacoes
+      if (existing.observacoes) {
+        const match = existing.observacoes.match(/^cad_sup:(.+)$/);
+        if (match) {
+          try {
+            const parsed = JSON.parse(match[1]);
+            if (Array.isArray(parsed)) setChainElos(parsed);
+          } catch { setChainElos([]); }
+        } else {
+          setChainElos([]);
+        }
+      } else {
+        setChainElos([]);
+      }
     } else {
       resetForm();
     }
@@ -1613,13 +1742,25 @@ function TabEscalaAnual() {
                       )}
                       {canSend && mesItems.length > 0 && (
                         <button onClick={async () => {
-                          for (const item of mesItems) {
-                            await enviarItemEscala(item.id);
+                          if (sendingMonth) return;
+                          setSendingMonth(mesNum);
+                          try {
+                            for (const item of mesItems) {
+                              await enviarItemEscala(item.id);
+                            }
+                            const it = await listarItensEscala(escala.id);
+                            setItens(it);
+                          } catch (err) {
+                            alert('Erro ao enviar mês: ' + (err instanceof Error ? err.message : 'Erro desconhecido'));
+                          } finally {
+                            setSendingMonth(null);
                           }
-                          const it = await listarItensEscala(escala.id);
-                          setItens(it);
-                        }} className="flex items-center gap-1 rounded-lg bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:hover:bg-amber-900/50">
-                          <Send className="h-3.5 w-3.5" /> Enviar Mês
+                        }} disabled={sendingMonth === mesNum} className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${mesItems.every(i => i.enviado) ? 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-900/50' : 'bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:hover:bg-amber-900/50'}`}>
+                          {sendingMonth === mesNum ? (
+                            <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-amber-700 border-t-transparent dark:border-amber-300" />
+                          ) : (
+                            <Send className="h-3.5 w-3.5" />
+                          )} {sendingMonth === mesNum ? 'Enviando...' : mesItems.every(i => i.enviado) ? 'Enviado' : 'Enviar Mês'}
                         </button>
                       )}
                     </div>
@@ -1638,7 +1779,7 @@ function TabEscalaAnual() {
                             <span>{fmt(item.dataInicio)} - {fmt(item.dataFim)}</span>
                           </div>
                           {(item.substitutoNome || item.feristaNome) && (
-                            <div className="mt-1 flex flex-wrap gap-2">
+                            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
                               {item.substitutoNome && (
                                 <span className="text-aviation-600 dark:text-aviation-400">Sub: {item.substitutoNome}</span>
                               )}
@@ -1647,6 +1788,26 @@ function TabEscalaAnual() {
                               )}
                             </div>
                           )}
+                          {(() => {
+                            if (!item.observacoes) return null;
+                            const match = item.observacoes.match(/^cad_sup:(.+)$/);
+                            if (!match) return null;
+                            try {
+                              const chain = JSON.parse(match[1]);
+                              if (!Array.isArray(chain) || chain.length === 0) return null;
+                              return (
+                                <div className="mt-1 flex flex-wrap gap-1">
+                                  {chain.map((elo: any, ci: number) => (
+                                    <span key={ci} className="rounded-md bg-purple-50 px-1.5 py-0.5 text-[10px] font-medium text-purple-600 dark:bg-purple-900/20 dark:text-purple-400">
+                                      {ci + 2}º: {elo.pessoaNome} ({ABBR_CARGO[elo.cargoVacante as keyof typeof ABBR_CARGO] || elo.cargoVacante})
+                                    </span>
+                                  ))}
+                                </div>
+                              );
+                            } catch {
+                              return null;
+                            }
+                          })()}
                         </div>
                         {(canEdit || canDeleteItem) && (
                           <div className="flex items-center gap-1 shrink-0">
@@ -1728,51 +1889,147 @@ function TabEscalaAnual() {
                         </div>
                       )}
 
-                      <div>
-                        <label className={labelCls}>Substituto</label>
-                        <select value={formSubId} onChange={e => setFormSubId(e.target.value)} className={selectCls}>
-                          <option value="" className={optionCls}>Nenhum</option>
-                          {(() => {
-                            const func = bombeiros.find(b => b.id === formFuncId);
-                            const isBA2 = func?.cargo === 'BA-2';
-                            if (isBA2) {
-                              return feristas.map(m => (
+                      {formFuncId && formPeriodo > 0 && formDataInicio && (
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <label className={labelCls}>
+                              Substituto {cargoVacationer && isSubstitutoObrigatorio(cargoVacationer) ? <span className="text-alert-red">*</span> : '(opcional)'}
+                            </label>
+                          </div>
+                          <div className="flex gap-2">
+                            {(['mesma-equipe', 'outras-equipes', 'ferista'] as const).map(tipo => (
+                              <button key={tipo} type="button" onClick={() => { setSubTipo(tipo); handleSubstitutoChange(''); }}
+                                className={`flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-all ${
+                                  subTipo === tipo
+                                    ? 'bg-aviation-600 text-white shadow-md'
+                                    : 'border border-graphite-300 bg-white text-graphite-600 hover:bg-graphite-50 dark:border-border-dark dark:bg-surface-card dark:text-graphite-300'
+                                }`}>
+                                {tipo === 'mesma-equipe' ? 'Mesma Equipe' : tipo === 'outras-equipes' ? 'Outras Equipes' : 'Ferista'}
+                              </button>
+                            ))}
+                          </div>
+                          <select value={formSubId} onChange={e => handleSubstitutoChange(e.target.value)} className={selectCls}>
+                            <option value="" className={optionCls}>
+                              {cargoVacationer && isSubstitutoObrigatorio(cargoVacationer) ? '-- Selecione um substituto --' : 'Nenhum'}
+                            </option>
+                            {(() => {
+                              const func = bombeiros.find(b => b.id === formFuncId);
+                              if (!func) return null;
+                              const cargosPermitidos = getCargosPermitidosSubstituto(func.cargo);
+                              return bombeiros.filter(p => {
+                                if (p.id === formFuncId) return false;
+                                if (idsUsados.has(p.id) && p.id !== formSubId) return false;
+                                if (p.dataDesligamento) return false;
+                                if (cargosPermitidos.length > 0 && !cargosPermitidos.includes(p.cargo) && p.equipe !== 'Ferista') return false;
+                                if (subTipo === 'mesma-equipe') {
+                                  if (p.equipe !== activeEquipe) return false;
+                                } else if (subTipo === 'outras-equipes') {
+                                  if (p.equipe === activeEquipe || p.equipe === 'Ferista') return false;
+                                } else if (subTipo === 'ferista') {
+                                  if (p.equipe !== 'Ferista') return false;
+                                }
+                                return true;
+                              }).map(m => (
                                 <option key={m.id} value={m.id} className={optionCls}>
-                                  {m.nomeCompleto} ({ABBR_CARGO[m.cargo] || m.cargo}) [Ferista]
+                                  {m.nomeCompleto} ({ABBR_CARGO[m.cargo] || m.cargo}) - {m.equipe}
                                 </option>
                               ));
-                            }
-                            return [...teamMembers.filter(m => m.id !== formFuncId), ...feristas].map(m => (
-                              <option key={m.id} value={m.id} className={optionCls}>
-                                {m.nomeCompleto} ({ABBR_CARGO[m.cargo] || m.cargo}){m.equipe === 'Ferista' ? ' [Ferista]' : ''}
-                              </option>
-                            ));
-                          })()}
-                        </select>
-                      </div>
-
-                      {formSubId && (
-                        <div className="rounded-lg bg-graphite-50 p-2 dark:bg-surface-card">
-                          <p className="text-xs text-graphite-600 dark:text-graphite-400">
-                            Substituição automática: <span className="font-bold text-graphite-900 dark:text-graphite-100">{formSubAutoFuncao ? (ABBR_CARGO[formSubAutoFuncao] || formSubAutoFuncao) : '-'}</span> (mesma função do funcionário em gozo)
-                          </p>
-                        </div>
-                      )}
-
-                      {formSubId && (
-                        <div>
-                          <label className={labelCls}>Ferista</label>
-                          <select value={formFerista} onChange={e => setFormFerista(e.target.value)} className={selectCls}>
-                            <option value="" className={optionCls}>Nenhum</option>
-                            {feristas.map(m => (
-                              <option key={m.id} value={m.id} className={optionCls}>{m.nomeCompleto}</option>
-                            ))}
+                            })()}
                           </select>
-                          {feristaConflict && (
-                            <div className="mt-2 rounded-lg border border-yellow-300 bg-yellow-50 p-2 dark:border-yellow-700 dark:bg-yellow-900/20">
-                              <p className="text-xs font-semibold text-yellow-700 dark:text-yellow-300">
-                                {feristaConflict.nome} ja esta designado em outra equipe. O gerente decidira qual equipe permanecera. Caso nao liberem, escolha outro ferista.
+
+                          {formSubId && (
+                            <div className="rounded-lg bg-graphite-50 p-2 dark:bg-surface-card">
+                              <p className="text-xs text-graphite-600 dark:text-graphite-400">
+                                O substituto herdará a função <span className="font-bold text-graphite-900 dark:text-graphite-100">{formSubAutoFuncao ? (ABBR_CARGO[formSubAutoFuncao] || formSubAutoFuncao) : '-'}</span> (mesma do funcionário em gozo)
                               </p>
+                            </div>
+                          )}
+
+                          {/* Chain builder */}
+                          {formSubId && chainElos.length > 0 && (
+                            <div className="rounded-xl border border-aviation-200 bg-aviation-50 p-4 dark:border-aviation-800 dark:bg-aviation-900/20">
+                              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-aviation-700 dark:text-aviation-300">
+                                Corrente de Substituição
+                              </p>
+                              <p className="mb-3 text-xs text-graphite-500 dark:text-graphite-400">
+                                {(() => {
+                                  const vacNome = bombeiros.find(b => b.id === formFuncId)?.nomeCompleto || '';
+                                  const subNome = bombeiros.find(b => b.id === formSubId)?.nomeCompleto || '';
+                                  return `${vacNome} está de férias. ${subNome} vai cobrir a função ${ABBR_CARGO[cargoVacationer || ''] || cargoVacationer}. Agora escolha quem cobre cada posição vaga na corrente:`;
+                                })()}
+                              </p>
+
+                              <div className="space-y-3">
+                                {chainElos.map((elo, idx) => {
+                                  const options = bombeiros.filter(p => {
+                                    if (idsUsados.has(p.id)) return false;
+                                    if (p.dataDesligamento) return false;
+                                    if (p.equipe === 'Ferista') return true;
+                                    if (elo.cargoVacante === 'BA-2' && p.cargo === 'BA-2') return true;
+                                    if (!getCargosPermitidosParaVaga(elo.cargoVacante as Cargo).includes(p.cargo)) return false;
+                                    return true;
+                                  });
+                                  const isBA2 = elo.cargoVacante === 'BA-2';
+
+                                  return (
+                                    <div key={idx} className="rounded-lg border border-aviation-200 bg-white p-3 dark:border-aviation-700 dark:bg-surface-card">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-aviation-600 text-xs font-bold text-white">
+                                          {idx + 2}
+                                        </span>
+                                        <span className="text-sm font-medium text-graphite-700 dark:text-graphite-300">
+                                          Posição <span className="font-bold text-aviation-700 dark:text-aviation-300">{ABBR_CARGO[elo.cargoVacante as keyof typeof ABBR_CARGO] || elo.cargoVacante}</span> vaga
+                                        </span>
+                                        <span className="text-xs text-graphite-400">(de {elo.substituindoNome})</span>
+                                        {isBA2 && (
+                                          <span className="rounded-md bg-purple-100 px-1.5 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+                                            BA-2 ou Ferista
+                                          </span>
+                                        )}
+                                      </div>
+                                      <select
+                                        value={elo.pessoaId}
+                                        onChange={e => handleChainSelect(idx, e.target.value)}
+                                        className={selectCls}
+                                      >
+                                        <option value="" className={optionCls}>
+                                          {`-- Quem cobre ${ABBR_CARGO[elo.cargoVacante as keyof typeof ABBR_CARGO] || elo.cargoVacante}? --`}
+                                        </option>
+                                        {options.map(p => (
+                                          <option key={p.id} value={p.id} className={optionCls}>
+                                            {p.nomeCompleto} ({ABBR_CARGO[p.cargo] || p.cargo}) - {p.equipe}
+                                          </option>
+                                        ))}
+                                        {options.length === 0 && (
+                                          <option value="" disabled className={optionCls}>Ninguém disponível</option>
+                                        )}
+                                      </select>
+                                      {elo.pessoaId && (
+                                        <div className="mt-2 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-800 dark:bg-emerald-900/20">
+                                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 text-xs font-bold text-white">
+                                            {elo.pessoaNome.charAt(0)}
+                                          </div>
+                                          <div className="flex-1 min-w-0">
+                                            <p className="text-xs font-bold text-emerald-800 dark:text-emerald-200 truncate">{elo.pessoaNome}</p>
+                                            <p className="text-[10px] text-emerald-600 dark:text-emerald-400">
+                                              {ABBR_CARGO[elo.pessoaCargo as keyof typeof ABBR_CARGO] || elo.pessoaCargo} · {elo.pessoaEquipe}
+                                              <span className="ml-2">→ assume {ABBR_CARGO[elo.cargoVacante as keyof typeof ABBR_CARGO] || elo.cargoVacante}</span>
+                                            </p>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+
+                              {chainElos.length > 0 && chainElos.every(e => !!e.pessoaId) && chainElos[chainElos.length - 1].pessoaEquipe === 'Ferista' && (
+                                <div className="mt-3 rounded-lg bg-emerald-50 p-2 dark:bg-emerald-900/20">
+                                  <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                                    ✅ Corrente completa. Ferista é o fim da linha — todas as posições cobertas.
+                                  </p>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
@@ -2244,6 +2501,7 @@ function TabQuadroEfetivos() {
   const [ano, setAno] = useState(new Date().getFullYear());
   const [mesSelecionado, setMesSelecionado] = useState(new Date().getMonth() + 1);
   const [loading, setLoading] = useState(true);
+  const [vigencias, setVigencias] = useState<VigenciaSubstituicao[]>([]);
 
   const equipes: Equipe[] = ['Alfa', 'Bravo', 'Charlie', 'Delta', 'Ferista'];
 
@@ -2259,44 +2517,56 @@ function TabQuadroEfetivos() {
   }
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       setLoading(true);
       const [all, gozos, escalas] = await Promise.all([listarAtivos(), listarFeriasGozo(), listarEscalas()]);
+      if (cancelled) return;
       setBombeiros(all);
       setFeriasGozo(gozos);
       const items: EscalaFeriasItem[] = [];
       for (const esc of escalas) {
+        if (esc.status !== 'Aprovado') continue;
+        if (esc.ano !== ano) continue;
         const it = await listarItensEscala(esc.id);
         items.push(...it);
       }
       setAllItems(items);
+
+      // Vigencias do mês selecionado
+      const mesInicio = `${ano}-${String(mesSelecionado).padStart(2, '0')}-01`;
+      const mesFim = new Date(ano, mesSelecionado, 0).toISOString().split('T')[0];
+      const v = await listarVigencias({ ativa: true, dataInicio: mesInicio, dataFim: mesFim });
+      if (cancelled) return;
+      setVigencias(v);
       setLoading(false);
     })();
-  }, []);
+    return () => { cancelled = true; };
+  }, [ano, mesSelecionado]);
 
   function isEmGozo(b: Bombeiro, mes: number, anoRef: number): FeriasGozo | null {
     const mesInicio = new Date(anoRef, mes - 1, 1);
     const mesFim = new Date(anoRef, mes, 0);
     for (const g of feriasGozo) {
       if (g.funcionarioId !== b.id) continue;
-      if (g.status === 'Gozadas' || g.status === 'Em Gozo' || g.status === 'Programadas') {
-        const gInicio = new Date(g.dataInicio + 'T00:00:00');
-        const gFim = new Date(g.dataFim + 'T00:00:00');
-        if (gInicio <= mesFim && gFim >= mesInicio) return g;
-      }
+      if (g.status === 'Gozadas') continue; // férias já gozadas não contam
+      const gInicio = new Date(g.dataInicio + 'T00:00:00');
+      const gFim = new Date(g.dataFim + 'T00:00:00');
+      if (gInicio <= mesFim && gFim >= mesInicio) return g;
     }
     return null;
   }
 
   function getItemSubstituicao(b: Bombeiro, mes: number): EscalaFeriasItem | null {
     return allItems.find(i =>
-      i.funcionarioId === b.id && i.mes === mes && !i.rejeitado && i.substitutoId
+      i.funcionarioId === b.id && i.mes === mes && !i.rejeitado && i.substitutoId && i.feriasGozoId
     ) || null;
   }
 
   function getSubstituindo(b: Bombeiro, mes: number): { funcionario: Bombeiro; cargo: Cargo } | null {
+    const hoje = new Date().toISOString().split('T')[0];
     const item = allItems.find(i =>
-      i.substitutoId === b.id && i.mes === mes && !i.rejeitado
+      i.substitutoId === b.id && i.mes === mes && !i.rejeitado && i.feriasGozoId
     );
     if (item) {
       const func = bombeiros.find(bb => bb.id === item.funcionarioId);
@@ -2306,17 +2576,32 @@ function TabQuadroEfetivos() {
     const mesFim = new Date(ano, mes, 0);
     const gozo = feriasGozo.find(g =>
       g.substitutoId === b.id && g.status !== 'Gozadas' &&
+      g.dataFim >= hoje &&
       new Date(g.dataInicio + 'T00:00:00') <= mesFim &&
       new Date(g.dataFim + 'T00:00:00') >= mesInicio
     );
-    if (!gozo) return null;
-    const func = bombeiros.find(bb => bb.id === gozo.funcionarioId);
-    return func ? { funcionario: func, cargo: (gozo.funcaoSubstituicao || func.cargo) as Cargo } : null;
+    if (gozo) {
+      const func = bombeiros.find(bb => bb.id === gozo.funcionarioId);
+      if (func) return { funcionario: func, cargo: (gozo.funcaoSubstituicao || func.cargo) as Cargo };
+    }
+
+    // Verificar VigenciaSubstituicao (cadeia de cascata)
+    const vigV = vigencias.find(v =>
+      v.substitutoId === b.id && v.ativa &&
+      new Date(v.dataInicio + 'T00:00:00') <= mesFim &&
+      new Date(v.dataFim + 'T00:00:00') >= mesInicio
+    );
+    if (vigV) {
+      const func = bombeiros.find(bb => bb.id === vigV.funcionarioOriginalId);
+      if (func) return { funcionario: func, cargo: (vigV.cargoExercido || func.cargo) as Cargo };
+    }
+
+    return null;
   }
 
   function getFeristaDesignado(b: Bombeiro, mes: number): EscalaFeriasItem | null {
     return allItems.find(i =>
-      i.funcionarioId === b.id && i.mes === mes && !i.rejeitado && i.feristaId
+      i.funcionarioId === b.id && i.mes === mes && !i.rejeitado && i.feristaId && i.feriasGozoId
     ) || null;
   }
 
@@ -2357,12 +2642,20 @@ function TabQuadroEfetivos() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-4">
         {equipes.map(eq => {
           const membros = sortPorHierarquia(bombeiros.filter(b => b.equipe === eq));
-          const emGozo = membros.filter(m => isEmGozo(m, mesSelecionado, ano));
-          const disponiveis = membros.filter(m => !isEmGozo(m, mesSelecionado, ano));
+          const emGozo = membros.filter(m => isEmGozo(m, mesSelecionado, ano) && !temSubstituto(m, mesSelecionado));
+          const disponiveis = membros.filter(m => !isEmGozo(m, mesSelecionado, ano) || temSubstituto(m, mesSelecionado));
 
           const mesInicio = new Date(ano, mesSelecionado - 1, 1);
           const mesFim = new Date(ano, mesSelecionado, 0);
           const substitutosDaEquipe: { pessoa: Bombeiro; substituindo: Bombeiro; cargo: Cargo }[] = [];
+
+          // Verifica se a pessoa tem alguém a substituí-la (via vigência, escala aprovada ou ferista)
+          function temSubstituto(b: Bombeiro, mes: number): boolean {
+            return !!(
+              vigencias.find(v => v.funcionarioOriginalId === b.id && v.ativa) ||
+              allItems.find(i => i.funcionarioId === b.id && i.mes === mes && !i.rejeitado && (i.substitutoId || i.feristaId) && i.feriasGozoId)
+            );
+          }
 
           function addSub(pessoa: Bombeiro, func: Bombeiro, cargo: Cargo) {
             if (!substitutosDaEquipe.some(s => s.pessoa.id === pessoa.id)) {
@@ -2370,8 +2663,10 @@ function TabQuadroEfetivos() {
             }
           }
 
+          const hoje = new Date().toISOString().split('T')[0];
           for (const gozo of feriasGozo) {
             if (gozo.status === 'Gozadas') continue;
+            if (gozo.dataFim < hoje) continue; // férias já terminadas
             const func = bombeiros.find(b => b.id === gozo.funcionarioId);
             if (!func || func.equipe !== eq) continue;
             const gInicio = new Date(gozo.dataInicio + 'T00:00:00');
@@ -2385,6 +2680,7 @@ function TabQuadroEfetivos() {
 
           for (const gozo of feriasGozo) {
             if (gozo.status === 'Gozadas') continue;
+            if (gozo.dataFim < hoje) continue; // férias já terminadas
             const obs = gozo.observacoes || '';
             if (!obs.startsWith('Ferista: ')) continue;
             const rest = obs.substring(9);
@@ -2415,7 +2711,7 @@ function TabQuadroEfetivos() {
           }
 
           for (const item of allItems) {
-            if (item.rejeitado || item.mes !== mesSelecionado) continue;
+            if (item.rejeitado || item.mes !== mesSelecionado || !item.feriasGozoId) continue;
             const func = bombeiros.find(b => b.id === item.funcionarioId);
             if (!func || func.equipe !== eq) continue;
             if (item.substitutoId) {
@@ -2427,13 +2723,8 @@ function TabQuadroEfetivos() {
               if (fer) addSub(fer, func, (item.funcaoSubstituicao || func.cargo) as Cargo);
             }
           }
-          const disponiveisComSubstitutos = [...disponiveis, ...substitutosDaEquipe.map(s => s.pessoa).filter(p => !disponiveis.find(d => d.id === p.id))];
-          const ordenados = [...disponiveisComSubstitutos].sort((a, b) => {
-            const subA = substitutosDaEquipe.find(s => s.pessoa.id === a.id) || getSubstituindo(a, mesSelecionado);
-            const subB = substitutosDaEquipe.find(s => s.pessoa.id === b.id) || getSubstituindo(b, mesSelecionado);
-            const cargoA = subA ? (CARGO_PRIORITY[subA.cargo] ?? 99) : (CARGO_PRIORITY[a.cargo] ?? 99);
-            const cargoB = subB ? (CARGO_PRIORITY[subB.cargo] ?? 99) : (CARGO_PRIORITY[b.cargo] ?? 99);
-            return cargoA - cargoB;
+          const ordenados = [...disponiveis].sort((a, b) => {
+            return (CARGO_PRIORITY[a.cargo] ?? 99) - (CARGO_PRIORITY[b.cargo] ?? 99);
           });
 
           return (
@@ -2470,20 +2761,109 @@ function TabQuadroEfetivos() {
                           const substituindo = subCross ? { funcionario: subCross.substituindo, cargo: subCross.cargo } : getSubstituindo(m, mesSelecionado);
                           const item = getItemSubstituicao(m, mesSelecionado);
                           const ferista = getFeristaDesignado(m, mesSelecionado);
-                          const temSub = !!(item?.substitutoNome || ferista?.feristaNome);
+                          const vigSub = vigencias.find(v => v.funcionarioOriginalId === m.id && v.ativa);
+                          const temSub = !!(item?.substitutoNome || ferista?.feristaNome || vigSub);
+                          
+                          const subDisplayInfo = (() => {
+                            if (vigSub) {
+                              const sb = bombeiros.find(bb => bb.id === vigSub.substitutoId);
+                              const cargoExibido = vigSub.cargoExercido || sb?.cargo || '';
+                              if (sb) return {
+                                titleNome: `${sb.nomeGuerra} (${ABBR_CARGO[cargoExibido as keyof typeof ABBR_CARGO] || cargoExibido})`,
+                                initial: sb.nomeGuerra.charAt(0).toUpperCase(),
+                                nomeDisplay: `${ABBR_CARGO[cargoExibido as keyof typeof ABBR_CARGO] || cargoExibido} ${sb.nomeGuerra}`,
+                              };
+                              return {
+                                titleNome: vigSub.substitutoNome,
+                                initial: vigSub.substitutoNome.charAt(0),
+                                nomeDisplay: vigSub.substitutoNome,
+                              };
+                            }
+                            if (item?.substitutoNome) {
+                              const sb = bombeiros.find(bb => bb.nomeCompleto === item.substitutoNome);
+                              const cargoExibido = item.funcaoSubstituicao || sb?.cargo || '';
+                              if (sb) return {
+                                titleNome: `${sb.nomeGuerra} (${ABBR_CARGO[cargoExibido as keyof typeof ABBR_CARGO] || cargoExibido})`,
+                                initial: sb.nomeGuerra.charAt(0).toUpperCase(),
+                                nomeDisplay: `${ABBR_CARGO[cargoExibido as keyof typeof ABBR_CARGO] || cargoExibido} ${sb.nomeGuerra}`,
+                              };
+                              return {
+                                titleNome: item.substitutoNome,
+                                initial: item.substitutoNome.charAt(0),
+                                nomeDisplay: item.substitutoNome,
+                              };
+                            }
+                            if (ferista?.feristaNome) {
+                              const cargoFerista = item?.funcaoSubstituicao || '';
+                              return {
+                                titleNome: `${ferista.feristaNome}${cargoFerista ? ` (${cargoFerista})` : ''}`,
+                                initial: ferista.feristaNome.charAt(0),
+                                nomeDisplay: cargoFerista ? `${cargoFerista} ${ferista.feristaNome}` : ferista.feristaNome,
+                              };
+                            }
+                            return { titleNome: '', initial: 'S', nomeDisplay: '' };
+                          })();
+
+                          if (temSub) {
+                            // Mostra quem está a COBRIR esta posição
+                            // O hover mostra a pessoa original (que está de férias/sendo substituída)
+                            return (
+                              <div key={m.id} className="group relative rounded-xl border border-amber-300 bg-amber-50/50 px-3 py-2 transition-all dark:border-amber-700 dark:bg-amber-900/10"
+                                title={`${ABBR_CARGO[m.cargo] || m.cargo} ${m.nomeGuerra} · Substituído por ${subDisplayInfo.titleNome}`}>
+                                <div className="flex items-center gap-2.5 transition-all duration-300 group-hover:opacity-0 group-hover:scale-95">
+                                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 text-[10px] font-bold text-white">
+                                    {subDisplayInfo.initial}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-xs font-bold text-graphite-900 dark:text-graphite-100 truncate flex items-center gap-1">
+                                      {subDisplayInfo.nomeDisplay}
+                                      {(() => {
+                                        const sbBombeiro = item?.substitutoNome ? bombeiros.find(bb => bb.nomeCompleto === item.substitutoNome) : vigSub ? bombeiros.find(bb => bb.id === vigSub.substitutoId) : null;
+                                        return sbBombeiro && sbBombeiro.equipe !== eq ? <span className="ml-1 rounded-full bg-graphite-200 px-1.5 py-0.5 text-[8px] font-medium text-graphite-600 dark:bg-graphite-700 dark:text-graphite-300">{sbBombeiro.equipe}</span> : null;
+                                      })()}
+                                      <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[8px] font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">↔</span>
+                                    </p>
+                                    <p className="text-[10px] text-graphite-500 dark:text-graphite-400">Substituto</p>
+                                  </div>
+                                </div>
+                                <div className="absolute inset-0 flex items-center gap-2.5 rounded-xl opacity-0 transition-all duration-300 group-hover:opacity-100 group-hover:scale-100 scale-90">
+                                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-green-500 to-green-600 text-xs font-bold text-white shadow-md shadow-green-500/30">
+                                    {m.nomeGuerra.charAt(0)}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-xs font-bold text-green-700 dark:text-green-300 truncate">
+                                      {ABBR_CARGO[m.cargo] || m.cargo} {m.nomeGuerra}
+                                      {m.equipe !== eq && (
+                                        <span className="ml-1.5 rounded-full bg-green-200 px-1.5 py-0.5 text-[8px] font-medium text-green-700 dark:bg-green-800/40 dark:text-green-300">{m.equipe}</span>
+                                      )}
+                                    </p>
+                                    <div className="flex items-center gap-1 mt-0.5">
+                                      <span className="rounded-full bg-green-200 px-1.5 py-0.5 text-[8px] font-bold text-green-800 dark:bg-green-800/40 dark:text-green-300">Substituído</span>
+                                      <span className="text-[10px] text-green-600 dark:text-green-400">{ABBR_CARGO[m.cargo] || m.cargo}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }
 
                           if (substituindo) {
                             const func = substituindo.funcionario;
                             const cargoExibido = substituindo.cargo;
                             return (
                               <div key={m.id} className="group relative rounded-xl border border-amber-300 bg-amber-50/50 px-3 py-2 transition-all dark:border-amber-700 dark:bg-amber-900/10"
-                                title={`${m.nomeGuerra} substituindo ${func.nomeGuerra} (${ABBR_CARGO[cargoExibido] || cargoExibido})`}>
+                                title={`${ABBR_CARGO[cargoExibido] || cargoExibido} ${m.nomeGuerra} substituindo ${func.nomeGuerra} (${ABBR_CARGO[cargoExibido] || cargoExibido})`}>
                                 <div className="flex items-center gap-2.5 transition-all duration-300 group-hover:opacity-0 group-hover:scale-95">
                                   <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 text-[10px] font-bold text-white">
                                     {m.nomeGuerra.charAt(0)}
                                   </div>
                                   <div className="min-w-0 flex-1">
-                                    <p className="text-xs font-bold text-graphite-900 dark:text-graphite-100 truncate">{m.nomeGuerra}</p>
+                                    <p className="text-xs font-bold text-graphite-900 dark:text-graphite-100 truncate">
+                                      {ABBR_CARGO[cargoExibido] || cargoExibido} {m.nomeGuerra}
+                                      {m.equipe !== eq && (
+                                        <span className="ml-1.5 rounded-full bg-amber-200 px-1.5 py-0.5 text-[8px] font-medium text-amber-700 dark:bg-amber-800/40 dark:text-amber-300">{m.equipe}</span>
+                                      )}
+                                    </p>
                                     <p className="text-[10px] text-graphite-500 dark:text-graphite-400">{ABBR_CARGO[cargoExibido] || cargoExibido} · Substituto</p>
                                   </div>
                                 </div>
@@ -2492,7 +2872,12 @@ function TabQuadroEfetivos() {
                                     {func.nomeGuerra.charAt(0)}
                                   </div>
                                   <div className="min-w-0 flex-1">
-                                    <p className="text-xs font-bold text-red-700 dark:text-red-300 truncate">{func.nomeGuerra}</p>
+                                    <p className="text-xs font-bold text-red-700 dark:text-red-300 truncate">
+                                      {ABBR_CARGO[cargoExibido] || cargoExibido} {func.nomeGuerra}
+                                      {func.equipe !== eq && (
+                                        <span className="ml-1.5 rounded-full bg-red-200 px-1.5 py-0.5 text-[8px] font-medium text-red-700 dark:bg-red-800/40 dark:text-red-300">{func.equipe}</span>
+                                      )}
+                                    </p>
                                     <div className="flex items-center gap-1 mt-0.5">
                                       <span className="rounded-full bg-red-200 px-1.5 py-0.5 text-[8px] font-bold text-red-800 dark:bg-red-800/40 dark:text-red-300">{feriasGozo.some(g => g.funcionarioId === func.id && g.status !== 'Gozadas') ? 'Em gozo' : 'Substituindo'}</span>
                                       <span className="text-[10px] text-red-600 dark:text-red-400">{ABBR_CARGO[cargoExibido] || cargoExibido}</span>
@@ -2510,14 +2895,18 @@ function TabQuadroEfetivos() {
                                 : 'border-green-200 bg-green-50/50 dark:border-green-800/30 dark:bg-green-900/10'
                             }`}>
                               {temSub ? (
-                                <div className="group relative" title={`${m.nomeGuerra} · Substituído por ${(() => { const sb = bombeiros.find(bb => bb.nomeCompleto === item?.substitutoNome); return sb ? `${sb.nomeGuerra} (${ABBR_CARGO[sb.cargo]})` : (item?.substitutoNome || ferista?.feristaNome || ''); })()}`}>
+                                <div className="group relative" title={`${ABBR_CARGO[m.cargo] || m.cargo} ${m.nomeGuerra} · Substituído por ${subDisplayInfo.titleNome}`}>
                                   <div className="flex items-center gap-2.5 transition-all duration-300 group-hover:opacity-0 group-hover:scale-95">
                                     <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 text-[10px] font-bold text-white">
-                                      {(() => { const sb = bombeiros.find(bb => bb.nomeCompleto === item?.substitutoNome); return sb ? sb.nomeGuerra.charAt(0).toUpperCase() : (item?.substitutoNome?.charAt(0) || ferista?.feristaNome?.charAt(0) || 'S'); })()}
+                                      {subDisplayInfo.initial}
                                     </div>
                                     <div className="min-w-0 flex-1">
                                       <p className="text-xs font-bold text-graphite-900 dark:text-graphite-100 truncate flex items-center gap-1">
-                                        {(() => { const sb = bombeiros.find(bb => bb.nomeCompleto === item?.substitutoNome); return sb ? `${ABBR_CARGO[sb.cargo] || sb.cargo} ${sb.nomeGuerra}` : (item?.substitutoNome || ferista?.feristaNome || ''); })()}
+                                        {subDisplayInfo.nomeDisplay}
+                                        {(() => {
+                                          const sbBombeiro = item?.substitutoNome ? bombeiros.find(bb => bb.nomeCompleto === item.substitutoNome) : vigSub ? bombeiros.find(bb => bb.id === vigSub.substitutoId) : null;
+                                          return sbBombeiro && sbBombeiro.equipe !== eq ? <span className="ml-1 rounded-full bg-graphite-200 px-1.5 py-0.5 text-[8px] font-medium text-graphite-600 dark:bg-graphite-700 dark:text-graphite-300">{sbBombeiro.equipe}</span> : null;
+                                        })()}
                                         <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[8px] font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">↔</span>
                                       </p>
                                       <p className="text-[10px] text-graphite-500 dark:text-graphite-400">Substituto</p>
@@ -2529,7 +2918,10 @@ function TabQuadroEfetivos() {
                                     </div>
                                     <div className="min-w-0 flex-1">
                                       <p className="text-xs font-bold text-green-700 dark:text-green-300 truncate">
-                                        {m.nomeGuerra}
+                                        {ABBR_CARGO[m.cargo] || m.cargo} {m.nomeGuerra}
+                                        {m.equipe !== eq && (
+                                          <span className="ml-1.5 rounded-full bg-green-200 px-1.5 py-0.5 text-[8px] font-medium text-green-700 dark:bg-green-800/40 dark:text-green-300">{m.equipe}</span>
+                                        )}
                                       </p>
                                       <div className="flex items-center gap-1 mt-0.5">
                                         <span className="rounded-full bg-green-200 px-1.5 py-0.5 text-[8px] font-bold text-green-800 dark:bg-green-800/40 dark:text-green-300">Substituído</span>
@@ -2546,7 +2938,12 @@ function TabQuadroEfetivos() {
                                     {m.foto ? <img src={m.foto} alt="" className="h-full w-full rounded-lg object-cover" /> : m.nomeGuerra.charAt(0)}
                                   </div>
                                   <div className="min-w-0 flex-1">
-                                    <p className="text-xs font-bold text-graphite-900 dark:text-graphite-100 truncate">{m.nomeGuerra}</p>
+                                    <p className="text-xs font-bold text-graphite-900 dark:text-graphite-100 truncate">
+                                      {ABBR_CARGO[m.cargo] || m.cargo} {m.nomeGuerra}
+                                      {m.equipe !== eq && (
+                                        <span className="ml-1.5 rounded-full bg-graphite-200 px-1.5 py-0.5 text-[8px] font-medium text-graphite-600 dark:bg-graphite-700 dark:text-graphite-300">{m.equipe}</span>
+                                      )}
+                                    </p>
                                     <p className="text-[10px] text-graphite-500 dark:text-graphite-400">{ABBR_CARGO[m.cargo] || m.cargo}</p>
                                   </div>
                                 </div>
@@ -2569,17 +2966,25 @@ function TabQuadroEfetivos() {
                                 {m.nomeGuerra.charAt(0)}
                               </div>
                               <div className="min-w-0 flex-1">
-                                <p className="text-xs font-bold text-graphite-700 dark:text-graphite-300 truncate line-through">{m.nomeGuerra}</p>
+                                <p className="text-xs font-bold text-graphite-700 dark:text-graphite-300 truncate line-through">
+                                  {ABBR_CARGO[m.cargo] || m.cargo} {m.nomeGuerra}
+                                  {m.equipe !== eq && (
+                                    <span className="ml-1.5 rounded-full bg-graphite-200 px-1.5 py-0.5 text-[8px] font-medium text-graphite-600 dark:bg-graphite-700 dark:text-graphite-300">{m.equipe}</span>
+                                  )}
+                                </p>
                                 <p className="text-[10px] text-graphite-500 dark:text-graphite-400">
                                   {ABBR_CARGO[m.cargo] || m.cargo}
                                   {gozo && ` · ${fmt(gozo.dataInicio)} - ${fmt(gozo.dataFim)}`}
                                 </p>
                               </div>
-                              {gozo?.substitutoNome && (
-                                <span className="shrink-0 rounded-full bg-orange-100 px-1.5 py-0.5 text-[9px] font-semibold text-orange-700 dark:bg-orange-900/20 dark:text-orange-300">
-                                  → {gozo.substitutoNome.split(' ')[0]}
-                                </span>
-                              )}
+                              {gozo?.substitutoNome && (() => {
+                                const sb = bombeiros.find(bb => bb.nomeCompleto === gozo.substitutoNome || bb.id === gozo.substitutoId);
+                                return (
+                                  <span className="shrink-0 rounded-full bg-orange-100 px-1.5 py-0.5 text-[9px] font-semibold text-orange-700 dark:bg-orange-900/20 dark:text-orange-300">
+                                    → {sb?.nomeGuerra || gozo.substitutoNome.split(' ')[0]}
+                                  </span>
+                                );
+                              })()}
                             </div>
                           );
                         })}
@@ -2611,7 +3016,16 @@ function ModalCadastroFeriasManual({ onClose, onSuccess }: { onClose: () => void
   const [dias, setDias] = useState(30);
   const [subTipo, setSubTipo] = useState<'mesma-equipe' | 'outras-equipes' | 'ferista'>('mesma-equipe');
   const [substitutoId, setSubstitutoId] = useState('');
-  const [feristaId, setFeristaId] = useState('');
+  // Cadeia de substituição: cada elo = alguém que está a cobrir uma posição vaga
+  const [chainElos, setChainElos] = useState<{
+    cargoVacante: string;
+    substituindoNome: string;
+    pessoaId: string;
+    pessoaNome: string;
+    pessoaCargo: Cargo | '';
+    pessoaEquipe: string;
+  }[]>([]);
+  const [saveError, setSaveError] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -2638,11 +3052,24 @@ function ModalCadastroFeriasManual({ onClose, onSuccess }: { onClose: () => void
   }, [selectedBombeiro, feriasGozo]);
 
   const equipe = selectedBombeiro?.equipe || '';
+  const cargoVacationer = selectedBombeiro?.cargo;
+  const substitutoObrigatorio = cargoVacationer ? isSubstitutoObrigatorio(cargoVacationer) : false;
+  const cargosPermitidos = cargoVacationer ? getCargosPermitidosSubstituto(cargoVacationer) : [];
+
+  // IDs já usados na cadeia (incluindo vacationer e substituto direto)
+  const idsUsados = useMemo(() => {
+    const ids = new Set<string>();
+    if (selectedFuncId) ids.add(selectedFuncId);
+    if (substitutoId) ids.add(substitutoId);
+    chainElos.forEach(e => { if (e.pessoaId) ids.add(e.pessoaId); });
+    return ids;
+  }, [selectedFuncId, substitutoId, chainElos]);
 
   const availableSubstitutes = useMemo(() => {
     if (!selectedBombeiro || !dataInicio || !dataFim) return [];
     const disponiveis = bombeiros.filter(p => {
       if (p.id === selectedBombeiro.id) return false;
+      if (cargosPermitidos.length > 0 && !cargosPermitidos.includes(p.cargo)) return false;
       if (subTipo === 'mesma-equipe') {
         if (p.equipe !== equipe) return false;
       } else if (subTipo === 'outras-equipes') {
@@ -2662,21 +3089,98 @@ function ModalCadastroFeriasManual({ onClose, onSuccess }: { onClose: () => void
       return !onVacation;
     });
     return disponiveis;
-  }, [selectedBombeiro, equipe, dataInicio, dataFim, bombeiros, feriasGozo, subTipo]);
-
-  const feristas = useMemo(
-    () => bombeiros.filter(b => b.equipe === 'Ferista'),
-    [bombeiros],
-  );
+  }, [selectedBombeiro, equipe, dataInicio, dataFim, bombeiros, feriasGozo, subTipo, cargosPermitidos]);
 
   const formSubAutoFuncao = useMemo(() => selectedBombeiro?.cargo || '', [selectedBombeiro]);
 
+  // Opções disponíveis para o select de um elo da cadeia
+  function getChainOptions(cargoVacante: string) {
+    return bombeiros.filter(p => {
+      if (idsUsados.has(p.id)) return false;
+      if (p.dataDesligamento) return false;
+      // Ferista é identificado pela EQUIPE, não pelo cargo
+      if (p.equipe === 'Ferista') return true;
+      // Para BA-2 vago, qualquer BA-2 serve
+      if (cargoVacante === 'BA-2' && p.cargo === 'BA-2') return true;
+      // Para outros cargos, verificar cargos permitidos
+      if (!getCargosPermitidosParaVaga(cargoVacante as Cargo).includes(p.cargo)) return false;
+      const onVacation = feriasGozo.some(g => {
+        if (g.funcionarioId !== p.id) return false;
+        if (g.status === 'Gozadas') return false;
+        const gIni = new Date(g.dataInicio + 'T00:00:00');
+        const gFim = new Date(g.dataFim + 'T00:00:00');
+        const selIni = new Date(dataInicio + 'T00:00:00');
+        const selFim = new Date(dataFim + 'T00:00:00');
+        return gIni <= selFim && gFim >= selIni;
+      });
+      return !onVacation;
+    });
+  }
+
+  function handleChainSelect(index: number, pessoaId: string) {
+    const pessoa = bombeiros.find(b => b.id === pessoaId);
+    if (!pessoa) return;
+
+    setChainElos(prev => {
+      // Atualiza o elo atual
+      const updated = prev.map((e, i) => i === index
+        ? { ...e, pessoaId: pessoa.id, pessoaNome: pessoa.nomeCompleto, pessoaCargo: pessoa.cargo, pessoaEquipe: pessoa.equipe }
+        : e
+      );
+
+      // Remove elos seguintes (se o user mudou um elo do meio)
+      const truncated = updated.slice(0, index + 1);
+
+      // Ferista é identificado pela EQUIPE
+      // Se não é Ferista, adiciona próximo elo (posição vaga)
+      if (pessoa.equipe !== 'Ferista') {
+        truncated.push({
+          cargoVacante: pessoa.cargo,
+          substituindoNome: pessoa.nomeCompleto,
+          pessoaId: '',
+          pessoaNome: '',
+          pessoaCargo: '',
+          pessoaEquipe: '',
+        });
+      }
+
+      return truncated;
+    });
+  }
+
+  function handleSubstitutoChange(value: string) {
+    setSubstitutoId(value);
+    if (value && selectedBombeiro) {
+      const sub = bombeiros.find(b => b.id === value);
+      if (sub) {
+        if (sub.equipe === 'Ferista') {
+          setChainElos([]);
+          return;
+        }
+        setChainElos([{
+          cargoVacante: sub.cargo,
+          substituindoNome: sub.nomeCompleto,
+          pessoaId: '',
+          pessoaNome: '',
+          pessoaCargo: '',
+          pessoaEquipe: '',
+        }]);
+        return;
+      }
+    }
+    setChainElos([]);
+  }
+
   function handleDataInicioChange(value: string) {
     setDataInicio(value);
+    setChainElos([]);
     if (value) {
-      const d = new Date(value);
+      const d = new Date(value + 'T12:00:00');
       d.setDate(d.getDate() + 29);
       setDataFim(d.toISOString().split('T')[0]);
+      setDias(30);
+    } else {
+      setDataFim('');
       setDias(30);
     }
   }
@@ -2686,29 +3190,69 @@ function ModalCadastroFeriasManual({ onClose, onSuccess }: { onClose: () => void
     if (dataInicio && value) setDias(calcDias(dataInicio, value));
   }
 
+  const canSave = selectedFuncId && selectedPeriodo && dataInicio && dataFim && !saving &&
+    (!substitutoObrigatorio || !!substitutoId) &&
+    chainElos.every(e => !!e.pessoaId);
+
   async function handleSave() {
     if (!selectedBombeiro || !user || !selectedPeriodo) return;
+    if (substitutoObrigatorio && !substitutoId) return;
     setSaving(true);
-    const sub = bombeiros.find(b => b.id === substitutoId);
-    await criarFeriasGozo({
-      funcionarioId: selectedBombeiro.id,
-      funcionarioNome: selectedBombeiro.nomeCompleto,
-      equipe: equipe as Equipe,
-      periodoNumero: selectedPeriodo,
-      dataInicio,
-      dataFim,
-      dias,
-      status: dataFim < new Date().toISOString().split('T')[0] ? 'Gozadas' : 'Programadas',
-      substitutoId: substitutoId || '',
-      substitutoNome: sub?.nomeCompleto || '',
-      funcaoSubstituicao: sub ? (selectedBombeiro.cargo || '') : '',
-      observacoes: feristaId ? `Ferista: ${feristas.find(f => f.id === feristaId)?.nomeCompleto || ''}${sub ? ` (cobre: ${sub.nomeGuerra})` : ''}` : '',
-      modificadoPor: user.username,
-      bloqueado: true,
-    });
-    setSaving(false);
-    onSuccess();
+    setSaveError('');
+    try {
+      const sub = bombeiros.find(b => b.id === substitutoId);
+      const gozo = await criarFeriasGozo({
+        funcionarioId: selectedBombeiro.id,
+        funcionarioNome: selectedBombeiro.nomeCompleto,
+        equipe: equipe as Equipe,
+        periodoNumero: selectedPeriodo,
+        dataInicio,
+        dataFim,
+        dias,
+        status: dataFim < new Date().toISOString().split('T')[0] ? 'Gozadas' : 'Programadas',
+        substitutoId: substitutoId || '',
+        substitutoNome: sub?.nomeCompleto || '',
+        funcaoSubstituicao: sub ? (selectedBombeiro.cargo || '') : '',
+        observacoes: '',
+        modificadoPor: user.username,
+        bloqueado: true,
+      });
+
+      // Criar corrente de substituição na BD
+      const elosCadeia: EloCadeiaInput[] = chainElos
+        .filter(e => e.pessoaId && e.pessoaNome)
+        .map(e => ({
+          pessoaId: e.pessoaId,
+          pessoaNome: e.pessoaNome,
+          cargoOriginal: e.pessoaCargo as Cargo,
+          cargoVacante: e.cargoVacante,
+          substituindoNome: e.substituindoNome,
+        }));
+
+      if (elosCadeia.length > 0) {
+        await processarCadeiaSubstituicao({
+          id: gozo.id,
+          funcionarioId: gozo.funcionarioId,
+          funcionarioNome: gozo.funcionarioNome,
+          equipe: gozo.equipe,
+          substitutoId: gozo.substitutoId,
+          substitutoNome: gozo.substitutoNome,
+          funcaoSubstituicao: gozo.funcaoSubstituicao,
+          dataInicio: gozo.dataInicio,
+          dataFim: gozo.dataFim,
+        }, elosCadeia, bombeiros);
+      }
+
+      onSuccess();
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Erro ao cadastrar férias');
+    } finally {
+      setSaving(false);
+    }
   }
+
+  const chainCompleta = chainElos.every(e => !!e.pessoaId);
+  const ultimoEloFerista = chainElos.length > 0 && chainElos[chainElos.length - 1].pessoaEquipe === 'Ferista';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -2728,7 +3272,7 @@ function ModalCadastroFeriasManual({ onClose, onSuccess }: { onClose: () => void
           <div className="space-y-4">
             <div>
               <label className={labelCls}>Funcionário *</label>
-              <select value={selectedFuncId} onChange={e => { setSelectedFuncId(e.target.value); setSelectedPeriodo(0); setSubstitutoId(''); setFeristaId(''); setDataInicio(''); setDataFim(''); }} className={selectCls}>
+              <select value={selectedFuncId} onChange={e => { setSelectedFuncId(e.target.value); setSelectedPeriodo(0); setSubstitutoId(''); setChainElos([]); setDataInicio(''); setDataFim(''); }} className={selectCls}>
                 <option value="" className={optionCls}>Selecione o funcionário</option>
                 {bombeiros.map(b => (
                   <option key={b.id} value={b.id} className={optionCls}>
@@ -2779,10 +3323,19 @@ function ModalCadastroFeriasManual({ onClose, onSuccess }: { onClose: () => void
 
             {selectedFuncId && selectedPeriodo && dataInicio && (
               <div className="space-y-3">
-                <label className={labelCls}>Substituto</label>
+                <div className="flex items-center justify-between">
+                  <label className={labelCls}>
+                    Substituto {substitutoObrigatorio ? <span className="text-alert-red">*</span> : '(opcional)'}
+                  </label>
+                  {substitutoObrigatorio && !substitutoId && (
+                    <span className="text-xs font-medium text-alert-red">
+                      {cargoVacationer === 'BA-2' ? 'BA-2 precisa de BA-2 ou Ferista como substituto' : 'Esta função requer um substituto'}
+                    </span>
+                  )}
+                </div>
                 <div className="flex gap-2">
                   {(['mesma-equipe', 'outras-equipes', 'ferista'] as const).map(tipo => (
-                    <button key={tipo} type="button" onClick={() => { setSubTipo(tipo); setSubstitutoId(''); setFeristaId(''); }}
+                    <button key={tipo} type="button" onClick={() => { setSubTipo(tipo); handleSubstitutoChange(''); }}
                       className={`flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-all ${
                         subTipo === tipo
                           ? 'bg-aviation-600 text-white shadow-md'
@@ -2792,8 +3345,10 @@ function ModalCadastroFeriasManual({ onClose, onSuccess }: { onClose: () => void
                     </button>
                   ))}
                 </div>
-                <select value={substitutoId} onChange={e => setSubstitutoId(e.target.value)} className={selectCls}>
-                  <option value="" className={optionCls}>Nenhum</option>
+                <select value={substitutoId} onChange={e => handleSubstitutoChange(e.target.value)} className={selectCls}>
+                  <option value="" className={optionCls}>
+                    {substitutoObrigatorio ? '-- Selecione um substituto --' : 'Nenhum'}
+                  </option>
                   {availableSubstitutes.map(m => (
                     <option key={m.id} value={m.id} className={optionCls}>
                       {m.nomeCompleto} ({ABBR_CARGO[m.cargo] || m.cargo}) - {m.equipe}
@@ -2803,23 +3358,99 @@ function ModalCadastroFeriasManual({ onClose, onSuccess }: { onClose: () => void
               </div>
             )}
 
-            {substitutoId && formSubAutoFuncao && (
+            {/* Cadeia interativa: cada posição vaga é um select */}
+            {substitutoId && chainElos.length > 0 && (
+              <div className="rounded-xl border border-aviation-200 bg-aviation-50 p-4 dark:border-aviation-800 dark:bg-aviation-900/20">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-aviation-700 dark:text-aviation-300">
+                  Corrente de Substituição
+                </p>
+                <p className="mb-3 text-xs text-graphite-500 dark:text-graphite-400">
+                  {selectedBombeiro?.nomeCompleto} está de férias.
+                  {substitutoId && (() => {
+                    const subNome = bombeiros.find(b => b.id === substitutoId)?.nomeCompleto || '';
+                    return ` ${subNome} vai cobrir a função ${ABBR_CARGO[cargoVacationer || ''] || cargoVacationer}.`;
+                  })()}
+                  Agora escolha quem cobre cada posição vaga na corrente:
+                </p>
+
+                <div className="space-y-3">
+                  {chainElos.map((elo, idx) => {
+                    const options = getChainOptions(elo.cargoVacante);
+                    const isBA2 = elo.cargoVacante === 'BA-2';
+
+                    return (
+                      <div key={idx} className="rounded-lg border border-aviation-200 bg-white p-3 dark:border-aviation-700 dark:bg-surface-card">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-aviation-600 text-xs font-bold text-white">
+                            {idx + 2}
+                          </span>
+                          <span className="text-sm font-medium text-graphite-700 dark:text-graphite-300">
+                            Posição <span className="font-bold text-aviation-700 dark:text-aviation-300">{ABBR_CARGO[elo.cargoVacante as keyof typeof ABBR_CARGO] || elo.cargoVacante}</span> vaga
+                          </span>
+                          <span className="text-xs text-graphite-400">(de {elo.substituindoNome})</span>
+                          {isBA2 && (
+                            <span className="rounded-md bg-purple-100 px-1.5 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+                              BA-2 ou Ferista
+                            </span>
+                          )}
+                        </div>
+                        <select
+                          value={elo.pessoaId}
+                          onChange={e => handleChainSelect(idx, e.target.value)}
+                          className={selectCls}
+                        >
+                          <option value="" className={optionCls}>
+                            {`-- Quem cobre ${ABBR_CARGO[elo.cargoVacante as keyof typeof ABBR_CARGO] || elo.cargoVacante}? --`}
+                          </option>
+                          {options.map(p => (
+                            <option key={p.id} value={p.id} className={optionCls}>
+                              {p.nomeCompleto} ({ABBR_CARGO[p.cargo] || p.cargo}) - {p.equipe}
+                            </option>
+                          ))}
+                          {options.length === 0 && (
+                            <option value="" disabled className={optionCls}>Ninguém disponível</option>
+                          )}
+                        </select>
+                        {elo.pessoaId && (
+                          <div className="mt-2 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-800 dark:bg-emerald-900/20">
+                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 text-xs font-bold text-white">
+                              {elo.pessoaNome.charAt(0)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-bold text-emerald-800 dark:text-emerald-200 truncate">{elo.pessoaNome}</p>
+                              <p className="text-[10px] text-emerald-600 dark:text-emerald-400">
+                                {ABBR_CARGO[elo.pessoaCargo as keyof typeof ABBR_CARGO] || elo.pessoaCargo} · {elo.pessoaEquipe}
+                                <span className="ml-2">→ assume {ABBR_CARGO[elo.cargoVacante as keyof typeof ABBR_CARGO] || elo.cargoVacante}</span>
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {chainCompleta && ultimoEloFerista && (
+                  <div className="mt-3 rounded-lg bg-emerald-50 p-2 dark:bg-emerald-900/20">
+                    <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                      ✅ Corrente completa. Ferista é o fim da linha — todas as posições cobertas.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {substitutoId && formSubAutoFuncao && !chainElos[0]?.pessoaId && (
               <div className="rounded-lg bg-graphite-50 p-2 dark:bg-surface-card">
                 <p className="text-xs text-graphite-600 dark:text-graphite-400">
-                  Substituição automática: <span className="font-bold text-graphite-900 dark:text-graphite-100">{ABBR_CARGO[formSubAutoFuncao] || formSubAutoFuncao}</span> (mesma função do funcionário em gozo)
+                  O substituto herdará a função {ABBR_CARGO[formSubAutoFuncao] || formSubAutoFuncao} (mesma função do vacationer)
                 </p>
               </div>
             )}
 
-            {substitutoId && subTipo !== 'ferista' && (
-              <div>
-                <label className={labelCls}>Ferista</label>
-                <select value={feristaId} onChange={e => setFeristaId(e.target.value)} className={selectCls}>
-                  <option value="" className={optionCls}>Nenhum</option>
-                  {feristas.map(m => (
-                    <option key={m.id} value={m.id} className={optionCls}>{m.nomeCompleto}</option>
-                  ))}
-                </select>
+            {saveError && (
+              <div className="rounded-lg border border-red-300 bg-red-50 p-3 dark:border-red-700 dark:bg-red-900/20">
+                <p className="text-xs font-medium text-red-700 dark:text-red-300">{saveError}</p>
               </div>
             )}
 
@@ -2829,7 +3460,7 @@ function ModalCadastroFeriasManual({ onClose, onSuccess }: { onClose: () => void
               </button>
               <button
                 onClick={handleSave}
-                disabled={!selectedFuncId || !selectedPeriodo || !dataInicio || !dataFim || saving}
+                disabled={!canSave}
                 className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl disabled:opacity-50 active:scale-[0.98]"
               >
                 <Save className="h-4 w-4" /> {saving ? 'Salvando...' : 'Cadastrar Férias'}
@@ -2851,6 +3482,7 @@ export function Ferias() {
   const [resolving, setResolving] = useState(!canManage);
   const [tab, setTab] = useState<string>('');
   const [showCadastroManual, setShowCadastroManual] = useState(false);
+  const [quadroRefreshKey, setQuadroRefreshKey] = useState(0);
 
   useEffect(() => {
     if (canManage) { setResolving(false); return; }
@@ -2867,7 +3499,6 @@ export function Ferias() {
     { key: 'aprovacoes', label: 'Aprovações', icon: FileText },
     { key: 'escala-geral', label: 'Escala Geral', icon: Eye },
     { key: 'escala', label: 'Escala Anual', icon: CalendarDays },
-    { key: 'feristas', label: 'Escala Feristas', icon: User },
     { key: 'equipe', label: 'Minha Equipe', icon: Users },
     { key: 'efetivos', label: 'Quadro de Efetivos', icon: BarChart3 },
   ] as const;
@@ -2929,14 +3560,13 @@ export function Ferias() {
       {tab === 'aprovacoes' && <TabAprovacoes />}
       {tab === 'escala-geral' && <TabEscalaGeral />}
       {tab === 'escala' && <TabEscalaAnual />}
-      {tab === 'feristas' && <TabEscalaFeristas />}
       {tab === 'equipe' && <TabMinhaEquipe />}
-      {tab === 'efetivos' && <TabQuadroEfetivos />}
+      {tab === 'efetivos' && <TabQuadroEfetivos key={quadroRefreshKey} />}
 
       {showCadastroManual && (
         <ModalCadastroFeriasManual
           onClose={() => setShowCadastroManual(false)}
-          onSuccess={() => { setShowCadastroManual(false); }}
+          onSuccess={() => { setShowCadastroManual(false); setQuadroRefreshKey(k => k + 1); }}
         />
       )}
     </PageContainer>

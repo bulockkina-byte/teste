@@ -21,6 +21,7 @@ import {
   FileCheck,
   Activity,
   Target,
+  Timer,
   ScrollText,
   ClipboardList,
   RefreshCw,
@@ -311,10 +312,16 @@ export const menuItems: MenuItem[] = [
     icon: GraduationCap,
     children: [
       {
-        label: 'Outros',
-        icon: GraduationCap,
-        path: '/treinamentos',
-        description: 'Controle de treinamentos e capacitações.',
+        label: 'Exercício de Posicionamento',
+        icon: Target,
+        path: '/treinamentos/posicionamento',
+        description: 'Exercício de Posicionamento para Intervenção.',
+      },
+      {
+        label: 'Tempo Resposta',
+        icon: Timer,
+        path: '/treinamentos/tempo-resposta',
+        description: 'Exercício de Tempo de Resposta.',
       },
       {
         label: 'TP/EPR',

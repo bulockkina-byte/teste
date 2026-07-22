@@ -8,7 +8,14 @@
     "build": "vite build",
     "typecheck": "tsc -b --noEmit",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "db:push": "supabase db push --linked",
+    "db:dry-run": "supabase db push --linked --dry-run",
+    "db:new": "supabase migration new",
+    "db:list": "supabase migration list",
+    "db:repair": "supabase migration repair",
+    "db:pull": "supabase db pull",
+    "verificar-migrations": "node scripts/verificar-migrations.mjs"
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.12.0",
@@ -34,6 +41,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
     "oxlint": "^1.71.0",
+    "supabase": "^2.109.1",
     "tailwindcss": "^4.3.2",
     "typescript": "~6.0.2",
     "vite": "^8.1.1"

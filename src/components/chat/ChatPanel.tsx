@@ -22,6 +22,9 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
+  const [gerais, setGerais] = useState<any[]>([]);
+  const [privadas, setPrivadas] = useState<any[]>([]);
+  const [totalNaoLidas, setTotalNaoLidas] = useState(0);
 
   useEffect(() => {
     async function carregar() {
@@ -40,11 +43,18 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
     );
   }, [bombeiros, busca]);
 
-  const gerais = useMemo(() => mensagensGerais(), [refresh]);
-  const privadas = useMemo(() =>
-    conversaComUser ? conversaCom(username, conversaComUser) : [], [username, conversaComUser, refresh]);
+  useEffect(() => {
+    mensagensGerais().then(setGerais).catch(() => {});
+    contarNaoLidas(username).then(setTotalNaoLidas).catch(() => {});
+  }, [refresh, username]);
 
-  const totalNaoLidas = useMemo(() => contarNaoLidas(username), [username, refresh]);
+  useEffect(() => {
+    if (conversaComUser) {
+      conversaCom(username, conversaComUser).then(setPrivadas).catch(() => {});
+    } else {
+      setPrivadas([]);
+    }
+  }, [username, conversaComUser, refresh]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -54,9 +64,10 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     if (conversaComUser) {
-      const msgs = conversaCom(username, conversaComUser);
-      msgs.forEach(m => { if (!m.lida && m.de !== username) marcarLida(m.id); });
-      setRefresh(r => r + 1);
+      conversaCom(username, conversaComUser).then(msgs => {
+        msgs.forEach(m => { if (!m.lida && m.de !== username) marcarLida(m.id); });
+        setRefresh(r => r + 1);
+      }).catch(() => {});
     }
   }, [conversaComUser, username]);
 

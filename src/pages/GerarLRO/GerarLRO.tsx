@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Save, Send, Eye, AlertTriangle, ArrowLeft, ArrowRight, Trash2, Search, Check, X } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { listarAtivos } from '../../services/bombeiroService';
 import { listarFeriasGozo } from '../../services/feriasService';
 import { listarSubstituicoesTemporarias } from '../../services/substituicaoTemporariaService';
+import { listarVigencias } from '../../services/vigenciaSubstituicaoService';
 import { listarDocumentos, listarPreenchimentos, criarPreenchimento } from '../../services/documentoService';
 import { listarViaturas } from '../../services/viaturaService';
 import { listarPTRBs } from '../../services/ptrbService';
@@ -194,42 +195,67 @@ export function GerarLRO() {
     return () => clearInterval(interval);
   }, [drafts]);
 
+  // Deferred data loading (only when needed)
+  const [ptrbsLoaded, setPtrbsLoaded] = useState(false);
+  const carregarPtrbs = useCallback(async () => {
+    if (ptrbsLoaded) return;
+    const p = await listarPTRBs().catch(() => []);
+    setPtrbs(p);
+    setPtrbsLoaded(true);
+  }, [ptrbsLoaded]);
+
+  const [vigencias, setVigencias] = useState<any[]>([]);
+  const [vigenciasLoaded, setVigenciasLoaded] = useState(false);
+  const carregarVigencias = useCallback(async () => {
+    if (vigenciasLoaded) return;
+    const v = await listarVigencias({ ativa: true }).catch(() => []);
+    setVigencias(v);
+    setVigenciasLoaded(true);
+  }, [vigenciasLoaded]);
+
   useEffect(() => {
     async function load() {
       try {
-        const [b, f, v, p, subs, docs, a] = await Promise.all([
-          listarAtivos(), listarFeriasGozo(), listarViaturas(), listarPTRBs(), listarSubstituicoesTemporarias(), listarDocumentos(), listarAPOCs(),
+        const [b, f, docs, a] = await Promise.all([
+          listarAtivos(),
+          listarFeriasGozo(),
+          listarDocumentos(),
+          listarAPOCs(),
         ]);
         setApocs(a);
         setBombeiros(b);
         setFeriasGozo(f);
+
+        // Load CCI viaturas only (lighter query)
+        const cci = await listarViaturas({ tipo: 'CCI' });
+        setViaturas(cci);
+        const frotaInit: Record<string, any> = {};
+        cci.forEach((veiculo: any) => { frotaInit[veiculo.id || veiculo.prefixo] = { kmIni: '', kmFim: '', combIni: '', combFim: '', situacao: '' }; });
+        setFrotaDados(frotaInit);
+
+        // Load substitutes + troca documents (needed for substitution detection)
+        const subs = await listarSubstituicoesTemporarias();
         setTodasSubstituicoes(subs);
-        setViaturas(v);
-        setPtrbs(p);
+
+        await carregarVigencias();
 
         const trocaDoc = docs.find((d: any) => d.name?.includes('TROCA') || d.source_module === 'trocas');
         if (trocaDoc) {
           setTrocaDocId(trocaDoc.id);
-          const fills = await listarPreenchimentos(trocaDoc.id);
-          setTrocaFills(fills.filter((fl: any) => fl.status === 'signed'));
+          const fills = await listarPreenchimentos({ documentId: trocaDoc.id, status: 'signed' });
+          setTrocaFills(fills);
         } else {
-          // Fallback: procura fills com nome_solicitante em qualquer documento
-          const todosFills = await Promise.all(docs.map((d: any) => listarPreenchimentos(d.id).catch(() => [])));
+          const todosFills = await Promise.all(docs.map((d: any) => listarPreenchimentos({ documentId: d.id }).catch(() => [])));
           const comNome = todosFills.flat().filter((fl: any) => {
             const fd = fl.filled_data || {};
-            return fd.nome_solicitante || fd.nome_solicitado;
+            return (fd.nome_solicitante || fd.nome_solicitado) && fl.status === 'signed';
           });
-          setTrocaFills(comNome.filter((fl: any) => fl.status === 'signed'));
+          setTrocaFills(comNome);
         }
         const d = isAdmin
           ? await listarDrafts('').catch(() => [])
           : await listarDrafts(username).catch(() => []);
         setDrafts(d);
-
-        const cci = v.filter((a: any) => a.tipo === 'CCI');
-        const frotaInit: Record<string, any> = {};
-        cci.forEach((veiculo: any) => { frotaInit[veiculo.id || veiculo.prefixo] = { kmIni: '', kmFim: '', combIni: '', combFim: '', situacao: '' }; });
-        setFrotaDados(frotaInit);
         const saved = sessionStorage.getItem('lro_form_backup');
         if (saved) {
           try {
@@ -432,6 +458,17 @@ export function GerarLRO() {
     return presentes;
   }, [membrosEquipe, emFerias, substituicoesMap, bombeiros, equipe]);
 
+  const substituicoesAtivas = useMemo(() => {
+    return vigencias.map(v => ({
+      nomeAusente: v.funcionarioOriginalNome,
+      cargoAusente: v.cargoOriginalFuncionario,
+      nomePresente: v.substitutoNome,
+      cargoPresente: v.cargoExercido,
+      motivo: v.motivo,
+      nivel: v.nivelCascata,
+    }));
+  }, [vigencias]);
+
   // Auto-determina o Chefe de Equipe efetivo (designado, substituto de troca, ou substituto de férias)
   useEffect(() => {
     if (!dataInicio || !equipe || chefeEquipe) return;
@@ -491,6 +528,7 @@ export function GerarLRO() {
         coordenadorAssinatura: apocs.find((a: any) => a.funcao === 'SUPERVISOR')?.nomeCompleto || '',
         _trocasManuais: trocasManuais,
         _substituicoesDetectadas: substituicoesDetectadas.filter(s => s.tipo === 'troca' && s.confirmada === true),
+        substituicoesAtivas,
       };
       const saved = await salvarDraft(dados, equipe, dataInicio, username, draftId || undefined);
       setDraftId(saved.id);
@@ -544,6 +582,7 @@ export function GerarLRO() {
         crs: Object.entries(equipagemCRS).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
         dataAssinatura: new Date().toLocaleDateString('pt-BR'),
         chefeAssinatura: bombeiros.find((b: any) => b.nomeGuerra === chefeEquipe || b.nomeCompleto === chefeEquipe)?.nomeCompleto || chefeEquipe,
+        substituicoesAtivas,
       };
 
       if (draftId) {
@@ -616,6 +655,7 @@ export function GerarLRO() {
       coordenadorAssinatura: apocs.find((a: any) => a.funcao === 'SUPERVISOR')?.nomeCompleto || '',
       cidade: 'NAVEGANTES',
       uf: 'SC',
+      substituicoesAtivas,
     };
     navigate('/registros-diarios/preview-lro', { state: dados });
   }
@@ -658,6 +698,7 @@ export function GerarLRO() {
       chefeAssinatura: bombeiros.find((b: any) => b.nomeGuerra === chefeEquipe || b.nomeCompleto === chefeEquipe)?.nomeCompleto || chefeEquipe,
       gerenteAssinatura: gerenteEncontrado?.nomeCompleto || gerenteEncontrado?.nomeGuerra || '',
       coordenadorAssinatura: apocs.find((a: any) => a.funcao === 'SUPERVISOR')?.nomeCompleto || '',
+      substituicoesAtivas,
     };
 
     const emailChefe = getEmailByNome(chefeEquipe);

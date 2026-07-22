@@ -43,17 +43,6 @@ function rowToUsuario(row: Record<string, unknown>): Usuario {
   };
 }
 
-function usuarioToRow(data: Partial<Usuario>): Record<string, unknown> {
-  const row: Record<string, unknown> = {};
-  if (data.username !== undefined) row.username = data.username;
-  if (data.name !== undefined) row.name = data.name;
-  if (data.role !== undefined) row.role = data.role;
-  if (data.previousRole !== undefined) row.previous_role = data.previousRole;
-  if (data.personId !== undefined) row.person_id = data.personId;
-  if (data.personType !== undefined) row.person_type = data.personType;
-  row.updated_at = new Date().toISOString();
-  return row;
-}
 
 export async function listarUsuarios(): Promise<Usuario[]> {
   const db = getDb();
@@ -157,12 +146,17 @@ export async function atualizarSenha(username: string, password: string): Promis
 }
 
 export async function criarUsuario(data: Omit<Usuario, 'id' | 'createdAt' | 'updatedAt'> & { password: string }): Promise<Usuario> {
-  const db = getDb();
-  const row = usuarioToRow(data);
-  row.password = '';
-  const { data: created, error } = await db.from(TABLE).insert(row).select().single();
-  if (error) handleSupabaseError(error);
-  return rowToUsuario(created);
+  const result = await criarUsuarioComHash({
+    username: data.username,
+    name: data.name,
+    password: data.password,
+    role: data.role,
+    previousRole: data.previousRole,
+    personId: data.personId,
+    personType: data.personType,
+  });
+  if (!result) throw new Error('Erro ao criar usuário');
+  return result;
 }
 
 export async function atualizarUsuario(username: string, data: Record<string, unknown>): Promise<Usuario | null> {
@@ -171,11 +165,8 @@ export async function atualizarUsuario(username: string, data: Record<string, un
   if (data.name !== undefined) row.name = data.name;
   if (data.role !== undefined) row.role = data.role;
   if (data.previousRole !== undefined) row.previous_role = data.previousRole;
-  if (data.previous_role !== undefined) row.previous_role = data.previous_role;
   if (data.personId !== undefined) row.person_id = data.personId;
-  if (data.person_id !== undefined) row.person_id = data.person_id;
   if (data.personType !== undefined) row.person_type = data.personType;
-  if (data.person_type !== undefined) row.person_type = data.person_type;
   if (data.username !== undefined) row.username = data.username;
   row.updated_at = new Date().toISOString();
   const { data: updated, error } = await db

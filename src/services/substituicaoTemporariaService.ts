@@ -80,6 +80,16 @@ export async function listarSubstituicoesTemporarias(): Promise<SubstituicaoTemp
   return (data || []).map(rowToSubstituicao);
 }
 
+export async function contarSubstituicoesPendentes(): Promise<number> {
+  const db = getDb();
+  const { count, error } = await db
+    .from(TABLE)
+    .select('*', { count: 'exact', head: true })
+    .eq('status', 'Pendente');
+  if (error) handleSupabaseError(error);
+  return count || 0;
+}
+
 export async function criarSubstituicaoTemporaria(
   data: Omit<SubstituicaoTemporaria, 'id' | 'createdAt' | 'updatedAt'>,
 ): Promise<SubstituicaoTemporaria> {

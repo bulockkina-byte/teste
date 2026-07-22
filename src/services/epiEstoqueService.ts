@@ -6,6 +6,15 @@ function getDb() {
   return supabase;
 }
 
+function handleSupabaseError(err: unknown): never {
+  console.error('Erro Supabase:', err);
+  const msg =
+    err instanceof Error ? err.message :
+    err && typeof err === 'object' && 'message' in err ? String((err as any).message) :
+    'Erro inesperado no banco de dados';
+  throw new Error(msg);
+}
+
 function mapRow(row: Record<string, unknown>): EPIEstoque {
   return {
     id: row.id as string,
@@ -46,14 +55,12 @@ function toRow(data: Partial<EPIEstoque>): Record<string, unknown> {
 }
 
 export async function listarEstoque(): Promise<EPIEstoque[]> {
-  const { data, error } = await getDb()
+  const db = getDb();
+  const { data, error } = await db
     .from('epis_estoque')
     .select('*')
     .order('created_at', { ascending: false });
-  if (error) {
-    console.error('Erro ao listar estoque:', error);
-    return [];
-  }
+  if (error) handleSupabaseError(error);
   return (data || []).map(mapRow);
 }
 
@@ -75,48 +82,45 @@ export async function criarEstoque(
     notas: data.notas,
     created_by: data.createdBy,
   };
-  const { data: result, error } = await getDb()
+  const db = getDb();
+  const { data: result, error } = await db
     .from('epis_estoque')
     .insert(row)
     .select()
     .single();
-  if (error) {
-    console.error('Erro ao criar estoque:', error);
-    return null;
-  }
+  if (error) handleSupabaseError(error);
   return mapRow(result);
 }
 
 export async function atualizarEstoque(id: string, data: Partial<EPIEstoque>): Promise<EPIEstoque | null> {
-  const { data: result, error } = await getDb()
+  const db = getDb();
+  const { data: result, error } = await db
     .from('epis_estoque')
     .update(toRow(data))
     .eq('id', id)
     .select()
     .single();
-  if (error) {
-    console.error('Erro ao atualizar estoque:', error);
-    return null;
-  }
+  if (error) handleSupabaseError(error);
   return mapRow(result);
 }
 
 export async function excluirEstoque(id: string): Promise<void> {
-  const { error } = await getDb().from('epis_estoque').delete().eq('id', id);
-  if (error) console.error('Erro ao excluir estoque:', error);
+  const db = getDb();
+  const { error } = await db.from('epis_estoque').delete().eq('id', id);
+  if (error) handleSupabaseError(error);
 }
 
 export async function baixarEstoque(id: string, quantidade: number = 1): Promise<EPIEstoque | null> {
-  const itens = await listarEstoque();
-  const item = itens.find(e => e.id === id);
-  if (!item) return null;
-  const novaQuantidade = Math.max(0, item.quantidade - quantidade);
+  const db = getDb();
+  const { data: item, error } = await db.from('epis_estoque').select('quantidade').eq('id', id).single();
+  if (error || !item) return null;
+  const novaQuantidade = Math.max(0, (item.quantidade as number || 0) - quantidade);
   return atualizarEstoque(id, { quantidade: novaQuantidade });
 }
 
 export async function reporEstoque(id: string, quantidade: number = 1): Promise<EPIEstoque | null> {
-  const itens = await listarEstoque();
-  const item = itens.find(e => e.id === id);
-  if (!item) return null;
-  return atualizarEstoque(id, { quantidade: item.quantidade + quantidade });
+  const db = getDb();
+  const { data: item, error } = await db.from('epis_estoque').select('quantidade').eq('id', id).single();
+  if (error || !item) return null;
+  return atualizarEstoque(id, { quantidade: (item.quantidade as number || 0) + quantidade });
 }

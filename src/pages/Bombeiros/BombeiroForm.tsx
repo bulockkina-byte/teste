@@ -93,6 +93,7 @@ export function BombeiroForm({ bombeiro, onSave, onClose, serverError }: Props) 
   const [endereco, setEndereco] = useState('');
   const [numeroEndereco, setNumeroEndereco] = useState('');
   const [complemento, setComplemento] = useState('');
+  const [bairro, setBairro] = useState('');
   const [cep, setCep] = useState('');
   const [uf, setUf] = useState('');
   const [municipio, setMunicipio] = useState('');
@@ -101,6 +102,7 @@ export function BombeiroForm({ bombeiro, onSave, onClose, serverError }: Props) 
   const [cursoChefeEquipe, setCursoChefeEquipe] = useState(false);
   const [cursoMotoristaCCI, setCursoMotoristaCCI] = useState(false);
   const [cursoCVE, setCursoCVE] = useState(false);
+  const [cveValidade, setCveValidade] = useState('');
   const [municipios, setMunicipios] = useState<string[]>([]);
   const [loadingMunicipios, setLoadingMunicipios] = useState(false);
   const prevUfRef = useRef(uf);
@@ -129,6 +131,7 @@ export function BombeiroForm({ bombeiro, onSave, onClose, serverError }: Props) 
       setEndereco(bombeiro.endereco || '');
       setNumeroEndereco(bombeiro.numeroEndereco || '');
       setComplemento(bombeiro.complemento || '');
+      setBairro(bombeiro.bairro || '');
       setCep(bombeiro.cep || '');
       setUf(bombeiro.uf || '');
       setMunicipio(bombeiro.municipio || '');
@@ -137,6 +140,7 @@ export function BombeiroForm({ bombeiro, onSave, onClose, serverError }: Props) 
       setCursoChefeEquipe(bombeiro.cursoChefeEquipe || false);
       setCursoMotoristaCCI(bombeiro.cursoMotoristaCCI || false);
       setCursoCVE(bombeiro.cursoCVE || false);
+      setCveValidade(bombeiro.cveValidade || '');
     }
   }, [bombeiro]);
 
@@ -182,7 +186,7 @@ export function BombeiroForm({ bombeiro, onSave, onClose, serverError }: Props) 
       .then(d => {
         if (d.erro) return;
         if (d.logradouro) setEndereco(d.logradouro);
-        if (d.bairro) setComplemento(d.bairro);
+        if (d.bairro) setBairro(d.bairro);
         if (d.uf) setUf(d.uf);
         if (d.localidade) setMunicipio(d.localidade);
       })
@@ -224,6 +228,7 @@ export function BombeiroForm({ bombeiro, onSave, onClose, serverError }: Props) 
       endereco,
       numeroEndereco,
       complemento,
+      bairro,
       cep: cep.replace(/\D/g, ''),
       uf,
       municipio,
@@ -232,6 +237,7 @@ export function BombeiroForm({ bombeiro, onSave, onClose, serverError }: Props) 
       cursoChefeEquipe,
       cursoMotoristaCCI,
       cursoCVE,
+      cveValidade,
     });
   }
 
@@ -345,8 +351,13 @@ export function BombeiroForm({ bombeiro, onSave, onClose, serverError }: Props) 
                     className={inputClass} />
                 </div>
                 <div>
-                  <label className={labelClass}>Complemento *</label>
+                  <label className={labelClass}>Complemento</label>
                   <input value={complemento} onChange={e => setComplemento(e.target.value)} placeholder="Complemento"
+                    className={inputClass} />
+                </div>
+                <div>
+                  <label className={labelClass}>Bairro</label>
+                  <input value={bairro} onChange={e => setBairro(e.target.value)} placeholder="Bairro"
                     className={inputClass} />
                 </div>
                 <div>
@@ -493,6 +504,13 @@ export function BombeiroForm({ bombeiro, onSave, onClose, serverError }: Props) 
                   />
                   <span className="text-sm font-medium text-graphite-700 dark:text-graphite-200">Curso de Veículo de Emergência (CVE)</span>
                 </label>
+                {cursoCVE && (
+                  <div className="col-span-2">
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Validade do CVE</label>
+                    <input type="date" value={cveValidade} onChange={e => setCveValidade(e.target.value)}
+                      className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated" />
+                  </div>
+                )}
               </div>
             </fieldset>
           </div>

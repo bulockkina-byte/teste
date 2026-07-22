@@ -40,14 +40,14 @@ export async function substituicoesAtivas(): Promise<SubstituicaoAtiva[]> {
 
 export async function substituicaoPorSubstituto(substitutoId: string): Promise<SubstituicaoAtiva | null> {
   const db = getDb();
-  const { data, error } = await db.from(TABLE).select('*').eq('substituto_id', substitutoId).eq('ativa', true).single();
+  const { data, error } = await db.from(TABLE).select('*').eq('substituto_id', substitutoId).eq('ativa', true).maybeSingle();
   if (error) return null;
   return data ? rowToSubstituicao(data) : null;
 }
 
 export async function substituicaoPorFuncionario(funcionarioId: string): Promise<SubstituicaoAtiva | null> {
   const db = getDb();
-  const { data, error } = await db.from(TABLE).select('*').eq('funcionario_id', funcionarioId).eq('ativa', true).single();
+  const { data, error } = await db.from(TABLE).select('*').eq('funcionario_id', funcionarioId).eq('ativa', true).maybeSingle();
   if (error) return null;
   return data ? rowToSubstituicao(data) : null;
 }
@@ -87,7 +87,9 @@ export async function encerrarSubstituicao(id: string): Promise<SubstituicaoAtiv
   return data ? rowToSubstituicao(data) : null;
 }
 
-export async function excluirSubstituicao(id: string): Promise<void> {
+export async function excluirSubstituicao(id: string): Promise<boolean> {
   const db = getDb();
-  await db.from(TABLE).delete().eq('id', id);
+  const { error } = await db.from(TABLE).delete().eq('id', id);
+  if (error) throw error;
+  return true;
 }

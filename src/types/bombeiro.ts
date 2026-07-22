@@ -36,6 +36,7 @@ export interface Bombeiro {
   endereco: string;
   numeroEndereco: string;
   complemento: string;
+  bairro: string;
   cep: string;
   uf: string;
   municipio: string;
@@ -44,6 +45,7 @@ export interface Bombeiro {
   cursoChefeEquipe: boolean;
   cursoMotoristaCCI: boolean;
   cursoCVE: boolean;
+  cveValidade: string;
   createdAt: string;
   updatedAt: string;
 }

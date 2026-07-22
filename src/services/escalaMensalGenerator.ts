@@ -27,7 +27,7 @@ function rotateArray<T>(arr: T[], shift: number): T[] {
   return [...arr.slice(s), ...arr.slice(0, s)];
 }
 
-function gerarRadioPlantao(pessoas: PessoaEscala[], idxPlantao: number, equipe: string): RadioSlot[] {
+export function gerarRadioPlantao(pessoas: PessoaEscala[], idxPlantao: number, equipe: string): RadioSlot[] {
   const slots = getSlotsRadio(equipe);
   const pool = pessoas.filter(p => p.funcao !== 'chefe' && p.funcao !== 'lider');
   const bookendIdx = pool.findIndex(p => p.isRadioFixo);

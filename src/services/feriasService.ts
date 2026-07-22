@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import type { FeriasGozo, EscalaFerias, EscalaFeriasItem, FeriasAlerta } from '../types/ferias';
 import type { Bombeiro, Equipe, Cargo } from '../types/bombeiro';
+import { processarCadeiaSubstituicao, desativarVigencias, type EloCadeiaInput } from './vigenciaSubstituicaoService';
 
 const TABLE_GOZO = 'ferias';
 const TABLE_ESCALA = 'ferias_escala';
@@ -118,6 +119,8 @@ function rowToItem(row: Record<string, unknown>): EscalaFeriasItem {
     rejeitadoPor: (row.rejeitado_por as string) || '',
     rejeitadoEm: (row.rejeitado_em as string) || '',
     enviado: (row.enviado as boolean) || false,
+    observacoes: (row.observacoes as string) || '',
+    feriasGozoId: (row.ferias_gozo_id as string) || '',
     createdAt: row.created_at as string,
   };
 }
@@ -125,6 +128,7 @@ function rowToItem(row: Record<string, unknown>): EscalaFeriasItem {
 function itemToRow(data: Partial<EscalaFeriasItem>): Record<string, unknown> {
   const row: Record<string, unknown> = {};
   if (data.enviado !== undefined) row.enviado = data.enviado;
+  if (data.feriasGozoId !== undefined) row.ferias_gozo_id = data.feriasGozoId;
   if (data.escalaId !== undefined) row.escala_id = data.escalaId;
   if (data.mes !== undefined) row.mes = data.mes;
   if (data.funcionarioId !== undefined) row.funcionario_id = data.funcionarioId;
@@ -143,6 +147,7 @@ function itemToRow(data: Partial<EscalaFeriasItem>): Record<string, unknown> {
   if (data.motivoRejeicao !== undefined) row.motivo_rejeicao = data.motivoRejeicao;
   if (data.rejeitadoPor !== undefined) row.rejeitado_por = data.rejeitadoPor;
   if (data.rejeitadoEm !== undefined) row.rejeitado_em = data.rejeitadoEm;
+  if (data.observacoes !== undefined) row.observacoes = data.observacoes;
   return row;
 }
 
@@ -160,12 +165,21 @@ function gozoComStatusCorrigido(g: FeriasGozo): FeriasGozo {
   return g;
 }
 
-export async function listarFeriasGozo(): Promise<FeriasGozo[]> {
+export async function listarFeriasGozo(params?: {
+  equipe?: string;
+  status?: string;
+  funcionarioId?: string;
+  dataInicioGte?: string;
+  dataFimLte?: string;
+}): Promise<FeriasGozo[]> {
   const db = getDb();
-  const { data, error } = await db
-    .from(TABLE_GOZO)
-    .select('*')
-    .order('created_at', { ascending: false });
+  let query = db.from(TABLE_GOZO).select('*').order('created_at', { ascending: false });
+  if (params?.equipe) query = query.eq('equipe', params.equipe);
+  if (params?.status) query = query.eq('status', params.status);
+  if (params?.funcionarioId) query = query.eq('funcionario_id', params.funcionarioId);
+  if (params?.dataInicioGte) query = query.gte('data_inicio', params.dataInicioGte);
+  if (params?.dataFimLte) query = query.lte('data_fim', params.dataFimLte);
+  const { data, error } = await query;
   if (error) handleSupabaseError(error);
   return (data || []).map(rowToGozo).map(gozoComStatusCorrigido);
 }
@@ -197,7 +211,24 @@ export async function criarFeriasGozo(
     .select()
     .single();
   if (error) handleSupabaseError(error);
-  return rowToGozo(created);
+  const gozo = rowToGozo(created);
+
+  // Disparar corrente de substituições
+  if (gozo.substitutoId) {
+    processarCadeiaSubstituicao({
+      id: gozo.id,
+      funcionarioId: gozo.funcionarioId,
+      funcionarioNome: gozo.funcionarioNome,
+      equipe: gozo.equipe,
+      substitutoId: gozo.substitutoId,
+      substitutoNome: gozo.substitutoNome,
+      funcaoSubstituicao: gozo.funcaoSubstituicao,
+      dataInicio: gozo.dataInicio,
+      dataFim: gozo.dataFim,
+    }).catch(err => console.error('Erro na corrente de substituição:', err));
+  }
+
+  return gozo;
 }
 
 export async function atualizarFeriasGozo(
@@ -218,6 +249,10 @@ export async function atualizarFeriasGozo(
 
 export async function excluirFeriasGozo(id: string): Promise<boolean> {
   const db = getDb();
+  // Desativar vigencias da cadeia antes de apagar as férias
+  await desativarVigencias(id);
+  // Limpar vínculo nos itens da escala anual
+  await db.from(TABLE_ITEM).update({ ferias_gozo_id: null }).eq('ferias_gozo_id', id);
   const { error } = await db.from(TABLE_GOZO).delete().eq('id', id);
   if (error) handleSupabaseError(error);
   return true;
@@ -287,6 +322,18 @@ export async function atualizarEscala(
 
 export async function excluirEscala(id: string): Promise<boolean> {
   const db = getDb();
+  // Buscar items para obter os gozos vinculados
+  const { data: itens } = await db.from(TABLE_ITEM).select('ferias_gozo_id, funcionario_id').eq('escala_id', id);
+  if (itens && itens.length > 0) {
+    const gozoIds = itens.map(i => i.ferias_gozo_id).filter(Boolean) as string[];
+    const funcIds = itens.map(i => i.funcionario_id).filter(Boolean) as string[];
+    // Excluir vigencias de substituicao associadas a estes gozos
+    if (gozoIds.length > 0) {
+      await db.from('vigencia_substituicoes').delete().in('ferias_id', gozoIds);
+      await db.from('vagas_pendentes').delete().in('cadeia_ferias_id', gozoIds);
+      await db.from(TABLE_GOZO).delete().in('id', gozoIds);
+    }
+  }
   await excluirItensEscala(id);
   const { error } = await db.from(TABLE_ESCALA).delete().eq('id', id);
   if (error) handleSupabaseError(error);
@@ -316,8 +363,11 @@ export async function aprovarEscalaEGerarGozos(
   id: string,
   aprovadoPor: string,
   aprovadoPorNome: string,
+  manterStatus?: boolean,
 ): Promise<EscalaFerias | null> {
-  const escala = await aprovarEscala(id, aprovadoPor, aprovadoPorNome);
+  const escala = manterStatus
+    ? await obterEscala(id)
+    : await aprovarEscala(id, aprovadoPor, aprovadoPorNome);
   if (!escala) return null;
   const itens = await listarItensEscala(id);
   const existentes = await listarFeriasGozo();
@@ -325,6 +375,7 @@ export async function aprovarEscalaEGerarGozos(
   const now = new Date().toISOString();
   for (const item of itens) {
     if (item.rejeitado) continue;
+    if (!item.enviado) continue;
     const jaExiste = existentes.some(
       g => g.funcionarioId === item.funcionarioId && g.periodoNumero === item.periodoNumero
     );
@@ -345,12 +396,52 @@ export async function aprovarEscalaEGerarGozos(
       modificadoPor: aprovadoPor,
       bloqueado: false,
     });
-    const { error } = await db.from(TABLE_GOZO).insert({
+    const { data: gozoCriado, error } = await db.from(TABLE_GOZO).insert({
       ...row,
       created_at: now,
       updated_at: now,
-    });
+    }).select().single();
     if (error) handleSupabaseError(error);
+
+    // Parse cadeia from observacoes (stored as JSON during scale creation)
+    let cadeiaInput: EloCadeiaInput[] | undefined;
+    if (item.observacoes) {
+      const match = item.observacoes.match(/^cad_sup:(.+)$/);
+      if (match) {
+        try {
+          const parsed = JSON.parse(match[1]);
+          if (Array.isArray(parsed)) {
+            cadeiaInput = parsed.map((e: any) => ({
+              pessoaId: e.pessoaId,
+              pessoaNome: e.pessoaNome,
+              cargoOriginal: e.pessoaCargo as any,
+              cargoVacante: e.cargoVacante,
+              substituindoNome: e.substituindoNome,
+            }));
+          }
+        } catch { /* invalid JSON, ignore */ }
+      }
+    }
+
+    // Disparar corrente de substituições para cada gozo gerado
+    if (gozoCriado && item.substitutoId) {
+      processarCadeiaSubstituicao({
+        id: gozoCriado.id,
+        funcionarioId: gozoCriado.funcionario_id,
+        funcionarioNome: gozoCriado.funcionario_nome || '',
+        equipe: escala.equipe,
+        substitutoId: item.substitutoId,
+        substitutoNome: item.substitutoNome,
+        funcaoSubstituicao: item.funcaoSubstituicao,
+        dataInicio: item.dataInicio,
+        dataFim: item.dataFim,
+      }, cadeiaInput).catch(err => console.error('Erro na corrente de substituição:', err));
+    }
+
+    // Vincular o item da escala ao gozo criado
+    if (gozoCriado) {
+      await db.from(TABLE_ITEM).update({ ferias_gozo_id: gozoCriado.id }).eq('id', item.id);
+    }
   }
   return escala;
 }
@@ -519,22 +610,4 @@ export async function alertasFerias(
   return alertas.sort((a, b) => a.diasParaVencer - b.diasParaVencer);
 }
 
-// ── Legacy compatibility ─────────────────────────────────────────────
 
-export function listarFerias(): any[] {
-  return [];
-}
-
-export function alertasVencimento(_meses: number): Promise<any[]> {
-  return Promise.resolve([]);
-}
-
-export function criarFerias(data: any): any {
-  return data;
-}
-
-export function atualizarFerias(_id: string, data: any): any {
-  return data;
-}
-
-export function excluirFerias(_id: string): void {}

@@ -8,6 +8,15 @@ function getDb() {
   return supabase;
 }
 
+function handleSupabaseError(err: unknown): never {
+  console.error('Erro Supabase:', err);
+  const msg =
+    err instanceof Error ? err.message :
+    err && typeof err === 'object' && 'message' in err ? String((err as any).message) :
+    'Erro inesperado no banco de dados';
+  throw new Error(msg);
+}
+
 function rowToMensagem(row: Record<string, unknown>): ChatMensagem {
   return {
     id: row.id as string,
@@ -24,21 +33,21 @@ function rowToMensagem(row: Record<string, unknown>): ChatMensagem {
 export async function listarMensagens(): Promise<ChatMensagem[]> {
   const db = getDb();
   const { data, error } = await db.from(TABLE).select('*').order('created_at', { ascending: false });
-  if (error) throw error;
+  if (error) handleSupabaseError(error);
   return (data || []).map(rowToMensagem);
 }
 
 export async function mensagensGerais(): Promise<ChatMensagem[]> {
   const db = getDb();
   const { data, error } = await db.from(TABLE).select('*').is('para', null).order('created_at', { ascending: false });
-  if (error) throw error;
+  if (error) handleSupabaseError(error);
   return (data || []).map(rowToMensagem);
 }
 
 export async function mensagensPrivadas(usuario: string): Promise<ChatMensagem[]> {
   const db = getDb();
   const { data, error } = await db.from(TABLE).select('*').or(`de.eq.${usuario},para.eq.${usuario}`).order('created_at', { ascending: false });
-  if (error) throw error;
+  if (error) handleSupabaseError(error);
   return (data || []).map(rowToMensagem);
 }
 
@@ -49,7 +58,7 @@ export async function conversaCom(usuario1: string, usuario2: string): Promise<C
     .select('*')
     .or(`and(de.eq.${usuario1},para.eq.${usuario2}),and(de.eq.${usuario2},para.eq.${usuario1})`)
     .order('created_at', { ascending: true });
-  if (error) throw error;
+  if (error) handleSupabaseError(error);
   return (data || []).map(rowToMensagem);
 }
 
@@ -65,18 +74,19 @@ export async function enviarMensagem(data: Omit<ChatMensagem, 'id' | 'createdAt'
     created_at: new Date().toISOString(),
   };
   const { data: created, error } = await db.from(TABLE).insert(row).select().single();
-  if (error) throw error;
+  if (error) handleSupabaseError(error);
   return rowToMensagem(created);
 }
 
 export async function marcarLida(id: string): Promise<void> {
   const db = getDb();
-  await db.from(TABLE).update({ lida: true }).eq('id', id);
+  const { error } = await db.from(TABLE).update({ lida: true }).eq('id', id);
+  if (error) handleSupabaseError(error);
 }
 
 export async function contarNaoLidas(usuario: string): Promise<number> {
   const db = getDb();
   const { count, error } = await db.from(TABLE).select('*', { count: 'exact', head: true }).eq('para', usuario).eq('lida', false);
-  if (error) throw error;
+  if (error) handleSupabaseError(error);
   return count || 0;
 }

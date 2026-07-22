@@ -37,9 +37,8 @@ function diasRestantes(dataValidade: string): number {
   return Math.ceil((validade.getTime() - agora.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-async function calcularAlertasFerias(): Promise<Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[]> {
+async function calcularAlertasFerias(bombeiros: import('../types/bombeiro').Bombeiro[]): Promise<Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[]> {
   const alertas: Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[] = [];
-  const bombeiros = await listarAtivos();
 
   for (const b of bombeiros) {
     if (!b.dataAdmissao || !b.equipe) continue;
@@ -65,10 +64,9 @@ async function calcularAlertasFerias(): Promise<Omit<Notificacao, 'id' | 'lida' 
   return alertas;
 }
 
-async function calcularAlertasEPI(): Promise<Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[]> {
+async function calcularAlertasEPI(bombeiros: import('../types/bombeiro').Bombeiro[]): Promise<Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[]> {
   const alertas: Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[] = [];
   const epis = await listarEPIs();
-  const bombeiros = await listarAtivos();
 
   for (const epi of epis) {
     if (!epi.dataValidade) continue;
@@ -93,10 +91,9 @@ async function calcularAlertasEPI(): Promise<Omit<Notificacao, 'id' | 'lida' | '
   return alertas;
 }
 
-async function calcularAlertasCertificacao(): Promise<Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[]> {
+async function calcularAlertasCertificacao(bombeiros: import('../types/bombeiro').Bombeiro[]): Promise<Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[]> {
   const alertas: Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[] = [];
-  const certificacoes = listarCertificacoes();
-  const bombeiros = await listarAtivos();
+  const certificacoes = await listarCertificacoes();
 
   for (const cert of certificacoes) {
     if (!cert.dataValidade) continue;
@@ -121,13 +118,14 @@ async function calcularAlertasCertificacao(): Promise<Omit<Notificacao, 'id' | '
   return alertas;
 }
 
-async function calcularAlertasSubstituicao(): Promise<Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[]> {
+async function calcularAlertasSubstituicao(bombeiros: import('../types/bombeiro').Bombeiro[]): Promise<Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[]> {
   const alertas: Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[] = [];
   const subs = await listarSubstituicoesTemporarias();
   const pendentes = subs.filter(s => s.status === 'Pendente');
 
+  const bombeirosMap = new Map(bombeiros.map(b => [b.id, b]));
   for (const sub of pendentes) {
-    const equipe = (await listarAtivos()).find(b => b.id === sub.substitutoId)?.equipe || 'Embaixador';
+    const equipe = bombeirosMap.get(sub.substitutoId)?.equipe || 'Embaixador';
     alertas.push({
       titulo: 'Substituição Pendente',
       descricao: `${sub.funcionarioNome} → ${sub.substitutoNome} (${sub.tipo}) — ${sub.dias} dias`,
@@ -139,10 +137,9 @@ async function calcularAlertasSubstituicao(): Promise<Omit<Notificacao, 'id' | '
   return alertas;
 }
 
-async function calcularAlertasCertificacaoCurso(): Promise<Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[]> {
+async function calcularAlertasCertificacaoCurso(bombeiros: import('../types/bombeiro').Bombeiro[]): Promise<Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[]> {
   const alertas: Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[] = [];
-  const certificacoes = listarCertificacoesCursos();
-  const bombeiros = await listarAtivos();
+  const certificacoes = await listarCertificacoesCursos();
 
   for (const cert of certificacoes) {
     if (cert.semValidade || !cert.dataValidade) continue;
@@ -167,17 +164,79 @@ async function calcularAlertasCertificacaoCurso(): Promise<Omit<Notificacao, 'id
   return alertas;
 }
 
+async function calcularAlertasCNH(bombeiros: import('../types/bombeiro').Bombeiro[]): Promise<Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[]> {
+  const alertas: Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[] = [];
+  for (const b of bombeiros) {
+    if (!b.cnhValidade || !b.equipe) continue;
+    const dias = diasRestantes(b.cnhValidade);
+    if (dias <= 0) {
+      alertas.push({
+        titulo: 'CNH Vencida',
+        descricao: `${b.nomeCompleto} — CNH venceu em ${new Date(b.cnhValidade + 'T00:00:00').toLocaleDateString('pt-BR')}. Não pode exercer BA-MC.`,
+        tipo: 'erro',
+        equipe: b.equipe,
+        origem: 'certificacao',
+      });
+    } else if (dias <= 240) {
+      let tipo: Notificacao['tipo'] = 'info';
+      if (dias <= 60) tipo = 'erro';
+      else if (dias <= 120) tipo = 'alerta';
+      alertas.push({
+        titulo: 'CNH próxima do vencimento',
+        descricao: `${b.nomeCompleto} — CNH vence em ${dias} dias (${new Date(b.cnhValidade + 'T00:00:00').toLocaleDateString('pt-BR')})`,
+        tipo,
+        equipe: b.equipe,
+        origem: 'certificacao',
+      });
+    }
+  }
+  return alertas;
+}
+
+async function calcularAlertasCVE(bombeiros: import('../types/bombeiro').Bombeiro[]): Promise<Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[]> {
+  const alertas: Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[] = [];
+  for (const b of bombeiros) {
+    if (!b.cveValidade || !b.equipe) continue;
+    const dias = diasRestantes(b.cveValidade);
+    if (dias <= 0) {
+      alertas.push({
+        titulo: 'CVE Vencido',
+        descricao: `${b.nomeCompleto} — CVE venceu em ${new Date(b.cveValidade + 'T00:00:00').toLocaleDateString('pt-BR')}. Não pode exercer BA-MC.`,
+        tipo: 'erro',
+        equipe: b.equipe,
+        origem: 'certificacao_curso',
+      });
+    } else if (dias <= 365) {
+      let tipo: Notificacao['tipo'] = 'info';
+      if (dias <= 90) tipo = 'erro';
+      else if (dias <= 180) tipo = 'alerta';
+      alertas.push({
+        titulo: 'CVE próximo do vencimento',
+        descricao: `${b.nomeCompleto} — CVE vence em ${dias} dias (${new Date(b.cveValidade + 'T00:00:00').toLocaleDateString('pt-BR')})`,
+        tipo,
+        equipe: b.equipe,
+        origem: 'certificacao_curso',
+      });
+    }
+  }
+  return alertas;
+}
+
 export async function gerarNotificacoes(): Promise<Notificacao[]> {
   const existentes = getStored();
   const existentesMap = new Map(existentes.map(n => [`${n.origem}-${n.descricao}`, n]));
 
+  const bombeiros = await listarAtivos();
+
   const novosAlertas = [
-    ...(await calcularAlertasFerias()),
-    ...(await calcularAlertasEPI()),
-    ...(await calcularAlertasCertificacao()),
-    ...(await calcularAlertasSubstituicao()),
-    ...(await calcularAlertasCertificacaoCurso()),
-    ...(await calcularAlertasCredenciais()),
+    ...(await calcularAlertasFerias(bombeiros)),
+    ...(await calcularAlertasEPI(bombeiros)),
+    ...(await calcularAlertasCertificacao(bombeiros)),
+    ...(await calcularAlertasSubstituicao(bombeiros)),
+    ...(await calcularAlertasCertificacaoCurso(bombeiros)),
+    ...(await calcularAlertasCredenciais(bombeiros)),
+    ...(await calcularAlertasCNH(bombeiros)),
+    ...(await calcularAlertasCVE(bombeiros)),
   ];
 
   const resultado: Notificacao[] = [];
@@ -264,10 +323,9 @@ export function limparNotificacoes() {
   localStorage.removeItem(STORAGE_KEY);
 }
 
-async function calcularAlertasCredenciais(): Promise<Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[]> {
+async function calcularAlertasCredenciais(bombeiros: import('../types/bombeiro').Bombeiro[]): Promise<Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[]> {
   const alertas: Omit<Notificacao, 'id' | 'lida' | 'createdAt'>[] = [];
   try {
-    const bombeiros = await listarAtivos();
     const agora = new Date();
     const seisMeses = new Date(agora);
     seisMeses.setMonth(seisMeses.getMonth() + 6);

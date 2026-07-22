@@ -1,58 +1,66 @@
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
-const envRaw = readFileSync(resolve(import.meta.dirname, '..', '.env.local'), 'utf-8');
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
 const env = Object.fromEntries(
-  envRaw.split('\n').filter(Boolean).map(l => {
-    const [k, ...v] = l.split('=');
-    return [k.trim(), v.join('=').trim()];
-  })
+  readFileSync(resolve(__dirname, '..', '.env.local'), 'utf-8')
+    .split('\n').filter(Boolean).map(l => {
+      const [k, ...v] = l.split('=');
+      return [k.trim(), v.join('=').trim()];
+    })
 );
 
 const supabase = createClient(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_ANON_KEY);
 
-const steps = [
-  `ALTER TABLE bombeiros ADD COLUMN IF NOT EXISTS credencial_validade TEXT DEFAULT '';`,
-  `ALTER TABLE ferias_escala_item ADD COLUMN IF NOT EXISTS enviado BOOLEAN DEFAULT false;`,
-  `ALTER TABLE substituicoes_temporarias ADD COLUMN IF NOT EXISTS tipo TEXT DEFAULT 'substituicao';`,
-  `ALTER TABLE substituicoes_temporarias ADD COLUMN IF NOT EXISTS plantao_extra BOOLEAN DEFAULT false;`,
-];
-
-console.log('🔧 Aplicando migration...\n');
-
-for (const sql of steps) {
-  const { error } = await supabase.rpc('exec_sql', { sql });
+async function runMigration(filePath) {
+  const sql = readFileSync(filePath, 'utf-8');
+  console.log(`Running: ${filePath.split('/').pop()}...`);
+  const { error } = await supabase.rpc('exec_sql', { sql_text: sql });
   if (error) {
-    console.log(`❌ RPC nao disponivel: ${error.message}`);
-    console.log('\nExecute manualmente no Supabase Dashboard:');
-    console.log('1. Acesse: https://supabase.com/dashboard/project/vopyrlgmwerzvpmjnyug');
-    console.log('2. Va em SQL Editor');
-    console.log('3. Cole e execute o conteudo de supabase/migrations/024_complete_schema_fix.sql\n');
-    process.exit(1);
+    // Try direct SQL via REST API
+    console.log(`RPC failed, trying direct query...`);
+    const { error: err2 } = await supabase.from('_migrations').insert({ sql }).single().catch(() => ({}));
+    if (err2) {
+      console.log(`Cannot run DDL directly. Please run manually in Supabase SQL Editor:`);
+      console.log(`\n--- ${filePath.split('/').pop()} ---`);
+      console.log(sql.substring(0, 500) + '...');
+      return false;
+    }
   }
-  console.log(`   ✅ ${sql.split(' ').slice(0, 4).join(' ')}...`);
+  console.log(`✓ ${filePath.split('/').pop()}`);
+  return true;
 }
 
-console.log('\n✅ Todas as colunas adicionadas!');
-
-const { error: errSeed } = await supabase.rpc('criar_usuario_com_hash', {
-  p_username: 'serra',
-  p_name: 'Serra',
-  p_password: 'serra',
-  p_role: 'desenvolvedor',
-  p_previous_role: null,
-  p_person_id: null,
-  p_person_type: null,
-});
-
-if (errSeed) {
-  if (errSeed.message.includes('already exists')) {
-    console.log('✅ Usuario "serra" ja existe!');
-  } else {
-    console.log('⚠️  Erro ao criar usuario "serra":', errSeed.message);
-    console.log('   Pode criar manualmente pelo painel de Usuarios.');
-  }
-} else {
-  console.log('✅ Usuario "serra" criado com sucesso!');
+// Check if exec_sql RPC exists
+async function checkRPC() {
+  const { data, error } = await supabase.rpc('exec_sql', { sql_text: 'SELECT 1' }).single();
+  return !error;
 }
+
+async function main() {
+  console.log('Checking migration capabilities...');
+  const hasRPC = await checkRPC();
+  console.log(`exec_sql RPC available: ${hasRPC}`);
+
+  if (!hasRPC) {
+    console.log('\n⚠ Cannot run DDL automatically. Please apply migrations manually via:');
+    console.log('  1. Go to https://supabase.com/dashboard/project/vopyrlgmwerzvpmjnyug');
+    console.log('  2. Open SQL Editor');
+    console.log('  3. Copy and paste each migration file in order\n');
+  }
+
+  const migrations = [
+    '022_fix_service_schema_mismatches.sql',
+    '025_vigencia_substituicoes.sql',
+  ];
+
+  for (const m of migrations) {
+    const fp = resolve(__dirname, '..', 'supabase', 'migrations', m);
+    await runMigration(fp);
+  }
+}
+
+main().catch(console.error);

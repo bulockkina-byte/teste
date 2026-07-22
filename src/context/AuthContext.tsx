@@ -1,12 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { substituicaoPorSubstituto } from '../services/substituicaoService';
-import { listarBombeiros } from '../services/bombeiroService';
+import { listarBombeiros, obterBombeiro } from '../services/bombeiroService';
 import { listarAPOCs } from '../services/apocService';
 import {
   buscarUsuarioPorUsername,
   verificarSenha,
   criarUsuarioComHash,
-  atualizarUsuario,
 } from '../services/usuarioService';
 
 export type UserRole = 'desenvolvedor' | 'admin' | 'gerente' | 'chefe' | 'lider' | 'bombeiro' | 'sem_funcao';
@@ -268,8 +267,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (remote.personId && remote.personType) {
       try {
         if (remote.personType === 'bombeiro') {
-          const bombeiros = await listarBombeiros();
-          const b = bombeiros.find(p => p.id === remote.personId);
+          const b = await obterBombeiro(remote.personId);
           if (b) {
             userData.name = b.nomeCompleto;
             userData.pessoa = {
@@ -278,7 +276,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               funcao: b.cargo,
               personType: 'bombeiro',
             };
-            const substituicao = substituicaoPorSubstituto(b.id);
+            const substituicao = await substituicaoPorSubstituto(b.id);
             if (substituicao) {
               const subRole = cargoParaUserRole(substituicao.funcaoSubstituicao);
               if (subRole) {
@@ -303,7 +301,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch { /* ignore - fallback to basic user data */ }
     } else {
       try {
-        const bombeiros = await listarBombeiros();
+        const bombeiros = await listarBombeiros({ ids: [remote.personId].filter(Boolean) });
         const bombeiro = bombeiros.find(b => b.nomeCompleto === remote.name || b.email === username);
         if (bombeiro) {
           userData.name = bombeiro.nomeCompleto;
@@ -313,7 +311,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             funcao: bombeiro.cargo,
             personType: 'bombeiro',
           };
-          const substituicao = substituicaoPorSubstituto(bombeiro.id);
+          const substituicao = await substituicaoPorSubstituto(bombeiro.id);
           if (substituicao) {
             const subRole = cargoParaUserRole(substituicao.funcaoSubstituicao);
             if (subRole) {

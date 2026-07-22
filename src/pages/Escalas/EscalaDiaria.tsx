@@ -1,15 +1,21 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Calendar, Shield, Users, Plus, Trash2, FileText, Radio,
   ChevronDown, ChevronUp, Save, Eye, Pencil, Copy, Printer,
   AlertTriangle, X as XIcon,
-  ArrowRightLeft, ArrowRight,
+  ArrowRightLeft, ArrowRight, Sparkles,
 } from 'lucide-react';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { useAuth } from '../../context/AuthContext';
 import { listarEscalas, criarEscala, atualizarEscala, excluirEscala } from '../../services/escalaService';
-import { listarBombeiros } from '../../services/bombeiroService';
+import { listarAtivos } from '../../services/bombeiroService';
+import { equipesNoDia } from '../../utils/equipes';
 import { listarSubstituicoesTemporarias } from '../../services/substituicaoTemporariaService';
+import { listarVigencias } from '../../services/vigenciaSubstituicaoService';
+import type { VigenciaSubstituicao } from '../../services/vigenciaSubstituicaoService';
+import { listarFeriasGozo, listarEscalas as listarEscalasFerias, listarItensEscala } from '../../services/feriasService';
+import { listarCompletas } from '../../services/escalaMensalService';
+import { gerarRadioPlantao } from '../../services/escalaMensalGenerator';
 import { FUNCOES_BDS_PTR } from '../../types/escala';
 import type { EscalaDiaria } from '../../types/escala';
 import type { Bombeiro, Cargo } from '../../types/bombeiro';
@@ -67,10 +73,10 @@ const SLOT_ROLE_MAP: Record<string, Cargo> = {
   'BA-MC': 'BA-MC',
 };
 
-function SlotFuncao({ label, value, onChange, allBombeiros }: { label: string; value: string; onChange: (v: string) => void; allBombeiros: Bombeiro[] }) {
+function SlotFuncao({ label, value, onChange, allBombeiros, veiculo }: { label: string; value: string; onChange: (v: string) => void; allBombeiros: Bombeiro[]; veiculo?: 'crs' | 'cci' }) {
   const role = SLOT_ROLE_MAP[label];
   const selecionado = value ? allBombeiros.find(b => b.nomeGuerra === value) : null;
-  const aviso = selecionado && role ? validarCursoParaFuncao(selecionado, role) : null;
+  const aviso = selecionado && role ? validarCursoParaFuncao(selecionado, role, veiculo) : null;
 
   return (
     <div>
@@ -103,8 +109,9 @@ function EscalaDiariaForm({
   const [form, setForm] = useState(emptyEscala());
   const [allBombeiros, setAllBombeiros] = useState<Bombeiro[]>([]);
   const [substituicoes, setSubstituicoes] = useState<SubstituicaoTemporaria[]>([]);
+  const [autoFilling, setAutoFilling] = useState(false);
 
-  useEffect(() => { listarBombeiros().then(setAllBombeiros); }, []);
+  useEffect(() => { listarAtivos().then(setAllBombeiros); }, []);
 
   useEffect(() => {
     listarSubstituicoesTemporarias().then(lista => {
@@ -118,15 +125,18 @@ function EscalaDiariaForm({
     const aprovadas = substituicoes.filter(s =>
       s.status === 'Aprovada' && data >= s.dataInicio && data <= s.dataFim
     );
-    if (aprovadas.length === 0) return;
+
+    const trocasTemp = aprovadas.map(s => ({
+      funcaoSaindo: s.funcionarioCargo || '',
+      nomeSaindo: s.funcionarioNome,
+      funcaoEntrando: s.substitutoCargo || '',
+      nomeEntrando: s.substitutoNome,
+    }));
+
+    if (trocasTemp.length === 0) return;
+
     setForm(f => {
-      const novasTrocas = aprovadas.map(s => ({
-        funcaoSaindo: s.funcionarioCargo || '',
-        nomeSaindo: s.funcionarioNome,
-        funcaoEntrando: s.substitutoCargo || '',
-        nomeEntrando: s.substitutoNome,
-      }));
-      const combinadas = [...f.trocas, ...novasTrocas.filter(n =>
+      const combinadas = [...f.trocas, ...trocasTemp.filter(n =>
         !f.trocas.some(t => t.nomeSaindo === n.nomeSaindo && t.nomeEntrando === n.nomeEntrando)
       )];
       return { ...f, trocas: combinadas };
@@ -152,6 +162,24 @@ function EscalaDiariaForm({
       });
     }
   }, [escala]);
+
+  // Auto-selecionar equipa com base na data se nenhuma equipa foi escolhida
+  useEffect(() => {
+    if (!form.dataPlantao) return;
+    const data = new Date(form.dataPlantao + 'T12:00:00');
+    const equipes = equipesNoDia(data);
+    if (!equipes.includes(form.equipe as any)) {
+      setForm(f => ({ ...f, equipe: equipes[0] }));
+    }
+  }, [form.dataPlantao]);
+
+  const autoFilledRef = useRef(false);
+  useEffect(() => {
+    if (form.equipe && form.dataPlantao && !escala && allBombeiros.length > 0 && !autoFilledRef.current) {
+      autoPreencherGuarnicoes();
+      autoFilledRef.current = true;
+    }
+  }, [form.equipe, form.dataPlantao, allBombeiros]);
 
   function updateEquipe(equipe: string) {
     const auto = autoPreencher(equipe);
@@ -183,6 +211,247 @@ function EscalaDiariaForm({
         cci03: { baMc: mc3 || f.guarnicoes?.cci03?.baMc || '', ba2_1: b2_4 || f.guarnicoes?.cci03?.ba2_1 || '', ba2_2: b2_5 || f.guarnicoes?.cci03?.ba2_2 || '' },
       },
     }));
+  }
+
+  async function autoPreencherGuarnicoes() {
+    if (!form.equipe || !form.dataPlantao || autoFilling) return;
+    setAutoFilling(true);
+    try {
+      const [all, gozos, escalas, vigs, completas] = await Promise.all([
+        listarAtivos(),
+        listarFeriasGozo(),
+        listarEscalasFerias(),
+        listarVigencias({ ativa: true }),
+        listarCompletas(),
+      ]);
+
+      const allItems: any[] = [];
+      for (const esc of escalas) {
+        if (esc.status !== 'Aprovado') continue;
+        const its = await listarItensEscala(esc.id);
+        for (const i of its) {
+          if (!i.rejeitado && i.feriasGozoId) allItems.push(i);
+        }
+      }
+
+      const dateObj = new Date(form.dataPlantao + 'T00:00:00');
+
+      function isEmGozo(bId: string) {
+        return gozos.find((g: any) => {
+          if (g.funcionarioId !== bId || g.status === 'Gozadas') return false;
+          const gInicio = new Date(g.dataInicio + 'T00:00:00');
+          const gFim = new Date(g.dataFim + 'T00:00:00');
+          return gInicio <= dateObj && gFim >= dateObj;
+        });
+      }
+
+      // Encontrar substituto de uma pessoa (vigência → gozo → item)
+      function encontrarSubstituto(bId: string): { id: string; nome: string } | null {
+        const v = vigs.find((vx: any) => vx.funcionarioOriginalId === bId && vx.ativa);
+        if (v && v.substitutoId) return { id: v.substitutoId, nome: v.substitutoNome };
+        const g = gozos.find((gx: any) => gx.funcionarioId === bId && gx.substitutoId && gx.status !== 'Gozadas');
+        if (g) return { id: g.substitutoId, nome: g.substitutoNome };
+        const item = allItems.find((ix: any) => ix.funcionarioId === bId && (ix.substitutoId || ix.feristaId));
+        if (item) return { id: item.substitutoId || item.feristaId, nome: item.substitutoNome || item.feristaNome };
+        return null;
+      }
+
+      // ── 1. Tentar usar a escala mensal como base ──
+      const mensal = completas.find((c: any) =>
+        c.config.equipe === form.equipe &&
+        c.config.mes === (dateObj.getMonth() + 1) &&
+        c.config.ano === dateObj.getFullYear()
+      );
+
+      let slotChefe = '';
+      let slotCrsBaMc = '', slotCrsBaLr = '', slotCrsBaRe1 = '', slotCrsBaRe2 = '';
+      let slotCci02BaMc = '', slotCci02BaCe = '', slotCci02Ba2 = '';
+      let slotCci03BaMc = '', slotCci03Ba2_1 = '', slotCci03Ba2_2 = '';
+      const usados = new Set<string>();
+
+      if (mensal) {
+        const pessoas = mensal.config.pessoas;
+        const mapeamento: [number, (v: string) => void][] = [
+          [0, v => { slotChefe = v; slotCci02BaCe = v; }],  // Chefe BA-CE
+          [1, v => slotCrsBaLr = v],  // Líder BA-LR
+          [2, v => slotCrsBaMc = v],  // Condutor BA-MC CRS
+          [3, v => slotCci02BaMc = v], // Condutor BA-MC CCI F2
+          [4, v => slotCci03BaMc = v], // Condutor BA-MC CCI F3
+          [5, v => slotCrsBaRe1 = v],  // BA-2 CRS 1
+          [6, v => slotCrsBaRe2 = v],  // BA-2 CRS 2
+          [7, v => slotCci02Ba2 = v],  // BA-2 CCI F2
+          [8, v => slotCci03Ba2_1 = v], // BA-2 CCI F3 1
+          [9, v => slotCci03Ba2_2 = v], // BA-2 CCI F3 2
+        ];
+        for (const [idx, setter] of mapeamento) {
+          const p = pessoas[idx];
+          if (!p || !p.nomeGuerra) continue;
+          // Verificar se está de férias nesta data
+          const b = all.find((bb: any) => bb.nomeGuerra === p.nomeGuerra);
+          if (b && isEmGozo(b.id)) {
+            const subInfo = encontrarSubstituto(b.id);
+            if (subInfo) {
+              const sub = all.find((bb: any) => bb.id === subInfo.id);
+              if (sub && !usados.has(sub.id)) {
+                setter(sub.nomeGuerra);
+                usados.add(sub.id);
+                continue;
+              }
+            }
+          }
+          // Não está de férias ou sem substituto → mantém o original
+          if (b && !usados.has(b.id)) {
+            setter(p.nomeGuerra);
+            usados.add(b.id);
+          }
+        }
+      }
+
+      // ── 2. Pool para preencher slots que ficaram vazios ──
+      const pool: { bombeiro: any; cargo: string }[] = [];
+      const ocupados = new Set<string>();
+      for (const m of all.filter((b: any) => b.equipe === form.equipe)) {
+        if (usados.has(m.id)) continue;
+        if (!isEmGozo(m.id)) {
+          pool.push({ bombeiro: m, cargo: m.cargo });
+          continue;
+        }
+        const subInfo = encontrarSubstituto(m.id);
+        if (subInfo) {
+          const sub = all.find((bb: any) => bb.id === subInfo.id);
+          if (sub && !ocupados.has(sub.id) && !usados.has(sub.id)) {
+            pool.push({ bombeiro: sub, cargo: m.cargo });
+            ocupados.add(sub.id);
+          }
+        }
+      }
+      for (const v of vigs) {
+        if (v.equipe === form.equipe && !ocupados.has(v.substitutoId) && !usados.has(v.substitutoId)) {
+          const sub = all.find((bb: any) => bb.id === v.substitutoId);
+          if (sub) { pool.push({ bombeiro: sub, cargo: v.cargoExercido || sub.cargo }); ocupados.add(sub.id); }
+        }
+      }
+
+      // ── 3. Aplicar trocas temporárias ──
+      const trocasAtivas = substituicoes.filter(s =>
+        s.status === 'Aprovada' && form.dataPlantao >= s.dataInicio && form.dataPlantao <= s.dataFim
+      );
+      // Aplicar swaps nos nomes dos slots
+      for (const t of trocasAtivas) {
+        const slotsAtuais = [slotChefe, slotCrsBaMc, slotCrsBaLr, slotCrsBaRe1, slotCrsBaRe2,
+          slotCci02BaMc, slotCci02BaCe, slotCci02Ba2, slotCci03BaMc, slotCci03Ba2_1, slotCci03Ba2_2];
+        const slotKeys = ['slotChefe', 'slotCrsBaMc', 'slotCrsBaLr', 'slotCrsBaRe1', 'slotCrsBaRe2',
+          'slotCci02BaMc', 'slotCci02BaCe', 'slotCci02Ba2', 'slotCci03BaMc', 'slotCci03Ba2_1', 'slotCci03Ba2_2'];
+        const setVars: ((v: string) => void)[] = [
+          v => slotChefe = v, v => slotCrsBaMc = v, v => slotCrsBaLr = v,
+          v => slotCrsBaRe1 = v, v => slotCrsBaRe2 = v, v => slotCci02BaMc = v,
+          v => slotCci02BaCe = v, v => slotCci02Ba2 = v, v => slotCci03BaMc = v,
+          v => slotCci03Ba2_1 = v, v => slotCci03Ba2_2 = v,
+        ];
+        const saindoNome = t.funcionarioNome;
+        const entrandoNome = t.substitutoNome;
+        // Procurar o "saindo" nos slots (pelo nomeGuerra ou nome completo)
+        const idxSaindo = slotsAtuais.findIndex(s => {
+          const b = all.find((bb: any) => bb.nomeGuerra === s || bb.nomeCompleto === s);
+          return b && (b.nome === saindoNome || b.nomeCompleto === saindoNome || b.nomeGuerra === saindoNome);
+        });
+        const idxEntrando = slotsAtuais.findIndex(s => {
+          const b = all.find((bb: any) => bb.nomeGuerra === s || bb.nomeCompleto === s);
+          return b && (b.nome === entrandoNome || b.nomeCompleto === entrandoNome || b.nomeGuerra === entrandoNome);
+        });
+        if (idxSaindo !== -1 && idxEntrando !== -1) {
+          const temp = slotsAtuais[idxSaindo];
+          setVars[idxSaindo](slotsAtuais[idxEntrando]);
+          setVars[idxEntrando](temp);
+        } else if (idxSaindo !== -1) {
+          // "Saindo" está num slot mas "entrando" não → substituir no pool
+          const entrandoPool = pool.find(p => p.bombeiro.nome === entrandoNome || p.bombeiro.nomeCompleto === entrandoNome);
+          if (entrandoPool) {
+            setVars[idxSaindo](entrandoPool.bombeiro.nomeGuerra);
+          }
+        }
+      }
+
+      // ── 4. Preencher slots vazios com pool ──
+      const buscarPool = (cargo: string) => {
+        const idx = pool.findIndex(p => p.cargo === cargo && !usados.has(p.bombeiro.id));
+        if (idx === -1) return null;
+        usados.add(pool[idx].bombeiro.id);
+        return pool[idx];
+      };
+      if (!slotChefe) { const p = buscarPool('BA-CE'); if (p) slotChefe = p.bombeiro.nomeGuerra; }
+      if (!slotCrsBaMc) { const p = buscarPool('BA-MC'); if (p) slotCrsBaMc = p.bombeiro.nomeGuerra; }
+      if (!slotCci02BaMc) { const p = buscarPool('BA-MC'); if (p) slotCci02BaMc = p.bombeiro.nomeGuerra; }
+      if (!slotCci03BaMc) { const p = buscarPool('BA-MC'); if (p) slotCci03BaMc = p.bombeiro.nomeGuerra; }
+      if (!slotCrsBaLr) { const p = buscarPool('BA-LR'); if (p) slotCrsBaLr = p.bombeiro.nomeGuerra; }
+      if (!slotCrsBaRe1) { const p = buscarPool('BA-2') || buscarPool('BA-RE'); if (p) slotCrsBaRe1 = p.bombeiro.nomeGuerra; }
+      if (!slotCrsBaRe2) { const p = buscarPool('BA-2') || buscarPool('BA-RE'); if (p) slotCrsBaRe2 = p.bombeiro.nomeGuerra; }
+      if (!slotCci02Ba2) { const p = buscarPool('BA-2') || buscarPool('BA-RE'); if (p) slotCci02Ba2 = p.bombeiro.nomeGuerra; }
+      if (!slotCci03Ba2_1) { const p = buscarPool('BA-2') || buscarPool('BA-RE'); if (p) slotCci03Ba2_1 = p.bombeiro.nomeGuerra; }
+      if (!slotCci03Ba2_2) { const p = buscarPool('BA-2') || buscarPool('BA-RE'); if (p) slotCci03Ba2_2 = p.bombeiro.nomeGuerra; }
+
+      // ── 5. Preencher escala de rádio ──
+      let radioPreenchido: { funcao: string; nomeGuerra: string; horarioInicio: string; horarioFim: string }[] = [];
+      if (mensal) {
+        const plantaoDia = mensal.paradas.find((p: any) => p.dia === dateObj.getDate());
+        let radioSlots: { horario: string; horarioFim: string; pessoaNomeGuerra: string; fixo: boolean }[] = [];
+        if (plantaoDia && plantaoDia.radio.length > 0) {
+          radioSlots = plantaoDia.radio;
+        } else if (mensal.config.pessoas.some((p: any) => p?.id)) {
+          const idxPlantao = dateObj.getDate();
+          const radioGerado = gerarRadioPlantao(mensal.config.pessoas, idxPlantao, form.equipe);
+          radioSlots = radioGerado;
+        }
+        if (radioSlots.length > 0) {
+          radioPreenchido = radioSlots.map((r: any) => {
+            const pessoa = all.find((bb: any) => bb.nomeGuerra === r.pessoaNomeGuerra);
+            let nomeFinal = r.pessoaNomeGuerra;
+            if (pessoa && isEmGozo(pessoa.id)) {
+              const subInfo = encontrarSubstituto(pessoa.id);
+              if (subInfo) {
+                const sub = all.find((bb: any) => bb.id === subInfo.id);
+                if (sub) nomeFinal = sub.nomeGuerra;
+              }
+            }
+            const pessoaFinal = all.find((bb: any) => bb.nomeGuerra === nomeFinal);
+            return {
+              funcao: pessoaFinal?.cargo || 'BA-2',
+              nomeGuerra: nomeFinal,
+              horarioInicio: r.horario,
+              horarioFim: r.horarioFim,
+            };
+          });
+        }
+      }
+
+      setForm(f => ({
+        ...f,
+        chefeEquipe: slotChefe || f.chefeEquipe,
+        guarnicoes: {
+          crs: {
+            baMc: slotCrsBaMc || f.guarnicoes?.crs?.baMc || '',
+            baLr: slotCrsBaLr || f.guarnicoes?.crs?.baLr || '',
+            baRe1: slotCrsBaRe1 || f.guarnicoes?.crs?.baRe1 || '',
+            baRe2: slotCrsBaRe2 || f.guarnicoes?.crs?.baRe2 || '',
+          },
+          cci02: {
+            baMc: slotCci02BaMc || f.guarnicoes?.cci02?.baMc || '',
+            baCe: slotCci02BaCe || f.guarnicoes?.cci02?.baCe || '',
+            ba2: slotCci02Ba2 || f.guarnicoes?.cci02?.ba2 || '',
+          },
+          cci03: {
+            baMc: slotCci03BaMc || f.guarnicoes?.cci03?.baMc || '',
+            ba2_1: slotCci03Ba2_1 || f.guarnicoes?.cci03?.ba2_1 || '',
+            ba2_2: slotCci03Ba2_2 || f.guarnicoes?.cci03?.ba2_2 || '',
+          },
+        },
+        radio: radioPreenchido.length > 0 ? radioPreenchido : f.radio,
+      }));
+    } catch (err) {
+      console.error('Erro no auto-preenchimento:', err);
+    } finally {
+      setAutoFilling(false);
+    }
   }
 
   function updateGuarnicao(section: 'cci02' | 'cci03' | 'crs', field: string, value: string) {
@@ -268,7 +537,7 @@ function EscalaDiariaForm({
           <div className="rounded-xl border border-graphite-200/60 bg-graphite-50/50 p-4 dark:border-border-dark dark:bg-surface-card/50">
             <h4 className="mb-3 text-sm font-bold text-graphite-700 dark:text-graphite-300">CCI 02</h4>
             <div className="space-y-3">
-              <SlotFuncao label="BA-MC" value={form.guarnicoes?.cci02?.baMc || ''} onChange={v => updateGuarnicao('cci02', 'baMc', v)} allBombeiros={allBombeiros} />
+              <SlotFuncao label="BA-MC" value={form.guarnicoes?.cci02?.baMc || ''} onChange={v => updateGuarnicao('cci02', 'baMc', v)} allBombeiros={allBombeiros} veiculo="cci" />
               <SlotFuncao label="BA-CE" value={form.guarnicoes?.cci02?.baCe || ''} onChange={v => updateGuarnicao('cci02', 'baCe', v)} allBombeiros={allBombeiros} />
               <SlotFuncao label="BA-2" value={form.guarnicoes?.cci02?.ba2 || ''} onChange={v => updateGuarnicao('cci02', 'ba2', v)} allBombeiros={allBombeiros} />
             </div>
@@ -277,7 +546,7 @@ function EscalaDiariaForm({
           <div className="rounded-xl border border-graphite-200/60 bg-graphite-50/50 p-4 dark:border-border-dark dark:bg-surface-card/50">
             <h4 className="mb-3 text-sm font-bold text-graphite-700 dark:text-graphite-300">CCI 03</h4>
             <div className="space-y-3">
-              <SlotFuncao label="BA-MC" value={form.guarnicoes?.cci03?.baMc || ''} onChange={v => updateGuarnicao('cci03', 'baMc', v)} allBombeiros={allBombeiros} />
+              <SlotFuncao label="BA-MC" value={form.guarnicoes?.cci03?.baMc || ''} onChange={v => updateGuarnicao('cci03', 'baMc', v)} allBombeiros={allBombeiros} veiculo="cci" />
               <SlotFuncao label="BA-2" value={form.guarnicoes?.cci03?.ba2_1 || ''} onChange={v => updateGuarnicao('cci03', 'ba2_1', v)} allBombeiros={allBombeiros} />
               <SlotFuncao label="BA-2" value={form.guarnicoes?.cci03?.ba2_2 || ''} onChange={v => updateGuarnicao('cci03', 'ba2_2', v)} allBombeiros={allBombeiros} />
             </div>
@@ -286,7 +555,7 @@ function EscalaDiariaForm({
           <div className="rounded-xl border border-graphite-200/60 bg-graphite-50/50 p-4 dark:border-border-dark dark:bg-surface-card/50">
             <h4 className="mb-3 text-sm font-bold text-graphite-700 dark:text-graphite-300">CRS</h4>
             <div className="space-y-3">
-              <SlotFuncao label="BA-MC" value={form.guarnicoes?.crs?.baMc || ''} onChange={v => updateGuarnicao('crs', 'baMc', v)} allBombeiros={allBombeiros} />
+              <SlotFuncao label="BA-MC" value={form.guarnicoes?.crs?.baMc || ''} onChange={v => updateGuarnicao('crs', 'baMc', v)} allBombeiros={allBombeiros} veiculo="crs" />
               <SlotFuncao label="BA-LR" value={form.guarnicoes?.crs?.baLr || ''} onChange={v => updateGuarnicao('crs', 'baLr', v)} allBombeiros={allBombeiros} />
               <SlotFuncao label="BA-RE" value={form.guarnicoes?.crs?.baRe1 || ''} onChange={v => updateGuarnicao('crs', 'baRe1', v)} allBombeiros={allBombeiros} />
               <SlotFuncao label="BA-RE" value={form.guarnicoes?.crs?.baRe2 || ''} onChange={v => updateGuarnicao('crs', 'baRe2', v)} allBombeiros={allBombeiros} />
@@ -436,6 +705,15 @@ function EscalaDiariaForm({
 
       {/* Actions */}
       <div className="flex items-center justify-end gap-3 border-t border-graphite-200 pt-6 dark:border-border-dark">
+        <button type="button" onClick={autoPreencherGuarnicoes} disabled={autoFilling}
+          className="flex items-center gap-2 rounded-xl border border-aviation-300 bg-white px-4 py-2.5 text-sm font-medium text-aviation-700 transition-all duration-200 hover:bg-aviation-50 disabled:opacity-50 dark:border-aviation-700 dark:bg-aviation-900/20 dark:text-aviation-300 dark:hover:bg-aviation-900/30">
+          {autoFilling ? (
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-aviation-700 border-t-transparent dark:border-aviation-300" />
+          ) : (
+            <Sparkles className="h-4 w-4" />
+          )}
+          {autoFilling ? 'Preenchendo...' : 'Auto-Preenchimento'}
+        </button>
         <button type="button" onClick={onCancel}
           className="rounded-xl border border-graphite-300/60 bg-white/80 px-4 py-2.5 text-sm font-medium text-graphite-700 backdrop-blur-sm transition-all duration-200 hover:bg-graphite-50 hover:border-graphite-300 dark:border-border-dark dark:bg-surface-card/80 dark:text-graphite-200 dark:hover:bg-surface-hover/50">
           Cancelar
@@ -460,6 +738,14 @@ function EscalaCard({ escala, onView, onEdit, onDelete, onClone, isAdmin }: {
   isAdmin: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [vigenciasAtivas, setVigenciasAtivas] = useState<VigenciaSubstituicao[]>([]);
+
+  useEffect(() => {
+    if (!escala.dataPlantao || !escala.equipe) return;
+    listarVigencias({ equipe: escala.equipe, ativa: true, dataInicio: escala.dataPlantao, dataFim: escala.dataPlantao })
+      .then(setVigenciasAtivas)
+      .catch(() => setVigenciasAtivas([]));
+  }, [escala.dataPlantao, escala.equipe]);
 
   return (
     <div className="rounded-2xl border border-graphite-200/60 bg-white/80 p-4 shadow-sm backdrop-blur-sm dark:border-border-dark dark:bg-surface-card">
@@ -528,6 +814,25 @@ function EscalaCard({ escala, onView, onEdit, onDelete, onClone, isAdmin }: {
               <p className="text-sm">BA-RE: {escala.guarnicoes?.crs?.baRe2 || '-'}</p>
             </div>
           </div>
+
+          {/* Substituições Ativas */}
+          {vigenciasAtivas.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-aviation-600 dark:text-aviation-400">Substituições Ativas</p>
+              <div className="space-y-1">
+                {vigenciasAtivas.map((v, i) => (
+                  <p key={i} className="text-sm">
+                    <span className="font-medium text-graphite-900 dark:text-graphite-100">{v.substitutoNome}</span>
+                    <span className="mx-1.5 text-graphite-400">({v.cargoExercido})</span>
+                    <span className="text-graphite-400">→ substitui </span>
+                    <span className="font-medium text-graphite-900 dark:text-graphite-100">{v.funcionarioOriginalNome}</span>
+                    <span className="mx-1.5 text-graphite-400">({v.motivo === 'ferias' ? 'férias' : 'cascata'})</span>
+                    <span className="ml-2 text-[10px] text-graphite-400">nível {v.nivelCascata}</span>
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* BDS/PTR */}
           {([['BDS', escala.bds], ['PTR-1', escala.ptr1], ['PTR-2', escala.ptr2]] as const).map(([label, slot]) => (
@@ -759,6 +1064,15 @@ export function EscalaDiariaView() {
 }
 
 function ViewMode({ escala, onBack }: { escala: EscalaDiaria; onBack: () => void }) {
+  const [vigenciasAtivas, setVigenciasAtivas] = useState<VigenciaSubstituicao[]>([]);
+
+  useEffect(() => {
+    if (!escala.dataPlantao || !escala.equipe) return;
+    listarVigencias({ equipe: escala.equipe, ativa: true, dataInicio: escala.dataPlantao, dataFim: escala.dataPlantao })
+      .then(setVigenciasAtivas)
+      .catch(() => setVigenciasAtivas([]));
+  }, [escala.dataPlantao, escala.equipe]);
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between print-hidden">
@@ -824,6 +1138,25 @@ function ViewMode({ escala, onBack }: { escala: EscalaDiaria; onBack: () => void
             </div>
           </div>
         </div>
+
+        {/* Substituições Ativas */}
+        {vigenciasAtivas.length > 0 && (
+          <div className="mb-4">
+            <p className="mb-1 text-xs font-semibold text-aviation-600 dark:text-aviation-400">Substituições Ativas</p>
+            <div className="space-y-1">
+              {vigenciasAtivas.map((v, i) => (
+                <p key={i} className="text-sm">
+                  <span className="font-medium text-graphite-900 dark:text-graphite-100">{v.substitutoNome}</span>
+                  <span className="mx-1.5 text-graphite-400">({v.cargoExercido})</span>
+                  <span className="text-graphite-400">→ substitui </span>
+                  <span className="font-medium text-graphite-900 dark:text-graphite-100">{v.funcionarioOriginalNome}</span>
+                  <span className="mx-1.5 text-graphite-400">({v.motivo === 'ferias' ? 'férias' : 'cascata'})</span>
+                  <span className="ml-2 text-[10px] text-graphite-400">nível {v.nivelCascata}</span>
+                </p>
+              ))}
+            </div>
+          </div>
+        )}
 
         {([['BDS', escala.bds], ['PTR-1', escala.ptr1], ['PTR-2', escala.ptr2]] as const).map(([label, slot]) => (
           <div key={label} className="mb-4">

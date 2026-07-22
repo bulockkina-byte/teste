@@ -97,14 +97,20 @@ function viaturaToRow(data: Partial<Viatura>): Record<string, unknown> {
   return row;
 }
 
-export async function listarViaturas(): Promise<Viatura[]> {
+export async function listarViaturas(params?: { tipo?: string }): Promise<Viatura[]> {
   const db = getDb();
-  const { data, error } = await db
-    .from(TABLE)
-    .select('*')
-    .order('created_at', { ascending: false });
+  let query = db.from(TABLE).select('*').order('created_at', { ascending: false });
+  if (params?.tipo) query = query.eq('tipo', params.tipo);
+  const { data, error } = await query;
   if (error) handleSupabaseError(error);
   return (data || []).map(rowToViatura);
+}
+
+export async function contarViaturas(): Promise<number> {
+  const db = getDb();
+  const { count, error } = await db.from(TABLE).select('*', { count: 'exact', head: true });
+  if (error) handleSupabaseError(error);
+  return count || 0;
 }
 
 export async function criarViatura(data: Omit<Viatura, 'id' | 'createdAt' | 'updatedAt'>): Promise<Viatura> {

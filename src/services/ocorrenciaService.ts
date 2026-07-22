@@ -8,6 +8,15 @@ function getDb() {
   return supabase;
 }
 
+function handleSupabaseError(err: unknown): never {
+  console.error('Erro Supabase:', err);
+  const msg =
+    err instanceof Error ? err.message :
+    err && typeof err === 'object' && 'message' in err ? String((err as any).message) :
+    'Erro inesperado no banco de dados';
+  throw new Error(msg);
+}
+
 function parseJSON(val: unknown): any {
   if (typeof val === 'string') { try { return JSON.parse(val); } catch { return val; } }
   return val;
@@ -36,10 +45,22 @@ function rowToOcorrencia(row: Record<string, unknown>): Ocorrencia {
   };
 }
 
-export async function listarOcorrencias(): Promise<Ocorrencia[]> {
+export async function listarOcorrencias(params?: {
+  status?: string;
+  dataGte?: string;
+  dataLte?: string;
+  equipe?: string;
+  categoria?: string;
+}): Promise<Ocorrencia[]> {
   const db = getDb();
-  const { data, error } = await db.from(TABLE).select('*');
-  if (error) throw error;
+  let query = db.from(TABLE).select('*');
+  if (params?.status) query = query.eq('status', params.status);
+  if (params?.dataGte) query = query.gte('data', params.dataGte);
+  if (params?.dataLte) query = query.lte('data', params.dataLte);
+  if (params?.equipe) query = query.eq('equipe', params.equipe);
+  if (params?.categoria) query = query.eq('categoria', params.categoria);
+  const { data, error } = await query;
+  if (error) handleSupabaseError(error);
   return (data || []).map(rowToOcorrencia);
 }
 
@@ -55,7 +76,7 @@ export async function criarOcorrencia(data: Omit<Ocorrencia, 'id' | 'createdAt' 
     status: data.status, fotos: data.fotos,
   };
   const { data: created, error } = await db.from(TABLE).insert(row).select().single();
-  if (error) throw error;
+  if (error) handleSupabaseError(error);
   return rowToOcorrencia(created);
 }
 
@@ -77,11 +98,22 @@ export async function atualizarOcorrencia(id: string, data: Partial<Ocorrencia>)
   if (data.status !== undefined) r.status = data.status;
   if (data.fotos !== undefined) r.fotos = data.fotos;
   const { data: updated, error } = await db.from(TABLE).update(r).eq('id', id).select().single();
-  if (error) throw error;
+  if (error) handleSupabaseError(error);
   return updated ? rowToOcorrencia(updated) : null;
+}
+
+export async function contarOcorrenciasAbertas(): Promise<number> {
+  const db = getDb();
+  const { count, error } = await db
+    .from(TABLE)
+    .select('*', { count: 'exact', head: true })
+    .neq('status', 'Fechada');
+  if (error) handleSupabaseError(error);
+  return count || 0;
 }
 
 export async function excluirOcorrencia(id: string): Promise<void> {
   const db = getDb();
-  await db.from(TABLE).delete().eq('id', id);
+  const { error } = await db.from(TABLE).delete().eq('id', id);
+  if (error) handleSupabaseError(error);
 }

@@ -7,6 +7,15 @@ function getDb() {
   return supabase;
 }
 
+function handleSupabaseError(err: unknown): never {
+  console.error('Erro Supabase:', err);
+  const msg =
+    err instanceof Error ? err.message :
+    err && typeof err === 'object' && 'message' in err ? String((err as any).message) :
+    'Erro inesperado no banco de dados';
+  throw new Error(msg);
+}
+
 export type LRODraftStatus = 'rascunho' | 'aguardando' | 'assinado' | 'cancelado';
 
 export interface LRODraft {
@@ -42,13 +51,13 @@ export async function listarDrafts(createdBy: string): Promise<LRODraft[]> {
   let query = db.from(TABLE).select('*');
   if (createdBy) query = query.eq('created_by', createdBy);
   const { data, error } = await query.order('updated_at', { ascending: false });
-  if (error) throw error;
+  if (error) handleSupabaseError(error);
   return (data || []).map(rowToDraft);
 }
 
 export async function obterDraft(id: string): Promise<LRODraft | null> {
   const db = getDb();
-  const { data, error } = await db.from(TABLE).select('*').eq('id', id).single();
+  const { data, error } = await db.from(TABLE).select('*').eq('id', id).maybeSingle();
   if (error) return null;
   return data ? rowToDraft(data) : null;
 }
@@ -72,12 +81,12 @@ export async function salvarDraft(
 
   if (draftId) {
     const { data, error } = await db.from(TABLE).update(row).eq('id', draftId).select().single();
-    if (error) throw error;
+    if (error) handleSupabaseError(error);
     return rowToDraft(data);
   }
 
   const { data, error } = await db.from(TABLE).insert({ ...row, created_at: now, status: 'rascunho' }).select().single();
-  if (error) throw error;
+  if (error) handleSupabaseError(error);
   return rowToDraft(data);
 }
 
@@ -85,10 +94,12 @@ export async function atualizarStatus(id: string, status: LRODraftStatus, autent
   const db = getDb();
   const r: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
   if (autentiqueDocId) r.autentique_doc_id = autentiqueDocId;
-  await db.from(TABLE).update(r).eq('id', id);
+  const { error } = await db.from(TABLE).update(r).eq('id', id);
+  if (error) handleSupabaseError(error);
 }
 
 export async function excluirDraft(id: string): Promise<void> {
   const db = getDb();
-  await db.from(TABLE).delete().eq('id', id);
+  const { error } = await db.from(TABLE).delete().eq('id', id);
+  if (error) handleSupabaseError(error);
 }

@@ -7,8 +7,10 @@ import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { useAuth } from '../../context/AuthContext';
 import { listarLROs, criarLRO, atualizarLRO, excluirLRO } from '../../services/lroService';
-import { listarBombeiros } from '../../services/bombeiroService';
+import { listarBombeiros, listarAtivos } from '../../services/bombeiroService';
 import { listarViaturas } from '../../services/viaturaService';
+import { listarAPOCs } from '../../services/apocService';
+import type { AtivoItem } from '../../components/ui/SearchSelect';
 import type { Viatura } from '../../types/viatura';
 import { EQUIPES, EPR_OPTIONS, CRS_SITUACOES, FUNCOES_CARGO } from '../../types/lro';
 import type { LRO, VeiculoState, VeiculoRTState, CRSState } from '../../types/lro';
@@ -114,6 +116,17 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
   const [form, setForm] = useState(emptyLRO());
   const [viaturas, setViaturas] = useState<Viatura[]>([]);
   useEffect(() => { listarViaturas().then(setViaturas); }, []);
+  const [pessoas, setPessoas] = useState<AtivoItem[]>([]);
+  useEffect(() => {
+    async function load() {
+      const [bbs, apocs] = await Promise.all([listarAtivos(), listarAPOCs()]);
+      setPessoas([
+        ...bbs.map(b => ({ id: b.id, nomeGuerra: b.nomeGuerra, nomeCompleto: b.nomeCompleto, cargo: b.cargo, equipe: b.equipe })),
+        ...apocs.map(a => ({ id: a.id, nomeGuerra: a.nomeGuerra, nomeCompleto: a.nomeCompleto, equipe: a.equipe })),
+      ]);
+    }
+    load();
+  }, []);
 
   useEffect(() => {
     if (lro) {
@@ -189,11 +202,11 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Chefe de Equipe</label>
-          <SearchSelect value={form.chefeEquipe} onChange={v => upd('chefeEquipe', v)} placeholder="Chefe de Equipe" />
+          <SearchSelect value={form.chefeEquipe} onChange={v => upd('chefeEquipe', v)} placeholder="Chefe de Equipe" options={pessoas} />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">APOC</label>
-          <SearchSelect value={form.apoc} onChange={v => upd('apoc', v)} placeholder="APOC" cargo="APOC" />
+          <SearchSelect value={form.apoc} onChange={v => upd('apoc', v)} placeholder="APOC" cargo="APOC" options={pessoas} />
         </div>
       </div>
 
@@ -224,7 +237,7 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
                         </select>
                       </td>
                       <td className="px-3 py-2 min-w-56">
-                        <SearchSelect value={s.nome} onChange={v => { const next = [...form.cci02Slots]; next[i] = { ...next[i], nome: v }; upd('cci02Slots', next); }} placeholder="Selecione o nome" cargo={s.funcao || undefined} />
+                        <SearchSelect value={s.nome} onChange={v => { const next = [...form.cci02Slots]; next[i] = { ...next[i], nome: v }; upd('cci02Slots', next); }} placeholder="Selecione o nome" cargo={s.funcao || undefined} options={pessoas} />
                       </td>
                       <td className="px-3 py-2">
                         <button type="button" onClick={() => upd('cci02Slots', form.cci02Slots.filter((_, j) => j !== i))}
@@ -263,7 +276,7 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
                         </select>
                       </td>
                       <td className="px-3 py-2 min-w-56">
-                        <SearchSelect value={s.nome} onChange={v => { const next = [...form.cci03Slots]; next[i] = { ...next[i], nome: v }; upd('cci03Slots', next); }} placeholder="Selecione o nome" cargo={s.funcao || undefined} />
+                        <SearchSelect value={s.nome} onChange={v => { const next = [...form.cci03Slots]; next[i] = { ...next[i], nome: v }; upd('cci03Slots', next); }} placeholder="Selecione o nome" cargo={s.funcao || undefined} options={pessoas} />
                       </td>
                       <td className="px-3 py-2">
                         <button type="button" onClick={() => upd('cci03Slots', form.cci03Slots.filter((_, j) => j !== i))}
@@ -309,7 +322,7 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
                         </select>
                       </td>
                       <td className="px-3 py-2 min-w-56">
-                        <SearchSelect value={s.nome} onChange={v => { const next = [...form.crsSlots]; next[i] = { ...next[i], nome: v }; upd('crsSlots', next); }} placeholder="Selecione o nome" cargo={s.funcao || undefined} />
+                        <SearchSelect value={s.nome} onChange={v => { const next = [...form.crsSlots]; next[i] = { ...next[i], nome: v }; upd('crsSlots', next); }} placeholder="Selecione o nome" cargo={s.funcao || undefined} options={pessoas} />
                       </td>
                       <td className="px-3 py-2">
                         <button type="button" onClick={() => upd('crsSlots', form.crsSlots.filter((_, j) => j !== i))}
@@ -348,7 +361,7 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
                         </select>
                       </td>
                       <td className="px-3 py-2 min-w-56">
-                        <SearchSelect value={s.nome} onChange={v => { const next = [...form.apoioOutrosSlots]; next[i] = { ...next[i], nome: v }; upd('apoioOutrosSlots', next); }} placeholder="Selecione o nome" cargo={s.funcao || undefined} />
+                        <SearchSelect value={s.nome} onChange={v => { const next = [...form.apoioOutrosSlots]; next[i] = { ...next[i], nome: v }; upd('apoioOutrosSlots', next); }} placeholder="Selecione o nome" cargo={s.funcao || undefined} options={pessoas} />
                       </td>
                       <td className="px-3 py-2">
                         <button type="button" onClick={() => upd('apoioOutrosSlots', form.apoioOutrosSlots.filter((_, j) => j !== i))}
@@ -393,8 +406,8 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
                   <label className="mb-1 block text-xs text-graphite-500 dark:text-graphite-400">Nome</label>
                   <SearchSelect value={s.nome} onChange={v => {
                     const next = [...form.substituicoes]; next[i] = { ...next[i], nome: v };
-                    upd('substituicoes', next);
-                  }} placeholder="Nome" />
+upd('substituicoes', next);
+                    }} placeholder="Nome" options={pessoas} />
                 </div>
                 <div className="flex-1 min-w-32">
                   <label className="mb-1 block text-xs text-graphite-500 dark:text-graphite-400">Função Substituto</label>
@@ -407,8 +420,8 @@ function LROForm({ lro, onSave, onSaveDraft, onCancel }: {
                   <label className="mb-1 block text-xs text-graphite-500 dark:text-graphite-400">Nome Substituto</label>
                   <SearchSelect value={s.nomeSubstituto} onChange={v => {
                     const next = [...form.substituicoes]; next[i] = { ...next[i], nomeSubstituto: v };
-                    upd('substituicoes', next);
-                  }} placeholder="Nome substituto" />
+upd('substituicoes', next);
+                    }} placeholder="Nome substituto" options={pessoas} />
                 </div>
                 <button type="button" onClick={() => upd('substituicoes', form.substituicoes.filter((_, j) => j !== i))}
                   className="rounded-xl p-1.5 text-alert-red transition-all duration-200 hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="h-4 w-4" /></button>
@@ -817,6 +830,7 @@ export function LRODiario() {
   const [editando, setEditando] = useState<LRO | null>(null);
   const [visualizando, setVisualizando] = useState<LRO | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const [filtroEquipe, setFiltroEquipe] = useState('');
   const [filtroMes, setFiltroMes] = useState('');
   const [filtroAno, setFiltroAno] = useState(new Date().getFullYear().toString());
@@ -825,13 +839,19 @@ export function LRODiario() {
   const inputClass = 'rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated';
 
   async function carregar() {
-    const atuais = await listarLROs();
-    if (isAdmin || isGerente) {
-      setLros(atuais);
-    } else if (userEquipe) {
-      setLros(atuais.filter(e => e.equipe === userEquipe));
-    } else {
-      setLros(atuais.filter(e => e.createdBy === username));
+    try {
+      const atuais = await listarLROs();
+      if (isAdmin || isGerente) {
+        setLros(atuais);
+      } else if (userEquipe) {
+        setLros(atuais.filter(e => e.equipe === userEquipe));
+      } else {
+        setLros(atuais.filter(e => e.createdBy === username));
+      }
+    } catch (err) {
+      console.error('Erro ao carregar LROs:', err);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -852,21 +872,25 @@ export function LRODiario() {
   }
 
   async function handleSave(data: Omit<LRO, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>, stayInForm = false) {
-    let saved: LRO | null;
-    if (editando && editando.id) {
-      saved = await atualizarLRO(editando.id, data);
-    } else {
-      saved = await criarLRO({ ...data, createdBy: username });
-    }
-    carregar();
-    if (saved && stayInForm) {
-      setEditando(saved);
-    } else if (saved) {
-      setEditando(null);
-      setVisualizando(saved);
-      setMode('view');
-    } else {
-      setMode('list');
+    try {
+      let saved: LRO | null;
+      if (editando && editando.id) {
+        saved = await atualizarLRO(editando.id, data);
+      } else {
+        saved = await criarLRO({ ...data, createdBy: username });
+      }
+      await carregar();
+      if (saved && stayInForm) {
+        setEditando(saved);
+      } else if (saved) {
+        setEditando(null);
+        setVisualizando(saved);
+        setMode('view');
+      } else {
+        setMode('list');
+      }
+    } catch (err) {
+      console.error('Erro ao salvar LRO:', err);
     }
   }
 
@@ -884,9 +908,13 @@ export function LRODiario() {
   }
 
   async function handleDelete(id: string) {
-    await excluirLRO(id);
-    setConfirmDelete(null);
-    carregar();
+    try {
+      await excluirLRO(id);
+      setConfirmDelete(null);
+      await carregar();
+    } catch (err) {
+      console.error('Erro ao excluir LRO:', err);
+    }
   }
 
   if (mode === 'form') {
@@ -912,61 +940,69 @@ export function LRODiario() {
         <PageTitle icon={FileSpreadsheet} title="LRO - Registro Diário" />
       </div>
 
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <select value={filtroAno} onChange={e => setFiltroAno(e.target.value)} className={inputClass}>
-            <option value="">Todos os anos</option>
-            {ANOS.map(a => <option key={a} value={a}>{a}</option>)}
-          </select>
-          <select value={filtroMes} onChange={e => setFiltroMes(e.target.value)} className={inputClass}>
-            <option value="">Todos os meses</option>
-            {MESES.slice(1).map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
-          </select>
-          {canFilterTeam && (
-            <select value={filtroEquipe} onChange={e => setFiltroEquipe(e.target.value)}
-              className={inputClass}>
-              <option value="">Todas as equipes</option>
-              {EQUIPES.map(eq => <option key={eq} value={eq}>{eq}</option>)}
-            </select>
-          )}
-          <p className="text-sm text-graphite-500 dark:text-graphite-400">{filtradas.length} LRO(s)</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {canEdit && (
-            <>
-              <button onClick={() => {
-                const sorted = [...lros].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-                if (sorted.length > 0) handleClone(sorted[0]);
-                else { setEditando(null); setMode('form'); }
-              }} className="flex items-center gap-1.5 rounded-xl border border-graphite-300/60 bg-white/80 px-3.5 py-2.5 text-sm font-medium text-graphite-700 shadow-sm backdrop-blur-sm transition-all duration-200 hover:bg-graphite-50 hover:border-graphite-300 dark:border-border-dark dark:bg-surface-card/80 dark:text-graphite-200 dark:hover:bg-surface-hover/50">
-                <Copy className="h-4 w-4" /> Copiar Último
-              </button>
-              <button onClick={() => { setEditando(null); setMode('form'); }}
-                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
-                <Plus className="h-4 w-4" /> Criar LRO
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-
-      {filtradas.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300/60 bg-white/50 p-12 text-center backdrop-blur-sm dark:border-border-dark dark:bg-surface-card">
-          <FileSpreadsheet className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
-          <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhum LRO encontrado</h3>
-          <p className="text-sm text-graphite-500 dark:text-graphite-400">Clique em "Criar LRO" para começar.</p>
+      {loading ? (
+        <div className="flex items-center justify-center py-20">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-aviation-500 border-t-transparent" />
         </div>
       ) : (
-        <div className="space-y-3">
-          {filtradas.map(lro => (
-            <LROCard key={lro.id} lro={lro} canEdit={canEdit}
-              onView={() => { setVisualizando(lro); setMode('view'); }}
-              onEdit={() => { setEditando(lro); setMode('form'); }}
-              onClone={() => handleClone(lro)}
-              onDelete={() => setConfirmDelete(lro.id)}
-            />
-          ))}
-        </div>
+        <>
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <select value={filtroAno} onChange={e => setFiltroAno(e.target.value)} className={inputClass}>
+                <option value="">Todos os anos</option>
+                {ANOS.map(a => <option key={a} value={a}>{a}</option>)}
+              </select>
+              <select value={filtroMes} onChange={e => setFiltroMes(e.target.value)} className={inputClass}>
+                <option value="">Todos os meses</option>
+                {MESES.slice(1).map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
+              </select>
+              {canFilterTeam && (
+                <select value={filtroEquipe} onChange={e => setFiltroEquipe(e.target.value)}
+                  className={inputClass}>
+                  <option value="">Todas as equipes</option>
+                  {EQUIPES.map(eq => <option key={eq} value={eq}>{eq}</option>)}
+                </select>
+              )}
+              <p className="text-sm text-graphite-500 dark:text-graphite-400">{filtradas.length} LRO(s)</p>
+            </div>
+            <div className="flex items-center gap-2">
+              {canEdit && (
+                <>
+                  <button onClick={() => {
+                    const sorted = [...lros].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+                    if (sorted.length > 0) handleClone(sorted[0]);
+                    else { setEditando(null); setMode('form'); }
+                  }} className="flex items-center gap-1.5 rounded-xl border border-graphite-300/60 bg-white/80 px-3.5 py-2.5 text-sm font-medium text-graphite-700 shadow-sm backdrop-blur-sm transition-all duration-200 hover:bg-graphite-50 hover:border-graphite-300 dark:border-border-dark dark:bg-surface-card/80 dark:text-graphite-200 dark:hover:bg-surface-hover/50">
+                    <Copy className="h-4 w-4" /> Copiar Último
+                  </button>
+                  <button onClick={() => { setEditando(null); setMode('form'); }}
+                    className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
+                    <Plus className="h-4 w-4" /> Criar LRO
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {filtradas.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300/60 bg-white/50 p-12 text-center backdrop-blur-sm dark:border-border-dark dark:bg-surface-card">
+              <FileSpreadsheet className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
+              <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhum LRO encontrado</h3>
+              <p className="text-sm text-graphite-500 dark:text-graphite-400">Clique em "Criar LRO" para começar.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filtradas.map(lro => (
+                <LROCard key={lro.id} lro={lro} canEdit={canEdit}
+                  onView={() => { setVisualizando(lro); setMode('view'); }}
+                  onEdit={() => { setEditando(lro); setMode('form'); }}
+                  onClone={() => handleClone(lro)}
+                  onDelete={() => setConfirmDelete(lro.id)}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {confirmDelete && (

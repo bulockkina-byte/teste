@@ -49,18 +49,25 @@ function rowToLRO(row: Record<string, unknown>): LRO {
   };
 }
 
-export async function listarLROs(): Promise<LRO[]> {
+export async function listarLROs(params?: {
+  equipe?: string;
+  createdBy?: string;
+  dataEntradaGte?: string;
+  dataEntradaLte?: string;
+}): Promise<LRO[]> {
   const db = getDb();
-  const { data, error } = await db.from(TABLE).select('*');
+  let query = db.from(TABLE).select('*');
+  if (params?.equipe) query = query.eq('equipe', params.equipe);
+  if (params?.createdBy) query = query.eq('created_by', params.createdBy);
+  if (params?.dataEntradaGte) query = query.gte('data_entrada', params.dataEntradaGte);
+  if (params?.dataEntradaLte) query = query.lte('data_entrada', params.dataEntradaLte);
+  const { data, error } = await query;
   if (error) throw error;
   return (data || []).map(rowToLRO);
 }
 
 export async function listarLROsPorUsuario(username: string): Promise<LRO[]> {
-  const db = getDb();
-  const { data, error } = await db.from(TABLE).select('*').eq('created_by', username);
-  if (error) throw error;
-  return (data || []).map(rowToLRO);
+  return listarLROs({ createdBy: username });
 }
 
 export async function obterLRO(id: string): Promise<LRO | null> {

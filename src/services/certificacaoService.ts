@@ -8,6 +8,15 @@ function getDb() {
   return supabase;
 }
 
+function handleSupabaseError(err: unknown): never {
+  console.error('Erro Supabase:', err);
+  const msg =
+    err instanceof Error ? err.message :
+    err && typeof err === 'object' && 'message' in err ? String((err as any).message) :
+    'Erro inesperado no banco de dados';
+  throw new Error(msg);
+}
+
 function rowToCertificacao(row: Record<string, unknown>): CertificacaoNR {
   return {
     id: row.id as string,
@@ -43,14 +52,14 @@ function toRow(data: Partial<CertificacaoNR>): Record<string, unknown> {
 export async function listarCertificacoes(): Promise<CertificacaoNR[]> {
   const db = getDb();
   const { data, error } = await db.from(TABLE).select('*');
-  if (error) throw error;
+  if (error) handleSupabaseError(error);
   return (data || []).map(rowToCertificacao);
 }
 
 export async function certificacoesPorFuncionario(funcionarioId: string): Promise<CertificacaoNR[]> {
   const db = getDb();
   const { data, error } = await db.from(TABLE).select('*').eq('funcionario_id', funcionarioId);
-  if (error) throw error;
+  if (error) handleSupabaseError(error);
   return (data || []).map(rowToCertificacao);
 }
 
@@ -59,18 +68,19 @@ export async function criarCertificacao(data: Omit<CertificacaoNR, 'id' | 'creat
   const now = new Date().toISOString();
   const row = { ...toRow(data), created_at: now, updated_at: now };
   const { data: created, error } = await db.from(TABLE).insert(row).select().single();
-  if (error) throw error;
+  if (error) handleSupabaseError(error);
   return rowToCertificacao(created);
 }
 
 export async function atualizarCertificacao(id: string, data: Partial<CertificacaoNR>): Promise<CertificacaoNR | null> {
   const db = getDb();
   const { data: updated, error } = await db.from(TABLE).update(toRow(data)).eq('id', id).select().single();
-  if (error) throw error;
+  if (error) handleSupabaseError(error);
   return updated ? rowToCertificacao(updated) : null;
 }
 
 export async function excluirCertificacao(id: string): Promise<void> {
   const db = getDb();
-  await db.from(TABLE).delete().eq('id', id);
+  const { error } = await db.from(TABLE).delete().eq('id', id);
+  if (error) handleSupabaseError(error);
 }

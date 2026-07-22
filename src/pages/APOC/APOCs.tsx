@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { APOCForm } from './APOCForm';
 import { listarAPOCs, buscarAPOC, criarAPOC, atualizarAPOC, excluirAPOC } from '../../services/apocService';
 import type { APOC } from '../../types/apoc';
+import { useDebounce } from '../../hooks/useDebounce';
 
 export function APOCs() {
   const { user } = useAuth();
@@ -16,17 +17,17 @@ export function APOCs() {
   const [formOpen, setFormOpen] = useState(false);
   const [editando, setEditando] = useState<APOC | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState('');
   const [saveError, setSaveError] = useState('');
 
+  const debouncedTermo = useDebounce(termo, 400);
+
   useEffect(() => {
-    async function load() {
-      setApocs(termo ? await buscarAPOC(termo) : await listarAPOCs());
-    }
-    load();
-  }, [termo]);
+    carregar();
+  }, [debouncedTermo]);
 
   async function carregar() {
-    setApocs(termo ? await buscarAPOC(termo) : await listarAPOCs());
+    setApocs(debouncedTermo ? await buscarAPOC(debouncedTermo) : await listarAPOCs());
   }
 
   async function handleSave(data: Omit<APOC, 'id' | 'createdAt' | 'updatedAt'>) {
@@ -48,9 +49,10 @@ export function APOCs() {
     try {
       await excluirAPOC(id);
       setConfirmDelete(null);
+      setDeleteError('');
       carregar();
     } catch (err) {
-      console.error('Erro ao excluir:', err);
+      setDeleteError(err instanceof Error ? err.message : 'Erro ao excluir');
     }
   }
 
@@ -176,9 +178,12 @@ export function APOCs() {
             <p className="mb-6 text-sm text-graphite-500">
               Tem certeza que deseja excluir este membro do APOC?
             </p>
+            {deleteError && (
+              <p className="mb-4 text-sm text-alert-red">{deleteError}</p>
+            )}
             <div className="flex justify-end gap-3">
               <button
-                onClick={() => setConfirmDelete(null)}
+                onClick={() => { setConfirmDelete(null); setDeleteError(''); }}
                 className="rounded-xl border border-graphite-300/60 bg-white/80 px-4 py-2.5 text-sm font-medium text-graphite-700 backdrop-blur-sm transition-all duration-200 hover:bg-graphite-50 hover:border-graphite-300 dark:border-border-dark dark:bg-surface-card/80 dark:text-graphite-200 dark:hover:bg-surface-hover/50"
               >
                 Cancelar

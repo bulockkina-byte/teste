@@ -136,12 +136,34 @@ export default function Arquivo() {
   const [filterEquipe, setFilterEquipe] = useState<string>('');
   const [restoreConfirmFill, setRestoreConfirmFill] = useState<DocumentFill | null>(null);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [filterYear, filterMonth]);
 
   async function loadData() {
     try {
       setLoading(true);
-      const [docs, allFills] = await Promise.all([listarDocumentos(), listarPreenchimentos()]);
+
+      // Build query filters for the DB
+      const year = filterYear;
+      const month = filterMonth;
+      let gte: string | undefined;
+      let lte: string | undefined;
+      if (month >= 0) {
+        gte = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+        const lastDay = new Date(year, month + 1, 0).getDate();
+        lte = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+      } else {
+        gte = `${year}-01-01`;
+        lte = `${year}-12-31`;
+      }
+
+      const [docs, allFills] = await Promise.all([
+        listarDocumentos(),
+        listarPreenchimentos({
+          status: 'archived',
+          created_at_gte: gte,
+          created_at_lte: lte,
+        }),
+      ]);
       setDocuments(docs);
       setFills(allFills);
     } catch { /* ignore */ } finally { setLoading(false); }
@@ -154,20 +176,14 @@ export default function Arquivo() {
   }, [documents]);
 
   const filteredFills = useMemo(() => {
-    let result = fills.filter(f => f.status === 'archived');
+    // DB already filtered by archived status + year/month
+    let result = fills;
+
     if (tipo) {
       const treinoModules = ['taf', 'tpepr', 'exercicio_posicionamento', 'exercicio_tempo_resposta'];
       const modulos = tipo === 'treinamentos' ? treinoModules : [tipo];
       const docIds = new Set(documents.filter(d => modulos.includes(d.source_module || '')).map(d => d.id));
       result = result.filter(f => docIds.has(f.document_id));
-    }
-    if (filterMonth >= 0) {
-      result = result.filter(f => {
-        const d = new Date(f.created_at);
-        return d.getMonth() === filterMonth && d.getFullYear() === filterYear;
-      });
-    } else {
-      result = result.filter(f => new Date(f.created_at).getFullYear() === filterYear);
     }
     if (statusFilter !== 'all') result = result.filter(f => f.status === statusFilter);
     if (filterTipoOcorrencia) {
@@ -203,7 +219,7 @@ export default function Arquivo() {
       if (nameA !== nameB) return nameA.localeCompare(nameB);
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
-  }, [fills, documents, tipo, filterMonth, filterYear, statusFilter, search]);
+  }, [fills, documents, tipo, statusFilter, filterTipoOcorrencia, filterTipoTreinamento, filterEquipe, search]);
 
   const anos = useMemo(() => {
     const s = new Set<number>();

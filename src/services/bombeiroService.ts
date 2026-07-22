@@ -42,6 +42,7 @@ function rowToBombeiro(row: Record<string, unknown>): Bombeiro {
     endereco: row.endereco as string,
     numeroEndereco: row.numero_endereco as string,
     complemento: row.complemento as string,
+    bairro: (row.bairro as string) || '',
     cep: row.cep as string,
     uf: row.uf as string,
     municipio: row.municipio as string,
@@ -50,6 +51,7 @@ function rowToBombeiro(row: Record<string, unknown>): Bombeiro {
     cursoChefeEquipe: row.curso_chefe_equipe as boolean,
     cursoMotoristaCCI: row.curso_motorista_cci as boolean,
     cursoCVE: row.curso_cve as boolean,
+    cveValidade: (row.cve_validade as string) || '',
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -79,6 +81,7 @@ function bombeiroToRow(data: Omit<Bombeiro, 'id' | 'createdAt' | 'updatedAt'>): 
     endereco: data.endereco,
     numero_endereco: data.numeroEndereco,
     complemento: data.complemento,
+    bairro: data.bairro,
     cep: data.cep,
     uf: data.uf,
     municipio: data.municipio,
@@ -87,15 +90,21 @@ function bombeiroToRow(data: Omit<Bombeiro, 'id' | 'createdAt' | 'updatedAt'>): 
     curso_chefe_equipe: data.cursoChefeEquipe,
     curso_motorista_cci: data.cursoMotoristaCCI,
     curso_cve: data.cursoCVE,
+    cve_validade: data.cveValidade || '',
   };
 }
 
-export async function listarBombeiros(): Promise<Bombeiro[]> {
+export async function listarBombeiros(params?: {
+  equipe?: string;
+  cargo?: string;
+  ids?: string[];
+}): Promise<Bombeiro[]> {
   const db = getDb();
-  const { data, error } = await db
-    .from(TABLE)
-    .select('*')
-    .order('created_at', { ascending: false });
+  let query = db.from(TABLE).select('*').order('created_at', { ascending: false });
+  if (params?.equipe) query = query.eq('equipe', params.equipe);
+  if (params?.cargo) query = query.eq('cargo', params.cargo);
+  if (params?.ids && params.ids.length > 0) query = query.in('id', params.ids);
+  const { data, error } = await query;
   if (error) handleSupabaseError(error);
   return (data || []).map(rowToBombeiro);
 }
@@ -118,13 +127,36 @@ export async function obterBombeiro(id: string): Promise<Bombeiro | null> {
   return data ? rowToBombeiro(data) : null;
 }
 
-export async function listarAtivos(): Promise<Bombeiro[]> {
+export interface BombeiroResumo {
+  id: string;
+  nomeGuerra: string;
+  equipe: string;
+}
+
+export async function listarBombeirosResumido(): Promise<BombeiroResumo[]> {
   const db = getDb();
   const { data, error } = await db
     .from(TABLE)
-    .select('*')
-    .eq('data_desligamento', '')
-    .order('nome_completo');
+    .select('id, nome_guerra, equipe')
+    .or('data_desligamento.is.null,data_desligamento.eq.');
+  if (error) handleSupabaseError(error);
+  return (data || []).map((r: any) => ({
+    id: r.id as string,
+    nomeGuerra: (r.nome_guerra as string) || '',
+    equipe: (r.equipe as string) || '',
+  }));
+}
+
+export async function listarAtivos(params?: {
+  equipe?: string;
+  cargo?: string;
+}): Promise<Bombeiro[]> {
+  const db = getDb();
+  let query = db.from(TABLE).select('*').or('data_desligamento.is.null,data_desligamento.eq.');
+  if (params?.equipe) query = query.eq('equipe', params.equipe);
+  if (params?.cargo) query = query.eq('cargo', params.cargo);
+  query = query.order('nome_completo');
+  const { data, error } = await query;
   if (error) handleSupabaseError(error);
   return (data || []).map(rowToBombeiro);
 }
@@ -161,6 +193,7 @@ export async function atualizarBombeiro(id: string, data: Partial<Bombeiro>): Pr
   if (data.endereco !== undefined) row.endereco = data.endereco;
   if (data.numeroEndereco !== undefined) row.numero_endereco = data.numeroEndereco;
   if (data.complemento !== undefined) row.complemento = data.complemento;
+  if (data.bairro !== undefined) row.bairro = data.bairro;
   if (data.cep !== undefined) row.cep = data.cep;
   if (data.uf !== undefined) row.uf = data.uf;
   if (data.municipio !== undefined) row.municipio = data.municipio;
@@ -169,6 +202,7 @@ export async function atualizarBombeiro(id: string, data: Partial<Bombeiro>): Pr
   if (data.cursoChefeEquipe !== undefined) row.curso_chefe_equipe = data.cursoChefeEquipe;
   if (data.cursoMotoristaCCI !== undefined) row.curso_motorista_cci = data.cursoMotoristaCCI;
   if (data.cursoCVE !== undefined) row.curso_cve = data.cursoCVE;
+  if (data.credencialValidade !== undefined) row.credencial_validade = data.credencialValidade;
   row.updated_at = new Date().toISOString();
 
   const { data: updated, error } = await db.from(TABLE).update(row).eq('id', id).select().single();

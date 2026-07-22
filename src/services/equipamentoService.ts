@@ -78,14 +78,18 @@ export async function criarEquipamento(data: Omit<Equipamento, 'id' | 'createdAt
   return rowToEquipamento(created);
 }
 
-export async function atualizarEquipamento(id: string, data: Partial<Equipamento>): Promise<void> {
+export async function atualizarEquipamento(id: string, data: Partial<Equipamento>): Promise<Equipamento | null> {
   const db = getDb();
   const r = toRow(data);
   r.updated_at = new Date().toISOString();
-  await db.from(TABLE).update(r).eq('id', id);
+  const { data: updated, error } = await db.from(TABLE).update(r).eq('id', id).select().single();
+  if (error) throw error;
+  return updated ? rowToEquipamento(updated) : null;
 }
 
-export async function excluirEquipamento(id: string): Promise<void> {
+export async function excluirEquipamento(id: string): Promise<boolean> {
   const db = getDb();
-  await db.from(TABLE).delete().eq('id', id);
+  const { error } = await db.from(TABLE).delete().eq('id', id);
+  if (error) throw error;
+  return true;
 }
