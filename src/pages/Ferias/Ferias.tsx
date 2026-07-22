@@ -24,11 +24,11 @@ import type { Bombeiro, Cargo, Equipe } from '../../types/bombeiro';
 import {
   listarFeriasGozo, criarFeriasGozo, excluirFeriasGozo,
   listarEscalas, obterEscala, criarEscala,
-  excluirEscala, enviarEscala, aprovarEscala, aprovarEscalaEGerarGozos, rejeitarEscala,
+  excluirEscala, enviarEscala, aprovarEscalaEGerarGozos, rejeitarEscala,
   listarItensEscala, criarItemEscala, atualizarItemEscala,
   excluirItemEscala, rejeitarItemEscala, aprovarItemEscala, enviarItemEscala,
 } from '../../services/feriasService';
-import { processarCadeiaSubstituicao, listarVigencias } from '../../services/vigenciaSubstituicaoService';
+import { listarVigencias } from '../../services/vigenciaSubstituicaoService';
 import type { EloCadeiaInput, VigenciaSubstituicao } from '../../services/vigenciaSubstituicaoService';
 
 // -- Constants -------------------------------------------------------------------
@@ -531,6 +531,7 @@ function TabBombeiros() {
   const [filterEquipe, setFilterEquipe] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   useEffect(() => { loadData(); }, []);
 
@@ -564,25 +565,31 @@ function TabBombeiros() {
   async function handleSaveGozo(periodo: PeriodoView, dataInicio: string, dataFim: string) {
     if (!selectedBombeiro || !user) return;
     setSaving(true);
-    const dias = calcDias(dataInicio, dataFim);
-    await criarFeriasGozo({
-      funcionarioId: selectedBombeiro.id,
-      funcionarioNome: selectedBombeiro.nomeCompleto,
-      equipe: selectedBombeiro.equipe,
-      periodoNumero: periodo.numero,
-      dataInicio,
-      dataFim,
-      dias,
-      status: dataFim < new Date().toISOString().split('T')[0] ? 'Gozadas' : 'Programadas',
-      substitutoId: '',
-      substitutoNome: '',
-      funcaoSubstituicao: '',
-      observacoes: '',
-      modificadoPor: user.username,
-      bloqueado: true,
-    });
-    await loadData();
-    setSaving(false);
+    setSaveError('');
+    try {
+      const dias = calcDias(dataInicio, dataFim);
+      await criarFeriasGozo({
+        funcionarioId: selectedBombeiro.id,
+        funcionarioNome: selectedBombeiro.nomeCompleto,
+        equipe: selectedBombeiro.equipe,
+        periodoNumero: periodo.numero,
+        dataInicio,
+        dataFim,
+        dias,
+        status: dataFim < new Date().toISOString().split('T')[0] ? 'Gozadas' : 'Programadas',
+        substitutoId: '',
+        substitutoNome: '',
+        funcaoSubstituicao: '',
+        observacoes: '',
+        modificadoPor: user.username,
+        bloqueado: true,
+      }, { bombeiros });
+      await loadData();
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Erro ao salvar férias');
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (loading) {
@@ -678,6 +685,11 @@ function TabBombeiros() {
                     <h4 className="mb-4 text-sm font-bold text-graphite-900 dark:text-graphite-100">
                       Periodos Aquisitivos - {selectedBombeiro.nomeCompleto}
                     </h4>
+                    {saveError && (
+                      <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+                        {saveError}
+                      </div>
+                    )}
                     {selectedPeriodos.length === 0 ? (
                       <p className="text-sm text-graphite-400 dark:text-graphite-500">Nenhum período calculado.</p>
                     ) : (
@@ -713,6 +725,7 @@ function TabAprovacoes() {
   const [confirmDeleteEscala, setConfirmDeleteEscala] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [actionError, setActionError] = useState('');
 
   useEffect(() => { loadData(); }, []);
 
@@ -742,10 +755,15 @@ function TabAprovacoes() {
 
   async function handleAprovar(esc: EscalaFerias) {
     if (!user) return;
-    const manterStatus = esc.status !== 'Enviado';
-    await aprovarEscalaEGerarGozos(esc.id, user.username, user.name, manterStatus);
-    await loadData();
-    setExpandedId(null);
+    setActionError('');
+    try {
+      const manterStatus = esc.status !== 'Enviado';
+      await aprovarEscalaEGerarGozos(esc.id, user.username, user.name, manterStatus);
+      await loadData();
+      setExpandedId(null);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Erro ao aprovar escala');
+    }
   }
 
   async function handleRejeitar() {
@@ -819,6 +837,12 @@ function TabAprovacoes() {
           ))}
         </select>
       </div>
+
+      {actionError && (
+        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+          {actionError}
+        </div>
+      )}
 
       {filtradas.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">
@@ -1362,6 +1386,7 @@ function TabEscalaAnual() {
   const [saving, setSaving] = useState(false);
   const [sendingMonth, setSendingMonth] = useState<number | null>(null);
   const [deleteError, setDeleteError] = useState('');
+  const [saveError, setSaveError] = useState('');
 
   const [editingMonth, setEditingMonth] = useState<number | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -1508,26 +1533,32 @@ function TabEscalaAnual() {
   }
 
   async function handleCreateEscala() {
-    if (!activeEquipe || !user) return;
+    if (!activeEquipe || !user || saving) return;
     setSaving(true);
-    const e = await criarEscala({
-      equipe: activeEquipe,
-      ano,
-      chefeId: myBombeiro?.id || user.name,
-      chefeNome: user.name,
-      status: 'Rascunho',
-      observacoesRejeicao: '',
-      aprovadoPor: '',
-      aprovadoPorNome: '',
-      aprovadoEm: '',
-      enviadoEm: '',
-    });
-    setEscala(e);
-    setSaving(false);
+    setSaveError('');
+    try {
+      const e = await criarEscala({
+        equipe: activeEquipe,
+        ano,
+        chefeId: myBombeiro?.id || user.name,
+        chefeNome: user.name,
+        status: 'Rascunho',
+        observacoesRejeicao: '',
+        aprovadoPor: '',
+        aprovadoPorNome: '',
+        aprovadoEm: '',
+        enviadoEm: '',
+      });
+      setEscala(e);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Erro ao criar escala anual');
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleSaveItem(mes: number) {
-    if (!escala || !user) return;
+    if (!escala || !user || saving) return;
     const member = bombeiros.find(b => b.id === formFuncId);
     const sub = bombeiros.find(b => b.id === formSubId);
     const ferista = bombeiros.find(b => b.id === formFerista);
@@ -1579,17 +1610,23 @@ function TabEscalaAnual() {
     };
 
     setSaving(true);
-    if (editingItemId) {
-      await atualizarItemEscala(editingItemId, data);
-    } else {
-      await criarItemEscala(data);
+    setSaveError('');
+    try {
+      if (editingItemId) {
+        await atualizarItemEscala(editingItemId, data);
+      } else {
+        await criarItemEscala(data);
+      }
+      const it = await listarItensEscala(escala.id);
+      setItens(it);
+      setEditingMonth(null);
+      setEditingItemId(null);
+      resetForm();
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Erro ao salvar item da escala');
+    } finally {
+      setSaving(false);
     }
-    const it = await listarItensEscala(escala.id);
-    setItens(it);
-    setEditingMonth(null);
-    setEditingItemId(null);
-    resetForm();
-    setSaving(false);
   }
 
   async function handleDeleteItem(itemId: string) {
@@ -1752,6 +1789,12 @@ function TabEscalaAnual() {
           </div>
         )}
       </div>
+
+      {saveError && (
+        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+          {saveError}
+        </div>
+      )}
 
       {escala?.status === 'Rejeitado' && escala.observacoesRejeicao && (
         <div className="mb-6 rounded-xl border border-yellow-300 bg-yellow-50 p-4 dark:border-yellow-700 dark:bg-yellow-900/20">
@@ -2448,6 +2491,7 @@ function TabEscalaFeristas() {
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const feristas = useMemo(() => bombeiros.filter(b => b.equipe === 'Ferista'), [bombeiros]);
 
@@ -2464,21 +2508,27 @@ function TabEscalaFeristas() {
   async function handleSaveGozo(periodo: PeriodoView, dataInicio: string, dataFim: string, ferista: Bombeiro) {
     if (!user) return;
     setSaving(true);
-    const dias = calcDias(dataInicio, dataFim);
-    await criarFeriasGozo({
-      funcionarioId: ferista.id,
-      funcionarioNome: ferista.nomeCompleto,
-      equipe: 'Ferista',
-      periodoNumero: periodo.numero,
-      dataInicio, dataFim, dias,
-      status: dataFim < new Date().toISOString().split('T')[0] ? 'Gozadas' : 'Programadas',
-      substitutoId: '', substitutoNome: '', funcaoSubstituicao: '',
-      observacoes: 'Férias Ferista',
-      modificadoPor: user.username,
-      bloqueado: true,
-    });
-    await carregar();
-    setSaving(false);
+    setSaveError('');
+    try {
+      const dias = calcDias(dataInicio, dataFim);
+      await criarFeriasGozo({
+        funcionarioId: ferista.id,
+        funcionarioNome: ferista.nomeCompleto,
+        equipe: 'Ferista',
+        periodoNumero: periodo.numero,
+        dataInicio, dataFim, dias,
+        status: dataFim < new Date().toISOString().split('T')[0] ? 'Gozadas' : 'Programadas',
+        substitutoId: '', substitutoNome: '', funcaoSubstituicao: '',
+        observacoes: 'Férias Ferista',
+        modificadoPor: user.username,
+        bloqueado: true,
+      }, { bombeiros });
+      await carregar();
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Erro ao salvar férias do ferista');
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (loading) {
@@ -2497,6 +2547,12 @@ function TabEscalaFeristas() {
           {feristas.length} ferista(s) — Gerencie os períodos de férias
         </span>
       </div>
+
+      {saveError && (
+        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+          {saveError}
+        </div>
+      )}
 
       {feristas.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">
@@ -3155,7 +3211,7 @@ function ModalCadastroFeriasManual({ onClose, onSuccess }: { onClose: () => void
     if (!selectedBombeiro || !dataInicio || !dataFim) return [];
     const disponiveis = bombeiros.filter(p => {
       if (p.id === selectedBombeiro.id) return false;
-      if (cargosPermitidos.length > 0 && !cargosPermitidos.includes(p.cargo)) return false;
+      if (cargosPermitidos.length > 0 && !cargosPermitidos.includes(p.cargo) && p.equipe !== 'Ferista') return false;
       if (subTipo === 'mesma-equipe') {
         if (p.equipe !== equipe) return false;
       } else if (subTipo === 'outras-equipes') {
@@ -3287,7 +3343,17 @@ function ModalCadastroFeriasManual({ onClose, onSuccess }: { onClose: () => void
     setSaveError('');
     try {
       const sub = bombeiros.find(b => b.id === substitutoId);
-      const gozo = await criarFeriasGozo({
+      const elosCadeia: EloCadeiaInput[] = chainElos
+        .filter(e => e.pessoaId && e.pessoaNome)
+        .map(e => ({
+          pessoaId: e.pessoaId,
+          pessoaNome: e.pessoaNome,
+          cargoOriginal: e.pessoaCargo as Cargo,
+          cargoVacante: e.cargoVacante,
+          substituindoNome: e.substituindoNome,
+        }));
+
+      await criarFeriasGozo({
         funcionarioId: selectedBombeiro.id,
         funcionarioNome: selectedBombeiro.nomeCompleto,
         equipe: equipe as Equipe,
@@ -3302,32 +3368,7 @@ function ModalCadastroFeriasManual({ onClose, onSuccess }: { onClose: () => void
         observacoes: '',
         modificadoPor: user.username,
         bloqueado: true,
-      });
-
-      // Criar corrente de substituição na BD
-      const elosCadeia: EloCadeiaInput[] = chainElos
-        .filter(e => e.pessoaId && e.pessoaNome)
-        .map(e => ({
-          pessoaId: e.pessoaId,
-          pessoaNome: e.pessoaNome,
-          cargoOriginal: e.pessoaCargo as Cargo,
-          cargoVacante: e.cargoVacante,
-          substituindoNome: e.substituindoNome,
-        }));
-
-      if (elosCadeia.length > 0) {
-        await processarCadeiaSubstituicao({
-          id: gozo.id,
-          funcionarioId: gozo.funcionarioId,
-          funcionarioNome: gozo.funcionarioNome,
-          equipe: gozo.equipe,
-          substitutoId: gozo.substitutoId,
-          substitutoNome: gozo.substitutoNome,
-          funcaoSubstituicao: gozo.funcaoSubstituicao,
-          dataInicio: gozo.dataInicio,
-          dataFim: gozo.dataFim,
-        }, elosCadeia, bombeiros);
-      }
+      }, { cadeiaInput: elosCadeia, bombeiros });
 
       onSuccess();
     } catch (err) {

@@ -281,6 +281,8 @@
 ```
 **Response:** `FeriasGozo`  
 **Estado:** ✅ OK  
+**Regras:** valida datas/dias, bloqueia duplicidade `funcionarioId + periodoNumero`, exige substituto para cargos obrigatórios fora da equipe Ferista, valida BA-2/Ferista e aguarda a criação da cadeia de substituições antes de retornar sucesso.  
+**Opções internas:** `cadeiaInput`, `bombeiros`, `gozosExistentes`, `processarCadeia`.  
 
 ---
 
@@ -337,6 +339,7 @@
 **Método:** GET / POST / PATCH / DELETE  
 **REST equivalência:** `.../ferias_escala`  
 **Estado:** ✅ OK  
+**Regra:** `criarEscala` é idempotente por `equipe + ano` e retorna a escala existente quando já houver registro para o mesmo par.  
 
 ---
 
@@ -353,7 +356,7 @@ Wrappers que atualizam o `status` da `ferias_escala`.
 **Request Body:** `id: string`, `aprovadoPor: string`, `aprovadoPorNome: string`  
 **Response:** `EscalaFerias | null`  
 **Estado:** ✅ OK  
-**Nota:** Para cada item não rejeitado, cria um `FeriasGozo` na tabela `ferias`. Ignora se já existe gozo para o mesmo funcionário + período.
+**Nota:** Para cada item enviado e não rejeitado, cria um `FeriasGozo` na tabela `ferias`, aguarda a cadeia de substituições e só aprova a escala após sucesso. Se já existe gozo para o mesmo funcionário + período, vincula o item ao gozo existente.
 
 ---
 
@@ -361,6 +364,7 @@ Wrappers que atualizam o `status` da `ferias_escala`.
 
 **Tabela:** `ferias_escala_item`  
 **Estado:** ✅ OK  
+**Regras:** criação/edição validam datas, dias, duplicidade por escala/funcionário/período, sobreposição no mesmo funcionário, gozo já existente, substituto obrigatório e cadeia até Ferista quando o substituto direto não é Ferista.  
 
 **Payload `EscalaFeriasItem`:**
 ```json
@@ -510,6 +514,7 @@ GET com filtro `ativa=true`. ✅ OK
 ### criarSubstituicaoTemporaria / aprovar / rejeitar / excluir
 
 ✅ OK  
+**Regras:** criação e aprovação bloqueiam mesma pessoa como substituto, datas/dias inválidos, motivo `Outro` sem descrição, `Extra` sem resposta de plantão extra e sobreposição com substituições pendentes/aprovadas.
 
 ---
 
@@ -556,6 +561,7 @@ GET com filtro `ativa=true`. ✅ OK
 ### criarEscala / atualizarEscala / excluirEscala
 
 ✅ OK  
+**Regras:** criação é idempotente por `equipe + dataPlantao`; criação/edição validam se a equipe está prevista para o dia pelo helper `equipesNoDia`, bloqueiam duplicidade de escala diária e impedem a mesma pessoa em múltiplos slots operacionais incompatíveis.
 
 ---
 

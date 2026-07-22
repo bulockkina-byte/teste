@@ -2,6 +2,14 @@ import { supabase } from '../lib/supabase';
 import type { FeriasGozo, EscalaFerias, EscalaFeriasItem, FeriasAlerta } from '../types/ferias';
 import type { Bombeiro, Equipe, Cargo } from '../types/bombeiro';
 import { processarCadeiaSubstituicao, desativarVigencias, type EloCadeiaInput } from './vigenciaSubstituicaoService';
+import { listarAtivos } from './bombeiroService';
+import {
+  assertSemErros,
+  extrairCadeiaObservacoes,
+  validarFeriasGozo,
+  validarItemEscalaFerias,
+  type EloCadeiaValidacao,
+} from '../utils/regrasOperacionais';
 
 const TABLE_GOZO = 'ferias';
 const TABLE_ESCALA = 'ferias_escala';
@@ -151,6 +159,84 @@ function itemToRow(data: Partial<EscalaFeriasItem>): Record<string, unknown> {
   return row;
 }
 
+interface SalvarFeriasGozoOptions {
+  cadeiaInput?: EloCadeiaInput[];
+  bombeiros?: Bombeiro[];
+  gozosExistentes?: FeriasGozo[];
+  processarCadeia?: boolean;
+  exigirCadeiaCompleta?: boolean;
+}
+
+function cadeiaValidacaoToProcessamento(cadeia: EloCadeiaValidacao[]): EloCadeiaInput[] {
+  return cadeia
+    .filter(e => e.pessoaId)
+    .map(e => ({
+      pessoaId: e.pessoaId,
+      pessoaNome: e.pessoaNome || '',
+      cargoOriginal: (e.cargoOriginal || e.pessoaCargo || 'BA-2') as Cargo,
+      cargoVacante: e.cargoVacante || '',
+      substituindoNome: e.substituindoNome || '',
+    }));
+}
+
+async function carregarContextoValidacao(options?: SalvarFeriasGozoOptions): Promise<{
+  bombeiros: Bombeiro[];
+  gozosExistentes: FeriasGozo[];
+}> {
+  const [bombeiros, gozosExistentes] = await Promise.all([
+    options?.bombeiros ? Promise.resolve(options.bombeiros) : listarAtivos(),
+    options?.gozosExistentes ? Promise.resolve(options.gozosExistentes) : listarFeriasGozo(),
+  ]);
+  return { bombeiros, gozosExistentes };
+}
+
+async function validarGozoParaSalvar(
+  gozo: Omit<FeriasGozo, 'id' | 'createdAt' | 'updatedAt'> | FeriasGozo,
+  options?: SalvarFeriasGozoOptions,
+  ignoreGozoId?: string,
+): Promise<{ bombeiros: Bombeiro[]; gozosExistentes: FeriasGozo[] }> {
+  const contexto = await carregarContextoValidacao(options);
+  const funcionario = contexto.bombeiros.find(b => b.id === gozo.funcionarioId);
+  const substituto = contexto.bombeiros.find(b => b.id === gozo.substitutoId);
+  const errors = validarFeriasGozo({
+    gozo,
+    funcionario,
+    substituto,
+    bombeiros: contexto.bombeiros,
+    gozosExistentes: contexto.gozosExistentes,
+    cadeia: options?.cadeiaInput,
+    ignoreGozoId,
+    exigirCadeiaCompleta: options?.exigirCadeiaCompleta,
+  });
+  assertSemErros(errors);
+  return contexto;
+}
+
+async function validarItemParaSalvar(
+  item: Omit<EscalaFeriasItem, 'id' | 'createdAt'> | EscalaFeriasItem,
+  ignoreItemId?: string,
+): Promise<void> {
+  const [itensExistentes, bombeiros, gozosExistentes] = await Promise.all([
+    listarItensEscala(item.escalaId),
+    listarAtivos(),
+    listarFeriasGozo(),
+  ]);
+  const funcionario = bombeiros.find(b => b.id === item.funcionarioId);
+  const substituto = bombeiros.find(b => b.id === item.substitutoId);
+  const ferista = bombeiros.find(b => b.id === item.feristaId);
+  const errors = validarItemEscalaFerias({
+    item,
+    funcionario,
+    substituto,
+    ferista,
+    bombeiros,
+    itensExistentes,
+    gozosExistentes,
+    ignoreItemId,
+  });
+  assertSemErros(errors);
+}
+
 // ── Ferias Gozo CRUD ─────────────────────────────────────────────────
 
 function gozoComStatusCorrigido(g: FeriasGozo): FeriasGozo {
@@ -197,8 +283,10 @@ export async function feriasPorFuncionario(funcionarioId: string): Promise<Feria
 
 export async function criarFeriasGozo(
   data: Omit<FeriasGozo, 'id' | 'createdAt' | 'updatedAt'>,
+  options?: SalvarFeriasGozoOptions,
 ): Promise<FeriasGozo> {
   const db = getDb();
+  const { bombeiros } = await validarGozoParaSalvar(data, options);
   const now = new Date().toISOString();
   const row = {
     ...gozoToRow(data),
@@ -214,18 +302,24 @@ export async function criarFeriasGozo(
   const gozo = rowToGozo(created);
 
   // Disparar corrente de substituições
-  if (gozo.substitutoId) {
-    processarCadeiaSubstituicao({
-      id: gozo.id,
-      funcionarioId: gozo.funcionarioId,
-      funcionarioNome: gozo.funcionarioNome,
-      equipe: gozo.equipe,
-      substitutoId: gozo.substitutoId,
-      substitutoNome: gozo.substitutoNome,
-      funcaoSubstituicao: gozo.funcaoSubstituicao,
-      dataInicio: gozo.dataInicio,
-      dataFim: gozo.dataFim,
-    }).catch(err => console.error('Erro na corrente de substituição:', err));
+  if (gozo.substitutoId && options?.processarCadeia !== false) {
+    try {
+      await processarCadeiaSubstituicao({
+        id: gozo.id,
+        funcionarioId: gozo.funcionarioId,
+        funcionarioNome: gozo.funcionarioNome,
+        equipe: gozo.equipe,
+        substitutoId: gozo.substitutoId,
+        substitutoNome: gozo.substitutoNome,
+        funcaoSubstituicao: gozo.funcaoSubstituicao,
+        dataInicio: gozo.dataInicio,
+        dataFim: gozo.dataFim,
+      }, options?.cadeiaInput, bombeiros);
+    } catch (err) {
+      await desativarVigencias(gozo.id);
+      await db.from(TABLE_GOZO).delete().eq('id', gozo.id);
+      throw err;
+    }
   }
 
   return gozo;
@@ -236,6 +330,15 @@ export async function atualizarFeriasGozo(
   data: Partial<FeriasGozo>,
 ): Promise<FeriasGozo | null> {
   const db = getDb();
+  const { data: atualRaw, error: atualError } = await db
+    .from(TABLE_GOZO)
+    .select('*')
+    .eq('id', id)
+    .single();
+  if (atualError) handleSupabaseError(atualError);
+  const atual = rowToGozo(atualRaw);
+  const merged: FeriasGozo = { ...atual, ...data };
+  const { bombeiros } = await validarGozoParaSalvar(merged, { exigirCadeiaCompleta: false }, id);
   const row = { ...gozoToRow(data), updated_at: new Date().toISOString() };
   const { data: updated, error } = await db
     .from(TABLE_GOZO)
@@ -244,7 +347,34 @@ export async function atualizarFeriasGozo(
     .select()
     .single();
   if (error) handleSupabaseError(error);
-  return updated ? rowToGozo(updated) : null;
+  if (!updated) return null;
+  const gozo = rowToGozo(updated);
+  const camposCadeiaAlterados = [
+    'substitutoId',
+    'substitutoNome',
+    'funcaoSubstituicao',
+    'dataInicio',
+    'dataFim',
+    'funcionarioId',
+    'funcionarioNome',
+  ].some(campo => campo in data);
+  if (camposCadeiaAlterados) {
+    await desativarVigencias(id);
+    if (gozo.substitutoId) {
+      await processarCadeiaSubstituicao({
+        id: gozo.id,
+        funcionarioId: gozo.funcionarioId,
+        funcionarioNome: gozo.funcionarioNome,
+        equipe: gozo.equipe,
+        substitutoId: gozo.substitutoId,
+        substitutoNome: gozo.substitutoNome,
+        funcaoSubstituicao: gozo.funcaoSubstituicao,
+        dataInicio: gozo.dataInicio,
+        dataFim: gozo.dataFim,
+      }, undefined, bombeiros);
+    }
+  }
+  return gozo;
 }
 
 export async function excluirFeriasGozo(id: string): Promise<boolean> {
@@ -289,6 +419,15 @@ export async function criarEscala(
   data: Omit<EscalaFerias, 'id' | 'createdAt' | 'updatedAt'>,
 ): Promise<EscalaFerias> {
   const db = getDb();
+  const { data: existente, error: existenteError } = await db
+    .from(TABLE_ESCALA)
+    .select('*')
+    .eq('equipe', data.equipe)
+    .eq('ano', data.ano)
+    .maybeSingle();
+  if (existenteError) handleSupabaseError(existenteError);
+  if (existente) return rowToEscala(existente);
+
   const now = new Date().toISOString();
   const row = {
     ...escalaToRow(data),
@@ -326,7 +465,6 @@ export async function excluirEscala(id: string): Promise<boolean> {
   const { data: itens } = await db.from(TABLE_ITEM).select('ferias_gozo_id, funcionario_id').eq('escala_id', id);
   if (itens && itens.length > 0) {
     const gozoIds = itens.map(i => i.ferias_gozo_id).filter(Boolean) as string[];
-    const funcIds = itens.map(i => i.funcionario_id).filter(Boolean) as string[];
     // Excluir vigencias de substituicao associadas a estes gozos
     if (gozoIds.length > 0) {
       await db.from('vigencia_substituicoes').delete().in('ferias_id', gozoIds);
@@ -365,22 +503,29 @@ export async function aprovarEscalaEGerarGozos(
   aprovadoPorNome: string,
   manterStatus?: boolean,
 ): Promise<EscalaFerias | null> {
-  const escala = manterStatus
-    ? await obterEscala(id)
-    : await aprovarEscala(id, aprovadoPor, aprovadoPorNome);
+  const escala = await obterEscala(id);
   if (!escala) return null;
+
   const itens = await listarItensEscala(id);
-  const existentes = await listarFeriasGozo();
   const db = getDb();
-  const now = new Date().toISOString();
+  const bombeiros = await listarAtivos();
+  let existentes = await listarFeriasGozo();
+
   for (const item of itens) {
-    if (item.rejeitado) continue;
-    if (!item.enviado) continue;
-    const jaExiste = existentes.some(
+    if (item.rejeitado || !item.enviado) continue;
+
+    const gozoExistente = existentes.find(
       g => g.funcionarioId === item.funcionarioId && g.periodoNumero === item.periodoNumero
     );
-    if (jaExiste) continue;
-    const row = gozoToRow({
+    if (gozoExistente) {
+      if (!item.feriasGozoId) {
+        await db.from(TABLE_ITEM).update({ ferias_gozo_id: gozoExistente.id }).eq('id', item.id);
+      }
+      continue;
+    }
+
+    const cadeiaInput = cadeiaValidacaoToProcessamento(extrairCadeiaObservacoes(item.observacoes));
+    const gozo = await criarFeriasGozo({
       funcionarioId: item.funcionarioId,
       funcionarioNome: item.funcionarioNome,
       equipe: escala.equipe,
@@ -395,55 +540,14 @@ export async function aprovarEscalaEGerarGozos(
       observacoes: item.feristaNome ? `Ferista: ${item.feristaNome}` : '',
       modificadoPor: aprovadoPor,
       bloqueado: false,
-    });
-    const { data: gozoCriado, error } = await db.from(TABLE_GOZO).insert({
-      ...row,
-      created_at: now,
-      updated_at: now,
-    }).select().single();
-    if (error) handleSupabaseError(error);
+    }, { cadeiaInput, bombeiros, gozosExistentes: existentes });
 
-    // Parse cadeia from observacoes (stored as JSON during scale creation)
-    let cadeiaInput: EloCadeiaInput[] | undefined;
-    if (item.observacoes) {
-      const match = item.observacoes.match(/^cad_sup:(.+)$/);
-      if (match) {
-        try {
-          const parsed = JSON.parse(match[1]);
-          if (Array.isArray(parsed)) {
-            cadeiaInput = parsed.map((e: any) => ({
-              pessoaId: e.pessoaId,
-              pessoaNome: e.pessoaNome,
-              cargoOriginal: e.pessoaCargo as any,
-              cargoVacante: e.cargoVacante,
-              substituindoNome: e.substituindoNome,
-            }));
-          }
-        } catch { /* invalid JSON, ignore */ }
-      }
-    }
-
-    // Disparar corrente de substituições para cada gozo gerado
-    if (gozoCriado && item.substitutoId) {
-      processarCadeiaSubstituicao({
-        id: gozoCriado.id,
-        funcionarioId: gozoCriado.funcionario_id,
-        funcionarioNome: gozoCriado.funcionario_nome || '',
-        equipe: escala.equipe,
-        substitutoId: item.substitutoId,
-        substitutoNome: item.substitutoNome,
-        funcaoSubstituicao: item.funcaoSubstituicao,
-        dataInicio: item.dataInicio,
-        dataFim: item.dataFim,
-      }, cadeiaInput).catch(err => console.error('Erro na corrente de substituição:', err));
-    }
-
-    // Vincular o item da escala ao gozo criado
-    if (gozoCriado) {
-      await db.from(TABLE_ITEM).update({ ferias_gozo_id: gozoCriado.id }).eq('id', item.id);
-    }
+    existentes = [gozo, ...existentes];
+    await db.from(TABLE_ITEM).update({ ferias_gozo_id: gozo.id }).eq('id', item.id);
   }
-  return escala;
+
+  if (manterStatus) return escala;
+  return aprovarEscala(id, aprovadoPor, aprovadoPorNome);
 }
 
 export async function rejeitarEscala(
@@ -475,6 +579,7 @@ export async function criarItemEscala(
   data: Omit<EscalaFeriasItem, 'id' | 'createdAt'>,
 ): Promise<EscalaFeriasItem> {
   const db = getDb();
+  await validarItemParaSalvar(data);
   const row = {
     ...itemToRow(data),
     created_at: new Date().toISOString(),
@@ -493,6 +598,15 @@ export async function atualizarItemEscala(
   data: Partial<EscalaFeriasItem>,
 ): Promise<EscalaFeriasItem | null> {
   const db = getDb();
+  const { data: atualRaw, error: atualError } = await db
+    .from(TABLE_ITEM)
+    .select('*')
+    .eq('id', id)
+    .single();
+  if (atualError) handleSupabaseError(atualError);
+  const atual = rowToItem(atualRaw);
+  const merged: EscalaFeriasItem = { ...atual, ...data };
+  await validarItemParaSalvar(merged, id);
   const row = itemToRow(data);
   const { data: updated, error } = await db
     .from(TABLE_ITEM)

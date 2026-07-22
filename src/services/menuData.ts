@@ -43,6 +43,12 @@ export const menuItems: MenuItem[] = [
     description: 'Visão geral do sistema com indicadores e métricas operacionais.',
   },
   {
+    label: 'Férias',
+    icon: CalendarDays,
+    path: '/cadastro/ferias',
+    description: 'Gestão de férias, escala anual e substituições do efetivo.',
+  },
+  {
     label: 'Cadastro',
     icon: Database,
     adminOnly: true,

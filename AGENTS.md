@@ -142,7 +142,7 @@ Podes combinar múltiplas skills carregando-as em sequência. A ordem importa:
 | `/cadastro/extintores` | Agentes Extintores | Agentes extintores e recargas |
 | `/cadastro/hidrantes` | Hidrantes | Pontos de água e hidrantes |
 | `/cadastro/documentos` | Gerenciar Documentos | Templates de documentos para preenchimento e assinatura |
-| `/cadastro/ferias` | Férias | Controlo de férias do pessoal |
+| `/cadastro/ferias` | Férias | Controlo de férias, escala anual e substituições do efetivo; também aparece como item próprio na sidebar |
 | `/usuarios` | Usuários | Gestão de utilizadores do sistema |
 
 ### Funcionários
@@ -289,7 +289,7 @@ Podes combinar múltiplas skills carregando-as em sequência. A ordem importa:
 │   ├── store/              # Redux store (vazio — apenas hosting RTK Query dead code)
 │   │   └── api/            # 10 ficheiros RTK Query com fakeBaseQuery (DEAD CODE)
 │   ├── types/              # Interfaces TypeScript (~20 ficheiros)
-│   └── utils/              # Utilitários (validação de cursos, etc.)
+│   └── utils/              # Utilitários (equipes, regrasOperacionais, validação de cursos, etc.)
 ├── AGENTS.md               # Este ficheiro — guia do agente
 ├── API_ENDPOINTS.md         # Fonte da verdade para endpoints Supabase
 ├── CLAUDE.md               # Instruções RTK (token optimization)
@@ -452,9 +452,10 @@ Referência: **21/07/2026** = Alfa + Bravo
 | Dia 0 (21/07) | **Alfa** + **Bravo** |
 | Dia 1 (22/07) | **Charlie** + **Delta** |
 | Dia 2 (23/07) | **Alfa** + **Bravo** |
-| ... | Alterna a cada 2 dias |
+| ... | Alterna diariamente entre os pares |
 
 **Helper**: `src/utils/equipes.ts` — `equipesNoDia(data)` devolve `['Alfa', 'Bravo']` ou `['Charlie', 'Delta']`
+**Regras operacionais**: `src/utils/regrasOperacionais.ts` centraliza validações puras de férias, escala anual, escala diária e substituições temporárias; `npm run test:domain` cobre os cenários críticos.
 
 ### Horários por Equipa
 

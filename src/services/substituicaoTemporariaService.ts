@@ -1,5 +1,9 @@
 import { supabase } from '../lib/supabase';
 import type { SubstituicaoTemporaria } from '../types/substituicaoTemporaria';
+import {
+  assertSemErros,
+  validarSubstituicaoTemporaria,
+} from '../utils/regrasOperacionais';
 
 const TABLE = 'substituicoes_temporarias';
 
@@ -94,6 +98,11 @@ export async function criarSubstituicaoTemporaria(
   data: Omit<SubstituicaoTemporaria, 'id' | 'createdAt' | 'updatedAt'>,
 ): Promise<SubstituicaoTemporaria> {
   const db = getDb();
+  const existentes = await listarSubstituicoesTemporarias();
+  assertSemErros(validarSubstituicaoTemporaria({
+    substituicao: data,
+    substituicoesExistentes: existentes,
+  }));
   const now = new Date().toISOString();
   const row = {
     ...substituicaoToRow(data),
@@ -115,6 +124,22 @@ export async function aprovarSubstituicaoTemporaria(
   aprovadoPorNome: string,
 ): Promise<SubstituicaoTemporaria | null> {
   const db = getDb();
+  const { data: atualRaw, error: atualError } = await db
+    .from(TABLE)
+    .select('*')
+    .eq('id', id)
+    .single();
+  if (atualError) handleSupabaseError(atualError);
+  const atual = rowToSubstituicao(atualRaw);
+  if (atual.status !== 'Pendente') {
+    throw new Error('Somente substituicoes pendentes podem ser aprovadas.');
+  }
+  const existentes = await listarSubstituicoesTemporarias();
+  assertSemErros(validarSubstituicaoTemporaria({
+    substituicao: { ...atual, status: 'Aprovada' },
+    substituicoesExistentes: existentes,
+    ignoreSubstituicaoId: id,
+  }));
   const now = new Date().toISOString();
   const row = {
     status: 'Aprovada',

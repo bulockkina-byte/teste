@@ -1,10 +1,6 @@
 import { supabase } from '../lib/supabase';
 import type { Bombeiro, Cargo } from '../types/bombeiro';
 import { criarVagaPendente } from './vagaPendenteService';
-import {
-  getNextCargoNaCadeia,
-  type EloCorrenteSubstituicao,
-} from '../types/ferias';
 
 const TABLE = 'vigencia_substituicoes';
 
@@ -169,6 +165,7 @@ export async function processarCadeiaSubstituicao(
   if (!feriasRecord.substitutoId) return criadas;
 
   const db = getDb();
+  await desativarVigencias(feriasRecord.id);
   if (!bombeiros) {
     const { data } = await db.from('bombeiros').select('*');
     bombeiros = (data || []) as unknown as Bombeiro[];
