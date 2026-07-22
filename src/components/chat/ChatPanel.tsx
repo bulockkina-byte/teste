@@ -45,11 +45,13 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     mensagensGerais().then(setGerais).catch(() => {});
-    contarNaoLidas(username).then(setTotalNaoLidas).catch(() => {});
+    if (username) {
+      contarNaoLidas(username).then(setTotalNaoLidas).catch(() => {});
+    }
   }, [refresh, username]);
 
   useEffect(() => {
-    if (conversaComUser) {
+    if (username && conversaComUser) {
       conversaCom(username, conversaComUser).then(setPrivadas).catch(() => {});
     } else {
       setPrivadas([]);

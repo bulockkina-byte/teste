@@ -83,7 +83,7 @@ export function Viaturas() {
       setConfirmDelete(null);
       setLista(await listarViaturas());
     } catch (err) {
-      console.error('Erro ao excluir:', err);
+      alert('Erro ao excluir: ' + (err instanceof Error ? err.message : 'Erro desconhecido'));
     }
   }
 

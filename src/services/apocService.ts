@@ -53,6 +53,7 @@ export async function buscarAPOC(termo: string): Promise<APOC[]> {
 
 export async function criarAPOC(data: Omit<APOC, 'id' | 'createdAt' | 'updatedAt'>): Promise<APOC> {
   const db = getDb();
+  const now = new Date().toISOString();
   const { data: created, error } = await db
     .from(TABLE)
     .insert({
@@ -61,6 +62,8 @@ export async function criarAPOC(data: Omit<APOC, 'id' | 'createdAt' | 'updatedAt
       email: data.email,
       funcao: data.funcao,
       equipe: data.equipe,
+      created_at: now,
+      updated_at: now,
     })
     .select()
     .single();

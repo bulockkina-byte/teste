@@ -77,19 +77,27 @@ export function AgentesExtintores() {
   }
 
   async function handleSave() {
-    if (editando) {
-      await atualizarExtintor(editando.id, form);
-    } else {
-      await criarExtintor({ ...form, createdBy: user?.username || '' });
+    try {
+      if (editando) {
+        await atualizarExtintor(editando.id, form);
+      } else {
+        await criarExtintor({ ...form, createdBy: user?.username || '' });
+      }
+      setFormOpen(false);
+      carregar();
+    } catch (err) {
+      alert('Erro ao salvar: ' + (err instanceof Error ? err.message : 'Erro desconhecido'));
     }
-    setFormOpen(false);
-    carregar();
   }
 
   async function handleDelete(id: string) {
-    await excluirExtintor(id);
-    setConfirmDelete(null);
-    carregar();
+    try {
+      await excluirExtintor(id);
+      setConfirmDelete(null);
+      carregar();
+    } catch (err) {
+      alert('Erro ao excluir: ' + (err instanceof Error ? err.message : 'Erro desconhecido'));
+    }
   }
 
   function updateField<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {

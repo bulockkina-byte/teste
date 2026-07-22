@@ -187,8 +187,12 @@ export function Substituicoes() {
 
   async function handleExcluir(id: string) {
     if (!window.confirm('Tem certeza que deseja excluir esta substituição?')) return;
-    await excluirSubstituicaoTemporaria(id);
-    await carregar();
+    try {
+      await excluirSubstituicaoTemporaria(id);
+      await carregar();
+    } catch (err) {
+      alert('Erro ao excluir: ' + (err instanceof Error ? err.message : 'Erro desconhecido'));
+    }
   }
 
   function StatusIcon({ status }: { status: string }) {

@@ -202,6 +202,7 @@ export async function atualizarBombeiro(id: string, data: Partial<Bombeiro>): Pr
   if (data.cursoChefeEquipe !== undefined) row.curso_chefe_equipe = data.cursoChefeEquipe;
   if (data.cursoMotoristaCCI !== undefined) row.curso_motorista_cci = data.cursoMotoristaCCI;
   if (data.cursoCVE !== undefined) row.curso_cve = data.cursoCVE;
+  if (data.cveValidade !== undefined) row.cve_validade = data.cveValidade;
   if (data.credencialValidade !== undefined) row.credencial_validade = data.credencialValidade;
   row.updated_at = new Date().toISOString();
 

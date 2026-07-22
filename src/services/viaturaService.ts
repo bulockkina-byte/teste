@@ -94,6 +94,7 @@ function viaturaToRow(data: Partial<Viatura>): Record<string, unknown> {
   if (data.observacoes !== undefined) row.observacoes = data.observacoes;
   if (data.fotoUrl !== undefined) row.foto_url = data.fotoUrl;
   if (data.manualUrl !== undefined) row.manual_url = data.manualUrl;
+  if (data.createdBy !== undefined) row.created_by = data.createdBy;
   return row;
 }
 

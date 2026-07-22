@@ -8,7 +8,10 @@ import { PageTitle } from '../../components/layout/PageTitle';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { useAuth } from '../../context/AuthContext';
 import { listarAtivos } from '../../services/bombeiroService';
+import { listarFeriasGozo } from '../../services/feriasService';
+import { listarVigencias } from '../../services/vigenciaSubstituicaoService';
 import { listarTAFs, criarTAF, atualizarTAF, excluirTAF, obterProximoNumero } from '../../services/tafService';
+import { equipesNoDia } from '../../utils/equipes';
 import type { TreinamentoTAF } from '../../types/taf';
 
 const EQUIPES = ['Alfa', 'Bravo', 'Charlie', 'Delta'] as const;
@@ -85,6 +88,82 @@ export function TAF() {
   }
 
   function turnoAuto(equipe: string) { return equipe === 'Alfa' || equipe === 'Charlie' ? 'Diurno' : equipe === 'Bravo' || equipe === 'Delta' ? 'Noturno' : ''; }
+
+  async function autoPreencherParticipantes() {
+    if (!fEquipe || !fData) return;
+    try {
+      const dataObj = new Date(fData + 'T00:00:00');
+      const [gozos, vigs] = await Promise.all([
+        listarFeriasGozo(),
+        listarVigencias({ ativa: true }),
+      ]);
+
+      function isEmGozo(bId: string) {
+        return gozos.find((g: any) => {
+          if (g.funcionarioId !== bId || g.status === 'Gozadas') return false;
+          const gInicio = new Date(g.dataInicio + 'T00:00:00');
+          const gFim = new Date(g.dataFim + 'T00:00:00');
+          return gInicio <= dataObj && gFim >= dataObj;
+        });
+      }
+
+      const membros = bombeiros.filter((b: any) => b.equipe === fEquipe && !b.dataDesligamento);
+      const pool: any[] = [];
+      const ocupados = new Set<string>();
+
+      for (const m of membros) {
+        if (!isEmGozo(m.id)) {
+          if (!ocupados.has(m.id)) { pool.push(m); ocupados.add(m.id); }
+          continue;
+        }
+        const subVig = vigs.find((v: any) => v.funcionarioOriginalId === m.id && v.ativa);
+        if (subVig && subVig.substitutoId) {
+          const sub = bombeiros.find((bb: any) => bb.id === subVig.substitutoId);
+          if (sub && !ocupados.has(sub.id)) { pool.push(sub); ocupados.add(sub.id); }
+        }
+      }
+
+      const usado = new Set<string>();
+      const buscar = (cargo: string) => {
+        const idx = pool.findIndex((b: any) => b.cargo === cargo && !usado.has(b.id));
+        if (idx === -1) return null;
+        usado.add(pool[idx].id);
+        return pool[idx];
+      };
+
+      function setSlot(idx: number, b: any, cargo: string) {
+        setP(idx, 'nome', b?.nomeGuerra || '');
+        setP(idx, 'funcao', cargo);
+        setP(idx, 'idade', b?.idade || 0);
+      }
+
+      // 1 BA-CE
+      const ce = buscar('BA-CE');
+      if (ce) { setSlot(0, ce, 'BA-CE'); } else { const q = pool.find((b: any) => !usado.has(b.id)); if (q) { setSlot(0, q, 'BA-CE'); usado.add(q.id); } }
+
+      // 2 BA-LR
+      const lr = buscar('BA-LR');
+      if (lr) { setSlot(1, lr, 'BA-LR'); } else { const q = pool.find((b: any) => !usado.has(b.id)); if (q) { setSlot(1, q, 'BA-LR'); usado.add(q.id); } }
+
+      // 3 BA-MC
+      for (let i = 0; i < 3; i++) {
+        const mc = buscar('BA-MC');
+        if (mc) { setSlot(2 + i, mc, 'BA-MC'); } else { const q = pool.find((b: any) => !usado.has(b.id)); if (q) { setSlot(2 + i, q, 'BA-MC'); usado.add(q.id); } }
+      }
+
+      // 5 BA-2
+      for (let i = 0; i < 5; i++) {
+        const b2 = buscar('BA-2');
+        if (b2) { setSlot(5 + i, b2, 'BA-2'); } else { const q = pool.find((b: any) => !usado.has(b.id)); if (q) { setSlot(5 + i, q, 'BA-2'); usado.add(q.id); } }
+      }
+    } catch { /* silencioso */ }
+  }
+
+  useEffect(() => {
+    if (formOpen && fEquipe && fData && !editando) {
+      autoPreencherParticipantes();
+    }
+  }, [fEquipe, fData, formOpen]);
 
   async function handleNovo() {
     resetForm();

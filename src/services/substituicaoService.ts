@@ -41,14 +41,14 @@ export async function substituicoesAtivas(): Promise<SubstituicaoAtiva[]> {
 export async function substituicaoPorSubstituto(substitutoId: string): Promise<SubstituicaoAtiva | null> {
   const db = getDb();
   const { data, error } = await db.from(TABLE).select('*').eq('substituto_id', substitutoId).eq('ativa', true).maybeSingle();
-  if (error) return null;
+  if (error) handleSupabaseError(error);
   return data ? rowToSubstituicao(data) : null;
 }
 
 export async function substituicaoPorFuncionario(funcionarioId: string): Promise<SubstituicaoAtiva | null> {
   const db = getDb();
   const { data, error } = await db.from(TABLE).select('*').eq('funcionario_id', funcionarioId).eq('ativa', true).maybeSingle();
-  if (error) return null;
+  if (error) handleSupabaseError(error);
   return data ? rowToSubstituicao(data) : null;
 }
 

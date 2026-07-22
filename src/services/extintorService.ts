@@ -48,6 +48,7 @@ function extintorToRow(data: Partial<Extintor>): Record<string, unknown> {
   if (data.status !== undefined) row.status = data.status;
   if (data.intervaloConferencia !== undefined) row.intervalo_conferencia = data.intervaloConferencia;
   if (data.observacoes !== undefined) row.observacoes = data.observacoes;
+  if (data.createdBy !== undefined) row.created_by = data.createdBy;
   return row;
 }
 

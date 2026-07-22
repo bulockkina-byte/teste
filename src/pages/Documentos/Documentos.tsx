@@ -716,7 +716,6 @@ export function Documentos() {
         autentique_document_id: result.id,
         autentique_link: result.signatures[0]?.link?.short_link || null,
       });
-      const docFills = await import('../../services/documentoService').then(m => m.listarPreenchimentos(selectedDoc.id));
       setNotifPopup({ msg: 'Enviado para assinatura no Autentique com sucesso!', type: 'success' });
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : 'Erro desconhecido';
@@ -1134,19 +1133,18 @@ export function Documentos() {
                   <button onClick={async () => {
                     if (!selectedDoc) return;
                     setConfirmModal({
-                      msg: 'Remover o PDF do Storage? O documento e os campos serao mantidos.',
+                      msg: 'Remover o PDF? O documento e os campos serao mantidos.',
                       onConfirm: async () => {
                         try {
-                          await excluirDocumento(selectedDoc.id);
+                          const { excluirPdf } = await import('../../services/documentoService');
+                          await excluirPdf(selectedDoc.id);
                           setPdfData(null);
                           const full = await buscarDocumento(selectedDoc.id);
                           if (full) setSelectedDoc(full);
                           setDocumentos(await listarDocumentos());
                           setNotifPopup({ msg: 'PDF removido com sucesso!', type: 'success' });
-                          setTimeout(() => setNotifPopup(null), 3000);
                         } catch {
                           setNotifPopup({ msg: 'Erro ao remover PDF.', type: 'error' });
-                          setTimeout(() => setNotifPopup(null), 3000);
                         }
                       },
                       destructive: true,

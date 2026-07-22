@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Wrench, Search, Plus, Pencil, Trash2, X, Upload, AlertCircle, Camera, Link2,
+  Shield, Zap, Tag, Droplets, Flame, Heart,
 } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
@@ -145,7 +146,7 @@ export function Equipamentos() {
       setConfirmDelete(null);
       setLista(await listarEquipamentos());
     } catch (err) {
-      console.error('Erro ao excluir:', err);
+      alert('Erro ao excluir: ' + (err instanceof Error ? err.message : 'Erro desconhecido'));
     }
   }
 
