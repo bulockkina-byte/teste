@@ -364,7 +364,7 @@ export function Trocas() {
         return { label: b.nomeCompleto, sublabel: `${cargoLabel} - ${b.email}`, _type: 'bombeiro' as const, _raw: b };
       }),
       ...apocsList.map(a => {
-        const funcaoLabel = a.funcao === 'supervisor' ? 'Supervisor' : 'APOC';
+        const funcaoLabel = a.funcao === 'SUPERVISOR' ? 'Supervisor' : 'APOC';
         return { label: a.nomeCompleto, sublabel: `${funcaoLabel} - ${a.email}`, _type: 'apoc' as const, _raw: a };
       }),
     ];

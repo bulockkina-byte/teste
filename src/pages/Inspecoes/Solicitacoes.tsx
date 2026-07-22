@@ -17,7 +17,7 @@ const ANOS = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).
 export function Solicitacoes() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin' || user?.role === 'desenvolvedor';
-  const userEquipe = user?.equipe as Equipe | undefined;
+  const userEquipe = user?.pessoa?.equipe as Equipe | undefined;
 
   const [modo, setModo] = useState<'lista' | 'form'>('lista');
   const [data, setData] = useState(new Date().toISOString().split('T')[0]);

@@ -7,6 +7,7 @@ import { APOCForm } from './APOCForm';
 import { listarAPOCs, buscarAPOC, criarAPOC, atualizarAPOC, excluirAPOC } from '../../services/apocService';
 import type { APOC } from '../../types/apoc';
 import { useDebounce } from '../../hooks/useDebounce';
+import { AlertModal } from '../../components/ui/AlertModal';
 
 export function APOCs() {
   const { user } = useAuth();
@@ -19,6 +20,7 @@ export function APOCs() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState('');
   const [saveError, setSaveError] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   const debouncedTermo = useDebounce(termo, 400);
 
@@ -46,6 +48,8 @@ export function APOCs() {
   }
 
   async function handleDelete(id: string) {
+    if (deleting) return;
+    setDeleting(true);
     try {
       await excluirAPOC(id);
       setConfirmDelete(null);
@@ -53,6 +57,8 @@ export function APOCs() {
       carregar();
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : 'Erro ao excluir');
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -169,35 +175,19 @@ export function APOCs() {
         />
       )}
 
-      {confirmDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-sm rounded-2xl bg-white/95 p-6 shadow-xl shadow-black/5 backdrop-blur-sm dark:bg-surface-elevated/95 dark:shadow-black/20">
-            <h3 className="mb-2 text-lg font-bold text-graphite-900 dark:text-graphite-100">
-              Confirmar exclusão
-            </h3>
-            <p className="mb-6 text-sm text-graphite-500">
-              Tem certeza que deseja excluir este membro do APOC?
-            </p>
-            {deleteError && (
-              <p className="mb-4 text-sm text-alert-red">{deleteError}</p>
-            )}
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => { setConfirmDelete(null); setDeleteError(''); }}
-                className="rounded-xl border border-graphite-300/60 bg-white/80 px-4 py-2.5 text-sm font-medium text-graphite-700 backdrop-blur-sm transition-all duration-200 hover:bg-graphite-50 hover:border-graphite-300 dark:border-border-dark dark:bg-surface-card/80 dark:text-graphite-200 dark:hover:bg-surface-hover/50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={() => handleDelete(confirmDelete)}
-                className="rounded-xl bg-gradient-to-r from-alert-red to-red-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-red-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-red-500/30 active:scale-[0.98]"
-              >
-                Excluir
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AlertModal
+        open={!!confirmDelete}
+        title="Confirmar exclusão"
+        message="Tem certeza que deseja excluir este membro do APOC?"
+        variant="danger"
+        confirmLabel="Excluir"
+        loadingLabel="Excluindo..."
+        loading={deleting}
+        error={deleteError}
+        onClose={() => { if (!deleting) { setConfirmDelete(null); setDeleteError(''); } }}
+        onConfirm={() => confirmDelete ? handleDelete(confirmDelete) : undefined}
+      />
+
     </PageContainer>
   );
 }

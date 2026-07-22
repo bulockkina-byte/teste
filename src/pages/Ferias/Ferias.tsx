@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
+import { AlertModal } from '../../components/ui/AlertModal';
 import { useAuth } from '../../context/AuthContext';
 import { listarAtivos } from '../../services/bombeiroService';
 import {
@@ -55,7 +56,10 @@ const PERIODO_STATUS_COLORS: Record<string, string> = {
 
 // -- Types -----------------------------------------------------------------------
 
-type PeriodoView = PeriodoAquisitivo & { gozo: FeriasGozo | null };
+type PeriodoView = Omit<PeriodoAquisitivo, 'status'> & {
+  status: PeriodoAquisitivo['status'] | 'Programadas';
+  gozo: FeriasGozo | null;
+};
 
 interface DashboardStats {
   totalAtivos: number;
@@ -85,6 +89,10 @@ function calcDias(inicio: string, fim: string): number {
   return Math.ceil((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 }
 
+function labelCargo(cargo?: Cargo | ''): string {
+  return cargo ? (ABBR_CARGO[cargo] || cargo) : '';
+}
+
 function fmt(dateStr: string): string {
   if (!dateStr) return '';
   return new Date(dateStr + 'T00:00:00').toLocaleDateString('pt-BR');
@@ -101,7 +109,7 @@ function buildPeriodos(b: Bombeiro, gozos: FeriasGozo[]): PeriodoView[] {
   return periodos.map(p => {
     const gozo = gList.find(g => g.periodoNumero === p.numero);
     if (gozo) {
-      let status: PeriodoAquisitivo['status'];
+      let status: PeriodoView['status'];
       switch (gozo.status) {
         case 'Gozadas': status = 'Gozado'; break;
         case 'Em Gozo': status = 'Em Gozo'; break;
@@ -376,13 +384,16 @@ function PeriodoCard({
   periodo, onSave, onDelete, saving,
 }: {
   periodo: PeriodoView;
-  onSave: (p: PeriodoAquisitivo, dIni: string, dFim: string) => Promise<void>;
+  onSave: (p: PeriodoView, dIni: string, dFim: string) => Promise<void>;
   onDelete?: (gozoId: string) => Promise<void>;
   saving: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [dIni, setDIni] = useState('');
   const [dFim, setDFim] = useState('');
+  const [confirmDeleteGozo, setConfirmDeleteGozo] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   const statusLabel = periodo.gozo
     ? periodo.gozo.status === 'Gozadas' ? 'Gozado' : 'Em Gozo'
@@ -402,6 +413,20 @@ function PeriodoCard({
     setEditing(false);
     setDIni('');
     setDFim('');
+  }
+
+  async function handleDeleteGozo() {
+    if (!onDelete || !periodo.gozo || deleting) return;
+    setDeleting(true);
+    try {
+      await onDelete(periodo.gozo.id);
+      setDeleteError('');
+      setConfirmDeleteGozo(false);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Erro desconhecido');
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -432,7 +457,7 @@ function PeriodoCard({
               </p>
             </div>
             {onDelete && (
-              <button onClick={() => onDelete(periodo.gozo!.id)}
+              <button onClick={() => { setConfirmDeleteGozo(true); setDeleteError(''); }}
                 className="shrink-0 rounded-xl p-1.5 text-alert-red transition-all hover:bg-red-50 dark:hover:bg-red-900/20"
                 title="Excluir férias">
                 <Trash2 className="h-3.5 w-3.5" />
@@ -478,6 +503,19 @@ function PeriodoCard({
           </div>
         </div>
       )}
+
+      <AlertModal
+        open={confirmDeleteGozo}
+        title="Excluir férias"
+        message="Tem certeza que deseja excluir estas férias? Esta ação não pode ser desfeita."
+        variant="danger"
+        confirmLabel="Excluir"
+        loadingLabel="Excluindo..."
+        loading={deleting}
+        error={deleteError}
+        onClose={() => { if (!deleting) { setConfirmDeleteGozo(false); setDeleteError(''); } }}
+        onConfirm={handleDeleteGozo}
+      />
     </div>
   );
 }
@@ -523,7 +561,7 @@ function TabBombeiros() {
     return buildPeriodos(selectedBombeiro, feriasGozo);
   }, [selectedBombeiro, feriasGozo]);
 
-  async function handleSaveGozo(periodo: PeriodoAquisitivo, dataInicio: string, dataFim: string) {
+  async function handleSaveGozo(periodo: PeriodoView, dataInicio: string, dataFim: string) {
     if (!selectedBombeiro || !user) return;
     setSaving(true);
     const dias = calcDias(dataInicio, dataFim);
@@ -672,6 +710,9 @@ function TabAprovacoes() {
   const [loading, setLoading] = useState(true);
   const [rejectModal, setRejectModal] = useState<{ id: string; obs: string } | null>(null);
   const [itemRejectModal, setItemRejectModal] = useState<{ itemId: string; tipo: 'pessoa' | 'periodo' | 'substituto' | 'ferista' | 'geral'; obs: string } | null>(null);
+  const [confirmDeleteEscala, setConfirmDeleteEscala] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => { loadData(); }, []);
 
@@ -727,6 +768,22 @@ function TabAprovacoes() {
     await aprovarItemEscala(itemId);
     const it = await listarItensEscala(expandedId!);
     setItems(it);
+  }
+
+  async function handleDeleteEscala(id: string) {
+    if (deleting) return;
+    setDeleting(true);
+    try {
+      await excluirEscala(id);
+      setConfirmDeleteEscala(null);
+      setDeleteError('');
+      await loadData();
+      setExpandedId(null);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Erro desconhecido');
+    } finally {
+      setDeleting(false);
+    }
   }
 
   function getTeamMembers(equipe: string): Bombeiro[] {
@@ -932,7 +989,7 @@ function TabAprovacoes() {
                       );
                     })()}
                     {(user?.role === 'desenvolvedor' || user?.role === 'admin') && (
-                      <button onClick={async () => { if (confirm('Excluir esta escala?')) { await excluirEscala(esc.id); loadData(); } }}
+                      <button onClick={() => { setConfirmDeleteEscala(esc.id); setDeleteError(''); }}
                         className="flex items-center gap-2 rounded-xl border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700 transition-all hover:bg-red-100 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400">
                         <Trash2 className="h-4 w-4" /> Excluir
                       </button>
@@ -1023,6 +1080,19 @@ function TabAprovacoes() {
           </div>
         </div>
       )}
+
+      <AlertModal
+        open={!!confirmDeleteEscala}
+        title="Confirmar exclusão"
+        message="Tem certeza que deseja excluir esta escala? Todos os itens serão removidos."
+        variant="danger"
+        confirmLabel="Excluir"
+        loadingLabel="Excluindo..."
+        loading={deleting}
+        error={deleteError}
+        onClose={() => { if (!deleting) { setConfirmDeleteEscala(null); setDeleteError(''); } }}
+        onConfirm={() => confirmDeleteEscala ? handleDeleteEscala(confirmDeleteEscala) : undefined}
+      />
     </div>
   );
 }
@@ -1041,6 +1111,7 @@ function TabEscalaGeral() {
   const [loading, setLoading] = useState(true);
   const [confirmDeleteEscala, setConfirmDeleteEscala] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => { loadData(); }, [ano, mes]);
 
@@ -1071,14 +1142,16 @@ function TabEscalaGeral() {
   }, [escalas]);
 
   async function handleDeleteEscalaGeral(id: string) {
+    if (deleting) return;
     try {
       setDeleting(true);
       await excluirEscala(id);
       setConfirmDeleteEscala(null);
+      setDeleteError('');
       await loadData();
     } catch (err) {
       console.error('Erro ao excluir escala:', err);
-      alert('Erro ao excluir escala: ' + (err instanceof Error ? err.message : 'Erro desconhecido'));
+      setDeleteError(err instanceof Error ? err.message : 'Erro desconhecido');
     } finally {
       setDeleting(false);
     }
@@ -1256,22 +1329,19 @@ function TabEscalaGeral() {
         })}
       </div>
 
-      {confirmDeleteEscala && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl dark:bg-surface-elevated">
-            <h3 className="mb-2 text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar exclusão</h3>
-            <p className="mb-6 text-sm text-graphite-500 dark:text-graphite-400">Tem certeza que deseja excluir esta escala? Todos os itens serão removidos.</p>
-            <div className="flex justify-end gap-3">
-              <button onClick={() => setConfirmDeleteEscala(null)} className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">
-                Cancelar
-              </button>
-              <button onClick={() => handleDeleteEscalaGeral(confirmDeleteEscala)} disabled={deleting} className="rounded-xl bg-gradient-to-r from-alert-red to-red-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-red-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
-                {deleting ? 'Excluindo...' : 'Excluir'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AlertModal
+        open={!!confirmDeleteEscala}
+        title="Confirmar exclusão"
+        message="Tem certeza que deseja excluir esta escala? Todos os itens serão removidos."
+        variant="danger"
+        confirmLabel="Excluir"
+        loadingLabel="Excluindo..."
+        loading={deleting}
+        error={deleteError}
+        onClose={() => { if (!deleting) { setConfirmDeleteEscala(null); setDeleteError(''); } }}
+        onConfirm={() => confirmDeleteEscala ? handleDeleteEscalaGeral(confirmDeleteEscala) : undefined}
+      />
+
     </div>
   );
 }
@@ -1291,6 +1361,7 @@ function TabEscalaAnual() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [sendingMonth, setSendingMonth] = useState<number | null>(null);
+  const [deleteError, setDeleteError] = useState('');
 
   const [editingMonth, setEditingMonth] = useState<number | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -1498,6 +1569,12 @@ function TabEscalaAnual() {
       feristaId: effectiveFeristaId,
       feristaNome: effectiveFeristaNome,
       periodoNumero: formPeriodo,
+      rejeitado: false,
+      motivoRejeicao: '',
+      rejeitadoPor: '',
+      rejeitadoEm: '',
+      enviado: false,
+      feriasGozoId: '',
       observacoes,
     };
 
@@ -1546,16 +1623,17 @@ function TabEscalaAnual() {
   }
 
   async function handleDeleteEscala() {
-    if (!escala) return;
+    if (!escala || saving) return;
     try {
       setSaving(true);
       await excluirEscala(escala.id);
       setEscala(null);
       setItens([]);
       setConfirmDelete(false);
+      setDeleteError('');
     } catch (err) {
       console.error('Erro ao excluir escala:', err);
-      alert('Erro ao excluir escala: ' + (err instanceof Error ? err.message : 'Erro desconhecido'));
+      setDeleteError(err instanceof Error ? err.message : 'Erro desconhecido');
     } finally {
       setSaving(false);
     }
@@ -1955,7 +2033,7 @@ function TabEscalaAnual() {
                                 {(() => {
                                   const vacNome = bombeiros.find(b => b.id === formFuncId)?.nomeCompleto || '';
                                   const subNome = bombeiros.find(b => b.id === formSubId)?.nomeCompleto || '';
-                                  return `${vacNome} está de férias. ${subNome} vai cobrir a função ${ABBR_CARGO[cargoVacationer || ''] || cargoVacationer}. Agora escolha quem cobre cada posição vaga na corrente:`;
+                                  return `${vacNome} está de férias. ${subNome} vai cobrir a função ${labelCargo(cargoVacationer)}. Agora escolha quem cobre cada posição vaga na corrente:`;
                                 })()}
                               </p>
 
@@ -2069,22 +2147,19 @@ function TabEscalaAnual() {
         </>
       )}
 
-      {confirmDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl dark:bg-surface-elevated">
-            <h3 className="mb-2 text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar exclusão</h3>
-            <p className="mb-6 text-sm text-graphite-500 dark:text-graphite-400">Tem certeza que deseja excluir esta escala? Todos os itens serão removidos.</p>
-            <div className="flex justify-end gap-3">
-              <button onClick={() => setConfirmDelete(false)} className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">
-                Cancelar
-              </button>
-              <button onClick={handleDeleteEscala} disabled={saving} className="rounded-xl bg-gradient-to-r from-alert-red to-red-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-red-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
-                Excluir
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AlertModal
+        open={confirmDelete}
+        title="Confirmar exclusão"
+        message="Tem certeza que deseja excluir esta escala? Todos os itens serão removidos."
+        variant="danger"
+        confirmLabel="Excluir"
+        loadingLabel="Excluindo..."
+        loading={saving}
+        error={deleteError}
+        onClose={() => { if (!saving) { setConfirmDelete(false); setDeleteError(''); } }}
+        onConfirm={handleDeleteEscala}
+      />
+
     </div>
   );
 }
@@ -2386,7 +2461,7 @@ function TabEscalaFeristas() {
 
   useEffect(() => { carregar(); }, []);
 
-  async function handleSaveGozo(periodo: PeriodoAquisitivo, dataInicio: string, dataFim: string, ferista: Bombeiro) {
+  async function handleSaveGozo(periodo: PeriodoView, dataInicio: string, dataFim: string, ferista: Bombeiro) {
     if (!user) return;
     setSaving(true);
     const dias = calcDias(dataInicio, dataFim);
@@ -2477,7 +2552,7 @@ function TabEscalaFeristas() {
                     ) : (
                       <div className="space-y-3">
                         {periodos.map(p => (
-                          <PeriodoCard key={p.numero} periodo={p} onSave={(periodo, dIni, dFim) => handleSaveGozo(periodo, dIni, dFim, f)} onDelete={async (gozoId) => { if (confirm('Excluir estas férias?')) { await excluirFeriasGozo(gozoId); carregar(); } }} saving={saving} />
+                          <PeriodoCard key={p.numero} periodo={p} onSave={(periodo, dIni, dFim) => handleSaveGozo(periodo, dIni, dFim, f)} onDelete={async (gozoId) => { await excluirFeriasGozo(gozoId); carregar(); }} saving={saving} />
                         ))}
                       </div>
                     )}
@@ -2759,9 +2834,10 @@ function TabQuadroEfetivos() {
                         {ordenados.map(m => {
                           const subCross = substitutosDaEquipe.find(s => s.pessoa.id === m.id);
                           const substituindo = subCross ? { funcionario: subCross.substituindo, cargo: subCross.cargo } : getSubstituindo(m, mesSelecionado);
-                          const item = getItemSubstituicao(m, mesSelecionado);
+                          const item = getItemSubstituicao(m, mesSelecionado) as EscalaFeriasItem | null;
                           const ferista = getFeristaDesignado(m, mesSelecionado);
                           const vigSub = vigencias.find(v => v.funcionarioOriginalId === m.id && v.ativa);
+                          const vigSubstitutoId = vigSub ? vigSub.substitutoId : '';
                           const temSub = !!(item?.substitutoNome || ferista?.feristaNome || vigSub);
                           
                           const subDisplayInfo = (() => {
@@ -2818,7 +2894,12 @@ function TabQuadroEfetivos() {
                                     <p className="text-xs font-bold text-graphite-900 dark:text-graphite-100 truncate flex items-center gap-1">
                                       {subDisplayInfo.nomeDisplay}
                                       {(() => {
-                                        const sbBombeiro = item?.substitutoNome ? bombeiros.find(bb => bb.nomeCompleto === item.substitutoNome) : vigSub ? bombeiros.find(bb => bb.id === vigSub.substitutoId) : null;
+                                        const itemSubstitutoNome = item ? item.substitutoNome : '';
+                                        const sbBombeiro = itemSubstitutoNome
+                                          ? bombeiros.find(bb => bb.nomeCompleto === itemSubstitutoNome)
+                                          : vigSubstitutoId
+                                            ? bombeiros.find(bb => bb.id === vigSubstitutoId)
+                                            : null;
                                         return sbBombeiro && sbBombeiro.equipe !== eq ? <span className="ml-1 rounded-full bg-graphite-200 px-1.5 py-0.5 text-[8px] font-medium text-graphite-600 dark:bg-graphite-700 dark:text-graphite-300">{sbBombeiro.equipe}</span> : null;
                                       })()}
                                       <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[8px] font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">↔</span>
@@ -2904,7 +2985,12 @@ function TabQuadroEfetivos() {
                                       <p className="text-xs font-bold text-graphite-900 dark:text-graphite-100 truncate flex items-center gap-1">
                                         {subDisplayInfo.nomeDisplay}
                                         {(() => {
-                                          const sbBombeiro = item?.substitutoNome ? bombeiros.find(bb => bb.nomeCompleto === item.substitutoNome) : vigSub ? bombeiros.find(bb => bb.id === vigSub.substitutoId) : null;
+                                          const itemSubstitutoNome = item ? item.substitutoNome : '';
+                                          const sbBombeiro = itemSubstitutoNome
+                                            ? bombeiros.find(bb => bb.nomeCompleto === itemSubstitutoNome)
+                                            : vigSubstitutoId
+                                              ? bombeiros.find(bb => bb.id === vigSubstitutoId)
+                                              : null;
                                           return sbBombeiro && sbBombeiro.equipe !== eq ? <span className="ml-1 rounded-full bg-graphite-200 px-1.5 py-0.5 text-[8px] font-medium text-graphite-600 dark:bg-graphite-700 dark:text-graphite-300">{sbBombeiro.equipe}</span> : null;
                                         })()}
                                         <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[8px] font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">↔</span>
@@ -3368,7 +3454,7 @@ function ModalCadastroFeriasManual({ onClose, onSuccess }: { onClose: () => void
                   {selectedBombeiro?.nomeCompleto} está de férias.
                   {substitutoId && (() => {
                     const subNome = bombeiros.find(b => b.id === substitutoId)?.nomeCompleto || '';
-                    return ` ${subNome} vai cobrir a função ${ABBR_CARGO[cargoVacationer || ''] || cargoVacationer}.`;
+                    return ` ${subNome} vai cobrir a função ${labelCargo(cargoVacationer)}.`;
                   })()}
                   Agora escolha quem cobre cada posição vaga na corrente:
                 </p>

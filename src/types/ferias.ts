@@ -171,7 +171,7 @@ export function getCargosPermitidosParaVaga(cargoVacante: Cargo): Cargo[] {
  * Ferista não precisa de substituto.
  */
 export function isSubstitutoObrigatorio(cargo: Cargo): boolean {
-  return cargo !== 'Ferista' && cargo !== 'OC';
+  return cargo === 'GS' || cargo === 'BA-CE' || cargo === 'BA-LR' || cargo === 'BA-MC' || cargo === 'BA-2';
 }
 
 /**
@@ -181,7 +181,6 @@ export function isSubstitutoObrigatorio(cargo: Cargo): boolean {
  */
 export function getCargosPermitidosSubstituto(cargoVacante: Cargo): (Cargo | 'Ferista')[] {
   if (cargoVacante === 'BA-2') return ['BA-2', 'Ferista'];
-  if (cargoVacante === 'Ferista') return [];
   return ['Ferista', 'BA-2', 'BA-MC', 'BA-LR', 'BA-CE', 'GS'];
 }
 

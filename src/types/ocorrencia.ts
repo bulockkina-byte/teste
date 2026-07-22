@@ -22,11 +22,14 @@ export interface Ocorrencia {
   updatedAt: string;
   tipoDocumento: TipoDocumento;
   numero: string;
+  numeroOcorrencia?: string;
   data: string;
+  dataOcorrencia?: string;
   hora: string;
   equipe: string;
   turno: string;
   categoria: CategoriaOcorrencia;
+  categoriaOcorrencia?: CategoriaOcorrencia;
   titulo: string;
   descricao: string;
   local: string;

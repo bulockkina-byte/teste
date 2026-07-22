@@ -18,6 +18,7 @@ function handleSupabaseError(err: unknown): never {
 }
 
 function rowToViatura(row: Record<string, unknown>): Viatura {
+  const status = (row.status as Viatura['status']) || 'Operacional';
   return {
     id: row.id as string,
     prefixo: (row.prefixo as string) || '',
@@ -26,7 +27,8 @@ function rowToViatura(row: Record<string, unknown>): Viatura {
     tipo: (row.tipo as Viatura['tipo']) || 'CCI',
     tipoCCI: (row.tipo_cci as Viatura['tipoCCI']) || 'CCI-2',
     categoriaCAT: (row.categoria_cat as Viatura['categoriaCAT']) || 'CAT A',
-    status: (row.status as Viatura['status']) || 'Operacional',
+    status,
+    situacao: status,
     marca: (row.marca as string) || '',
     modelo: (row.modelo as string) || '',
     ano: (row.ano as string) || '',

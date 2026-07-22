@@ -80,11 +80,11 @@ function ViaturasCCISection({ viaturas }: { viaturas: Viatura[] }) {
                 <p className="truncate text-xs text-graphite-500 dark:text-graphite-400">{v.marca} {v.modelo} · {v.placa}</p>
               </div>
               <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                v.situacao === 'Ativa' ? 'bg-status-green/10 text-status-green' :
-                v.situacao === 'Em Manutenção' ? 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400' :
+                v.status === 'Operacional' || (v.situacao as string) === 'Ativa' ? 'bg-status-green/10 text-status-green' :
+                v.status === 'Em manutenção' || (v.situacao as string) === 'Em Manutenção' ? 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400' :
                 'bg-red-50 text-alert-red dark:bg-red-900/20 dark:text-red-400'
               }`}>
-                {v.situacao}
+                {v.situacao || v.status}
               </span>
             </div>
           ))}

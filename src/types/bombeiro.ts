@@ -15,6 +15,7 @@ export type Sexo = 'M' | 'F';
 export interface Bombeiro {
   id: string;
   matricula: string;
+  nome?: string;
   nomeCompleto: string;
   nomeGuerra: string;
   email: string;

@@ -213,12 +213,19 @@ export function EscalaMensal() {
               <p className="text-[11px] font-bold text-graphite-600 print:text-graphite-700 uppercase">{c.nome}</p>
               {c.itens.map((item, i) => {
                 const [label, ...nomeParts] = item.split(': ');
-                const nomeOrig = v ? (
-                  c.nome === 'CRS' ? ['baMc', 'baLr', 'ba2_1', 'ba2_2'][i]
-                    : c.nome === 'CCI F2' ? ['baMc', 'baCe', 'ba2'][i]
-                    : ['baMc', 'ba2_1', 'ba2_2'][i]
-                ) : null;
-                const nomeKey = nomeOrig ? v?.crs?.[nomeOrig] || v?.cciF2?.[nomeOrig] || v?.cciF3?.[nomeOrig] : '';
+                const nomeKey = (() => {
+                  if (!v) return '';
+                  if (c.nome === 'CRS') {
+                    const keys = ['baMc', 'baLr', 'ba2_1', 'ba2_2'] as const;
+                    return v.crs?.[keys[i]] || '';
+                  }
+                  if (c.nome === 'CCI F2') {
+                    const keys = ['baMc', 'baCe', 'ba2'] as const;
+                    return v.cciF2?.[keys[i]] || '';
+                  }
+                  const keys = ['baMc', 'ba2_1', 'ba2_2'] as const;
+                  return v.cciF3?.[keys[i]] || '';
+                })();
                 const nome = nomeParts.join(': ');
                 const subNome = nomeSubstituto(nomeKey);
                 const temSub = subNome !== nomeKey && nomeKey !== '-';

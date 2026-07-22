@@ -24,6 +24,7 @@ export interface PessoaVinculada {
   nomeGuerra: string;
   foto?: string;
   funcao: string;
+  equipe?: string;
   personType: 'bombeiro' | 'apoc';
 }
 
@@ -143,7 +144,7 @@ async function syncSeedsToSupabase(users: Record<string, StoredUser>) {
 const ROLE_HIERARQUIA: UserRole[] = ['desenvolvedor', 'admin', 'gerente', 'chefe', 'lider', 'bombeiro', 'sem_funcao'];
 
 function apocParaUserRole(funcao: string): UserRole {
-  if (funcao === 'supervisor') return 'gerente';
+  if (funcao.toUpperCase() === 'SUPERVISOR') return 'gerente';
   return 'chefe';
 }
 
@@ -274,6 +275,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               nomeGuerra: b.nomeGuerra,
               foto: b.foto || undefined,
               funcao: b.cargo,
+              equipe: b.equipe,
               personType: 'bombeiro',
             };
             const substituicao = await substituicaoPorSubstituto(b.id);
@@ -294,6 +296,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               nomeGuerra: a.nomeGuerra,
               foto: undefined,
               funcao: a.funcao,
+              equipe: a.equipe,
               personType: 'apoc',
             };
           }
@@ -301,7 +304,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch { /* ignore - fallback to basic user data */ }
     } else {
       try {
-        const bombeiros = await listarBombeiros({ ids: [remote.personId].filter(Boolean) });
+        const ids = remote.personId ? [remote.personId] : [];
+        const bombeiros = await listarBombeiros({ ids });
         const bombeiro = bombeiros.find(b => b.nomeCompleto === remote.name || b.email === username);
         if (bombeiro) {
           userData.name = bombeiro.nomeCompleto;
@@ -309,6 +313,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             nomeGuerra: bombeiro.nomeGuerra,
             foto: bombeiro.foto || undefined,
             funcao: bombeiro.cargo,
+            equipe: bombeiro.equipe,
             personType: 'bombeiro',
           };
           const substituicao = await substituicaoPorSubstituto(bombeiro.id);

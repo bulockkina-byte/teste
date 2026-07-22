@@ -1,16 +1,9 @@
 const API_URL = '/api/autentique-proxy';
 
-function getToken(): string {
-  const token = import.meta.env.VITE_AUTENTIQUE_TOKEN;
-  if (!token) throw new Error('Token Autentique nao configurado. Adicione VITE_AUTENTIQUE_TOKEN no .env');
-  return token;
-}
-
 async function graphqlRequest<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
   const res = await fetch(API_URL, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${getToken()}`,
       'Content-Type': 'application/json',
       'x-autentique-sandbox': 'true',
     },
@@ -32,7 +25,6 @@ async function graphqlUpload<T>(query: string, variables: Record<string, unknown
   const res = await fetch(API_URL, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${getToken()}`,
       'x-autentique-sandbox': String(sandbox),
     },
     body: formData,
@@ -260,7 +252,7 @@ export async function sincronizarStatusDocumentoPorID(
   fillId: string,
   autentiqueDocId: string,
 ): Promise<{ status: 'pending' | 'signed' | 'cancelled'; signedAt?: string }> {
-  const { default: { atualizarPreenchimento } } = await import('./documentoService');
+  const { atualizarPreenchimento } = await import('./documentoService');
 
   let resultStatus: 'pending' | 'signed' | 'cancelled' = 'pending';
   let resultSignedAt: string | undefined;

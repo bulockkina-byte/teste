@@ -19,6 +19,7 @@ import {
 } from '../../services/substituicaoTemporariaService';
 import { useDebounce } from '../../hooks/useDebounce';
 import { validarCursoParaFuncao } from '../../utils/validacaoCursos';
+import { AlertModal } from '../../components/ui/AlertModal';
 
 function capitalize(str: string) { return str.replace(/\b\w/g, c => c.toUpperCase()); }
 function formatDate(d: string) { return d ? new Date(d + 'T12:00:00').toLocaleDateString('pt-BR') : '-'; }
@@ -38,9 +39,13 @@ export function Substituicoes() {
   const [filterStatus, setFilterStatus] = useState('');
   const [formOpen, setFormOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [rejectSaving, setRejectSaving] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   // Form state
   const [formTipo, setFormTipo] = useState<TipoSubstituicao>('Substituição');
@@ -126,7 +131,7 @@ export function Substituicoes() {
   }
 
   async function handleSubmit() {
-    if (!formValid || !formSubstituido || !formSubstituto) return;
+    if (saving || !formValid || !formSubstituido || !formSubstituto) return;
     setSaving(true);
     try {
       await criarSubstituicaoTemporaria({
@@ -162,11 +167,15 @@ export function Substituicoes() {
   }
 
   async function handleAprovar(id: string) {
+    if (approvingId) return;
+    setApprovingId(id);
     try {
       await aprovarSubstituicaoTemporaria(id, user?.username || '', user?.name || '');
       await carregar();
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Erro ao aprovar');
+    } finally {
+      setApprovingId(null);
     }
   }
 
@@ -186,12 +195,17 @@ export function Substituicoes() {
   }
 
   async function handleExcluir(id: string) {
-    if (!window.confirm('Tem certeza que deseja excluir esta substituição?')) return;
+    if (deleting) return;
+    setDeleting(true);
     try {
       await excluirSubstituicaoTemporaria(id);
+      setConfirmDeleteId(null);
+      setDeleteError('');
       await carregar();
     } catch (err) {
-      alert('Erro ao excluir: ' + (err instanceof Error ? err.message : 'Erro desconhecido'));
+      setDeleteError(err instanceof Error ? err.message : 'Erro desconhecido');
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -305,9 +319,9 @@ export function Substituicoes() {
                 </span>
                 {sub.status === 'Pendente' && canApprove && (
                   <>
-                    <button onClick={() => handleAprovar(sub.id)}
-                      className="rounded-lg bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700 transition-colors hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400">
-                      Aprovar
+                    <button onClick={() => handleAprovar(sub.id)} disabled={!!approvingId}
+                      className="rounded-lg bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700 transition-colors hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-green-900/20 dark:text-green-400">
+                      {approvingId === sub.id ? 'Aprovando...' : 'Aprovar'}
                     </button>
                     <button onClick={() => setRejectId(sub.id)}
                       className="rounded-lg bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 transition-colors hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400">
@@ -316,7 +330,7 @@ export function Substituicoes() {
                   </>
                 )}
                 {canApprove && (
-                  <button onClick={() => handleExcluir(sub.id)}
+                  <button onClick={() => { setConfirmDeleteId(sub.id); setDeleteError(''); }}
                     className="rounded-lg p-1.5 text-graphite-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400">
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -526,6 +540,19 @@ export function Substituicoes() {
           </div>
         </div>
       )}
+
+      <AlertModal
+        open={!!confirmDeleteId}
+        title="Excluir substituição"
+        message="Tem certeza que deseja excluir esta substituição? Esta ação não pode ser desfeita."
+        variant="danger"
+        confirmLabel="Excluir"
+        loadingLabel="Excluindo..."
+        loading={deleting}
+        error={deleteError}
+        onClose={() => { if (!deleting) { setConfirmDeleteId(null); setDeleteError(''); } }}
+        onConfirm={() => confirmDeleteId ? handleExcluir(confirmDeleteId) : undefined}
+      />
     </PageContainer>
   );
 }

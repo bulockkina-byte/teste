@@ -7,6 +7,12 @@ export default async function handler(req, res) {
   }
 
   const contentType = req.headers['content-type'] || '';
+  const token = process.env.AUTENTIQUE_TOKEN || process.env.VITE_AUTENTIQUE_TOKEN;
+  const isSandbox = req.headers['x-autentique-sandbox'] === 'true';
+
+  if (!token) {
+    return res.status(500).json({ error: 'Autentique token not configured on server' });
+  }
 
   try {
     if (contentType.includes('multipart/form-data')) {
@@ -38,11 +44,9 @@ export default async function handler(req, res) {
         }
       }
 
-      const auth = req.headers['authorization'] || '';
-      const isSandbox = req.headers['x-autentique-sandbox'] === 'true';
       const apiRes = await fetch(isSandbox ? SANDBOX_API : PROD_API, {
         method: 'POST',
-        headers: auth ? { 'Authorization': auth } : {},
+        headers: { 'Authorization': `Bearer ${token}` },
         body: formData,
       });
       const text = await apiRes.text();
@@ -52,11 +56,10 @@ export default async function handler(req, res) {
     } else {
       let body = '';
       await new Promise(resolve => { req.on('data', c => { body += c; }); req.on('end', resolve); });
-      const auth = req.headers['authorization'] || '';
       const apiRes = await fetch(isSandbox ? SANDBOX_API : PROD_API, {
         method: 'POST',
         headers: {
-          ...(auth ? { 'Authorization': auth } : {}),
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body,

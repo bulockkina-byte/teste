@@ -22,7 +22,7 @@ import type { SubstituicaoTemporaria } from '../../types/substituicaoTemporaria'
 import type { CertificacaoNR } from '../../types/certificacao';
 import type { CertificacaoCurso } from '../../types/certificacaoCurso';
 
-function fmt(d: string) {
+function fmt(d?: string) {
   if (!d) return '-';
   return new Date(d + 'T12:00:00').toLocaleDateString('pt-BR');
 }

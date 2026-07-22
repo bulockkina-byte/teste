@@ -11,7 +11,7 @@ export function Layout() {
       <Sidebar />
       <div
         className={`will-change-[margin] transition-all duration-300 ease-out-expo ${
-          effectiveCollapsed ? 'ml-[70px]' : 'ml-[260px]'
+          effectiveCollapsed ? 'md:ml-[70px]' : 'md:ml-[260px]'
         }`}
       >
         <Header />

@@ -16,7 +16,7 @@ import { Autocomplete } from '../../components/documentos/Autocomplete';
 
 interface Props {
   bombeiro?: Bombeiro | null;
-  onSave: (data: Omit<Bombeiro, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  onSave: (data: Omit<Bombeiro, 'id' | 'createdAt' | 'updatedAt'>) => void | Promise<void>;
   onClose: () => void;
   serverError?: string;
 }
@@ -90,6 +90,7 @@ export function BombeiroForm({ bombeiro, onSave, onClose, serverError }: Props) 
   const [dataDesligamento, setDataDesligamento] = useState('');
   const [showDesligamento, setShowDesligamento] = useState(false);
   const [erro, setErro] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const [endereco, setEndereco] = useState('');
   const [numeroEndereco, setNumeroEndereco] = useState('');
   const [complemento, setComplemento] = useState('');
@@ -198,14 +199,17 @@ export function BombeiroForm({ bombeiro, onSave, onClose, serverError }: Props) 
     setTurno(turnoAutoPorEquipe(equipe, novoCargo));
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (submitting) return;
     if (!matricula || !nomeCompleto || !nomeGuerra || !cpf || !sexo || !dataNascimento || !tipoSanguineo || !email || !celular || !endereco || !numeroEndereco || !cep || !uf || !municipio || !dataAdmissao || !cnhNumero || !cnhValidade) {
       setErro('Preencha todos os campos obrigatórios.');
       return;
     }
     setErro('');
-    onSave({
+    setSubmitting(true);
+    try {
+      await onSave({
       matricula,
       nomeCompleto: nomeCompleto.replace(/\b\w/g, char => char.toUpperCase()),
       nomeGuerra: nomeGuerra.replace(/\b\w/g, char => char.toUpperCase()),
@@ -238,7 +242,10 @@ export function BombeiroForm({ bombeiro, onSave, onClose, serverError }: Props) 
       cursoMotoristaCCI,
       cursoCVE,
       cveValidade,
-    });
+      });
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -535,9 +542,9 @@ export function BombeiroForm({ bombeiro, onSave, onClose, serverError }: Props) 
                 className="rounded-xl border border-graphite-300/60 bg-white/80 px-5 py-2.5 text-sm font-medium text-graphite-700 backdrop-blur-sm transition-all duration-200 hover:bg-graphite-50 hover:border-graphite-300 dark:border-border-dark dark:bg-surface-card/80 dark:text-graphite-200 dark:hover:bg-surface-hover/50">
                 Cancelar
               </button>
-              <button type="submit"
-                className="rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
-                {bombeiro ? 'Salvar Alterações' : 'Cadastrar'}
+              <button type="submit" disabled={submitting}
+                className="rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60">
+                {submitting ? 'Salvando...' : (bombeiro ? 'Salvar Alterações' : 'Cadastrar')}
               </button>
             </div>
           </div>

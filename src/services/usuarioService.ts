@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase';
 import type { UserRole } from '../context/AuthContext';
 
 const TABLE = 'usuarios';
+const USER_SELECT = 'id,username,name,role,previous_role,person_id,person_type,created_at,updated_at';
 
 function getDb() {
   if (!supabase) throw new Error('Supabase não configurado. Verifique as credenciais no arquivo .env');
@@ -48,7 +49,7 @@ export async function listarUsuarios(): Promise<Usuario[]> {
   const db = getDb();
   const { data, error } = await db
     .from(TABLE)
-    .select('*')
+    .select(USER_SELECT)
     .order('created_at', { ascending: false });
   if (error) handleSupabaseError(error);
   return (data || []).map(rowToUsuario);
@@ -58,7 +59,7 @@ export async function buscarUsuarioPorUsername(username: string): Promise<Usuari
   const db = getDb();
   const { data, error } = await db
     .from(TABLE)
-    .select('*')
+    .select(USER_SELECT)
     .eq('username', username)
     .single();
   if (error) {
@@ -69,28 +70,24 @@ export async function buscarUsuarioPorUsername(username: string): Promise<Usuari
 }
 
 export async function verificarSenha(username: string, password: string): Promise<Usuario | null> {
-  try {
-    const db = getDb();
-    const { data, error } = await db.rpc('verificar_senha', {
-      p_username: username,
-      p_password: password,
-    });
-    if (error) throw error;
-    if (!data) return null;
-    return {
-      id: data.id,
-      username: data.username,
-      name: data.name,
-      role: data.role,
-      previousRole: data.previousRole,
-      personId: data.personId,
-      personType: data.personType,
-      createdAt: data.createdAt,
-      updatedAt: data.updatedAt,
-    };
-  } catch {
-    return null;
-  }
+  const db = getDb();
+  const { data, error } = await db.rpc('verificar_senha', {
+    p_username: username,
+    p_password: password,
+  });
+  if (error) handleSupabaseError(error);
+  if (!data) return null;
+  return {
+    id: data.id,
+    username: data.username,
+    name: data.name,
+    role: data.role,
+    previousRole: data.previousRole,
+    personId: data.personId,
+    personType: data.personType,
+    createdAt: data.createdAt,
+    updatedAt: data.updatedAt,
+  };
 }
 
 export async function criarUsuarioComHash(data: {
@@ -173,7 +170,7 @@ export async function atualizarUsuario(username: string, data: Record<string, un
     .from(TABLE)
     .update(row)
     .eq('username', username)
-    .select()
+    .select(USER_SELECT)
     .single();
   if (error) handleSupabaseError(error);
   return updated ? rowToUsuario(updated) : null;

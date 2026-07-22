@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FileText, Save, Send, Eye, AlertTriangle, ArrowLeft, ArrowRight, Trash2, Search, Check, X } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
+import { AlertModal } from '../../components/ui/AlertModal';
 import { useAuth } from '../../context/AuthContext';
 import { listarAtivos } from '../../services/bombeiroService';
 import { listarFeriasGozo } from '../../services/feriasService';
@@ -71,6 +72,33 @@ function SearchSelect({ options, value, onChange, placeholder, label }: {
 
 type EquipeOpcao = 'Alfa' | 'Bravo' | 'Charlie' | 'Delta';
 type Step = 'equipe' | 'trocas' | 'preencher' | 'revisar';
+type FrotaLinhaDados = {
+  viaturaId: string;
+  prefixo: string;
+  kmIni: string;
+  kmFim: string;
+  combIni: string;
+  combFim: string;
+  situacao: string;
+};
+type SubstituicaoDetectada = {
+  id: string;
+  tipo: 'troca' | 'substituicao';
+  substituido: string;
+  substituto: string;
+  dataSolicitada?: string;
+  dataFolga?: string;
+  confirmada: boolean | null;
+};
+const EMPTY_FROTA_LINHA: FrotaLinhaDados = {
+  viaturaId: '',
+  prefixo: '',
+  kmIni: '',
+  kmFim: '',
+  combIni: '',
+  combFim: '',
+  situacao: '',
+};
 
 const STATUS_CORES: Record<LRODraftStatus, string> = {
   rascunho: 'text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-900/20',
@@ -105,7 +133,7 @@ export function GerarLRO() {
   const [saving, setSaving] = useState(false);
 
   // -- Frota state --
-  const [frotaDados, setFrotaDados] = useState<Record<string, { kmIni: string; kmFim: string; combIni: string; combFim: string; situacao: string }>>({});
+  const [frotaDados, setFrotaDados] = useState<Record<string, FrotaLinhaDados>>({});
   const DEFAULT_VIATURAS = [
     { id: 'default-cci-319', prefixo: 'CCI 319', tipo: 'CCI' },
     { id: 'default-cci-320', prefixo: 'CCI 320', tipo: 'CCI' },
@@ -124,7 +152,7 @@ export function GerarLRO() {
   const [trocaDataFolga, setTrocaDataFolga] = useState('');
   const [trocaMotivo, setTrocaMotivo] = useState('');
   const [trocasManuais, setTrocasManuais] = useState<Array<{ solicitante: string; solicitado: string; dataFolga: string; motivo: string }>>([]);
-  const [substituicoesDetectadas, setSubstituicoesDetectadas] = useState<{ id: string; tipo: 'troca' | 'substituicao'; substituido: string; substituto: string; dataSolicitada?: string; dataFolga?: string; confirmada: boolean | null }[]>([]);
+  const [substituicoesDetectadas, setSubstituicoesDetectadas] = useState<SubstituicaoDetectada[]>([]);
 
   // -- LRO Sections --
   const [chefeEquipe, setChefeEquipe] = useState('');
@@ -133,7 +161,7 @@ export function GerarLRO() {
   const [equipagemCCIRT, setEquipagemCCIRT] = useState<Record<string, string>>({});
   const [equipagemCRS, setEquipagemCRS] = useState<Record<string, string>>({});
   const [instrucoes, setInstrucoes] = useState('');
-  const [instrucoesHorarios, setInstrucoesHorarios] = useState('');
+  const [instrucoesHorarios, setInstrucoesHorarios] = useState<string | string[]>('');
   const [centralFaisca, setCentralFaisca] = useState('SEM ALTERAÇÕES');
   const [radioComunicacao, setRadioComunicacao] = useState('SEM ALTERAÇÕES');
   const [tpTemAlteracao, setTpTemAlteracao] = useState(false);
@@ -306,7 +334,7 @@ export function GerarLRO() {
   useEffect(() => {
     if (!dataInicio) return;
     const nomesEquipe = bombeiros.filter((b: any) => b.equipe === equipe).map((b: any) => b.nomeGuerra.toLowerCase());
-    const resultados: { id: string; tipo: 'troca' | 'substituicao'; substituido: string; substituto: string; confirmada: boolean | null }[] = [];
+    const resultados: SubstituicaoDetectada[] = [];
     // De trocaFills (documento Troca de Serviço) — filtra pela data solicitada
     trocaFills.forEach((fl: any) => {
       const fd = fl.filled_data || {};
@@ -493,7 +521,7 @@ export function GerarLRO() {
         instrucoes: Array.isArray(instrucoes) ? instrucoes : (typeof instrucoes === 'string' ? instrucoes.split('\n').filter(Boolean) : []),
         instrucoesHorarios: Array.isArray(instrucoesHorarios) ? instrucoesHorarios : (typeof instrucoesHorarios === 'string' ? instrucoesHorarios.split('\n').filter(Boolean) : []),
         frota: Array.from({ length: FROTA_ROWS }).map((_, i) => {
-          const d = frotaDados[`row_${i}`] || {};
+          const d = frotaDados[`row_${i}`] || EMPTY_FROTA_LINHA;
           const frotaLista = viaturas.length > 0 ? viaturas : DEFAULT_VIATURAS;
           const sel = frotaLista.find((vv: any) => vv.id === d.viaturaId);
           return { viatura: sel?.prefixo || sel?.nome || '—', prefixo: d.prefixo || '', kmIni: d.kmIni || '', kmFim: d.kmFim || '', combIni: d.combIni || '', combFim: d.combFim || '', situacao: d.situacao || '' };
@@ -552,7 +580,7 @@ export function GerarLRO() {
         dataInicio, dataFim,
         chefeEquipe, comunicacao,
         frota: Array.from({ length: FROTA_ROWS }).map((_, i) => {
-          const d = frotaDados[`row_${i}`] || {};
+          const d = frotaDados[`row_${i}`] || EMPTY_FROTA_LINHA;
           const frotaLista = viaturas.length > 0 ? viaturas : DEFAULT_VIATURAS;
           const sel = frotaLista.find((vv: any) => vv.id === d.viaturaId);
           return { viatura: sel?.prefixo || sel?.nome || '—', prefixo: d.prefixo || '', kmIni: d.kmIni || '', kmFim: d.kmFim || '', combIni: d.combIni || '', combFim: d.combFim || '', situacao: d.situacao || '' };
@@ -617,7 +645,7 @@ export function GerarLRO() {
     const dados = {
       equipeNome: equipe, dataInicio, dataFim, chefeEquipe, comunicacao,
       frota: Array.from({ length: FROTA_ROWS }).map((_, i) => {
-        const d = frotaDados[`row_${i}`] || {};
+        const d = frotaDados[`row_${i}`] || EMPTY_FROTA_LINHA;
         const frotaLista = viaturas.length > 0 ? viaturas : DEFAULT_VIATURAS;
         const sel = frotaLista.find((vv: any) => vv.id === d.viaturaId);
         return { viatura: sel?.prefixo || sel?.nome || '—', prefixo: d.prefixo || '', kmIni: d.kmIni || '', kmFim: d.kmFim || '', combIni: d.combIni || '', combFim: d.combFim || '', situacao: d.situacao || '' };
@@ -666,7 +694,7 @@ export function GerarLRO() {
     const dados = {
       equipeNome: equipe, dataInicio, dataFim, chefeEquipe, comunicacao,
       frota: Array.from({ length: FROTA_ROWS }).map((_, i) => {
-        const d = frotaDados[`row_${i}`] || {};
+        const d = frotaDados[`row_${i}`] || EMPTY_FROTA_LINHA;
         const frotaLista = viaturas.length > 0 ? viaturas : DEFAULT_VIATURAS;
         const sel = frotaLista.find((vv: any) => vv.id === d.viaturaId);
         return { viatura: sel?.prefixo || sel?.nome || '—', prefixo: d.prefixo || '', kmIni: d.kmIni || '', kmFim: d.kmFim || '', combIni: d.combIni || '', combFim: d.combFim || '', situacao: d.situacao || '' };
@@ -719,6 +747,32 @@ export function GerarLRO() {
     navigate('/registros-diarios/preview-lro', {
       state: { ...dados, modoAutentique: true, signers, draftId },
     });
+  }
+
+  function handleConfirmTrocaRecusada() {
+    if (trocaRecusadaIdx !== null) {
+      setSubstituicoesDetectadas(prev => prev.map((s, i) => i === trocaRecusadaIdx ? { ...s, confirmada: false } : s));
+    }
+    setShowConfirmTroca(false);
+    setTrocaRecusadaIdx(null);
+  }
+
+  function handleConfirmAdicionarTrocaManual() {
+    if (!trocaSolicitante || !trocaSolicitado) return;
+    setTrocasManuais(prev => [...prev, { solicitante: trocaSolicitante, solicitado: trocaSolicitado, dataFolga: trocaDataFolga, motivo: trocaMotivo }]);
+    setTrocaSolicitante('');
+    setTrocaSolicitado('');
+    setTrocaDataFolga('');
+    setTrocaMotivo('');
+    setShowConfirmAdicionar(false);
+  }
+
+  function handleConfirmTrocaCorreta() {
+    if (trocaConfirmadaIdx !== null) {
+      setSubstituicoesDetectadas(prev => prev.map((s, i) => i === trocaConfirmadaIdx ? { ...s, confirmada: true } : s));
+    }
+    setShowConfirmCorreta(false);
+    setTrocaConfirmadaIdx(null);
   }
 
   if (loading) return (
@@ -1594,7 +1648,15 @@ export function GerarLRO() {
                     const prefixoPadrao = ['F2 X6', 'F3 X6', 'FRT X6'][rowIdx] || '';
                     let d = frotaDados[`row_${rowIdx}`] || { kmIni: '', kmFim: '', combIni: '', combFim: '', situacao: '', viaturaId: '', prefixo: '' };
                     if (!d.prefixo) d = { ...d, prefixo: prefixoPadrao };
-                    const updateRow = (updates: Record<string, string>) => setFrotaDados(prev => ({ ...prev, [`row_${rowIdx}`]: { ...prev[`row_${rowIdx}`], ...updates } }));
+                    const linhaPadrao: FrotaLinhaDados = { ...EMPTY_FROTA_LINHA, prefixo: prefixoPadrao };
+                    const updateRow = (updates: Partial<FrotaLinhaDados>) => setFrotaDados(prev => ({
+                      ...prev,
+                      [`row_${rowIdx}`]: {
+                        ...linhaPadrao,
+                        ...prev[`row_${rowIdx}`],
+                        ...updates,
+                      },
+                    }));
                     return (
                       <tr key={`frota-row-${rowIdx}`} className="border-b border-graphite-100 dark:border-border-dark">
                         <td className="p-2">
@@ -1747,132 +1809,71 @@ export function GerarLRO() {
       )}
 
       {/* Confirm modal */}
-      {/* Troca recusada warning */}
-      {showConfirmTroca && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-surface-card">
-            <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
-                <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
-              </div>
-              <h3 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">Atenção - Troca Registrada</h3>
-            </div>
-            <p className="mb-4 text-sm text-graphite-500">
-              Esta troca consta no sistema como um documento de <strong>Troca de Serviço</strong>. 
-              Se ela realmente não ocorreu, ela deverá ser <strong>cancelada no formulário de Troca de Serviço</strong> 
-              para evitar inconsistências.
+      <AlertModal
+        open={showConfirmTroca}
+        title="Atenção - Troca Registrada"
+        message={(
+          <>
+            <p className="mb-3">
+              Esta troca consta no sistema como um documento de <strong>Troca de Serviço</strong>.
             </p>
-            <p className="mb-6 text-sm text-graphite-500">
-              Deseja marcar como incorreta mesmo assim?
+            <p>
+              Se ela realmente não ocorreu, ela deverá ser cancelada no formulário de Troca de Serviço para evitar inconsistências. Deseja marcar como incorreta mesmo assim?
             </p>
-            <div className="flex justify-end gap-3">
-              <button onClick={() => { setShowConfirmTroca(false); setTrocaRecusadaIdx(null); }}
-                className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 transition-all hover:bg-graphite-50 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">
-                Voltar
-              </button>
-              <button onClick={() => {
-                if (trocaRecusadaIdx !== null) {
-                  setSubstituicoesDetectadas(prev => prev.map((s, i) => i === trocaRecusadaIdx ? { ...s, confirmada: false } : s));
-                }
-                setShowConfirmTroca(false);
-                setTrocaRecusadaIdx(null);
-              }} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-red-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
-                <X className="h-4 w-4" /> Sim, marcar como Incorreta
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+        variant="danger"
+        confirmLabel="Sim, marcar como incorreta"
+        cancelLabel="Voltar"
+        onClose={() => { setShowConfirmTroca(false); setTrocaRecusadaIdx(null); }}
+        onConfirm={handleConfirmTrocaRecusada}
+      />
 
-      {/* Confirmar adicionar troca manual */}
-      {showConfirmAdicionar && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-surface-card">
-            <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
-                <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-              </div>
-              <h3 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">Adicionar Troca Manual</h3>
-            </div>
-            <p className="mb-6 text-sm text-graphite-500">
-              Após adicionar esta troca, ela será incluída no LRO como uma troca confirmada e <span className="font-semibold text-graphite-700 dark:text-graphite-300">não será mais possível removê-la</span>.
-            </p>
-            <div className="flex justify-end gap-3">
-              <button onClick={() => setShowConfirmAdicionar(false)}
-                className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 transition-all hover:bg-graphite-50 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">
-                Voltar
-              </button>
-              <button onClick={() => {
-                if (!trocaSolicitante || !trocaSolicitado) return;
-                setTrocasManuais(prev => [...prev, { solicitante: trocaSolicitante, solicitado: trocaSolicitado, dataFolga: trocaDataFolga, motivo: trocaMotivo }]);
-                setTrocaSolicitante('');
-                setTrocaSolicitado('');
-                setTrocaDataFolga('');
-                setTrocaMotivo('');
-                setShowConfirmAdicionar(false);
-              }} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-amber-500/20 transition-all hover:from-amber-400 hover:to-amber-500 active:scale-[0.98]">
-                <Check className="h-4 w-4" /> Sim, Adicionar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AlertModal
+        open={showConfirmAdicionar}
+        title="Adicionar Troca Manual"
+        message={(
+          <>
+            Após adicionar esta troca, ela será incluída no LRO como uma troca confirmada e <strong>não será mais possível removê-la</strong>.
+          </>
+        )}
+        variant="warning"
+        confirmLabel="Sim, adicionar"
+        cancelLabel="Voltar"
+        confirmDisabled={!trocaSolicitante || !trocaSolicitado}
+        onClose={() => setShowConfirmAdicionar(false)}
+        onConfirm={handleConfirmAdicionarTrocaManual}
+      />
 
-      {/* Troca correta warning */}
-      {showConfirmCorreta && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-surface-card">
-            <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
-                <Check className="h-5 w-5 text-green-600 dark:text-green-400" />
-              </div>
-              <h3 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar Troca</h3>
-            </div>
-            <p className="mb-6 text-sm text-graphite-500">
-              Confirma que esta troca está <strong>correta</strong>? Após confirmar, <span className="font-semibold text-graphite-700 dark:text-graphite-300">não será possível alterar</span>.
-            </p>
-            <div className="flex justify-end gap-3">
-              <button onClick={() => { setShowConfirmCorreta(false); setTrocaConfirmadaIdx(null); }}
-                className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 transition-all hover:bg-graphite-50 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">
-                Voltar
-              </button>
-              <button onClick={() => {
-                if (trocaConfirmadaIdx !== null) {
-                  setSubstituicoesDetectadas(prev => prev.map((s, i) => i === trocaConfirmadaIdx ? { ...s, confirmada: true } : s));
-                }
-                setShowConfirmCorreta(false);
-                setTrocaConfirmadaIdx(null);
-              }} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-green-600 to-green-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-green-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
-                <Check className="h-4 w-4" /> Sim, confirmar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AlertModal
+        open={showConfirmCorreta}
+        title="Confirmar Troca"
+        message={(
+          <>
+            Confirma que esta troca está <strong>correta</strong>? Após confirmar, <strong>não será possível alterar</strong>.
+          </>
+        )}
+        variant="success"
+        confirmLabel="Sim, confirmar"
+        cancelLabel="Voltar"
+        onClose={() => { setShowConfirmCorreta(false); setTrocaConfirmadaIdx(null); }}
+        onConfirm={handleConfirmTrocaCorreta}
+      />
 
-      {showConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-surface-card">
-            <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
-                <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-              </div>
-              <h3 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar envio</h3>
-            </div>
-            <p className="mb-6 text-sm text-graphite-500">
-              Após enviar para assinatura, <span className="font-semibold text-graphite-700 dark:text-graphite-300">não será mais possível alterar</span> o LRO. O documento será encaminhado para os 3 signatários via Autentique.
-            </p>
-            <div className="flex justify-end gap-3">
-              <button onClick={() => setShowConfirm(false)} className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 transition-all hover:bg-graphite-50 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">
-                Cancelar
-              </button>
-              <button onClick={handleEnviarAutentique} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-green-600 to-green-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-green-500/20 transition-all hover:from-green-500 hover:to-green-600 active:scale-[0.98]">
-                <Send className="h-4 w-4" /> Confirmar e Enviar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AlertModal
+        open={showConfirm}
+        title="Confirmar envio"
+        message={(
+          <>
+            Após enviar para assinatura, <strong>não será mais possível alterar</strong> o LRO. O documento será encaminhado para os 3 signatários via Autentique.
+          </>
+        )}
+        variant="success"
+        confirmLabel="Confirmar e enviar"
+        loadingLabel="Preparando..."
+        onClose={() => setShowConfirm(false)}
+        onConfirm={handleEnviarAutentique}
+      />
     </PageContainer>
   );
 }

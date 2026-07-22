@@ -5,7 +5,7 @@ import { FUNCAO_APOC_OPTIONS, EQUIPE_APOC } from '../../types/apoc';
 
 interface Props {
   apoc?: APOC | null;
-  onSave: (data: Omit<APOC, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  onSave: (data: Omit<APOC, 'id' | 'createdAt' | 'updatedAt'>) => void | Promise<void>;
   onClose: () => void;
   serverError?: string;
 }
@@ -16,6 +16,7 @@ export function APOCForm({ apoc, onSave, onClose, serverError }: Props) {
   const [email, setEmail] = useState('');
   const [funcao, setFuncao] = useState<FuncaoAPOC>('APOC');
   const [erro, setErro] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (apoc) {
@@ -26,20 +27,26 @@ export function APOCForm({ apoc, onSave, onClose, serverError }: Props) {
     }
   }, [apoc]);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (submitting) return;
     if (!nomeCompleto || !nomeGuerra || !email || !funcao) {
       setErro('Preencha todos os campos obrigatórios.');
       return;
     }
     setErro('');
-    onSave({
+    setSubmitting(true);
+    try {
+      await onSave({
       nomeCompleto: nomeCompleto.replace(/\b\w/g, char => char.toUpperCase()),
       nomeGuerra: nomeGuerra.replace(/\b\w/g, char => char.toUpperCase()),
       email,
       funcao,
       equipe: EQUIPE_APOC,
-    });
+      });
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const inputClass = "w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-700";
@@ -104,9 +111,9 @@ export function APOCForm({ apoc, onSave, onClose, serverError }: Props) {
               className="rounded-xl border border-graphite-300/60 bg-white/80 px-4 py-2.5 text-sm font-medium text-graphite-700 backdrop-blur-sm transition-all duration-200 hover:bg-graphite-50 hover:border-graphite-300 dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-200 dark:hover:bg-graphite-700">
               Cancelar
             </button>
-            <button type="submit"
-              className="rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
-              {apoc ? 'Salvar Alterações' : 'Cadastrar'}
+            <button type="submit" disabled={submitting}
+              className="rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60">
+              {submitting ? 'Salvando...' : (apoc ? 'Salvar Alterações' : 'Cadastrar')}
             </button>
           </div>
         </form>

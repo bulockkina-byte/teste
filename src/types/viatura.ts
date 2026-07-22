@@ -25,6 +25,7 @@ export interface Viatura {
   tipoCCI: TipoCCI;
   categoriaCAT: CategoriaCAT;
   status: StatusViatura;
+  situacao?: StatusViatura;
   marca: string;
   modelo: string;
   ano: string;

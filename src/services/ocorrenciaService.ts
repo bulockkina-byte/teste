@@ -23,18 +23,24 @@ function parseJSON(val: unknown): any {
 }
 
 function rowToOcorrencia(row: Record<string, unknown>): Ocorrencia {
+  const numero = (row.numero as string) || '';
+  const data = (row.data as string) || '';
+  const categoria = (row.categoria as Ocorrencia['categoria']) || 'Outros';
   return {
     id: row.id as string,
     createdBy: (row.created_by as string) || '',
     createdAt: (row.created_at as string) || '',
     updatedAt: (row.updated_at as string) || '',
     tipoDocumento: (row.tipo_documento as Ocorrencia['tipoDocumento']) || 'BONA',
-    numero: (row.numero as string) || '',
-    data: (row.data as string) || '',
+    numero,
+    numeroOcorrencia: numero,
+    data,
+    dataOcorrencia: data,
     hora: (row.hora as string) || '',
     equipe: (row.equipe as string) || '',
     turno: (row.turno as string) || '',
-    categoria: (row.categoria as Ocorrencia['categoria']) || 'Outros',
+    categoria,
+    categoriaOcorrencia: categoria,
     titulo: (row.titulo as string) || '',
     descricao: (row.descricao as string) || '',
     local: (row.local as string) || '',

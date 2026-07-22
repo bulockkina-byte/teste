@@ -1,6 +1,7 @@
 export interface PTRBParticipante {
   funcao: string;
   nomeCompleto: string;
+  nomeGuerra?: string;
   situacao: string;
 }
 

@@ -47,7 +47,7 @@ function getCategoriaIcon(cat: CategoriaEquipamento) {
   const map: Record<CategoriaEquipamento, any> = {
     desencarcerador: Shield,
     penetracao_fuselagem: Zap,
-    serra_circular: WrenchIcon,
+    serra_circular: Wrench,
     almofada_pneumatica: Tag,
     lge: Droplets,
     pqs: Flame,
@@ -401,7 +401,11 @@ export function Equipamentos() {
                   <div className="flex items-center gap-2">
                     <input type="text" value={form.responsavel} readOnly className={INPUT_CLASS + ' cursor-default opacity-70'} placeholder="Vincule pelo botão 🔗 na listagem" />
                     {form.responsavel && (
-                      <button type="button" onClick={() => updateField('responsavel', '') || updateField('responsavelId', undefined) || updateField('responsavelTipo', undefined)}
+                      <button type="button" onClick={() => {
+                        updateField('responsavel', '');
+                        updateField('responsavelId', undefined);
+                        updateField('responsavelTipo', undefined);
+                      }}
                         className="shrink-0 rounded-lg p-2 text-graphite-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20" title="Desvincular">
                         <X className="h-4 w-4" />
                       </button>

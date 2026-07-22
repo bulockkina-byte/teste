@@ -56,6 +56,7 @@ function conferenciaToRow(data: Partial<Conferencia>): Record<string, unknown> {
   if (data.resultadoFinal !== undefined) row.resultado_final = data.resultadoFinal;
   if (data.observacoes !== undefined) row.observacoes = data.observacoes;
   if (data.dataProximaInspecao !== undefined) row.data_proxima_inspecao = data.dataProximaInspecao;
+  if (data.createdBy !== undefined) row.created_by = data.createdBy;
   return row;
 }
 

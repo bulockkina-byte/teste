@@ -18,10 +18,12 @@ function handleSupabaseError(err: unknown): never {
 }
 
 function rowToBombeiro(row: Record<string, unknown>): Bombeiro {
+  const nomeCompleto = (row.nome_completo as string) || (row.nome as string) || '';
   return {
     id: row.id as string,
     matricula: row.matricula as string,
-    nomeCompleto: row.nome_completo as string,
+    nome: nomeCompleto,
+    nomeCompleto,
     nomeGuerra: row.nome_guerra as string,
     email: row.email as string,
     dataNascimento: row.data_nascimento as string,
@@ -130,7 +132,7 @@ export async function obterBombeiro(id: string): Promise<Bombeiro | null> {
 export interface BombeiroResumo {
   id: string;
   nomeGuerra: string;
-  equipe: string;
+  equipe: Bombeiro['equipe'];
 }
 
 export async function listarBombeirosResumido(): Promise<BombeiroResumo[]> {
@@ -143,7 +145,7 @@ export async function listarBombeirosResumido(): Promise<BombeiroResumo[]> {
   return (data || []).map((r: any) => ({
     id: r.id as string,
     nomeGuerra: (r.nome_guerra as string) || '',
-    equipe: (r.equipe as string) || '',
+    equipe: ((r.equipe as string) || 'Embaixador') as Bombeiro['equipe'],
   }));
 }
 

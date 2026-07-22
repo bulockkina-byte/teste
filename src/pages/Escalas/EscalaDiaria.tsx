@@ -168,7 +168,7 @@ function EscalaDiariaForm({
     if (!form.dataPlantao) return;
     const data = new Date(form.dataPlantao + 'T12:00:00');
     const equipes = equipesNoDia(data);
-    if (!equipes.includes(form.equipe as any)) {
+    if (!equipes.some(eq => eq === form.equipe)) {
       setForm(f => ({ ...f, equipe: equipes[0] }));
     }
   }, [form.dataPlantao]);

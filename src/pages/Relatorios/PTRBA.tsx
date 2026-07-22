@@ -183,8 +183,12 @@ function imprimirHTMLEfetivo(titulo: string, allAssuntos: string[], equipes: { e
   html += '  </div>\n';
   html += '  <p class="footer">Relat\u00f3rio PTR-BA - Se\u00e7\u00e3o de Instru\u00e7\u00e3o</p>\n';
   html += '</body></html>';
-  var w = window.open('', '_blank');
-  if (w) { w.document.write(html); w.document.close(); setTimeout(function() { w.print(); }, 700); }
+  const printWindow = window.open('', '_blank');
+  if (printWindow) {
+    printWindow.document.write(html);
+    printWindow.document.close();
+    setTimeout(function() { printWindow.print(); }, 700);
+  }
 }
 
 export function PTRBA() {
@@ -285,7 +289,7 @@ export function PTRBA() {
   }, [bombeiros, filtroEquipe]);
 
   const assuntosDisponiveis = useMemo(() => {
-    const set = new Set(ASSUNTOS);
+    const set = new Set<string>(ASSUNTOS);
     for (const p of ptrbs) {
       const a = p.assuntoMinistrado?.trim();
       if (a) set.add(a);

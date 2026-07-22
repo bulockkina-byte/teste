@@ -8,8 +8,8 @@ import { listarHidrantes } from '../../services/hidranteService';
 import { listarConferencias, criarConferencia } from '../../services/conferenciaService';
 import type { Extintor } from '../../types/extintor';
 import type { Hidrante } from '../../types/hidrante';
-import type { ResultadoConferencia } from '../../types/conferencia';
-import { RESULTADO_CONFERENCIA_OPTIONS } from '../../types/conferencia';
+import type { Conferencia } from '../../types/conferencia';
+import { RESULTADO_FINAL_OPTIONS } from '../../types/conferencia';
 
 const INPUT_CLASS = "w-full rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all hover:border-graphite-400 focus:border-aviation-500 focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:hover:border-graphite-500 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated dark:focus:ring-aviation-400/10 dark:scheme-dark";
 
@@ -21,12 +21,12 @@ export function Conferencia() {
   const [view, setView] = useState<View>('equipamentos');
   const [extintores, setExtintores] = useState<Extintor[]>([]);
   const [hidrantes, setHidrantes] = useState<Hidrante[]>([]);
-  const [conferencias, setConferencias] = useState<any[]>([]);
+  const [conferencias, setConferencias] = useState<Conferencia[]>([]);
   const [filterTab, setFilterTab] = useState<'todos' | 'extintores' | 'hidrantes'>('todos');
   const [termo, setTermo] = useState('');
 
   const [conferindo, setConferindo] = useState<{ tipo: 'Extintor' | 'Hidrante'; item: Extintor | Hidrante } | null>(null);
-  const [resultado, setResultado] = useState<ResultadoConferencia>('OK');
+  const [resultado, setResultado] = useState<Conferencia['resultadoFinal']>('Aprovado');
   const [obs, setObs] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -78,7 +78,7 @@ export function Conferencia() {
     return `${h.localizacao}${h.pressao ? ` · ${h.pressao}` : ''}`;
   }
 
-  function getStatusConferencia(itemId: string): any | null {
+  function getStatusConferencia(itemId: string): Conferencia | null {
     return conferencias.find(c => c.itemId === itemId) || null;
   }
 
@@ -90,15 +90,21 @@ export function Conferencia() {
         tipo: conferindo.tipo,
         itemId: conferindo.item.id,
         itemNome: getLabel(conferindo.item, conferindo.tipo),
+        itemNumero: getLabel(conferindo.item, conferindo.tipo),
+        itemLocalizacao: 'localizacao' in conferindo.item ? conferindo.item.localizacao || '' : '',
         dataConferencia: new Date().toISOString(),
-        conferidoPor: user.username || '',
-        conferidoPorNome: user.name || '',
-        resultado,
+        inspetorUsername: user.username || '',
+        inspetorNomeGuerra: user.pessoa?.nomeGuerra || user.name || user.username || '',
+        inspetorCargo: user.pessoa?.funcao || user.role || '',
+        equipe: (user.pessoa?.equipe || 'Embaixador') as Conferencia['equipe'],
+        itens: [],
+        resultadoFinal: resultado,
         observacoes: obs,
+        dataProximaInspecao: '',
         createdBy: user.username || '',
       });
       setConferindo(null);
-      setResultado('OK');
+      setResultado('Aprovado');
       setObs('');
       await carregar();
       setView('historico');
@@ -109,8 +115,8 @@ export function Conferencia() {
     }
   }
 
-  const resultadoColor = (r: ResultadoConferencia) =>
-    RESULTADO_CONFERENCIA_OPTIONS.find(o => o.value === r)?.color || '';
+  const resultadoColor = (r: Conferencia['resultadoFinal']) =>
+    RESULTADO_FINAL_OPTIONS.find(o => o.value === r)?.color || '';
 
   const agora = new Date();
 
@@ -172,7 +178,7 @@ export function Conferencia() {
               itensFiltrados.map(item => {
                 const ultimaConf = getStatusConferencia(item.id);
                 const needsCheck = !ultimaConf ||
-                  (new Date(ultimaConf.data_conferencia || ultimaConf.dataConferencia).getTime() < agora.getTime() - 7 * 24 * 60 * 60 * 1000);
+                  (new Date(ultimaConf.dataConferencia).getTime() < agora.getTime() - 7 * 24 * 60 * 60 * 1000);
 
                 return (
                   <div key={item.id}
@@ -203,7 +209,7 @@ export function Conferencia() {
                         <p className="text-xs text-graphite-500 dark:text-graphite-400 truncate">{getSublabel(item, item._tipo)}</p>
                       </div>
                     </div>
-                    <button onClick={() => { setConferindo({ tipo: item._tipo, item }); setResultado('OK'); setObs(''); }}
+                    <button onClick={() => { setConferindo({ tipo: item._tipo, item }); setResultado('Aprovado'); setObs(''); }}
                       className="shrink-0 flex items-center gap-1.5 rounded-xl bg-aviation-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-aviation-700 dark:bg-aviation-500 dark:hover:bg-aviation-600">
                       Conferir <ArrowRight className="h-4 w-4" />
                     </button>
@@ -232,14 +238,14 @@ export function Conferencia() {
                     {c.tipo === 'Extintor' ? <Flame className="h-4 w-4" /> : <Droplets className="h-4 w-4" />}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-graphite-900 dark:text-graphite-100 truncate">{c.itemNome || c.item_nome}</p>
+                    <p className="text-sm font-medium text-graphite-900 dark:text-graphite-100 truncate">{c.itemNome}</p>
                     <p className="text-xs text-graphite-500 dark:text-graphite-400">
-                      {c.conferidoPorNome || c.conferido_porNome} · {new Date(c.dataConferencia || c.data_conferencia).toLocaleDateString('pt-BR')}
+                      {c.inspetorNomeGuerra || c.createdBy} · {new Date(c.dataConferencia).toLocaleDateString('pt-BR')}
                     </p>
                   </div>
                 </div>
-                <span className={`inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${resultadoColor(c.resultado)}`}>
-                  {c.resultado}
+                <span className={`inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${resultadoColor(c.resultadoFinal)}`}>
+                  {c.resultadoFinal}
                 </span>
               </div>
             ))
@@ -265,7 +271,7 @@ export function Conferencia() {
             <div className="mb-4">
               <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Resultado da Conferência</label>
               <div className="grid grid-cols-2 gap-2">
-                {RESULTADO_CONFERENCIA_OPTIONS.map(o => (
+                {RESULTADO_FINAL_OPTIONS.map(o => (
                   <button key={o.value} onClick={() => setResultado(o.value)}
                     className={`rounded-xl border px-4 py-3 text-sm font-medium transition-all duration-200 ${
                       resultado === o.value

@@ -24,7 +24,7 @@ type PieLabelProps = any;
 
 const EQUIPES = ['Alfa', 'Bravo', 'Charlie', 'Delta'] as const;
 
-const CORES = {
+const CORES: Record<string, string> = {
   Alfa: '#3b82f6', Bravo: '#f59e0b', Charlie: '#10b981', Delta: '#8b5cf6',
   Ferista: '#ec4899', Embaixador: '#6b7280',
 };
@@ -303,7 +303,7 @@ function TabTreinamentos() {
   const participacoes = useMemo(() => {
     const map: Record<string, { nome: string; equipe: string; total: number }> = {};
     filtrados.forEach(p => {
-      p.participantes.forEach(part => {
+      p.participantes.forEach((part: { nomeCompleto: string }) => {
         if (!map[part.nomeCompleto]) {
           const b = bombeiros.find(x => x.nomeCompleto === part.nomeCompleto);
           map[part.nomeCompleto] = { nome: part.nomeCompleto, equipe: b?.equipe || 'N/A', total: 0 };

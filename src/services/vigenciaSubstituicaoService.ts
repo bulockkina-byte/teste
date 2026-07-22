@@ -218,7 +218,6 @@ export async function processarCadeiaSubstituicao(
       ativa: true,
     });
     await criarVagaPendente({
-      id: '',
       equipe: substituto.equipe,
       cargo: substituto.cargo,
       dataInicio: feriasRecord.dataInicio,
@@ -230,7 +229,6 @@ export async function processarCadeiaSubstituicao(
       preenchidoPorId: '',
       preenchidoPorNome: '',
       resolvido: false,
-      createdAt: '',
     });
   }
 
@@ -280,7 +278,7 @@ export async function processarCascata(
   bombeiros?: Bombeiro[],
   _feriasGozo?: any[],
 ): Promise<VigenciaSubstituicao[]> {
-  return processarCadeiaSubstituicao(feriasRecord, bombeiros);
+  return processarCadeiaSubstituicao(feriasRecord, undefined, bombeiros);
 }
 
 // ── Helpers para resolução de efetivo ────────────────────────────

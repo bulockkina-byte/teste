@@ -247,7 +247,7 @@ Podes combinar múltiplas skills carregando-as em sequência. A ordem importa:
 │   │   ├── chat/           # ChatPanel
 │   │   ├── documentos/     # PDF editor, field editor, autocomplete
 │   │   ├── layout/         # Layout, Sidebar, Header, AuthGuard, PageContainer
-│   │   └── ui/             # Button, Loading, EmptyCard, SearchSelect, Tooltip
+│   │   └── ui/             # Button, Loading, EmptyCard, SearchSelect, Tooltip, AlertModal
 │   ├── context/
 │   │   ├── AuthContext.tsx  # Sessão, login/logout, hierarquia de cargos
 │   │   ├── ThemeContext.tsx # Tema claro/escuro
@@ -377,6 +377,19 @@ import { Calendar, Plus, Search, Pencil, Trash2, X, Save, User, Users, ChevronDo
 
 ### Modal
 ```tsx
+// Confirmações/alertas reutilizáveis
+<AlertModal
+  open={!!confirmDeleteId}
+  title="Confirmar exclusão"
+  message="Tem certeza que deseja excluir este item? Esta ação não pode ser desfeita."
+  variant="danger"
+  confirmLabel="Excluir"
+  loading={deleting}
+  onClose={() => setConfirmDeleteId(null)}
+  onConfirm={handleDelete}
+/>
+
+// Modal customizado
 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
   <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl dark:bg-surface-elevated">
     {/* conteúdo */}
@@ -458,8 +471,8 @@ Referência: **21/07/2026** = Alfa + Bravo
 |--------|-----------|------------|
 | **BA-CE** (Chefe de Equipa) | `cursoChefeEquipe = true` | Sem curso → bloqueado |
 | **BA-LR** (Líder de Resgate) | `cursoChefeEquipe = true` | Sem curso → bloqueado |
-| **BA-MC (CRS)** | CNH Cat D + `cursoCVE = true` + CNH válida + CVE válido | Sem CVE → bloqueado. Só pode CRS se não tiver MotoristaCCI |
-| **BA-MC (CCI)** | CNH Cat D + `cursoCVE = true` + `cursoMotoristaCCI = true` + CNH válida + CVE válido | Sem MotoristaCCI → bloqueado para CCI |
+| **BA-MC (CRS)** | CNH Cat D ou E + `cursoCVE = true` + CNH válida + CVE válido | Sem CVE → bloqueado. Só pode CRS se não tiver MotoristaCCI |
+| **BA-MC (CCI)** | CNH Cat D ou E + `cursoCVE = true` + `cursoMotoristaCCI = true` + CNH válida + CVE válido | Sem MotoristaCCI → bloqueado para CCI |
 
 #### Alertas de Vencimento
 

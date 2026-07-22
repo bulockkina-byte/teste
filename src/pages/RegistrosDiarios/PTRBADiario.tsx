@@ -15,7 +15,7 @@ import { listarVigencias } from '../../services/vigenciaSubstituicaoService';
 import { listarDocumentos, listarPreenchimentos } from '../../services/documentoService';
 import { listarAPOCs } from '../../services/apocService';
 import { CARGO_OPTIONS } from '../../types/bombeiro';
-import type { Bombeiro } from '../../types/bombeiro';
+import type { Bombeiro, Equipe } from '../../types/bombeiro';
 import type { FeriasGozo } from '../../types/ferias';
 import type { SubstituicaoTemporaria } from '../../types/substituicaoTemporaria';
 import type { APOC } from '../../types/apoc';
@@ -23,6 +23,8 @@ import type { PTRB, PTRBParticipante } from '../../types/ptrb';
 import { EQUIPES, SITUACOES, ASSUNTOS } from '../../types/ptrb';
 
 const EQUIPES_FILTRO = EQUIPES.filter(eq => eq !== 'Ferista');
+
+type AusenciaFerias = Pick<FeriasGozo, 'funcionarioId' | 'funcionarioNome' | 'equipe' | 'status' | 'dataInicio' | 'dataFim'>;
 
 function formatDate(d: string) {
   if (!d) return '-';
@@ -191,23 +193,22 @@ function PTRBAForm({
   }, [bombeiros, form.equipe]);
 
   const emFerias = useMemo(() => {
-    const ferias = feriasGozo.filter(f => f.equipe === form.equipe && f.status === 'Em Gozo');
+    const ferias: AusenciaFerias[] = feriasGozo.filter(f => f.equipe === form.equipe && f.status === 'Em Gozo');
     // Incluir também pessoas que estão a ser cobertas por vigências (férias programadas)
-    const vigiados = vigencias
-      .filter(v => v.equipe === form.equipe && v.ativa && v.dataInicio <= form.data && v.dataFim >= form.data)
-      .map(v => {
-        const b = bombeiros.find(bb => bb.id === v.funcionarioOriginalId);
-        if (!b) return null;
-        return {
-          funcionarioId: b.id,
-          funcionarioNome: b.nomeCompleto,
-          equipe: form.equipe,
-          status: 'Em Gozo' as const,
-          dataInicio: v.dataInicio,
-          dataFim: v.dataFim,
-        };
-      })
-      .filter(Boolean);
+    const vigiados = vigencias.reduce<AusenciaFerias[]>((acc, v) => {
+      if (!(v.equipe === form.equipe && v.ativa && v.dataInicio <= form.data && v.dataFim >= form.data)) return acc;
+      const b = bombeiros.find(bb => bb.id === v.funcionarioOriginalId);
+      if (!b) return acc;
+      acc.push({
+        funcionarioId: b.id,
+        funcionarioNome: b.nomeCompleto,
+        equipe: form.equipe as Equipe,
+        status: 'Em Gozo',
+        dataInicio: v.dataInicio,
+        dataFim: v.dataFim,
+      });
+      return acc;
+    }, []);
     return [...ferias, ...vigiados];
   }, [feriasGozo, form.equipe, vigencias, form.data, bombeiros]);
 

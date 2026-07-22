@@ -425,7 +425,7 @@ function FuncionarioCard({
                 const temCNHD = temCategoriaD(funcionario.cnhCategoria);
                 const temCVE = funcionario.cursoCVE;
                 const corCNH = temCNHD ? (temCVE ? 'green' : 'orange') : 'gray';
-                const labelCNH = temCNHD ? (temCVE ? 'Possui' : 'Possui CNH D') : 'Não possui';
+                const labelCNH = temCNHD ? (temCVE ? 'Possui' : 'Possui CNH D/E') : 'Não possui';
                 return (
                   <div className={`flex items-center gap-3 rounded-xl border p-3 ${
                     corCNH === 'green' ? 'border-green-200 bg-green-50/50 dark:border-green-800/40 dark:bg-green-900/10' :
@@ -440,7 +440,7 @@ function FuncionarioCard({
                       <Car className="h-5 w-5" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-bold text-graphite-900 dark:text-graphite-100">CNH Categoria D</p>
+                      <p className="text-xs font-bold text-graphite-900 dark:text-graphite-100">CNH Categoria D/E</p>
                       <p className={`text-[10px] font-medium ${
                         corCNH === 'green' ? 'text-green-600 dark:text-green-400' :
                         corCNH === 'orange' ? 'text-orange-600 dark:text-orange-400' :

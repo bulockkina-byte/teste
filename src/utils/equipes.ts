@@ -8,5 +8,5 @@ export function equipesNoDia(data: Date): ['Alfa', 'Bravo'] | ['Charlie', 'Delta
 
 export function equipeEstaNoPlantao(equipe: string, data: Date): boolean {
   const equipes = equipesNoDia(data);
-  return equipes.includes(equipe as any);
+  return equipes.some(eq => eq === equipe);
 }

@@ -37,7 +37,7 @@
 | 21 | epiService | `epis` | 8 | ⚠️ erros silenciosos |
 | 22 | epiEstoqueService | `epis_estoque` | 6 | ⚠️ erros silenciosos |
 | 23 | conviteService | `convites` | 4 | ⚠️ fallback localStorage |
-| 24 | usuarioService | `usuarios` + RPCs | 8 | ⚠️ criarUsuario ignora password |
+| 24 | usuarioService | `usuarios` + RPCs | 8 | ✅ senha via RPC hash; leituras sem colunas sensíveis |
 | 25 | vigenciaSubstituicaoService | `vigencia_substituicoes` | 8 | ✅ |
 | 26 | vagaPendenteService | `vagas_pendentes` | 4 | ✅ |
 | 27 | exercicioPosicionamentoService | `exercicios_posicionamento` | 6 | ✅ |
@@ -1371,13 +1371,17 @@ RPC `criar_usuario_com_hash(p_username, p_name, p_password, p_role, ...)`. ✅ O
 
 RPC `atualizar_senha(p_username, p_password)`. Retorna `boolean`. ✅ OK  
 
-### ⚠️ criarUsuario
+### criarUsuario
 
-**Estado:** 🔴 BUG CRÍTICO — função define `row.password = ''` intencionalmente, ignorando o parâmetro `password`. Utilizadores criados por esta função **não conseguem fazer login** via `verificarSenha`.
+**Estado atual (2026-07-22):** usa `criarUsuarioComHash` e grava a senha via RPC `criar_usuario_com_hash`. Leituras normais usam `USER_SELECT` e não retornam colunas sensíveis (`password`, `senha_hash`). A migration `036_harden_usuario_sensitive_columns.sql` restringe `SELECT` direto da tabela `usuarios` às colunas públicas.
+
+**Histórico:** este endpoint antes ignorava `password`; corrigido para usar RPC com hash.
 
 ### atualizarUsuario
 
-⚠️ BUG — mapeia campos duplicados (camelCase e snake_case são ambos mapeados para o mesmo campo na BD). Funciona mas é confuso.
+**Estado atual (2026-07-22):** atualiza apenas campos permitidos (`name`, `role`, `previousRole`, `personId`, `personType`, `username`) e retorna `USER_SELECT` sem colunas sensíveis.
+
+**Histórico:** antes aceitava campos duplicados; corrigido para mapear apenas camelCase esperado pelo serviço.
 
 ### excluirUsuario
 
@@ -1602,16 +1606,18 @@ Polling do estado do documento no Autentique. Actualiza `document_fills.status`.
 
 # Anexo A — Bugs Conhecidos
 
+**Estado atual (2026-07-22):** os itens antigos sobre `usuarioService.criarUsuario`, `usuarioService.atualizarUsuario`, `substituicaoService` com `.single()`, `bombeiroService.listarAtivos` e `equipamentoService.atualizarEquipamento` já foram corrigidos no código atual. As pendências reais ainda devem ser revisadas antes de uma limpeza final deste anexo.
+
 | # | Severidade | Ficheiro | Função | Problema |
 |---|---|---|---|---|
-| 1 | 🔴 CRÍTICO | `usuarioService.ts:163` | `criarUsuario` | Define `row.password = ''` ignorando o parâmetro password. Utilizador não consegue fazer login |
-| 2 | 🔴 CRÍTICO | `substituicaoService.ts:43,50` | `substituicaoPorSubstituto`, `substituicaoPorFuncionario` | Usam `.single()` em queries que retornam múltiplas linhas → CRASH |
-| 3 | 🟡 MÉDIO | `bombeiroService.ts:126` | `listarAtivos` | Filtra por `data_desligamento === ''` mas o valor real é `null` → inclui desligados |
-| 4 | 🟡 MÉDIO | `equipamentoService.ts:81` | `atualizarEquipamento` | Retorna `void`, não faz `.select()` após update |
+| 1 | ✅ RESOLVIDO | `usuarioService.ts` | `criarUsuario` | Usa RPC `criar_usuario_com_hash`; login com usuário criado via serviço funciona |
+| 2 | ✅ RESOLVIDO | `substituicaoService.ts` | `substituicaoPorSubstituto`, `substituicaoPorFuncionario` | Queries usam `.maybeSingle()` e tratam erro com `handleSupabaseError` |
+| 3 | ✅ RESOLVIDO | `bombeiroService.ts` | `listarAtivos` | Filtro considera `data_desligamento` nulo ou vazio |
+| 4 | ✅ RESOLVIDO | `equipamentoService.ts` | `atualizarEquipamento` | Retorna registro atualizado via `.select().single()` |
 | 5 | 🟡 MÉDIO | `epiEstoqueService.ts:110,117` | `baixarEstoque`, `reporEstoque` | Faz `listarEstoque()` completo para encontrar item por id |
 | 6 | 🟡 MÉDIO | `epiService.ts`, `epiEstoqueService.ts` | Vários | Erros silenciosos (`console.error` em vez de `handleSupabaseError`) |
 | 7 | 🟢 LEVE | `certificacaoService.ts`, `certificacaoCursoService.ts`, `ocorrenciaService.ts`, `equipamentoService.ts`, `lroDraftService.ts`, `chatService.ts`, `substituicaoService.ts` | `excluir*`, `atualizarStatus`, `marcarLida` | Não verificam erro após operação de escrita |
-| 8 | 🟢 LEVE | `usuarioService.ts:174,178` | `atualizarUsuario` | Mapeamento duplicado de campos |
+| 8 | ✅ RESOLVIDO | `usuarioService.ts` | `atualizarUsuario` | Mapeia apenas campos permitidos e retorna `USER_SELECT` |
 
 ---
 

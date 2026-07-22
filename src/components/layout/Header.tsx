@@ -32,13 +32,27 @@ export function Header() {
   const [chatCount, setChatCount] = useState(0);
 
   useEffect(() => {
-    setNotifCount(contarNotifNaoLidas());
-    setChatCount(user?.username ? contarChatNaoLidas(user.username) : 0);
-    const iv = setInterval(() => {
+    let active = true;
+
+    async function updateCounts() {
+      const [notif, chat] = await Promise.all([
+        Promise.resolve(contarNotifNaoLidas()),
+        user?.username ? contarChatNaoLidas(user.username) : Promise.resolve(0),
+      ]);
+      if (!active) return;
+      setNotifCount(notif);
+      setChatCount(chat);
+    }
+
+    updateCounts().catch(() => {
       setNotifCount(contarNotifNaoLidas());
-      setChatCount(user?.username ? contarChatNaoLidas(user.username) : 0);
-    }, 15000);
-    return () => clearInterval(iv);
+      setChatCount(0);
+    });
+    const iv = setInterval(() => { updateCounts().catch(() => undefined); }, 15000);
+    return () => {
+      active = false;
+      clearInterval(iv);
+    };
   }, [user?.username]);
 
   const pessoa = user?.pessoa;
@@ -60,15 +74,17 @@ export function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-graphite-200/60 bg-white/80 backdrop-blur-xl px-6 dark:border-border-dark dark:bg-surface-dark/80">
-      <div className="flex flex-col">
-        <h2 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-graphite-200/60 bg-white/80 px-3 backdrop-blur-xl dark:border-border-dark dark:bg-surface-dark/80 sm:px-6">
+      <div className="min-w-0 flex flex-col">
+        <h2 className="max-w-[9rem] truncate text-base font-bold text-graphite-900 dark:text-graphite-100 sm:max-w-none sm:text-lg">
           {pageTitle}
         </h2>
-        <Breadcrumb />
+        <div className="hidden sm:block">
+          <Breadcrumb />
+        </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-1 sm:gap-2">
         <div className="relative hidden md:block">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-graphite-400" />
           <input
@@ -98,7 +114,7 @@ export function Header() {
           )}
         </button>
 
-        <div className="mx-1 h-6 w-px bg-graphite-200/60 dark:bg-border-dark" />
+        <div className="mx-1 hidden h-6 w-px bg-graphite-200/60 dark:bg-border-dark sm:block" />
 
         <button
           onClick={toggleTheme}
@@ -114,7 +130,7 @@ export function Header() {
         <div className="relative">
           <button
             onClick={() => setUserMenuOpen(!userMenuOpen)}
-            className="flex items-center gap-3 rounded-xl p-1.5 transition-all duration-200 hover:bg-graphite-100 dark:hover:bg-surface-card"
+            className="flex items-center gap-1 rounded-xl p-1.5 transition-all duration-200 hover:bg-graphite-100 dark:hover:bg-surface-card sm:gap-3"
           >
             <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-aviation-500 to-aviation-700 text-sm font-bold text-white shadow-md shadow-aviation-500/20">
               {displayPhoto ? (
@@ -141,7 +157,7 @@ export function Header() {
                 </p>
               )}
             </div>
-            <ChevronDown className={`h-4 w-4 text-graphite-400 transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''}`} />
+            <ChevronDown className={`hidden h-4 w-4 text-graphite-400 transition-transform duration-200 sm:block ${userMenuOpen ? 'rotate-180' : ''}`} />
           </button>
 
           {userMenuOpen && (
@@ -219,6 +235,8 @@ function getPageTitle(pathname: string): string {
     'cadastro/extintores': 'Extintores',
     'cadastro/hidrantes': 'Hidrantes',
     'cadastro/viaturas': 'Viaturas',
+    'cadastro/ferias': 'Férias',
+    'cadastro/documentos': 'Gerenciar Documentos',
     'relatorios/lro': 'LRO',
     'relatorios/bona': 'BONA',
     'relatorios/ptr-ba': 'PTR-BA',
@@ -232,6 +250,14 @@ function getPageTitle(pathname: string): string {
     'treinamentos/tp-epr': 'TP/EPR',
     'treinamentos/taf': 'TAF',
     'documentos/trocas': 'Trocas',
+    'registros-diarios/gerar-lro': 'Gerar LRO',
+    'registros-diarios/preview-lro': 'Preview LRO',
+    'inspecoes/solicitacoes': 'Solicitações',
+    'inspecoes/check': 'Check de Inspeção',
+    'treinamentos/posicionamento': 'Posicionamento',
+    'treinamentos/tempo-resposta': 'Tempo Resposta',
+    'funcionarios/substituicoes': 'Substituições',
+    arquivo: 'Arquivo',
     ocorrencias: 'Ocorrências',
     inspecoes: 'Inspeções Operacionais',
     viaturas: 'Viaturas CCI',

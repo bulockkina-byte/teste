@@ -3,7 +3,7 @@ import { ShieldCheck, Plus, ArrowLeft, Clock, CalendarDays, Users, FileText, Che
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { useAuth } from '../../context/AuthContext';
-import { listarConferencias } from '../../services/conferenciaService';
+import { criarConferencia, listarConferencias } from '../../services/conferenciaService';
 import type { Equipe } from '../../types/bombeiro';
 import { EQUIPE_OPTIONS } from '../../types/bombeiro';
 
@@ -19,7 +19,7 @@ const INPUT_CLASS = "w-full rounded-xl border border-graphite-300 bg-white px-3 
 export function Inspecoes() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin' || user?.role === 'desenvolvedor';
-  const userEquipe = user?.equipe as Equipe | undefined;
+  const userEquipe = user?.pessoa?.equipe as Equipe | undefined;
 
   const [modo, setModo] = useState<'lista' | 'form'>('lista');
   const [data, setData] = useState(new Date().toISOString().split('T')[0]);

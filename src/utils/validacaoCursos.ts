@@ -23,7 +23,8 @@ export function labelCargo(cargo: string): string {
 }
 
 export function temCategoriaD(cnhCategoria: string): boolean {
-  return cnhCategoria.toUpperCase().includes('D');
+  const categoria = cnhCategoria.toUpperCase();
+  return categoria.includes('D') || categoria.includes('E');
 }
 
 function dataValida(d: string): Date | null {
@@ -71,7 +72,7 @@ export function validarCursoParaFuncao(
       return { nivel: 'bloqueado', titulo: 'CVE vencido', mensagem: `CVE de ${bombeiro.nomeGuerra} venceu em ${bombeiro.cveValidade}.` };
     }
     if (!cnhOk) {
-      return { nivel: 'bloqueado', titulo: 'Sem Categoria D', mensagem: `${bombeiro.nomeGuerra} não possui CNH Categoria D.` };
+      return { nivel: 'bloqueado', titulo: 'Sem Categoria D/E', mensagem: `${bombeiro.nomeGuerra} não possui CNH Categoria D ou E.` };
     }
     if (cnhVencida) {
       return { nivel: 'bloqueado', titulo: 'CNH vencida', mensagem: `CNH de ${bombeiro.nomeGuerra} venceu em ${bombeiro.cnhValidade}.` };
@@ -100,7 +101,7 @@ export function validarCursoParaFuncao(
       return {
         nivel: 'aviso',
         titulo: 'Somente pode dirigir o CRS',
-        mensagem: `${bombeiro.nomeGuerra} não possui o Curso de Motorista/Condutor de CCI, mas possui Categoria D. Poderá dirigir apenas o CRS, não as viaturas CCI.`,
+        mensagem: `${bombeiro.nomeGuerra} não possui o Curso de Motorista/Condutor de CCI, mas possui Categoria D/E. Poderá dirigir apenas o CRS, não as viaturas CCI.`,
       };
     }
 

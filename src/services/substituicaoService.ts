@@ -8,6 +8,15 @@ function getDb() {
   return supabase;
 }
 
+function handleSupabaseError(err: unknown): never {
+  console.error('Erro Supabase:', err);
+  const msg =
+    err instanceof Error ? err.message :
+    err && typeof err === 'object' && 'message' in err ? String((err as any).message) :
+    'Erro inesperado no banco de dados';
+  throw new Error(msg);
+}
+
 function rowToSubstituicao(row: Record<string, unknown>): SubstituicaoAtiva {
   return {
     id: row.id as string,

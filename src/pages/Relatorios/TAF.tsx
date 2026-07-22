@@ -71,7 +71,7 @@ export function TAF() {
 
   const stats = useMemo(() => ({ total: registros.length }), [registros]);
 
-  function setP(idx: number, field: 'nome' | 'idade' | 'tempo', val: any) {
+  function setP(idx: number, field: 'nome' | 'funcao' | 'idade' | 'tempo', val: any) {
     setFPessoas(prev => { const n = [...prev]; n[idx] = { ...n[idx], [field]: val }; return n; });
   }
 

@@ -13,6 +13,7 @@ export interface APOC {
   email: string;
   funcao: FuncaoAPOC;
   equipe: string;
+  turno?: string;
   createdAt: string;
   updatedAt: string;
 }

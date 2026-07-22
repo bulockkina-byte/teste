@@ -175,8 +175,8 @@ export function Sidebar() {
       ref={asideRef}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className={`fixed left-0 top-0 z-50 flex h-screen flex-col bg-graphite-950 border-r border-white/5 transition-all duration-300 ease-out-expo ${
-        effectiveCollapsed ? 'w-[70px]' : 'w-[260px]'
+      className={`fixed left-0 top-0 z-50 hidden h-screen flex-col bg-graphite-950 border-r border-white/5 transition-all duration-300 ease-out-expo md:flex ${
+        effectiveCollapsed ? 'md:w-[70px]' : 'md:w-[260px]'
       }`}
     >
       <div className="flex h-16 items-center border-b border-white/10 px-4">

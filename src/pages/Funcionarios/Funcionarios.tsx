@@ -9,7 +9,7 @@ import type { APOC } from '../../types/apoc';
 import { CARGO_OPTIONS, EQUIPE_OPTIONS } from '../../types/bombeiro';
 import { useDebounce } from '../../hooks/useDebounce';
 
-type Tab = 'todos' | 'bombeiros' | 'apoc';
+type Tab = 'todos' | 'bombeiros' | 'apoc' | 'substituicoes';
 
 function capitalize(str: string) {
   return str.replace(/\b\w/g, char => char.toUpperCase());

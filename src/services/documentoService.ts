@@ -281,18 +281,19 @@ export async function criarPreenchimento(data: Omit<DocumentFill, 'id' | 'create
   return created as DocumentFill;
 }
 
-export async function listarPreenchimentos(params?: {
+export async function listarPreenchimentos(params?: string | {
   documentId?: string;
   status?: string;
   created_at_gte?: string;
   created_at_lte?: string;
 }): Promise<DocumentFill[]> {
   const db = getDb();
+  const filtros = typeof params === 'string' ? { documentId: params } : params;
   let query = db.from('document_fills').select('*').order('created_at', { ascending: false });
-  if (params?.documentId) query = query.eq('document_id', params.documentId);
-  if (params?.status) query = query.eq('status', params.status);
-  if (params?.created_at_gte) query = query.gte('created_at', params.created_at_gte);
-  if (params?.created_at_lte) query = query.lte('created_at', params.created_at_lte);
+  if (filtros?.documentId) query = query.eq('document_id', filtros.documentId);
+  if (filtros?.status) query = query.eq('status', filtros.status);
+  if (filtros?.created_at_gte) query = query.gte('created_at', filtros.created_at_gte);
+  if (filtros?.created_at_lte) query = query.lte('created_at', filtros.created_at_lte);
   const { data, error } = await query;
   if (error) handleSupabaseError(error);
   return (data as DocumentFill[]) || [];
