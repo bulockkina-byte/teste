@@ -39,6 +39,7 @@ for (const rel of filesToCompile) {
 const requireFromTest = createRequire(import.meta.url);
 const regras = requireFromTest(path.join(outRoot, 'src/utils/regrasOperacionais.js'));
 const cursos = requireFromTest(path.join(outRoot, 'src/utils/validacaoCursos.js'));
+const equipesUtils = requireFromTest(path.join(outRoot, 'src/utils/equipes.js'));
 
 const {
   validarFeriasGozo,
@@ -46,6 +47,11 @@ const {
   validarSubstituicaoTemporaria,
   diasInclusivos,
 } = regras;
+const {
+  horarioPlantaoPorEquipe,
+  dataSaidaPlantao,
+  equipesNoDia,
+} = equipesUtils;
 
 const base = {
   matricula: '',
@@ -120,6 +126,34 @@ function gozo(funcionario, overrides = {}) {
 }
 
 assert.equal(diasInclusivos('2026-08-01', '2026-08-30'), 30);
+assert.deepEqual(equipesNoDia(new Date('2026-07-21T12:00:00')), ['Alfa', 'Bravo']);
+assert.deepEqual(equipesNoDia(new Date('2026-07-22T12:00:00')), ['Charlie', 'Delta']);
+assert.deepEqual(horarioPlantaoPorEquipe('Alfa'), {
+  horarioInicio: '07:00',
+  horarioTermino: '19:00',
+  turno: 'Diurno',
+  tipo: 'diurno (12h)',
+});
+assert.deepEqual(horarioPlantaoPorEquipe('Charlie'), {
+  horarioInicio: '07:00',
+  horarioTermino: '19:00',
+  turno: 'Diurno',
+  tipo: 'diurno (12h)',
+});
+assert.deepEqual(horarioPlantaoPorEquipe('Bravo'), {
+  horarioInicio: '19:00',
+  horarioTermino: '07:00',
+  turno: 'Noturno',
+  tipo: 'noturno (12h)',
+});
+assert.deepEqual(horarioPlantaoPorEquipe('Delta'), {
+  horarioInicio: '19:00',
+  horarioTermino: '07:00',
+  turno: 'Noturno',
+  tipo: 'noturno (12h)',
+});
+assert.equal(dataSaidaPlantao('Alfa', '2026-07-21'), '2026-07-21');
+assert.equal(dataSaidaPlantao('Bravo', '2026-07-21'), '2026-07-22');
 
 assert.match(
   validarFeriasGozo({ gozo: gozo(ce), funcionario: ce, bombeiros }).join('\n'),

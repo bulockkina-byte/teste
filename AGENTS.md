@@ -454,8 +454,9 @@ Referência: **21/07/2026** = Alfa + Bravo
 | Dia 2 (23/07) | **Alfa** + **Bravo** |
 | ... | Alterna diariamente entre os pares |
 
-**Helper**: `src/utils/equipes.ts` — `equipesNoDia(data)` devolve `['Alfa', 'Bravo']` ou `['Charlie', 'Delta']`
+**Helper**: `src/utils/equipes.ts` — `equipesNoDia(data)` devolve `['Alfa', 'Bravo']` ou `['Charlie', 'Delta']`; `horarioPlantaoPorEquipe(equipe)` devolve horários oficiais; `dataSaidaPlantao(equipe, data)` calcula saída do turno noturno.
 **Regras operacionais**: `src/utils/regrasOperacionais.ts` centraliza validações puras de férias, escala anual, escala diária e substituições temporárias; `npm run test:domain` cobre os cenários críticos.
+**Smoke E2E**: `npm run test:e2e:operational` valida login, sidebar e rotas críticas sem criar dados.
 
 ### Horários por Equipa
 

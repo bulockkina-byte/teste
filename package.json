@@ -9,6 +9,7 @@
     "typecheck": "tsc -b --noEmit",
     "lint": "oxlint",
     "test:domain": "node scripts/domain-rules.test.mjs",
+    "test:e2e:operational": "node scripts/e2e-operational-smoke.mjs",
     "preview": "vite preview",
     "db:push": "supabase db push --linked",
     "db:dry-run": "supabase db push --linked --dry-run",

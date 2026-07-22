@@ -14,6 +14,7 @@ import type { AtivoItem } from '../../components/ui/SearchSelect';
 import type { Viatura } from '../../types/viatura';
 import { EQUIPES, EPR_OPTIONS, CRS_SITUACOES, FUNCOES_CARGO } from '../../types/lro';
 import type { LRO, VeiculoState, VeiculoRTState, CRSState } from '../../types/lro';
+import { dataSaidaPlantao, horarioPlantaoPorEquipe } from '../../utils/equipes';
 
 function formatDate(d: string) {
   if (!d) return '-';
@@ -33,10 +34,12 @@ function emptyCRS(): CRSState {
 }
 
 function emptyLRO(): Omit<LRO, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'> {
+  const horario = horarioPlantaoPorEquipe('Alfa');
+  const hoje = new Date().toISOString().split('T')[0];
   return {
-    equipe: 'Alfa', turno: 'Diurno',
-    dataEntrada: new Date().toISOString().split('T')[0],
-    dataSaida: new Date().toISOString().split('T')[0],
+    equipe: 'Alfa', turno: horario.turno,
+    dataEntrada: hoje,
+    dataSaida: dataSaidaPlantao('Alfa', hoje),
     chefeEquipe: '', apoc: '',
     cci02Slots: [], cci03Slots: [], crsSlots: [], apoioOutrosSlots: [],
     substituicoesAtivo: false, substituicoes: [],
@@ -95,15 +98,11 @@ function ViaturasCCISection({ viaturas }: { viaturas: Viatura[] }) {
 }
 
 function autoPreencher(equipe: string) {
-  if (equipe === 'Alfa' || equipe === 'Charlie') return { turno: 'Diurno' };
-  return { turno: 'Noturno' };
+  return { turno: horarioPlantaoPorEquipe(equipe).turno };
 }
 
 function autoDataSaida(equipe: string, dataEntrada: string) {
-  if (!dataEntrada) return '';
-  const d = new Date(dataEntrada + 'T12:00:00');
-  if (equipe === 'Bravo' || equipe === 'Delta') d.setDate(d.getDate() + 1);
-  return d.toISOString().split('T')[0];
+  return dataSaidaPlantao(equipe, dataEntrada);
 }
 
 // ─── FORM ───────────────────────────

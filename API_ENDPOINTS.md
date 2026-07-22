@@ -357,6 +357,7 @@ Wrappers que atualizam o `status` da `ferias_escala`.
 **Response:** `EscalaFerias | null`  
 **Estado:** ✅ OK  
 **Nota:** Para cada item enviado e não rejeitado, cria um `FeriasGozo` na tabela `ferias`, aguarda a cadeia de substituições e só aprova a escala após sucesso. Se já existe gozo para o mesmo funcionário + período, vincula o item ao gozo existente.
+**RPC preferencial:** `aprovar_escala_ferias_transacional(p_escala_id, p_aprovado_por, p_aprovado_por_nome, p_manter_status)` faz geração de gozos, vigências e aprovação numa transação. O app usa fallback client-side se a RPC ainda não existir no banco.
 
 ---
 
@@ -562,6 +563,25 @@ GET com filtro `ativa=true`. ✅ OK
 
 ✅ OK  
 **Regras:** criação é idempotente por `equipe + dataPlantao`; criação/edição validam se a equipe está prevista para o dia pelo helper `equipesNoDia`, bloqueiam duplicidade de escala diária e impedem a mesma pessoa em múltiplos slots operacionais incompatíveis.
+
+---
+
+# Integridade Operacional — RPCs
+
+### aprovar_escala_ferias_transacional
+
+**Tipo:** RPC PostgreSQL  
+**Migration:** `supabase/migrations/038_aprovar_escala_ferias_rpc.sql`  
+**Parâmetros:** `p_escala_id uuid`, `p_aprovado_por text`, `p_aprovado_por_nome text`, `p_manter_status boolean`  
+**Response:** JSON com `escalaId`, `gozosCriados`, `itensVinculados`, `statusAtualizado`  
+**Estado:** ✅ pronto para aplicar via migration  
+
+### operational_integrity_violations
+
+**Tipo:** RPC PostgreSQL  
+**Migration:** `supabase/migrations/037_operational_integrity_constraints.sql`  
+**Response:** lista duplicidades legadas em férias, escala anual, escala diária e substituições temporárias.  
+**Estado:** ✅ pronto para aplicar via migration  
 
 ---
 

@@ -21,6 +21,7 @@ import type { SubstituicaoTemporaria } from '../../types/substituicaoTemporaria'
 import type { APOC } from '../../types/apoc';
 import type { PTRB, PTRBParticipante } from '../../types/ptrb';
 import { EQUIPES, SITUACOES, ASSUNTOS } from '../../types/ptrb';
+import { horarioPlantaoPorEquipe } from '../../utils/equipes';
 
 const EQUIPES_FILTRO = EQUIPES.filter(eq => eq !== 'Ferista');
 
@@ -44,11 +45,6 @@ function calcDuracao(inicio: string, termino: string): string {
   return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
 }
 
-function autoTurno(equipe: string) {
-  if (equipe === 'Ferista') return 'Ferista';
-  return equipe === 'Alfa' || equipe === 'Charlie' ? 'Diurno' : 'Noturno';
-}
-
 const FUNCAO_OPTIONS = [...CARGO_OPTIONS.map(c => c.value), 'APOC'];
 const HIERARQUIA_EQUIPE = ['BA-CE', 'BA-LR', 'BA-MC', 'BA-MC', 'BA-MC', 'BA-2', 'BA-2', 'BA-2', 'BA-2', 'BA-2'];
 
@@ -60,14 +56,15 @@ function calcHorasFromDuracao(duracao: string): number {
 }
 
 function emptyPTRB(): Omit<PTRB, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'> {
+  const horario = horarioPlantaoPorEquipe('Alfa');
   return {
     data: new Date().toISOString().split('T')[0],
-    horaInicio: '07:00',
-    horaTermino: '19:00',
+    horaInicio: horario.horarioInicio,
+    horaTermino: horario.horarioTermino,
     duracao: '12:00',
     horas: 12,
     equipe: 'Alfa',
-    turno: 'Diurno',
+    turno: horario.turno,
     participantes: HIERARQUIA_EQUIPE.map(funcao => ({ funcao, nomeCompleto: '', situacao: 'P' })),
     observacoes: '',
     instrutor: '',
@@ -124,7 +121,17 @@ function PTRBAForm({
   }, [ptrb]);
 
   function updateEquipe(equipe: string) {
-    setForm(f => ({ ...f, equipe, turno: autoTurno(equipe) }));
+    const horario = horarioPlantaoPorEquipe(equipe);
+    const duracao = calcDuracao(horario.horarioInicio, horario.horarioTermino);
+    setForm(f => ({
+      ...f,
+      equipe,
+      turno: horario.turno,
+      horaInicio: horario.horarioInicio,
+      horaTermino: horario.horarioTermino,
+      duracao,
+      horas: calcHorasFromDuracao(duracao),
+    }));
   }
 
   function updateHoraInicio(val: string) {

@@ -9,7 +9,7 @@ import { SearchSelect } from '../../components/ui/SearchSelect';
 import { useAuth } from '../../context/AuthContext';
 import { listarEscalas, criarEscala, atualizarEscala, excluirEscala } from '../../services/escalaService';
 import { listarAtivos } from '../../services/bombeiroService';
-import { equipesNoDia } from '../../utils/equipes';
+import { equipesNoDia, horarioPlantaoPorEquipe } from '../../utils/equipes';
 import { listarSubstituicoesTemporarias } from '../../services/substituicaoTemporariaService';
 import { listarVigencias } from '../../services/vigenciaSubstituicaoService';
 import type { VigenciaSubstituicao } from '../../services/vigenciaSubstituicaoService';
@@ -38,13 +38,14 @@ function emptyGuarnicoes() {
 }
 
 function emptyEscala(): Omit<EscalaDiaria, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'> {
+  const horario = horarioPlantaoPorEquipe('Alfa');
   return {
     equipe: 'Alfa',
     chefeEquipe: '',
     dataPlantao: new Date().toISOString().split('T')[0],
-    horarioInicio: '07:00',
-    horarioTermino: '19:00',
-    turno: 'Diurno',
+    horarioInicio: horario.horarioInicio,
+    horarioTermino: horario.horarioTermino,
+    turno: horario.turno,
     guarnicoes: emptyGuarnicoes(),
     bds: { funcao: '', nomeGuerra: '' },
     ptr1: { funcao: '', nomeGuerra: '' },
@@ -61,10 +62,7 @@ function formatDate(d: string) {
 }
 
 function autoPreencher(equipe: string) {
-  if (equipe === 'Alfa' || equipe === 'Charlie') {
-    return { horarioInicio: '07:00', horarioTermino: '19:00', turno: 'Diurno' };
-  }
-  return { horarioInicio: '19:00', horarioTermino: '07:00', turno: 'Noturno' };
+  return horarioPlantaoPorEquipe(equipe);
 }
 
 const SLOT_ROLE_MAP: Record<string, Cargo> = {

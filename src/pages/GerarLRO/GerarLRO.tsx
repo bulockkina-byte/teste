@@ -20,6 +20,7 @@ import type { AutentiqueSigner } from '../../services/autentiqueService';
 import type { Bombeiro } from '../../types/bombeiro';
 import type { FeriasGozo } from '../../types/ferias';
 import type { PTRB } from '../../types/ptrb';
+import { dataSaidaPlantao, horarioPlantaoPorEquipe } from '../../utils/equipes';
 
 function SearchSelect({ options, value, onChange, placeholder, label }: {
   options: { value: string; label: string }[];
@@ -386,18 +387,15 @@ export function GerarLRO() {
   }, [equipe, dataInicio, ptrbs]);
 
   useEffect(() => {
-    if (equipe === 'Bravo' || equipe === 'Delta') {
-      const inicio = new Date(dataInicio + 'T19:00:00');
-      const fim = new Date(inicio.getTime() + 12 * 60 * 60 * 1000);
-      setDataFim(fim.toISOString().split('T')[0]);
-    } else {
-      setDataFim(dataInicio);
-    }
+    setDataFim(dataSaidaPlantao(equipe, dataInicio));
   }, [equipe, dataInicio]);
 
-  const horarioPlantao = equipe === 'Bravo' || equipe === 'Delta'
-    ? { inicio: '19:00', fim: '07:00', tipo: 'noturno (12h)' }
-    : { inicio: '07:00', fim: '19:00', tipo: 'diurno (12h)' };
+  const horarioBase = horarioPlantaoPorEquipe(equipe);
+  const horarioPlantao = {
+    inicio: horarioBase.horarioInicio,
+    fim: horarioBase.horarioTermino,
+    tipo: horarioBase.tipo,
+  };
 
   const membrosEquipe = useMemo(() => {
     return bombeiros.filter(b => b.equipe === equipe && !b.dataDesligamento);

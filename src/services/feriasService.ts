@@ -497,12 +497,39 @@ export async function aprovarEscala(
   });
 }
 
+async function aprovarEscalaEGerarGozosViaRpc(
+  id: string,
+  aprovadoPor: string,
+  aprovadoPorNome: string,
+  manterStatus?: boolean,
+): Promise<EscalaFerias | null | undefined> {
+  const db = getDb();
+  const { error } = await db.rpc('aprovar_escala_ferias_transacional', {
+    p_escala_id: id,
+    p_aprovado_por: aprovadoPor,
+    p_aprovado_por_nome: aprovadoPorNome,
+    p_manter_status: !!manterStatus,
+  });
+
+  if (error) {
+    const msg = String(error.message || '');
+    const rpcNaoExiste = error.code === 'PGRST202' || msg.includes('Could not find the function');
+    if (rpcNaoExiste) return undefined;
+    handleSupabaseError(error);
+  }
+
+  return obterEscala(id);
+}
+
 export async function aprovarEscalaEGerarGozos(
   id: string,
   aprovadoPor: string,
   aprovadoPorNome: string,
   manterStatus?: boolean,
 ): Promise<EscalaFerias | null> {
+  const rpcResult = await aprovarEscalaEGerarGozosViaRpc(id, aprovadoPor, aprovadoPorNome, manterStatus);
+  if (rpcResult !== undefined) return rpcResult;
+
   const escala = await obterEscala(id);
   if (!escala) return null;
 
