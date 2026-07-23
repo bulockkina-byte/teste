@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Upload } from 'lucide-react';
 import type { Bombeiro, Cargo, Equipe, Turno, CatCNH, Sexo } from '../../types/bombeiro';
 import {
@@ -82,8 +82,9 @@ export function BombeiroForm({ bombeiro, onSave, onClose, serverError }: Props) 
   const [tipoSanguineo, setTipoSanguineo] = useState('');
   const [cpf, setCpf] = useState('');
   const [rg, setRg] = useState('');
+  const [temCnh, setTemCnh] = useState(false);
   const [cnhNumero, setCnhNumero] = useState('');
-  const [cnhCategoria, setCnhCategoria] = useState<CatCNH>('B');
+  const [cnhCategoria, setCnhCategoria] = useState<CatCNH>('');
   const [cnhValidade, setCnhValidade] = useState('');
   const [credencialValidade, setCredencialValidade] = useState('');
   const [foto, setFoto] = useState('');
@@ -98,6 +99,8 @@ export function BombeiroForm({ bombeiro, onSave, onClose, serverError }: Props) 
   const [cep, setCep] = useState('');
   const [uf, setUf] = useState('');
   const [municipio, setMunicipio] = useState('');
+  const [loadingCep, setLoadingCep] = useState(false);
+  const [cepErro, setCepErro] = useState('');
   const [celular, setCelular] = useState('');
   const [sexo, setSexo] = useState<Sexo>('M');
   const [cursoChefeEquipe, setCursoChefeEquipe] = useState(false);
@@ -106,7 +109,6 @@ export function BombeiroForm({ bombeiro, onSave, onClose, serverError }: Props) 
   const [cveValidade, setCveValidade] = useState('');
   const [municipios, setMunicipios] = useState<string[]>([]);
   const [loadingMunicipios, setLoadingMunicipios] = useState(false);
-  const prevUfRef = useRef(uf);
 
   useEffect(() => {
     if (bombeiro) {
@@ -122,9 +124,11 @@ export function BombeiroForm({ bombeiro, onSave, onClose, serverError }: Props) 
       setTipoSanguineo(bombeiro.tipoSanguineo?.toUpperCase() || '');
       setCpf(formatCPF(bombeiro.cpf));
       setRg(bombeiro.rg);
-      setCnhNumero(bombeiro.cnhNumero);
-      setCnhCategoria(bombeiro.cnhCategoria);
-      setCnhValidade(bombeiro.cnhValidade);
+      const possuiCnh = !!(bombeiro.cnhNumero || bombeiro.cnhValidade || bombeiro.credencialValidade || bombeiro.cnhCategoria);
+      setTemCnh(possuiCnh);
+      setCnhNumero(bombeiro.cnhNumero || '');
+      setCnhCategoria(possuiCnh ? (bombeiro.cnhCategoria || 'B') : '');
+      setCnhValidade(bombeiro.cnhValidade || '');
       setCredencialValidade(bombeiro.credencialValidade || '');
       setFoto(bombeiro.foto);
       setDataDesligamento(bombeiro.dataDesligamento);
@@ -149,10 +153,6 @@ export function BombeiroForm({ bombeiro, onSave, onClose, serverError }: Props) 
 
   useEffect(() => {
     if (!uf) { setMunicipios([]); return; }
-    if (prevUfRef.current !== uf && !bombeiro) {
-      setMunicipio('');
-    }
-    prevUfRef.current = uf;
     let cancelled = false;
     setLoadingMunicipios(true);
     fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios`)
@@ -165,6 +165,40 @@ export function BombeiroForm({ bombeiro, onSave, onClose, serverError }: Props) 
       .finally(() => { if (!cancelled) setLoadingMunicipios(false); });
     return () => { cancelled = true; };
   }, [uf]);
+
+  useEffect(() => {
+    const cepLimpo = cep.replace(/\D/g, '');
+    if (cepLimpo.length !== 8) {
+      setCepErro('');
+      setLoadingCep(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    setLoadingCep(true);
+    setCepErro('');
+
+    fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`, { signal: controller.signal })
+      .then(r => r.json())
+      .then(d => {
+        if (d.erro) {
+          setCepErro('CEP nÃ£o encontrado.');
+          return;
+        }
+        if (d.logradouro) setEndereco(d.logradouro);
+        if (d.bairro) setBairro(d.bairro);
+        if (d.uf) setUf(d.uf);
+        if (d.localidade) setMunicipio(d.localidade);
+      })
+      .catch(err => {
+        if ((err as Error).name !== 'AbortError') setCepErro('NÃ£o foi possÃ­vel buscar o CEP.');
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoadingCep(false);
+      });
+
+    return () => controller.abort();
+  }, [cep]);
 
   function handleFotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -179,30 +213,28 @@ export function BombeiroForm({ bombeiro, onSave, onClose, serverError }: Props) 
     setTurno(turnoAutoPorEquipe(novaEquipe, cargo));
   }
 
-  function handleCepBuscar() {
-    const cepLimpo = cep.replace(/\D/g, '');
-    if (cepLimpo.length !== 8) return;
-    fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`)
-      .then(r => r.json())
-      .then(d => {
-        if (d.erro) return;
-        if (d.logradouro) setEndereco(d.logradouro);
-        if (d.bairro) setBairro(d.bairro);
-        if (d.uf) setUf(d.uf);
-        if (d.localidade) setMunicipio(d.localidade);
-      })
-      .catch(() => {});
-  }
-
   function handleCargoChange(novoCargo: Cargo) {
     setCargo(novoCargo);
     setTurno(turnoAutoPorEquipe(equipe, novoCargo));
   }
 
+  function handleTemCnhChange(checked: boolean) {
+    setTemCnh(checked);
+    if (checked) {
+      if (!cnhCategoria) setCnhCategoria('B');
+      return;
+    }
+    setCnhNumero('');
+    setCnhCategoria('');
+    setCnhValidade('');
+    setCredencialValidade('');
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (submitting) return;
-    if (!matricula || !nomeCompleto || !nomeGuerra || !cpf || !sexo || !dataNascimento || !tipoSanguineo || !email || !celular || !endereco || !numeroEndereco || !cep || !uf || !municipio || !dataAdmissao || !cnhNumero || !cnhValidade) {
+    const cnhIncompleta = temCnh && (!cnhNumero || !cnhCategoria || !cnhValidade);
+    if (!matricula || !nomeCompleto || !nomeGuerra || !cpf || !sexo || !dataNascimento || !tipoSanguineo || !email || !celular || !endereco || !numeroEndereco || !cep || !uf || !municipio || !dataAdmissao || cnhIncompleta) {
       setErro('Preencha todos os campos obrigatórios.');
       return;
     }
@@ -223,10 +255,10 @@ export function BombeiroForm({ bombeiro, onSave, onClose, serverError }: Props) 
       tipoSanguineo,
       cpf: cpf.replace(/\D/g, ''),
       rg,
-      cnhNumero,
-      cnhCategoria,
-      cnhValidade,
-      credencialValidade,
+      cnhNumero: temCnh ? cnhNumero : '',
+      cnhCategoria: temCnh ? cnhCategoria : '',
+      cnhValidade: temCnh ? cnhValidade : '',
+      credencialValidade: temCnh ? credencialValidade : '',
       foto,
       dataDesligamento,
       endereco,
@@ -369,12 +401,17 @@ export function BombeiroForm({ bombeiro, onSave, onClose, serverError }: Props) 
                 </div>
                 <div>
                   <label className={labelClass}>CEP *</label>
-                  <input value={cep} onChange={e => setCep(formatCEP(e.target.value))} onBlur={handleCepBuscar} placeholder="00000-000"
+                  <input value={cep} onChange={e => setCep(formatCEP(e.target.value))} placeholder="00000-000"
                     className={inputClass} />
+                  {(loadingCep || cepErro) && (
+                    <p className={`mt-0.5 text-[10px] ${cepErro ? 'text-alert-red dark:text-red-400' : 'text-graphite-400 dark:text-graphite-500'}`}>
+                      {cepErro || 'Buscando CEP...'}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className={labelClass}>UF *</label>
-                  <select value={uf} onChange={e => setUf(e.target.value)} className={selectClass}>
+                  <select value={uf} onChange={e => { setUf(e.target.value); setMunicipio(''); }} className={selectClass}>
                     <option value="">Selecione</option>
                     {UF_OPTIONS.map(u => <option key={u} value={u}>{u}</option>)}
                   </select>
@@ -454,7 +491,18 @@ export function BombeiroForm({ bombeiro, onSave, onClose, serverError }: Props) 
             {/* CNH */}
             <fieldset>
               <SectionTitle>CNH</SectionTitle>
-              <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-4">
+              <div className="space-y-3">
+                <label className="flex w-fit items-center gap-3 rounded-xl border border-graphite-300/60 bg-white/70 px-4 py-3 transition-all duration-200 hover:border-aviation-500/50 cursor-pointer dark:border-border-dark dark:bg-surface-card">
+                  <input
+                    type="checkbox"
+                    checked={temCnh}
+                    onChange={e => handleTemCnhChange(e.target.checked)}
+                    className="h-4 w-4 rounded border-graphite-300 text-aviation-600 focus:ring-aviation-500"
+                  />
+                  <span className="text-sm font-medium text-graphite-700 dark:text-graphite-200">Possui CNH</span>
+                </label>
+                {temCnh && (
+                  <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-4">
                 <div>
                   <label className={labelClass}>CNH nº *</label>
                   <input value={cnhNumero} onChange={e => setCnhNumero(e.target.value)} placeholder="Número da CNH"
@@ -477,6 +525,8 @@ export function BombeiroForm({ bombeiro, onSave, onClose, serverError }: Props) 
                     className={inputClass} />
                   <p className="mt-0.5 text-[10px] text-graphite-400 dark:text-graphite-500">Quando faltar 6 meses, o chefe e gerente serão notificados</p>
                 </div>
+                  </div>
+                )}
               </div>
             </fieldset>
 

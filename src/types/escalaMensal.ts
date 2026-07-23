@@ -26,6 +26,22 @@ export interface RadioSlot {
   fixo: boolean;
 }
 
+export interface PessoaReferenciaMensal {
+  id?: string;
+  pessoaNome: string;
+  pessoaNomeGuerra: string;
+}
+
+export interface ResponsabilidadeMensalItem extends PessoaReferenciaMensal {
+  descricao: string;
+}
+
+export interface RadioMensalManual {
+  comunicante?: PessoaReferenciaMensal;
+  antesMeiaNoite?: PessoaReferenciaMensal[];
+  depoisMeiaNoite?: PessoaReferenciaMensal[];
+}
+
 export interface PlantaoGerado {
   dia: number;
   data: string;
@@ -40,15 +56,24 @@ export interface EscalaMensalConfig {
   ano: number;
   paridade: 'par' | 'impar';
   pessoas: PessoaEscala[];
+  faxinaManual?: FaxinaMensalItem[];
+  responsabilidadesManual?: ResponsabilidadeMensalItem[];
+  radioManual?: RadioMensalManual;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface FaxinaMensalItem {
+  local: string;
+  pessoaNome: string;
+  pessoaNomeGuerra: string;
 }
 
 export interface EscalaMensalCompleta {
   config: EscalaMensalConfig;
   paradas: PlantaoGerado[];
-  faxinaMensal: { local: string; pessoaNome: string; pessoaNomeGuerra: string }[];
-  responsabilidades: { descricao: string; pessoaNome: string; pessoaNomeGuerra: string }[];
+  faxinaMensal: FaxinaMensalItem[];
+  responsabilidades: ResponsabilidadeMensalItem[];
 }
 
 export const LOCAIS_FAXINA = [
@@ -62,6 +87,14 @@ export const LOCAIS_FAXINA = [
   "WC's Piso Térreo / WC Auditório",
   'Sala e WC Liderança',
   'Lixo',
+] as const;
+
+export const RESPONSABILIDADES_MENSAIS = [
+  'Controle e abastecimento do cilindro (EPRA)',
+  'Controle de abastecimento de RTI inferior e superior',
+  'Check list almoxarifado (controle de materiais)',
+  'Acompanhamento de manutenções',
+  'Limpeza dos CCI',
 ] as const;
 
 export const SLOTS_RADIO_NOTURNO = [
@@ -83,15 +116,28 @@ export const SLOTS_RADIO_DIURNO = [
   { horario: '09:00', horarioFim: '10:00', fixo: false },
   { horario: '10:00', horarioFim: '11:00', fixo: false },
   { horario: '11:00', horarioFim: '12:00', fixo: false },
-  { horario: '12:00', horarioFim: '13:00', fixo: false },
-  { horario: '13:00', horarioFim: '14:00', fixo: false },
-  { horario: '14:00', horarioFim: '15:00', fixo: false },
-  { horario: '15:00', horarioFim: '16:00', fixo: false },
-  { horario: '16:00', horarioFim: '17:00', fixo: false },
-  { horario: '17:00', horarioFim: '18:00', fixo: false },
+  { horario: '12:00', horarioFim: '13:30', fixo: false },
+  { horario: '13:30', horarioFim: '15:00', fixo: false },
+  { horario: '15:00', horarioFim: '16:30', fixo: false },
+  { horario: '16:30', horarioFim: '18:00', fixo: false },
   { horario: '18:00', horarioFim: '19:00', fixo: true },
 ] as const;
 
+export function equipeRadioDiurna(equipe: string) {
+  return equipe === 'Alfa' || equipe === 'Charlie';
+}
+
 export function getSlotsRadio(equipe: string) {
-  return equipe === 'Alfa' || equipe === 'Charlie' ? SLOTS_RADIO_DIURNO : SLOTS_RADIO_NOTURNO;
+  return equipeRadioDiurna(equipe) ? SLOTS_RADIO_DIURNO : SLOTS_RADIO_NOTURNO;
+}
+
+export function getRadioSplitIndex(slots: readonly { horario: string; fixo: boolean }[]) {
+  const dinamicos = slots.filter(slot => !slot.fixo);
+  const idxDivisor = dinamicos.findIndex(slot =>
+    slot.horario === '00:00' ||
+    slot.horario.startsWith('00:') ||
+    slot.horario === '12:00' ||
+    slot.horario.startsWith('12:')
+  );
+  return idxDivisor > 0 ? idxDivisor : Math.ceil(dinamicos.length / 2);
 }

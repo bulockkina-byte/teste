@@ -250,6 +250,7 @@ Podes combinar múltiplas skills carregando-as em sequência. A ordem importa:
 │   │   └── ui/             # Button, Loading, EmptyCard, SearchSelect, Tooltip, AlertModal
 │   ├── context/
 │   │   ├── AuthContext.tsx  # Sessão, login/logout, hierarquia de cargos
+│   │   ├── GlobalAlertContext.tsx # Modal global de alertas; intercepta window.alert e expõe useGlobalAlert
 │   │   ├── ThemeContext.tsx # Tema claro/escuro
 │   │   └── SidebarContext.tsx # Estado da sidebar (collapsed/pinned)
 │   ├── data/               # Dados estáticos (templates de documentos)

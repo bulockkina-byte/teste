@@ -9,7 +9,7 @@ export type Cargo =
 
 export type Equipe = 'Alfa' | 'Bravo' | 'Charlie' | 'Delta' | 'Ferista' | 'Embaixador';
 export type Turno = 'Diurno' | 'Noturno' | 'Ferista' | 'Administrativo';
-export type CatCNH = 'A' | 'B' | 'C' | 'D' | 'E' | 'AB' | 'AC' | 'AD' | 'AE';
+export type CatCNH = '' | 'A' | 'B' | 'C' | 'D' | 'E' | 'AB' | 'AC' | 'AD' | 'AE';
 export type Sexo = 'M' | 'F';
 
 export interface Bombeiro {

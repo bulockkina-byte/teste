@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import type { Bombeiro, Cargo } from '../types/bombeiro';
+import { listarAtivos } from './bombeiroService';
 import { criarVagaPendente } from './vagaPendenteService';
 
 const TABLE = 'vigencia_substituicoes';
@@ -164,11 +165,9 @@ export async function processarCadeiaSubstituicao(
   const criadas: VigenciaSubstituicao[] = [];
   if (!feriasRecord.substitutoId) return criadas;
 
-  const db = getDb();
   await desativarVigencias(feriasRecord.id);
   if (!bombeiros) {
-    const { data } = await db.from('bombeiros').select('*');
-    bombeiros = (data || []) as unknown as Bombeiro[];
+    bombeiros = await listarAtivos();
   }
 
   const substituto = bombeiros.find(b => b.id === feriasRecord.substitutoId);
@@ -233,15 +232,17 @@ export async function processarCadeiaSubstituicao(
   if (cadeiaInput && cadeiaInput.length > 0) {
     for (let i = 0; i < cadeiaInput.length; i++) {
       const elo = cadeiaInput[i];
+      const funcionarioCobertoId = i === 0 ? substituto.id : cadeiaInput[i - 1].pessoaId;
+      const funcionarioCoberto = bombeiros.find(b => b.id === funcionarioCobertoId);
       const v = await criarVigencia({
         substitutoId: elo.pessoaId,
         substitutoNome: elo.pessoaNome,
         cargoOriginalSubstituto: elo.cargoOriginal,
         cargoExercido: elo.cargoVacante,
-        funcionarioOriginalId: i === 0 ? substituto.id : cadeiaInput[i - 1].pessoaId,
+        funcionarioOriginalId: funcionarioCobertoId,
         funcionarioOriginalNome: elo.substituindoNome,
         cargoOriginalFuncionario: elo.cargoVacante,
-        equipe: feriasRecord.equipe,
+        equipe: funcionarioCoberto?.equipe || feriasRecord.equipe,
         dataInicio: feriasRecord.dataInicio,
         dataFim: feriasRecord.dataFim,
         nivelCascata: i + 2,
@@ -302,33 +303,45 @@ export async function resolverEfetivo(
   const db = getDb();
 
   // Buscar membros da equipa + vigências no período
-  const [bombeirosRaw, vigenciasRaw] = await Promise.all([
-    db.from('bombeiros').select('*'),
+  const [bombeiros, vigenciasRaw] = await Promise.all([
+    listarAtivos(),
     db.from(TABLE).select('*').eq('ativa', true),
   ]);
 
-  if (bombeirosRaw.error) handleSupabaseError(bombeirosRaw.error);
   if (vigenciasRaw.error) handleSupabaseError(vigenciasRaw.error);
 
-  const bombeiros = (bombeirosRaw.data || []) as unknown as Bombeiro[];
   const vigencias = (vigenciasRaw.data || []).map(rowToVigencia);
+  const bombeiroPorId = new Map(bombeiros.map(b => [b.id, b]));
+
+  const equipeDaVaga = (v: VigenciaSubstituicao): string => {
+    const original = bombeiroPorId.get(v.funcionarioOriginalId);
+    return original?.equipe || v.equipe;
+  };
 
   // Filtrar vigências do período
   const vigenciasPeriodo = vigencias.filter(v =>
     new Date(v.dataInicio) <= new Date(data) &&
     new Date(v.dataFim) >= new Date(data)
   );
+  const vigenciasDaEquipe = vigenciasPeriodo.filter(v => equipeDaVaga(v) === equipe);
+  const vigenciasReais = vigenciasDaEquipe.filter(v => v.substitutoId && v.substitutoId !== v.funcionarioOriginalId);
+  const vigenciasAuto = vigenciasDaEquipe.filter(v => v.substitutoId && v.substitutoId === v.funcionarioOriginalId);
 
   // Mapa: substitutoId → vigência que ele está a exercer
   const mapSubstituto = new Map<string, VigenciaSubstituicao>();
-  for (const v of vigenciasPeriodo) {
+  for (const v of vigenciasReais) {
     mapSubstituto.set(v.substitutoId, v);
   }
 
   // Mapa: funcionarioOriginalId → vigência (quem está a ser coberto)
   const mapOriginal = new Map<string, VigenciaSubstituicao>();
-  for (const v of vigenciasPeriodo) {
+  for (const v of vigenciasReais) {
     mapOriginal.set(v.funcionarioOriginalId, v);
+  }
+
+  const mapVagaAberta = new Map<string, VigenciaSubstituicao>();
+  for (const v of vigenciasAuto) {
+    mapVagaAberta.set(v.funcionarioOriginalId, v);
   }
 
   const membros = bombeiros.filter(b =>
@@ -344,7 +357,7 @@ export async function resolverEfetivo(
     // Verificar se este membro está a substituir alguém (está a fazer outra função)
     const vigenciaAtiva = mapSubstituto.get(m.id);
 
-    if (vigenciaAtiva && vigenciaAtiva.equipe === equipe) {
+    if (vigenciaAtiva) {
       // Este membro está a substituir alguém DESTA equipa
       efetivos.push({
         bombeiro: m,
@@ -361,20 +374,21 @@ export async function resolverEfetivo(
     } else {
       // Membro normal (ou está a ser substituído)
       const sendoSubstituido = mapOriginal.get(m.id);
+      const vagaAberta = mapVagaAberta.get(m.id);
       efetivos.push({
         bombeiro: m,
         cargoExercido: m.cargo,
         substituindo: null,
-        emFerias: !!sendoSubstituido,
-        vigencias: sendoSubstituido ? [sendoSubstituido] : [],
+        emFerias: !!sendoSubstituido || !!vagaAberta,
+        vigencias: [sendoSubstituido, vagaAberta].filter(Boolean) as VigenciaSubstituicao[],
       });
       processados.add(m.id);
     }
   }
 
   // Substitutos externos (pessoas de outras equipas que vieram substituir)
-  for (const v of vigenciasPeriodo) {
-    if (v.equipe === equipe && !processados.has(v.substitutoId)) {
+  for (const v of vigenciasReais) {
+    if (!processados.has(v.substitutoId)) {
       const bombeiro = bombeiros.find(b => b.id === v.substitutoId);
       if (bombeiro) {
         substitutosExternos.push({
@@ -417,5 +431,6 @@ export async function quemSubstitui(
 
   if (error) return null;
   if (!rows || rows.length === 0) return null;
-  return rowToVigencia(rows[0]);
+  const real = rows.find(row => row.substituto_id !== bombeiroId);
+  return real ? rowToVigencia(real) : null;
 }

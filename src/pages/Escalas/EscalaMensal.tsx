@@ -1,25 +1,27 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  Calendar, ChevronDown, ChevronUp, Save, Copy, Printer,
+  Calendar, ChevronDown, ChevronUp, Save, Printer, Pencil,
   Trash2, Radio, Shield, Users, ClipboardList,
-  Sparkles, AlertTriangle, Plus, X, Eye, Image,
+  Sparkles, AlertTriangle, X, Eye, Image,
 } from 'lucide-react';
-import { SearchSelect } from '../../components/ui/SearchSelect';
+import { SearchSelect, type AtivoItem } from '../../components/ui/SearchSelect';
+import { AlertModal } from '../../components/ui/AlertModal';
 import { listarAtivos } from '../../services/bombeiroService';
 import { equipesNoDia } from '../../utils/equipes';
-import { listarFeriasGozo, listarEscalas as listarEscalasFerias, listarItensEscala } from '../../services/feriasService';
-import { listarVigencias } from '../../services/vigenciaSubstituicaoService';
-import type { Bombeiro } from '../../types/bombeiro';
+import { listarFeriasGozo, listarItensEscala } from '../../services/feriasService';
+import { listarVigencias, type VigenciaSubstituicao } from '../../services/vigenciaSubstituicaoService';
+import type { Bombeiro, Cargo } from '../../types/bombeiro';
 import type { FeriasGozo } from '../../types/ferias';
 import { useAuth } from '../../context/AuthContext';
+import { useGlobalAlert, type GlobalAlertVariant } from '../../context/GlobalAlertContext';
 import { validarCursoParaFuncao } from '../../utils/validacaoCursos';
 import { toPng } from 'html-to-image';
 import {
-  listarCompletas, novaConfigId, salvarConfig, salvarCompleta,
-  obterCompleta, gerarEscalaMensal, clonarConfig, gerarNomesMes,
+  listarCompletas, novaConfigId, salvarCompleta,
+  gerarEscalaMensal, gerarNomesMes,
   excluirConfig,
 } from '../../services/escalaMensalService';
-import { getSlotsRadio, LOCAIS_FAXINA, type EscalaMensalConfig, type EscalaMensalCompleta, type PessoaEscala, type Veiculo, type FuncaoVeiculo } from '../../types/escalaMensal';
+import { equipeRadioDiurna, getRadioSplitIndex, getSlotsRadio, LOCAIS_FAXINA, RESPONSABILIDADES_MENSAIS, type EscalaMensalConfig, type EscalaMensalCompleta, type FaxinaMensalItem, type PessoaEscala, type RadioMensalManual, type ResponsabilidadeMensalItem, type Veiculo, type FuncaoVeiculo } from '../../types/escalaMensal';
 
 const MESES = gerarNomesMes();
 
@@ -45,9 +47,408 @@ const SLOTS: SlotDef[] = [
   { label: 'BA-2 (CCI F3 · Rádio Fixo)', funcao: 'ba-2', veiculo: 'cciF3', funcaoNoVeiculo: 'Ba2-2', isRadioFixo: true, cargoFiltro: 'BA-2' },
 ];
 
+const RADIO_SELECT_COUNT = 4;
+
+const RESPONSABILIDADES_SELECTS = [
+  {
+    key: RESPONSABILIDADES_MENSAIS[0],
+    label: RESPONSABILIDADES_MENSAIS[0],
+    descricoes: [RESPONSABILIDADES_MENSAIS[0]],
+  },
+  {
+    key: RESPONSABILIDADES_MENSAIS[1],
+    label: RESPONSABILIDADES_MENSAIS[1],
+    descricoes: [RESPONSABILIDADES_MENSAIS[1]],
+  },
+  {
+    key: RESPONSABILIDADES_MENSAIS[2],
+    label: `${RESPONSABILIDADES_MENSAIS[2]} / ${RESPONSABILIDADES_MENSAIS[3]}`,
+    descricoes: [RESPONSABILIDADES_MENSAIS[2], RESPONSABILIDADES_MENSAIS[3]],
+  },
+] as const;
+
+interface RadioManualState {
+  comunicanteId: string;
+  antesMeiaNoiteIds: string[];
+  depoisMeiaNoiteIds: string[];
+}
+
+function criarRadioManualVazio(): RadioManualState {
+  return {
+    comunicanteId: '',
+    antesMeiaNoiteIds: Array(RADIO_SELECT_COUNT).fill(''),
+    depoisMeiaNoiteIds: Array(RADIO_SELECT_COUNT).fill(''),
+  };
+}
+
+interface EfetivoMensalEntry {
+  bombeiro: Bombeiro;
+  cargoExercido: string;
+  equipeEfetiva: string;
+  substituindo?: {
+    id: string;
+    nome: string;
+    cargo: string;
+  };
+}
+
+function dataLocal(data: string): Date {
+  return new Date(`${data}T12:00:00`);
+}
+
+function intervaloMes(mes: number, ano: number) {
+  const inicio = new Date(ano, mes - 1, 1, 12);
+  const fim = new Date(ano, mes, 0, 12);
+  return { inicio, fim };
+}
+
+function sobrepoePeriodo(dataInicio: string, dataFim: string, inicio: Date, fim: Date): boolean {
+  if (!dataInicio || !dataFim) return false;
+  return dataLocal(dataInicio) <= fim && dataLocal(dataFim) >= inicio;
+}
+
+function cargoParaSlot(slot: SlotDef): Cargo {
+  if (slot.funcao === 'chefe') return 'BA-CE';
+  if (slot.funcao === 'lider') return 'BA-LR';
+  if (slot.funcao === 'ba-mc') return 'BA-MC';
+  return 'BA-2';
+}
+
+function podeFazerRadio(entry: EfetivoMensalEntry): boolean {
+  return entry.cargoExercido !== 'BA-CE' && entry.cargoExercido !== 'BA-LR';
+}
+
+function paridadePorSequencia(equipe: string, mes: number, ano: number): 'par' | 'impar' {
+  const total = new Date(ano, mes, 0).getDate();
+  for (let dia = 1; dia <= total; dia++) {
+    const equipes = equipesNoDia(new Date(ano, mes - 1, dia, 12));
+    if (equipes.some(eq => eq === equipe)) return dia % 2 === 0 ? 'par' : 'impar';
+  }
+  return equipe === 'Alfa' || equipe === 'Bravo' ? 'impar' : 'par';
+}
+
+function montarEfetivoMensal(params: {
+  bombeiros: Bombeiro[];
+  feriasGozo: FeriasGozo[];
+  vigencias: VigenciaSubstituicao[];
+  equipe: string;
+  mes: number;
+  ano: number;
+}): EfetivoMensalEntry[] {
+  const { bombeiros, feriasGozo, vigencias, equipe, mes, ano } = params;
+  if (!equipe) return [];
+
+  const { inicio, fim } = intervaloMes(mes, ano);
+  const ativos = bombeiros.filter(b => !b.dataDesligamento);
+  const porId = new Map(ativos.map(b => [b.id, b]));
+
+  const equipeDaVaga = (v: VigenciaSubstituicao): string => {
+    const original = porId.get(v.funcionarioOriginalId);
+    return original?.equipe || v.equipe;
+  };
+
+  const vigenciasNoMes = vigencias.filter(v =>
+    v.ativa &&
+    sobrepoePeriodo(v.dataInicio, v.dataFim, inicio, fim) &&
+    equipeDaVaga(v) === equipe
+  );
+  const vigenciasReais = vigenciasNoMes.filter(v => v.substitutoId && v.substitutoId !== v.funcionarioOriginalId);
+  const vigenciasAuto = vigenciasNoMes.filter(v => v.substitutoId && v.substitutoId === v.funcionarioOriginalId);
+
+  const realPorOriginal = new Map<string, VigenciaSubstituicao>();
+  const realPorSubstituto = new Map<string, VigenciaSubstituicao>();
+  for (const v of vigenciasReais) {
+    realPorOriginal.set(v.funcionarioOriginalId, v);
+    realPorSubstituto.set(v.substitutoId, v);
+  }
+
+  const vagasAbertas = new Set(vigenciasAuto.map(v => v.funcionarioOriginalId));
+  const gozosNoMes = feriasGozo.filter(g =>
+    g.status !== 'Gozadas' &&
+    sobrepoePeriodo(g.dataInicio, g.dataFim, inicio, fim)
+  );
+  const emGozo = new Set(gozosNoMes.map(g => g.funcionarioId));
+
+  const fallbackPorOriginal = new Map<string, { substituto: Bombeiro; cargo: string; original: Bombeiro }>();
+  const fallbackPorSubstituto = new Map<string, { substituto: Bombeiro; cargo: string; original: Bombeiro }>();
+  for (const gozo of gozosNoMes) {
+    if (realPorOriginal.has(gozo.funcionarioId)) continue;
+    const original = porId.get(gozo.funcionarioId);
+    const substituto = gozo.substitutoId ? porId.get(gozo.substitutoId) : undefined;
+    if (!original || !substituto) continue;
+    if ((original.equipe || gozo.equipe) !== equipe) continue;
+    const fallback = {
+      substituto,
+      cargo: gozo.funcaoSubstituicao || original.cargo,
+      original,
+    };
+    fallbackPorOriginal.set(original.id, fallback);
+    fallbackPorSubstituto.set(substituto.id, fallback);
+  }
+
+  const resultado: EfetivoMensalEntry[] = [];
+  const adicionados = new Set<string>();
+
+  const adicionar = (bombeiro: Bombeiro, cargoExercido: string, substituindo?: EfetivoMensalEntry['substituindo']) => {
+    if (adicionados.has(bombeiro.id)) return;
+    resultado.push({ bombeiro, cargoExercido, equipeEfetiva: equipe, substituindo });
+    adicionados.add(bombeiro.id);
+  };
+
+  const membrosEquipe = ativos.filter(b => b.equipe === equipe);
+  for (const membro of membrosEquipe) {
+    const substitui = realPorSubstituto.get(membro.id);
+    const fallbackSubstitui = fallbackPorSubstituto.get(membro.id);
+
+    if (substitui) {
+      adicionar(membro, substitui.cargoExercido || membro.cargo, {
+        id: substitui.funcionarioOriginalId,
+        nome: substitui.funcionarioOriginalNome,
+        cargo: substitui.cargoOriginalFuncionario,
+      });
+      continue;
+    }
+
+    if (fallbackSubstitui) {
+      adicionar(membro, fallbackSubstitui.cargo, {
+        id: fallbackSubstitui.original.id,
+        nome: fallbackSubstitui.original.nomeCompleto,
+        cargo: fallbackSubstitui.original.cargo,
+      });
+      continue;
+    }
+
+    if (emGozo.has(membro.id) || realPorOriginal.has(membro.id) || fallbackPorOriginal.has(membro.id) || vagasAbertas.has(membro.id)) {
+      continue;
+    }
+
+    adicionar(membro, membro.cargo);
+  }
+
+  for (const v of vigenciasReais) {
+    const substituto = porId.get(v.substitutoId);
+    if (!substituto) continue;
+    adicionar(substituto, v.cargoExercido || substituto.cargo, {
+      id: v.funcionarioOriginalId,
+      nome: v.funcionarioOriginalNome,
+      cargo: v.cargoOriginalFuncionario,
+    });
+  }
+
+  for (const fallback of fallbackPorSubstituto.values()) {
+    adicionar(fallback.substituto, fallback.cargo, {
+      id: fallback.original.id,
+      nome: fallback.original.nomeCompleto,
+      cargo: fallback.original.cargo,
+    });
+  }
+
+  const ordemCargo = ['GS', 'BA-CE', 'BA-LR', 'BA-MC', 'BA-2', 'BA-RE', 'OC'];
+  return resultado.sort((a, b) => {
+    const cargoA = ordemCargo.indexOf(a.cargoExercido);
+    const cargoB = ordemCargo.indexOf(b.cargoExercido);
+    if (cargoA !== cargoB) return cargoA - cargoB;
+    return a.bombeiro.nomeGuerra.localeCompare(b.bombeiro.nomeGuerra);
+  });
+}
+
+function montarOpcoesEfetivo(efetivo: EfetivoMensalEntry[], equipe: string): AtivoItem[] {
+  return efetivo.map(entry => ({
+    id: entry.bombeiro.id,
+    nomeGuerra: entry.bombeiro.nomeGuerra,
+    nomeCompleto: entry.bombeiro.equipe === equipe
+      ? entry.bombeiro.nomeCompleto
+      : `${entry.bombeiro.nomeCompleto} (${entry.bombeiro.equipe})`,
+    cargo: entry.cargoExercido,
+    equipe,
+  }));
+}
+
+function pessoaEscala(entry: EfetivoMensalEntry, slot: SlotDef): Partial<PessoaEscala> {
+  return {
+    id: entry.bombeiro.id,
+    nome: entry.bombeiro.nome || entry.bombeiro.nomeCompleto,
+    nomeGuerra: entry.bombeiro.nomeGuerra,
+    funcao: slot.funcao,
+    veiculo: slot.veiculo,
+    funcaoNoVeiculo: slot.funcaoNoVeiculo,
+    isRadioFixo: slot.isRadioFixo,
+  };
+}
+
+function montarPessoasPorSlots(efetivo: EfetivoMensalEntry[]): (Partial<PessoaEscala> | null)[] {
+  const usados = new Set<string>();
+
+  return SLOTS.map(slot => {
+    const cargoSlot = cargoParaSlot(slot);
+    const encontrado = efetivo.find(entry => {
+      if (entry.cargoExercido !== cargoSlot || usados.has(entry.bombeiro.id)) return false;
+      if (slot.funcao === 'ba-2') return true;
+      const veiculoBA = slot.veiculo === 'crs' ? 'crs' as const : 'cci' as const;
+      const validacao = validarCursoParaFuncao(entry.bombeiro, cargoSlot, slot.funcao === 'ba-mc' ? veiculoBA : undefined);
+      return validacao?.nivel !== 'bloqueado';
+    });
+    if (!encontrado) return null;
+    usados.add(encontrado.bombeiro.id);
+    return pessoaEscala(encontrado, slot);
+  });
+}
+
+function resolverPessoaSelecionada(
+  pessoa: Partial<PessoaEscala> | null,
+  slot: SlotDef,
+  efetivo: EfetivoMensalEntry[],
+): Partial<PessoaEscala> | null {
+  if (!pessoa?.id) return pessoa;
+  const cargoSlot = cargoParaSlot(slot);
+  const selecionadaNoEfetivo = efetivo.find(entry =>
+    entry.bombeiro.id === pessoa.id && entry.cargoExercido === cargoSlot
+  );
+  if (selecionadaNoEfetivo) return pessoaEscala(selecionadaNoEfetivo, slot);
+
+  const substitutoDaVaga = efetivo.find(entry =>
+    entry.substituindo?.id === pessoa.id && entry.cargoExercido === cargoSlot
+  );
+  if (substitutoDaVaga) return pessoaEscala(substitutoDaVaga, slot);
+
+  return pessoa;
+}
+
+function resolverPessoasSelecionadas(
+  pessoas: (Partial<PessoaEscala> | null)[],
+  efetivo: EfetivoMensalEntry[],
+): (Partial<PessoaEscala> | null)[] {
+  return SLOTS.map((slot, idx) => resolverPessoaSelecionada(pessoas[idx], slot, efetivo));
+}
+
+function montarFaxinaSelecionada(faxinaManual: Record<string, string>, efetivo: EfetivoMensalEntry[]): FaxinaMensalItem[] {
+  const porId = new Map(efetivo.map(entry => [entry.bombeiro.id, entry]));
+  const itens: FaxinaMensalItem[] = [];
+  for (const local of LOCAIS_FAXINA) {
+    const entry = porId.get(faxinaManual[local] || '');
+    if (!entry) continue;
+    itens.push({
+      local,
+      pessoaNome: entry.bombeiro.nome || entry.bombeiro.nomeCompleto,
+      pessoaNomeGuerra: entry.bombeiro.nomeGuerra,
+    });
+  }
+  return itens;
+}
+
+function faxinaParaState(faxina: FaxinaMensalItem[], bombeiros: Bombeiro[]): Record<string, string> {
+  const state: Record<string, string> = {};
+  for (const item of faxina) {
+    const b = bombeiros.find(bb => bb.nomeGuerra === item.pessoaNomeGuerra || bb.nomeCompleto === item.pessoaNome);
+    if (b) state[item.local] = b.id;
+  }
+  return state;
+}
+
+function refPessoa(entry: EfetivoMensalEntry) {
+  return {
+    id: entry.bombeiro.id,
+    pessoaNome: entry.bombeiro.nome || entry.bombeiro.nomeCompleto,
+    pessoaNomeGuerra: entry.bombeiro.nomeGuerra,
+  };
+}
+
+function montarResponsabilidadesSelecionadas(state: Record<string, string>, efetivo: EfetivoMensalEntry[]): ResponsabilidadeMensalItem[] {
+  const porId = new Map(efetivo.map(entry => [entry.bombeiro.id, entry]));
+  const itens: ResponsabilidadeMensalItem[] = [];
+  for (const grupo of RESPONSABILIDADES_SELECTS) {
+    const entry = porId.get(state[grupo.key] || '');
+    if (!entry) continue;
+    for (const descricao of grupo.descricoes) {
+      itens.push({ descricao, ...refPessoa(entry) });
+    }
+  }
+  return itens;
+}
+
+function responsabilidadesParaState(responsabilidades: ResponsabilidadeMensalItem[], bombeiros: Bombeiro[]): Record<string, string> {
+  const state: Record<string, string> = {};
+  for (const grupo of RESPONSABILIDADES_SELECTS) {
+    const item = responsabilidades.find(resp => grupo.descricoes.some(descricao => descricao === resp.descricao));
+    if (!item) continue;
+    const b = bombeiros.find(bb => bb.nomeGuerra === item.pessoaNomeGuerra || bb.nomeCompleto === item.pessoaNome);
+    if (b) state[grupo.key] = b.id;
+  }
+  return state;
+}
+
+function montarRadioSelecionado(state: RadioManualState, efetivo: EfetivoMensalEntry[]): RadioMensalManual | undefined {
+  const porId = new Map(efetivo.map(entry => [entry.bombeiro.id, entry]));
+  const toRef = (id: string) => {
+    const entry = porId.get(id);
+    return entry ? refPessoa(entry) : null;
+  };
+  const comunicante = toRef(state.comunicanteId);
+  const antesMeiaNoite = state.antesMeiaNoiteIds.map(toRef).filter((p): p is NonNullable<ReturnType<typeof toRef>> => !!p);
+  const depoisMeiaNoite = state.depoisMeiaNoiteIds.map(toRef).filter((p): p is NonNullable<ReturnType<typeof toRef>> => !!p);
+  if (!comunicante && antesMeiaNoite.length === 0 && depoisMeiaNoite.length === 0) return undefined;
+  return {
+    ...(comunicante ? { comunicante } : {}),
+    ...(antesMeiaNoite.length ? { antesMeiaNoite } : {}),
+    ...(depoisMeiaNoite.length ? { depoisMeiaNoite } : {}),
+  };
+}
+
+function radioParaState(completa: EscalaMensalCompleta | null, bombeiros: Bombeiro[]): RadioManualState {
+  const state = criarRadioManualVazio();
+  const radio = completa?.paradas[0]?.radio || [];
+  if (radio.length === 0) return state;
+  const idPorNome = (nomeGuerra: string) => bombeiros.find(b => b.nomeGuerra === nomeGuerra)?.id || '';
+  const comunicante = radio.find(r => r.fixo)?.pessoaNomeGuerra;
+  if (comunicante) state.comunicanteId = idPorNome(comunicante);
+  const dinamicos = radio.filter(r => !r.fixo);
+  const split = getRadioSplitIndex(radio);
+  state.antesMeiaNoiteIds = dinamicos.slice(0, split).slice(0, RADIO_SELECT_COUNT).map(r => idPorNome(r.pessoaNomeGuerra));
+  state.depoisMeiaNoiteIds = dinamicos.slice(split).slice(0, RADIO_SELECT_COUNT).map(r => idPorNome(r.pessoaNomeGuerra));
+  while (state.antesMeiaNoiteIds.length < RADIO_SELECT_COUNT) state.antesMeiaNoiteIds.push('');
+  while (state.depoisMeiaNoiteIds.length < RADIO_SELECT_COUNT) state.depoisMeiaNoiteIds.push('');
+  return state;
+}
+
+function prepararCapturaPng(el: HTMLElement): { width: number; height: number; restore: () => void } {
+  const elements = [el, ...Array.from(el.querySelectorAll<HTMLElement>('*'))];
+  const previousStyles = elements.map(node => [node, node.getAttribute('style')] as const);
+  el.classList.add('png-exporting');
+
+  for (const node of elements) {
+    node.style.overflow = 'visible';
+    node.style.overflowX = 'visible';
+    node.style.overflowY = 'visible';
+    node.style.maxHeight = 'none';
+    node.style.setProperty('scrollbar-width', 'none');
+    node.style.setProperty('-ms-overflow-style', 'none');
+  }
+
+  const width = Math.ceil(Math.max(el.scrollWidth, el.getBoundingClientRect().width));
+  const height = Math.ceil(Math.max(el.scrollHeight, el.getBoundingClientRect().height));
+
+  return {
+    width,
+    height,
+    restore: () => {
+      el.classList.remove('png-exporting');
+      for (const [node, style] of previousStyles) {
+        if (style === null) node.removeAttribute('style');
+        else node.setAttribute('style', style);
+      }
+    },
+  };
+}
+
+function nextFrame(): Promise<void> {
+  return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+}
+
 export function EscalaMensal() {
   const { user, effectiveRole } = useAuth();
+  const { showAlert } = useGlobalAlert();
   const isGlobal = effectiveRole === 'desenvolvedor' || effectiveRole === 'admin' || effectiveRole === 'gerente';
+  const canDeleteEscala = effectiveRole === 'desenvolvedor' || effectiveRole === 'admin';
 
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
   const [completas, setCompletas] = useState<EscalaMensalCompleta[]>([]);
@@ -61,30 +462,58 @@ export function EscalaMensal() {
   const [paridade, setParidade] = useState<'par' | 'impar'>('impar');
   const [pessoas, setPessoas] = useState<(Partial<PessoaEscala> | null)[]>(SLOTS.map(() => null));
   const [feriasGozo, setFeriasGozo] = useState<FeriasGozo[]>([]);
+  const [faxinaManual, setFaxinaManual] = useState<Record<string, string>>({});
+  const [responsabilidadesManual, setResponsabilidadesManual] = useState<Record<string, string>>({});
+  const [radioManual, setRadioManual] = useState<RadioManualState>(() => criarRadioManualVazio());
   const [filterListEquipe, setFilterListEquipe] = useState('');
-  const [filterListMes, setFilterListMes] = useState('');
-  const [filterListAno, setFilterListAno] = useState('');
-  const [radioExpanded, setRadioExpanded] = useState(true);
+  const [filterListMes] = useState('');
+  const [filterListAno] = useState('');
   const [faxinaExpanded, setFaxinaExpanded] = useState(true);
+  const [responsabilidadesExpanded, setResponsabilidadesExpanded] = useState(true);
+  const [radioExpanded, setRadioExpanded] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<EscalaMensalCompleta | null>(null);
+  const [printMenuOpen, setPrintMenuOpen] = useState(false);
+  const [salvando, setSalvando] = useState(false);
+  const [autoPreencherSetup, setAutoPreencherSetup] = useState(true);
+
+  function mostrarAlerta(title: string, message: string, variant: GlobalAlertVariant = 'info') {
+    showAlert({ title, message, variant });
+  }
 
   async function handleExportPNG() {
     const el = document.getElementById('print-area');
-    if (!el) return;
+    if (!el) {
+      mostrarAlerta('Escala indisponível', 'Abra uma escala mensal antes de salvar em PNG.', 'warning');
+      return;
+    }
+    let captura: ReturnType<typeof prepararCapturaPng> | null = null;
     try {
-      notificar('Gerando PNG...');
+      mostrarAlerta('Gerando PNG', 'A escala mensal está sendo preparada para download.', 'info');
+      captura = prepararCapturaPng(el);
+      await nextFrame();
       const dataUrl = await toPng(el, { 
         quality: 1, 
         pixelRatio: 2,
         backgroundColor: '#ffffff',
+        width: captura.width,
+        height: captura.height,
+        style: {
+          overflow: 'visible',
+          width: `${captura.width}px`,
+          height: `${captura.height}px`,
+          maxWidth: 'none',
+        },
       });
       const link = document.createElement('a');
-      link.download = `${document.title || 'escala-mensal'}.png`;
+      link.download = `${nomeArquivoEscala()}.png`;
       link.href = dataUrl;
       link.click();
-      notificar('PNG salvo com sucesso!');
+      mostrarAlerta('PNG salvo', 'O arquivo PNG da escala foi gerado com sucesso.', 'success');
     } catch (e) {
-      console.error('PNG error:', e);
-      notificar('Erro ao gerar PNG: ' + (e instanceof Error ? e.message : 'desconhecido'));
+      mostrarAlerta('Erro ao gerar PNG', e instanceof Error ? e.message : 'Erro desconhecido.', 'danger');
+    } finally {
+      captura?.restore();
     }
   }
 
@@ -112,13 +541,13 @@ export function EscalaMensal() {
   useEffect(() => {
     if (!equipe) return;
     // Auto-definir paridade com base na equipa (Alfa/Bravo = ímpares, Charlie/Delta = pares)
-    setParidade(equipe === 'Alfa' || equipe === 'Bravo' ? 'impar' : 'par');
-  }, [equipe]);
+    setParidade(paridadePorSequencia(equipe, mes, ano));
+  }, [equipe, mes, ano]);
 
   useEffect(() => {
-    if (!equipe || !bombeiros.length || mode !== 'setup') return;
+    if (!equipe || !bombeiros.length || mode !== 'setup' || editingId || !autoPreencherSetup) return;
     handleAutoFillComEfetivo();
-  }, [equipe, mode, bombeiros.length]);
+  }, [equipe, mes, ano, mode, bombeiros.length, editingId, autoPreencherSetup]);
 
   useEffect(() => {
     const filtradas = isGlobal ? completas : completas.filter(c => c.config.equipe === userEquipe);
@@ -132,70 +561,86 @@ export function EscalaMensal() {
     return completas.find(c => c.config.id === selecionada) || null;
   }, [selecionada, completas]);
 
+  function nomeArquivoEscala(completa: EscalaMensalCompleta | null = completaAtual): string {
+    if (!completa) return 'escala-mensal';
+    const equipeArquivo = completa.config.equipe || 'equipe';
+    const mesArquivo = MESES[completa.config.mes - 1] || `mes-${completa.config.mes}`;
+    return `escala-mensal-${equipeArquivo}-${mesArquivo}-${completa.config.ano}`
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9-]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+      .toLowerCase();
+  }
+
+  function tituloEscala(completa: EscalaMensalCompleta): string {
+    return `ESCALA MENSAL EQUIPE ${completa.config.equipe} MES DE ${MESES[completa.config.mes - 1]} ${completa.config.ano}`;
+  }
+
+  function handlePrint() {
+    if (!completaAtual) return;
+    const previousTitle = document.title;
+    document.title = tituloEscala(completaAtual);
+    setPrintMenuOpen(false);
+    mostrarAlerta('Impressão acionada', 'A janela de impressão do navegador será aberta. Se quiser arquivo de imagem, use Imprimir > Salvar PNG.', 'info');
+    const restoreTitle = () => {
+      document.title = previousTitle;
+      window.removeEventListener('afterprint', restoreTitle);
+    };
+    window.addEventListener('afterprint', restoreTitle);
+    setTimeout(() => window.print(), 80);
+    setTimeout(restoreTitle, 1000);
+  }
+
   // Cache de vigências para uso no substituirFerias
-  const [vigenciasCache, setVigenciasCache] = useState<any[]>([]);
+  const [vigenciasCache, setVigenciasCache] = useState<VigenciaSubstituicao[]>([]);
   useEffect(() => {
     listarVigencias({ ativa: true }).then(setVigenciasCache).catch(() => {});
   }, []);
 
+  const efetivoMensal = useMemo(() => montarEfetivoMensal({
+    bombeiros,
+    feriasGozo,
+    vigencias: vigenciasCache,
+    equipe,
+    mes,
+    ano,
+  }), [bombeiros, feriasGozo, vigenciasCache, equipe, mes, ano]);
+
+  const efetivoOptions = useMemo(
+    () => montarOpcoesEfetivo(efetivoMensal, equipe),
+    [efetivoMensal, equipe],
+  );
+
+  const radioEfetivo = useMemo(
+    () => efetivoMensal.filter(podeFazerRadio),
+    [efetivoMensal],
+  );
+  const radioDiurno = equipeRadioDiurna(equipe);
+  const radioAntesLabel = radioDiurno ? 'Antes do meio-dia' : 'Antes da meia-noite';
+  const radioDepoisLabel = radioDiurno ? 'Depois do meio-dia' : 'Depois da meia-noite';
+
+  useEffect(() => {
+    if (!radioEfetivo.length) return;
+    const idsValidos = new Set(radioEfetivo.map(entry => entry.bombeiro.id));
+    setRadioManual(prev => {
+      const comunicanteId = idsValidos.has(prev.comunicanteId) ? prev.comunicanteId : '';
+      const antesMeiaNoiteIds = prev.antesMeiaNoiteIds.map(id => idsValidos.has(id) ? id : '');
+      const depoisMeiaNoiteIds = prev.depoisMeiaNoiteIds.map(id => idsValidos.has(id) ? id : '');
+      const mudou = comunicanteId !== prev.comunicanteId ||
+        antesMeiaNoiteIds.some((id, idx) => id !== prev.antesMeiaNoiteIds[idx]) ||
+        depoisMeiaNoiteIds.some((id, idx) => id !== prev.depoisMeiaNoiteIds[idx]);
+      return mudou ? { comunicanteId, antesMeiaNoiteIds, depoisMeiaNoiteIds } : prev;
+    });
+  }, [radioEfetivo]);
+
   const veiculosView = useMemo(() => {
     if (!completaAtual || completaAtual.paradas.length === 0) return null;
     const v = completaAtual.paradas[0].veiculos || {} as any;
-    const nomeSubstituto = (nome: string): string => {
-      if (!nome || nome === '-') return nome || '-';
-      const b = bombeiros.find(bb => bb.nomeGuerra === nome);
-      if (!b) return nome;
-
-      // 1. Verificar vigências de substituição (cascata)
-      const mesIni = new Date(ano, mes - 1, 1);
-      const mesFim = new Date(ano, mes, 0);
-      const vigNoMes = vigenciasCache.find(v =>
-        v.funcionarioOriginalId === b.id &&
-        v.ativa &&
-        new Date(v.dataFim) >= mesIni &&
-        new Date(v.dataInicio) <= mesFim
-      );
-      if (vigNoMes) {
-        const subB = bombeiros.find(bb => bb.id === vigNoMes.substitutoId);
-        if (subB) return subB.nomeGuerra;
-        return vigNoMes.substitutoNome || nome;
-      }
-
-      // 2. Fallback: férias diretas
-      const feriasNoMes = feriasGozo.filter(g => {
-        if (g.funcionarioId !== b.id || g.status === 'Gozadas') return false;
-        const gInicio = new Date(g.dataInicio + 'T00:00:00');
-        const gFim = new Date(g.dataFim + 'T00:00:00');
-        return gInicio <= mesFim && gFim >= mesIni;
-      });
-      if (feriasNoMes.length > 0) {
-        const sub = feriasNoMes.find(g => g.substitutoNome);
-        if (sub?.substitutoNome) {
-          const subB = bombeiros.find(bb => bb.nomeGuerra === sub.substitutoNome || bb.nomeCompleto === sub.substitutoNome);
-          if (subB) return subB.nomeGuerra;
-          return sub.substitutoNome;
-        }
-      }
-
-      // 3. Fallback: ferista
-      const cobreFerista = feriasGozo.find(g => {
-        if (g.status === 'Gozadas') return false;
-        const obs = g.observacoes || '';
-        const match = obs.match(/cobre:\s*(.+?)\)/);
-        return match && (match[1] === b.nomeGuerra || match[1] === b.nomeCompleto);
-      });
-      if (cobreFerista) {
-        const ferMatch = cobreFerista.observacoes?.match(/Ferista:\s*(.+?)(?:\s*\(|$)/);
-        if (ferMatch) {
-          const fer = bombeiros.find(bb => bb.nomeCompleto === ferMatch[1].trim() || bb.nomeGuerra === ferMatch[1].trim());
-          if (fer) return fer.nomeGuerra;
-        }
-      }
-      return nome;
-    };
+    const nomeExibido = (nome: string): string => nome || '-';
     const linha = (label: string, nome: string) => {
-      const substituto = nomeSubstituto(nome);
-      return `${label}: ${substituto}`;
+      return `${label}: ${nomeExibido(nome)}`;
     };
     return (
       <div className="rounded border-2 border-graphite-300 bg-white/80 p-1 print:border-graphite-500 print:bg-white dark:border-border-dark dark:bg-surface-card">
@@ -227,17 +672,15 @@ export function EscalaMensal() {
                   return v.cciF3?.[keys[i]] || '';
                 })();
                 const nome = nomeParts.join(': ');
-                const subNome = nomeSubstituto(nomeKey);
-                const temSub = subNome !== nomeKey && nomeKey !== '-';
                 return <p key={i} className="text-[11px] font-semibold print:font-bold leading-snug text-graphite-800 print:text-graphite-900 dark:text-graphite-200"
-                  title={temSub ? `${nomeKey} em gozo · Substituído por ${subNome}` : nome !== '-' ? `${nome} · Função: ${label}` : ''}>{item}</p>;
+                  title={nome !== '-' ? `${nomeKey || nome} · Função: ${label}` : ''}>{item}</p>;
               })}
             </div>
           ))}
         </div>
       </div>
     );
-  }, [completaAtual, bombeiros, feriasGozo, ano, mes]);
+  }, [completaAtual]);
 
   const qtdPessoas = pessoas.filter(pessoaValida).length;
 
@@ -259,164 +702,227 @@ export function EscalaMensal() {
     return !!p?.id && !!p?.nomeGuerra;
   }
 
-  async function handleGerar() {
+  async function montarCompletaParaSalvar(configId: string, createdAt?: string): Promise<EscalaMensalCompleta | null> {
     if (!equipe) {
+      mostrarAlerta('Equipe obrigatória', 'Selecione uma equipe antes de gerar ou salvar a escala mensal.', 'warning');
       notificar('Selecione uma equipe antes de gerar.');
-      return;
+      return null;
     }
-    const nenhumaPreenchida = pessoas.every(p => !p);
-    if (nenhumaPreenchida) {
-      const gozos = await listarFeriasGozo();
-      const escalasFerias = await listarEscalasFerias(equipe, ano);
-      const items: any[] = [];
-      for (const esc of escalasFerias) {
-        const it = await listarItensEscala(esc.id);
-        for (const i of it) if (i.mes === mes) items.push(i);
-      }
-      const emGozoIds = new Set(gozos.filter(g => {
-        if (!g.funcionarioId || g.status === 'Gozadas') return false;
-        const gInicio = new Date(g.dataInicio + 'T00:00:00');
-        const gFim = new Date(g.dataFim + 'T00:00:00');
-        const mesIni = new Date(ano, mes - 1, 1);
-        const mesFim = new Date(ano, mes, 0);
-        return gInicio <= mesFim && gFim >= mesIni;
-      }).map(g => g.funcionarioId));
-      const membrosEq = bombeiros.filter(b => b.equipe === equipe);
-      const subs: Bombeiro[] = [];
-      const ja = new Set<string>();
-      for (const m of membrosEq) {
-        if (emGozoIds.has(m.id)) {
-          const gozo = gozos.find(g => g.funcionarioId === m.id && g.substitutoId);
-          if (gozo) {
-            const subB = bombeiros.find(bb => bb.id === gozo.substitutoId);
-            if (subB && !ja.has(subB.id)) { subs.push(subB); ja.add(subB.id); }
-          }
-        } else {
-          if (!ja.has(m.id)) { subs.push(m); ja.add(m.id); }
-        }
-      }
-      if (subs.length < 10) {
-        notificar(`Apenas ${subs.length} efetivos disponiveis. Cadastre mais pessoas ou ajuste as ferias.`);
-        return;
-      }
-      const usado = new Set<string>();
-      const poolG = [...subs];
-      const buscarG = (cargo: string) => { const idx = poolG.findIndex(b => b.cargo === cargo && !usado.has(b.id)); if (idx === -1) return null; usado.add(poolG[idx].id); return poolG[idx]; };
-      const novas = SLOTS.map(slot => {
-        const cargoS = slot.funcao === 'chefe' ? 'BA-CE' : slot.funcao === 'lider' ? 'BA-LR' : slot.funcao === 'ba-mc' ? 'BA-MC' : 'BA-2';
-        let b = buscarG(cargoS);
-        if (b && slot.funcao !== 'ba-2') {
-          const veiculoBA = slot.veiculo === 'crs' ? 'crs' as const : 'cci' as const;
-          const v = validarCursoParaFuncao(b, cargoS as 'BA-CE' | 'BA-LR' | 'BA-MC', veiculoBA);
-          if (v?.nivel === 'bloqueado') b = null;
-        }
-        if (!b) { const r = poolG.find(p => !usado.has(p.id)); if (!r) return null; usado.add(r.id); b = r; }
-        return { id: b.id, nome: b.nome, nomeGuerra: b.nomeGuerra, funcao: slot.funcao, veiculo: slot.veiculo, funcaoNoVeiculo: slot.funcaoNoVeiculo, isRadioFixo: slot.isRadioFixo } as Partial<PessoaEscala>;
-      });
-      setPessoas(novas);
-      const validadas = novas.filter(pessoaValida);
-      if (validadas.length < 10) { notificar(`Preenchimento automatico: ${validadas.length}/10 pessoas. Complete manualmente.`); return; }
+    const [all, gozos, vigs] = await Promise.all([
+      listarAtivos(),
+      listarFeriasGozo(),
+      listarVigencias({ ativa: true }),
+    ]);
+    setBombeiros(all);
+    setFeriasGozo(gozos);
+    setVigenciasCache(vigs);
+
+    const efetivoParaGerar = montarEfetivoMensal({ bombeiros: all, feriasGozo: gozos, vigencias: vigs, equipe, mes, ano });
+    let pessoasParaGerar = resolverPessoasSelecionadas(pessoas, efetivoParaGerar);
+    if (pessoasParaGerar.every(p => !p)) {
+      pessoasParaGerar = montarPessoasPorSlots(efetivoParaGerar);
     }
-    const validadas = pessoas.filter(pessoaValida);
+    setPessoas(pessoasParaGerar);
+
+    const validadas = pessoasParaGerar.filter(pessoaValida);
+    if (validadas.length < SLOTS.length) {
+      mostrarAlerta('Preenchimento incompleto', `Foram preenchidas ${validadas.length}/${SLOTS.length} funções. Complete as funções faltantes antes de salvar.`, 'warning');
+      notificar(`Preenchimento: ${validadas.length}/${SLOTS.length} pessoas. Complete as funções faltantes.`);
+      return null;
+    }
+
+    const faxinaSelecionada = montarFaxinaSelecionada(faxinaManual, efetivoParaGerar);
+    const responsabilidadesSelecionadas = montarResponsabilidadesSelecionadas(responsabilidadesManual, efetivoParaGerar);
+    const radioSelecionado = montarRadioSelecionado(radioManual, efetivoParaGerar.filter(podeFazerRadio));
 
     const cfg: EscalaMensalConfig = {
-      id: novaConfigId(),
+      id: configId,
       equipe, mes, ano, paridade,
       pessoas: validadas,
-      createdAt: new Date().toISOString(),
+      faxinaManual: faxinaSelecionada.length > 0 ? faxinaSelecionada : undefined,
+      responsabilidadesManual: responsabilidadesSelecionadas.length > 0 ? responsabilidadesSelecionadas : undefined,
+      radioManual: radioSelecionado,
+      createdAt: createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
-    const completa = gerarEscalaMensal(cfg);
-    await Promise.all([salvarConfig(cfg), salvarCompleta(completa)]);
-
-    const c = await listarCompletas();
-    setCompletas(c);
-    setSelecionada(cfg.id);
-    setMode('view');
-    notificar(`Escala de ${MESES[mes - 1]}/${ano} gerada!`);
+    return gerarEscalaMensal(cfg);
   }
 
-  function substituirFerias(p: Partial<PessoaEscala> | null): Partial<PessoaEscala> | null {
+  async function atualizarListaSelecionando(configId: string) {
+    const c = await listarCompletas();
+    setCompletas(c);
+    setSelecionada(configId);
+    setMode('view');
+  }
+
+  async function handleGerar() {
+    if (salvando) return;
+    setSalvando(true);
+    mostrarAlerta('Criando escala', 'A escala mensal está sendo gerada e salva.', 'info');
+    try {
+      const configId = novaConfigId();
+      const completa = await montarCompletaParaSalvar(configId);
+      if (!completa) return;
+      await salvarCompleta(completa);
+      await atualizarListaSelecionando(configId);
+      setEditingId(null);
+      setAutoPreencherSetup(true);
+      mostrarAlerta('Escala criada', `A escala de ${MESES[mes - 1]}/${ano} foi gerada e salva com sucesso.`, 'success');
+    } catch (err) {
+      mostrarAlerta('Erro ao salvar escala', err instanceof Error ? err.message : 'Erro desconhecido.', 'danger');
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  async function handleSalvarEdicao() {
+    if (!editingId || salvando) return;
+    setSalvando(true);
+    mostrarAlerta('Salvando alterações', 'As alterações da escala mensal estão sendo aplicadas.', 'info');
+    try {
+      const original = completas.find(c => c.config.id === editingId);
+      const completa = await montarCompletaParaSalvar(editingId, original?.config.createdAt);
+      if (!completa) return;
+      await salvarCompleta(completa);
+      await atualizarListaSelecionando(editingId);
+      setEditingId(null);
+      setAutoPreencherSetup(true);
+      mostrarAlerta('Alterações salvas', 'A escala mensal foi atualizada com sucesso.', 'success');
+    } catch (err) {
+      mostrarAlerta('Erro ao salvar alterações', err instanceof Error ? err.message : 'Erro desconhecido.', 'danger');
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  async function handleSalvarEscalaAtual() {
+    if (!completaAtual || salvando) return;
+    setSalvando(true);
+    mostrarAlerta('Salvando escala', 'A escala mensal atual está sendo salva.', 'info');
+    try {
+      await salvarCompleta({
+        ...completaAtual,
+        config: {
+          ...completaAtual.config,
+          updatedAt: new Date().toISOString(),
+        },
+      });
+      await atualizarListaSelecionando(completaAtual.config.id);
+      mostrarAlerta('Escala salva', 'A escala mensal atual foi salva com sucesso.', 'success');
+    } catch (err) {
+      mostrarAlerta('Erro ao salvar escala', err instanceof Error ? err.message : 'Erro desconhecido.', 'danger');
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  function substituirFerias(p: Partial<PessoaEscala> | null, cargoEfetivo?: string): Partial<PessoaEscala> | null {
     if (!p?.id) return p;
+    const slot = SLOTS.find(s =>
+      s.cargoFiltro === cargoEfetivo &&
+      s.funcao === p.funcao &&
+      s.veiculo === p.veiculo &&
+      s.funcaoNoVeiculo === p.funcaoNoVeiculo
+    );
+    if (slot) return resolverPessoaSelecionada(p, slot, efetivoMensal);
+    const { inicio, fim } = intervaloMes(mes, ano);
+    const jaEstaNoEfetivo = efetivoMensal.some(entry =>
+      entry.bombeiro.id === p.id &&
+      (!cargoEfetivo || entry.cargoExercido === cargoEfetivo)
+    );
+    if (jaEstaNoEfetivo) return p;
 
     // Verificar vigências ativas primeiro (substituições em cascata)
     const vigencia = vigenciasCache.find(v =>
-      v.substitutoId === p.id &&
+      v.funcionarioOriginalId === p.id &&
+      v.substitutoId !== p.id &&
       v.ativa &&
+      (bombeiros.find(b => b.id === v.funcionarioOriginalId)?.equipe || v.equipe) === equipe &&
+      (!cargoEfetivo || v.cargoExercido === cargoEfetivo) &&
       // Verificar se a vigência cobre o mês atual
-      new Date(v.dataFim) >= new Date(ano, mes - 1, 1) &&
-      new Date(v.dataInicio) <= new Date(ano, mes, 0)
+      sobrepoePeriodo(v.dataInicio, v.dataFim, inicio, fim)
     );
     if (vigencia) {
-      const original = bombeiros.find(b => b.id === vigencia.funcionarioOriginalId);
-      if (original) {
-        return { id: original.id, nome: original.nomeCompleto, nomeGuerra: original.nomeGuerra, funcao: p.funcao, veiculo: p.veiculo, funcaoNoVeiculo: p.funcaoNoVeiculo, isRadioFixo: p.isRadioFixo || false };
+      const sub = bombeiros.find(b => b.id === vigencia.substitutoId);
+      if (sub) {
+        return { id: sub.id, nome: sub.nomeCompleto, nomeGuerra: sub.nomeGuerra, funcao: p.funcao, veiculo: p.veiculo, funcaoNoVeiculo: p.funcaoNoVeiculo, isRadioFixo: p.isRadioFixo || false };
       }
     }
 
     // Fallback: verificar férias diretamente
-    const gozo = feriasGozo.find(g => g.funcionarioId === p.id && g.status !== 'Gozadas' && g.substitutoId);
+    const gozo = feriasGozo.find(g =>
+      g.funcionarioId === p.id &&
+      g.status !== 'Gozadas' &&
+      g.substitutoId &&
+      (bombeiros.find(b => b.id === g.funcionarioId)?.equipe || g.equipe) === equipe &&
+      (!cargoEfetivo || (g.funcaoSubstituicao || bombeiros.find(b => b.id === g.funcionarioId)?.cargo) === cargoEfetivo) &&
+      sobrepoePeriodo(g.dataInicio, g.dataFim, inicio, fim)
+    );
     if (!gozo) return p;
     const sub = bombeiros.find(b => b.id === gozo.substitutoId);
     if (!sub) return p;
     return { id: sub.id, nome: sub.nomeCompleto, nomeGuerra: sub.nomeGuerra, funcao: p.funcao, veiculo: p.veiculo, funcaoNoVeiculo: p.funcaoNoVeiculo, isRadioFixo: p.isRadioFixo || false };
   }
 
-  function handleClone() {
-    if (!completaAtual) return;
-    const { config: atual } = completaAtual;
-    let novoMes = atual.mes + 1;
-    let novoAno = atual.ano;
-    if (novoMes > 12) { novoMes = 1; novoAno++; }
-
-    setEquipe(atual.equipe);
-    setMes(novoMes);
-    setAno(novoAno);
-    setParidade(atual.paridade);
-    setPessoas(atual.pessoas.map(p => substituirFerias(p)));
-    setSelecionada(null);
-    setMode('setup');
-    notificar(`Configuração clonada para ${MESES[novoMes - 1]}/${novoAno}. Verifique e gere.`);
-  }
-
   async function handleDelete() {
-    if (!completaAtual) return;
-    await excluirConfig(completaAtual.config.id);
-    const c = await listarCompletas();
-    setCompletas(c);
-    if (c.length > 0) { setSelecionada(c[0].config.id); setMode('view'); }
-    else { setSelecionada(null); setMode('setup'); }
+    if (!deleteTarget) return;
+    try {
+      const deletedId = deleteTarget.config.id;
+      const deletedLabel = `${MESES[deleteTarget.config.mes - 1]} ${deleteTarget.config.ano} · ${deleteTarget.config.equipe}`;
+      await excluirConfig(deletedId);
+      const c = await listarCompletas();
+      setCompletas(c);
+      if (selecionada === deletedId) setSelecionada(null);
+      setDeleteTarget(null);
+      setMode('list');
+      mostrarAlerta('Escala excluída', `A escala ${deletedLabel} foi excluída com sucesso.`, 'success');
+    } catch (err) {
+      setDeleteTarget(null);
+      mostrarAlerta('Erro ao excluir escala', err instanceof Error ? err.message : 'Erro desconhecido.', 'danger');
+    }
   }
 
-  function handleEdit() {
+  async function handleEdit() {
     if (!completaAtual) return;
-    const { config: cfg } = completaAtual;
-    setEquipe(cfg.equipe);
-    setMes(cfg.mes);
-    setAno(cfg.ano);
-    setParidade(cfg.paridade);
-    setPessoas(SLOTS.map(() => null));
-    setMode('setup');
+    try {
+      const bombeirosBase = bombeiros.length ? bombeiros : await listarAtivos();
+      if (!bombeiros.length) setBombeiros(bombeirosBase);
+      const { config: cfg } = completaAtual;
+      setSelecionada(cfg.id);
+      setEquipe(cfg.equipe);
+      setMes(cfg.mes);
+      setAno(cfg.ano);
+      setParidade(cfg.paridade);
+      setPessoas(SLOTS.map((_, idx) => cfg.pessoas[idx] ? { ...cfg.pessoas[idx] } : null));
+      setFaxinaManual(faxinaParaState(completaAtual.faxinaMensal, bombeirosBase));
+      setResponsabilidadesManual(responsabilidadesParaState(completaAtual.responsabilidades, bombeirosBase));
+      setRadioManual(radioParaState(completaAtual, bombeirosBase));
+      setEditingId(cfg.id);
+      setAutoPreencherSetup(false);
+      setMode('setup');
+      mostrarAlerta('Modo de edição', 'Edite as informações da escala e clique em Salvar Alterações para gravar no mesmo registro.', 'info');
+    } catch (err) {
+      mostrarAlerta('Erro ao abrir edição', err instanceof Error ? err.message : 'Erro desconhecido.', 'danger');
+    }
   }
 
   function handleAutoFill() {
-    handleAutoFillComEfetivo();
+    handleAutoFillComEfetivo(true);
   }
 
-  async function handleAutoFillComEfetivo() {
+  async function handleAutoFillComEfetivo(exibirModal = false) {
     try {
       // ── Carregar os MESMOS dados do Quadro de Efetivos ──
-      const [all, gozos, escalas, vigs] = await Promise.all([
+      const [all, gozos, vigs] = await Promise.all([
         listarAtivos(),
         listarFeriasGozo(),
-        listarEscalasFerias(),
         listarVigencias({ ativa: true }),
       ]);
 
       // allItems = items de escalas aprovadas com feriasGozoId (exato como o Quadro faz)
       const allItems: any[] = [];
-      for (const esc of escalas) {
+      for (const esc of [] as any[]) {
         if (esc.status !== 'Aprovado') continue;
         const its = await listarItensEscala(esc.id);
         for (const i of its) {
@@ -438,7 +944,7 @@ export function EscalaMensal() {
       }
 
       // ── temSubstituto (exato como o Quadro) ──
-      function temSubstituto(bId: string): boolean {
+      function _temSubstituto(bId: string): boolean {
         return !!(
           vigs.find((v: any) => v.funcionarioOriginalId === bId && v.ativa) ||
           allItems.find((i: any) => i.funcionarioId === bId && (i.substitutoId || i.feristaId))
@@ -446,7 +952,7 @@ export function EscalaMensal() {
       }
 
       // ── getSubstituindo (exato como o Quadro) ──
-      function getSubstituindo(bId: string): { id: string; cargo: string } | null {
+      function _getSubstituindo(bId: string): { id: string; cargo: string } | null {
         // 1. allItems (escala aprovada)
         const item = allItems.find((i: any) => i.substitutoId === bId);
         if (item) {
@@ -476,15 +982,23 @@ export function EscalaMensal() {
         return null;
       }
 
-      const membrosEquipe = all.filter((b: any) => b.equipe === equipe);
-      const pool: { bombeiro: any; cargo: string }[] = [];
+      setBombeiros(all);
+      setFeriasGozo(gozos);
+      setVigenciasCache(vigs);
+
+      const efetivo = montarEfetivoMensal({ bombeiros: all, feriasGozo: gozos, vigencias: vigs, equipe, mes, ano });
+      const _membrosEquipe = all.filter((b: any) => b.equipe === equipe);
+      const pool: { bombeiro: Bombeiro; cargo: string }[] = efetivo.map(entry => ({
+        bombeiro: entry.bombeiro,
+        cargo: entry.cargoExercido,
+      }));
       const ocupados = new Set<string>();
       let gozosEncontrados = 0;
       let substitutosEncontrados = 0;
       let semSubstituto: string[] = [];
       let poolInfo: string[] = [];
 
-      for (const m of membrosEquipe) {
+      for (const m of [] as any[]) {
         if (!isEmGozo(m.id)) {
           pool.push({ bombeiro: m, cargo: m.cargo });
           poolInfo.push(`${m.nomeGuerra} (${m.cargo})`);
@@ -520,7 +1034,7 @@ export function EscalaMensal() {
       }
 
       // Substitutos externos (de outras equipas)
-      for (const v of vigs) {
+      for (const v of [] as any[]) {
         if (v.equipe === equipe && !ocupados.has(v.substitutoId)) {
           const sub = all.find((bb: any) => bb.id === v.substitutoId);
           if (sub) {
@@ -559,15 +1073,16 @@ export function EscalaMensal() {
       });
 
       // ── Pós-processamento: substituir vacationers pelos substitutos ──
-      const novasSubstituidas = novas.map(p => {
+      const _novasSubstituidas = novas.map(p => {
         if (!p || !p.id) return p;
         // Verificar se esta pessoa está de férias com substituto (vigência, gozo, item)
-        const subVig = vigs.find((v: any) => v.funcionarioOriginalId === p.id && v.ativa);
-        if (subVig && subVig.substitutoId) {
-          const sub = all.find((bb: any) => bb.id === subVig.substitutoId);
-          if (sub) return { ...p, id: sub.id, nome: sub.nome, nomeGuerra: sub.nomeGuerra };
-        }
-        const gozo = gozos.find((g: any) => g.funcionarioId === p.id && g.substitutoId && g.status !== 'Gozadas');
+        const { inicio, fim } = intervaloMes(mes, ano);
+        const gozo = gozos.find((g: any) =>
+          g.funcionarioId === p.id &&
+          g.substitutoId &&
+          g.status !== 'Gozadas' &&
+          sobrepoePeriodo(g.dataInicio, g.dataFim, inicio, fim)
+        );
         if (gozo) {
           const sub = all.find((bb: any) => bb.id === gozo.substitutoId);
           if (sub) return { ...p, id: sub.id, nome: sub.nome, nomeGuerra: sub.nomeGuerra };
@@ -575,11 +1090,14 @@ export function EscalaMensal() {
         return p;
       });
 
-      setPessoas(novasSubstituidas);
-      const debug = `V:${vigs.length} G:${gozos.length} I:${allItems.length} Pool:[${poolInfo.join('; ')}]`;
-      notificar(`${novas.filter(Boolean).length}/10 · ${membrosEquipe.length} membros · ${gozosEncontrados} em gozo · ${substitutosEncontrados} sub · ${semSubstituto.join(',')} sem sub · ${debug.substring(0, 250)}`);
+      setPessoas(novas);
+      const mensagem = `Preenchimento: ${novas.filter(Boolean).length}/${SLOTS.length} funções com o efetivo de ${equipe}.`;
+      if (exibirModal) mostrarAlerta('Preenchimento concluído', mensagem, 'success');
+      else notificar(mensagem);
     } catch (err) {
-      notificar('Erro: ' + (err instanceof Error ? err.message : 'Erro desconhecido'));
+      const mensagem = err instanceof Error ? err.message : 'Erro desconhecido';
+      if (exibirModal) mostrarAlerta('Erro no preenchimento', mensagem, 'danger');
+      else notificar('Erro: ' + mensagem);
     }
   }
 
@@ -589,9 +1107,10 @@ export function EscalaMensal() {
       {mode === 'list' && (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">Escala Mensal</h2>
-          <button onClick={() => {
+          <button title="Criar uma nova escala mensal" onClick={() => {
             setEquipe(''); setMes(new Date().getMonth() + 1); setAno(new Date().getFullYear());
-            setParidade('impar'); setPessoas(SLOTS.map(() => null)); setMode('setup');
+            setParidade('impar'); setPessoas(SLOTS.map(() => null)); setFaxinaManual({}); setResponsabilidadesManual({}); setRadioManual(criarRadioManualVazio()); setMode('setup');
+            setEditingId(null); setAutoPreencherSetup(true);
           }}
             className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20">
             <Calendar className="h-4 w-4" /> Nova Escala Mensal
@@ -601,7 +1120,7 @@ export function EscalaMensal() {
       {mode !== 'list' && (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <button onClick={() => { setMode('list'); setSelecionada(null); }}
+            <button title="Voltar para a listagem de escalas mensais" onClick={() => { setMode('list'); setSelecionada(null); setEditingId(null); setAutoPreencherSetup(true); }}
               className="rounded-xl border border-graphite-300/60 bg-white/80 px-3 py-1.5 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">
               Voltar
             </button>
@@ -610,37 +1129,36 @@ export function EscalaMensal() {
           <div className="flex flex-wrap items-center gap-2">
             {mode === 'view' && completaAtual && (
               <>
-                <button onClick={handleEdit}
+                <button title="Editar os dados desta escala mensal" onClick={handleEdit}
                   className="flex items-center gap-1 rounded-xl border border-graphite-300/60 bg-white/80 px-3 py-1.5 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">
-                  Editar
+                  <Pencil className="h-4 w-4" /> Editar
                 </button>
-                <button onClick={handleClone}
-                  className="flex items-center gap-1 rounded-xl border border-aviation-300 bg-aviation-50 px-3 py-1.5 text-sm font-medium text-aviation-700 dark:border-aviation-700 dark:bg-aviation-900/20 dark:text-aviation-300">
-                  <Copy className="h-4 w-4" /> Clonar p/ Próximo Mês
+                <button title="Salvar novamente esta escala mensal" onClick={handleSalvarEscalaAtual} disabled={salvando}
+                  className="flex items-center gap-1 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700 transition-all hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
+                  <Save className="h-4 w-4" /> {salvando ? 'Salvando...' : 'Salvar Escala'}
                 </button>
-                <button onClick={handleExportPNG}
-                  className="flex items-center gap-1 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
-                  <Image className="h-4 w-4" /> Salvar PNG
-                </button>
-                <button onClick={() => {
-                  if (completaAtual) {
-                    document.title = `ESCALA MENSAL EQUIPE ${completaAtual.config.equipe} MÊS DE ${MESES[completaAtual.config.mes - 1]} ${completaAtual.config.ano}`;
-                  }
-                  window.print();
-                }}
-                  className="flex items-center gap-1 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-3 py-1.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20">
-                  <Printer className="h-4 w-4" /> Imprimir
-                </button>
-                {(effectiveRole === 'desenvolvedor' || effectiveRole === 'admin') && (
-                  <button onClick={handleDelete}
-                    className="flex items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
-                    <Trash2 className="h-4 w-4" /> Excluir
+                <div className="relative">
+                  <button title="Abrir opções de impressão e PNG" onClick={() => setPrintMenuOpen(prev => !prev)}
+                    className="flex items-center gap-1 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-3 py-1.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20">
+                    <Printer className="h-4 w-4" /> Imprimir
                   </button>
-                )}
+                  {printMenuOpen && (
+                    <div className="absolute right-0 z-40 mt-2 w-48 overflow-hidden rounded-xl border border-graphite-200 bg-white shadow-xl dark:border-border-dark dark:bg-surface-elevated">
+                      <button type="button" title="Abrir a janela de impressão do navegador" onClick={handlePrint}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium text-graphite-700 hover:bg-aviation-50 dark:text-graphite-200 dark:hover:bg-aviation-900/20">
+                        <Printer className="h-4 w-4" /> Imprimir agora
+                      </button>
+                      <button type="button" title="Baixar a escala como imagem PNG" onClick={() => { setPrintMenuOpen(false); handleExportPNG(); }}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-900/20">
+                        <Image className="h-4 w-4" /> Salvar PNG
+                      </button>
+                    </div>
+                  )}
+                </div>
               </>
             )}
             {mode === 'setup' && completas.length > 0 && (
-              <button onClick={() => { setMode('list'); setSelecionada(null); }}
+              <button title="Cancelar e voltar para a listagem" onClick={() => { setMode('list'); setSelecionada(null); setEditingId(null); setAutoPreencherSetup(true); }}
                 className="rounded-xl border border-graphite-300/60 bg-white/80 px-3 py-1.5 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">
                 Cancelar
               </button>
@@ -677,8 +1195,8 @@ export function EscalaMensal() {
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Plantões em dias</label>
-              <select value={paridade} onChange={e => setParidade(e.target.value as 'par' | 'impar')}
-                className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm dark:border-border-dark dark:bg-surface-card dark:text-graphite-100">
+              <select value={paridade} disabled
+                className="w-full rounded-xl border border-graphite-300/60 bg-graphite-100/70 px-3 py-2.5 text-sm text-graphite-500 dark:border-border-dark dark:bg-surface-card dark:text-graphite-400">
                 <option value="impar">Ímpares (1, 3, 5...)</option>
                 <option value="par">Pares (2, 4, 6...)</option>
               </select>
@@ -699,7 +1217,8 @@ export function EscalaMensal() {
                   {veiculo.indices.map(idx => {
                     const slot = SLOTS[idx];
                     const p = pessoas[idx];
-                    const pNomeGuerra = (() => {
+                    const pResolvida = substituirFerias(p, slot.cargoFiltro);
+                    const _pNomeGuerra = (() => {
                       if (!p?.nomeGuerra) return '';
                       // Se a pessoa no slot estiver de férias com substituto, mostra o substituto
                       const pId = p.id;
@@ -715,32 +1234,36 @@ export function EscalaMensal() {
                       }
                       return p.nomeGuerra;
                     })();
-                    const b = pNomeGuerra ? bombeiros.find(bb => bb.nomeGuerra === pNomeGuerra) : null;
+                    const _pNomeGuerraEfetivo = pResolvida?.nomeGuerra || _pNomeGuerra;
+                    const selectedId = pResolvida?.id || p?.id || '';
+                    const b = selectedId ? bombeiros.find(bb => bb.id === selectedId) : null;
                     const cargoReq = slot.funcao === 'chefe' ? 'BA-CE' as const : slot.funcao === 'lider' ? 'BA-LR' as const : slot.funcao === 'ba-mc' ? 'BA-MC' as const : undefined;
                     const veiculoBA = slot.veiculo === 'crs' ? 'crs' as const : 'cci' as const;
                     const aviso = b && cargoReq ? validarCursoParaFuncao(b, cargoReq, slot.funcao === 'ba-mc' ? veiculoBA : undefined) : null;
-                    const mesIni = new Date(ano, mes - 1, 1);
-                    const mesFim = new Date(ano, mes, 0);
-                    const emGozoIds = new Set(
+                    const _mesIni = new Date(ano, mes - 1, 1);
+                    const _mesFim = new Date(ano, mes, 0);
+                    const _emGozoIds = new Set(
                       feriasGozo
                         .filter(g => {
                           if (!g.funcionarioId || g.status === 'Gozadas') return false;
                           const gInicio = new Date(g.dataInicio + 'T00:00:00');
                           const gFim = new Date(g.dataFim + 'T00:00:00');
-                          return gInicio <= mesFim && gFim >= mesIni;
+                          return gInicio <= _mesFim && gFim >= _mesIni;
                         })
                         .map(g => g.funcionarioId)
                     );
-                    const selectedIds = new Set(pessoas.filter((p2, i2) => p2?.id && i2 !== idx).map(p2 => p2!.id!));
-                    emGozoIds.forEach(id => selectedIds.add(id));
+                    const selectedIds = new Set(pessoas
+                      .map((p2, i2) => i2 === idx ? null : substituirFerias(p2, SLOTS[i2]?.cargoFiltro))
+                      .filter((p2): p2 is Partial<PessoaEscala> => !!p2?.id)
+                      .map(p2 => p2.id!));
                     return (
                       <div key={idx} className="rounded-xl border border-graphite-200/60 bg-white/70 p-3 dark:border-border-dark dark:bg-surface-card/70">
                         <p className="mb-1.5 text-xs font-medium text-graphite-500 dark:text-graphite-400">{slot.label} <span className="text-red-500">*</span></p>
                         <div className="flex items-center gap-1 w-full">
-                          <SearchSelect value={pNomeGuerra} cargo={slot.cargoFiltro} showCargo showEquipe disabledIds={selectedIds} onChange={v => {
-                            const found = bombeiros.find(bb => bb.nomeGuerra === v);
+                          <SearchSelect value={selectedId} valueField="id" cargo={slot.cargoFiltro} equipe={equipe} options={efetivoOptions} showCargo showEquipe disabledIds={selectedIds} onChange={v => {
+                            const found = efetivoMensal.find(entry => entry.bombeiro.id === v && entry.cargoExercido === slot.cargoFiltro);
                             const next = [...pessoas];
-                            next[idx] = found ? { id: found.id, nome: found.nome, nomeGuerra: found.nomeGuerra, funcao: slot.funcao, veiculo: slot.veiculo, funcaoNoVeiculo: slot.funcaoNoVeiculo, isRadioFixo: slot.isRadioFixo } : null;
+                            next[idx] = found ? pessoaEscala(found, slot) : null;
                             setPessoas(next);
                           }} placeholder="Selecione..." />
                           {p && (
@@ -764,18 +1287,198 @@ export function EscalaMensal() {
             ))}
           </div>
 
+          <div className="rounded-2xl border border-graphite-200/60 bg-white/70 p-4 dark:border-border-dark dark:bg-surface-card/70">
+            <button
+              type="button"
+              onClick={() => setFaxinaExpanded(prev => !prev)}
+              className="flex w-full items-center justify-between text-left"
+            >
+              <span className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-graphite-700 dark:text-graphite-300">
+                <ClipboardList className="h-4 w-4 text-aviation-600" />
+                Limpeza
+              </span>
+              {faxinaExpanded ? <ChevronUp className="h-4 w-4 text-graphite-400" /> : <ChevronDown className="h-4 w-4 text-graphite-400" />}
+            </button>
+            {faxinaExpanded && (
+              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {LOCAIS_FAXINA.map(local => {
+                  const selectedId = faxinaManual[local] || '';
+                  const usados = new Set(Object.entries(faxinaManual)
+                    .filter(([nomeLocal, id]) => nomeLocal !== local && !!id)
+                    .map(([, id]) => id));
+
+                  return (
+                    <div key={local}>
+                      <label className="mb-1 block text-xs font-medium text-graphite-500 dark:text-graphite-400">{local}</label>
+                      <select
+                        value={selectedId}
+                        onChange={e => setFaxinaManual(prev => ({ ...prev, [local]: e.target.value }))}
+                        className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2 text-sm dark:border-border-dark dark:bg-surface-card dark:text-graphite-100"
+                      >
+                        <option value="">Automático</option>
+                        {efetivoMensal.map(entry => (
+                          <option key={`${local}-${entry.bombeiro.id}`} value={entry.bombeiro.id} disabled={usados.has(entry.bombeiro.id)}>
+                            {entry.cargoExercido} {entry.bombeiro.nomeGuerra}{entry.bombeiro.equipe !== equipe ? ` (${entry.bombeiro.equipe})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-graphite-200/60 bg-white/70 p-4 dark:border-border-dark dark:bg-surface-card/70">
+            <button
+              type="button"
+              onClick={() => setResponsabilidadesExpanded(prev => !prev)}
+              className="flex w-full items-center justify-between text-left"
+            >
+              <span className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-graphite-700 dark:text-graphite-300">
+                <Users className="h-4 w-4 text-aviation-600" />
+                Responsabilidades
+              </span>
+              {responsabilidadesExpanded ? <ChevronUp className="h-4 w-4 text-graphite-400" /> : <ChevronDown className="h-4 w-4 text-graphite-400" />}
+            </button>
+            {responsabilidadesExpanded && (
+              <div className="mt-3 space-y-3">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                {RESPONSABILIDADES_SELECTS.map(grupo => {
+                  const selectedId = responsabilidadesManual[grupo.key] || '';
+                  const usados = new Set(Object.entries(responsabilidadesManual)
+                    .filter(([nome, id]) => nome !== grupo.key && !!id)
+                    .map(([, id]) => id));
+
+                  return (
+                    <div key={grupo.key}>
+                      <label className="mb-1 block text-xs font-medium text-graphite-500 dark:text-graphite-400">{grupo.label}</label>
+                      <select
+                        value={selectedId}
+                        onChange={e => setResponsabilidadesManual(prev => ({ ...prev, [grupo.key]: e.target.value }))}
+                        className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2 text-sm dark:border-border-dark dark:bg-surface-card dark:text-graphite-100"
+                      >
+                        <option value="">Automático</option>
+                        {efetivoMensal.map(entry => (
+                          <option key={`${grupo.key}-${entry.bombeiro.id}`} value={entry.bombeiro.id} disabled={usados.has(entry.bombeiro.id)}>
+                            {entry.cargoExercido} {entry.bombeiro.nomeGuerra}{entry.bombeiro.equipe !== equipe ? ` (${entry.bombeiro.equipe})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                })}
+                </div>
+                <div className="rounded-xl border border-graphite-200/60 bg-graphite-50/70 px-3 py-2 text-sm text-graphite-700 dark:border-border-dark dark:bg-surface-hover/40 dark:text-graphite-200">
+                  <span className="font-semibold">Limpeza dos CCI:</span> cada motorista faz o seu carro.
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-graphite-200/60 bg-white/70 p-4 dark:border-border-dark dark:bg-surface-card/70">
+            <button
+              type="button"
+              onClick={() => setRadioExpanded(prev => !prev)}
+              className="flex w-full items-center justify-between text-left"
+            >
+              <span className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-graphite-700 dark:text-graphite-300">
+                <Radio className="h-4 w-4 text-aviation-600" />
+                Radio
+              </span>
+              {radioExpanded ? <ChevronUp className="h-4 w-4 text-graphite-400" /> : <ChevronDown className="h-4 w-4 text-graphite-400" />}
+            </button>
+            {radioExpanded && (
+              <div className="mt-3 space-y-4">
+                <div className="max-w-md">
+                  <label className="mb-1 block text-xs font-medium text-graphite-500 dark:text-graphite-400">Comunicante</label>
+                  <select
+                    value={radioManual.comunicanteId}
+                    onChange={e => setRadioManual(prev => ({ ...prev, comunicanteId: e.target.value }))}
+                    className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2 text-sm dark:border-border-dark dark:bg-surface-card dark:text-graphite-100"
+                  >
+                    <option value="">Automático</option>
+                    {radioEfetivo.map(entry => (
+                      <option key={`radio-comunicante-${entry.bombeiro.id}`} value={entry.bombeiro.id}>
+                        {entry.cargoExercido} {entry.bombeiro.nomeGuerra}{entry.bombeiro.equipe !== equipe ? ` (${entry.bombeiro.equipe})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                  <div>
+                    <p className="mb-2 text-xs font-bold uppercase tracking-wider text-graphite-600 dark:text-graphite-400">{radioAntesLabel}</p>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      {radioManual.antesMeiaNoiteIds.map((selectedId, pos) => {
+                        const usados = new Set([...radioManual.antesMeiaNoiteIds, ...radioManual.depoisMeiaNoiteIds].filter(id => id && id !== selectedId));
+                        return (
+                          <select
+                            key={`radio-antes-${pos}`}
+                            value={selectedId}
+                            onChange={e => setRadioManual(prev => {
+                              const antesMeiaNoiteIds = [...prev.antesMeiaNoiteIds];
+                              antesMeiaNoiteIds[pos] = e.target.value;
+                              return { ...prev, antesMeiaNoiteIds };
+                            })}
+                            className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2 text-sm dark:border-border-dark dark:bg-surface-card dark:text-graphite-100"
+                          >
+                            <option value="">Automático</option>
+                            {radioEfetivo.map(entry => (
+                              <option key={`antes-${pos}-${entry.bombeiro.id}`} value={entry.bombeiro.id} disabled={usados.has(entry.bombeiro.id)}>
+                                {pos + 1}. {entry.cargoExercido} {entry.bombeiro.nomeGuerra}{entry.bombeiro.equipe !== equipe ? ` (${entry.bombeiro.equipe})` : ''}
+                              </option>
+                            ))}
+                          </select>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="mb-2 text-xs font-bold uppercase tracking-wider text-graphite-600 dark:text-graphite-400">{radioDepoisLabel}</p>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      {radioManual.depoisMeiaNoiteIds.map((selectedId, pos) => {
+                        const usados = new Set([...radioManual.antesMeiaNoiteIds, ...radioManual.depoisMeiaNoiteIds].filter(id => id && id !== selectedId));
+                        return (
+                          <select
+                            key={`radio-depois-${pos}`}
+                            value={selectedId}
+                            onChange={e => setRadioManual(prev => {
+                              const depoisMeiaNoiteIds = [...prev.depoisMeiaNoiteIds];
+                              depoisMeiaNoiteIds[pos] = e.target.value;
+                              return { ...prev, depoisMeiaNoiteIds };
+                            })}
+                            className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2 text-sm dark:border-border-dark dark:bg-surface-card dark:text-graphite-100"
+                          >
+                            <option value="">Automático</option>
+                            {radioEfetivo.map(entry => (
+                              <option key={`depois-${pos}-${entry.bombeiro.id}`} value={entry.bombeiro.id} disabled={usados.has(entry.bombeiro.id)}>
+                                {pos + 1}. {entry.cargoExercido} {entry.bombeiro.nomeGuerra}{entry.bombeiro.equipe !== equipe ? ` (${entry.bombeiro.equipe})` : ''}
+                              </option>
+                            ))}
+                          </select>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="flex flex-wrap items-center gap-3">
-            <button onClick={handleAutoFill}
+            <button title="Preencher automaticamente as funções com base na configuração atual" onClick={handleAutoFill}
               className="flex items-center gap-2 rounded-xl border border-aviation-300 bg-aviation-50 px-4 py-2.5 text-sm font-medium text-aviation-700 transition-all hover:bg-aviation-100 dark:border-aviation-700 dark:bg-aviation-900/20 dark:text-aviation-300">
               <Sparkles className="h-4 w-4" /> Auto-Preenchimento
             </button>
-            <button onClick={handleAutoFillComEfetivo}
+            <button title="Preencher usando o efetivo válido da equipe no mês selecionado" onClick={() => handleAutoFillComEfetivo(true)}
               className="flex items-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-700 transition-all hover:bg-emerald-100 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
               <Users className="h-4 w-4" /> Preencher com Efetivo do Mês
             </button>
-            <button onClick={handleGerar}
-              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
-              <Save className="h-4 w-4" /> Gerar Escala Mensal
+            <button title={editingId ? 'Salvar as alterações nesta escala mensal' : 'Gerar e salvar uma nova escala mensal'} onClick={editingId ? handleSalvarEdicao : handleGerar} disabled={salvando}
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60">
+              <Save className="h-4 w-4" /> {salvando ? 'Salvando...' : editingId ? 'Salvar Alterações' : 'Gerar Escala Mensal'}
             </button>
             <p className="text-xs text-graphite-400">{qtdPessoas}/10 pessoas</p>
           </div>
@@ -785,7 +1488,7 @@ export function EscalaMensal() {
       {/* View mode */}
       {mode === 'view' && completaAtual && (
         <div id="print-area" className="space-y-0.5" style={{ background: '#ffffff', color: '#1a1a1a', overflow: 'hidden', textTransform: 'uppercase' }}>
-          <style>{'@media print {@page {size: landscape; margin: 0.5cm} #print-area {text-transform: uppercase !important} .print-hide {display: none}}'}</style>
+          <style>{'@media print {@page {size: landscape; margin: 0.5cm} body * {visibility: hidden !important} #print-area, #print-area * {visibility: visible !important} #print-area {position: absolute; left: 0; top: 0; width: 100%; text-transform: uppercase !important} .print-hide {display: none !important}} #print-area.png-exporting, #print-area.png-exporting * {overflow: visible !important; scrollbar-width: none !important; -ms-overflow-style: none !important} #print-area.png-exporting *::-webkit-scrollbar {display: none !important; width: 0 !important; height: 0 !important}'}</style>
           <div className="rounded border-2 border-graphite-300 bg-white/80 px-3 py-1 text-center uppercase dark:border-border-dark dark:bg-surface-card">
             <div className="text-[13px] font-bold text-graphite-700 dark:text-graphite-300 space-x-6 uppercase">
               <span>EQUIPE: {completaAtual.config.equipe.toUpperCase()}</span>
@@ -909,8 +1612,8 @@ export function EscalaMensal() {
             <div className="space-y-2">
               {completasFiltradas.map(c => (
                 <div key={c.config.id}
-                  onClick={() => { setSelecionada(c.config.id); setMode('view'); }}
-                  className="flex cursor-pointer items-center justify-between rounded-2xl border border-graphite-200/60 bg-white/80 p-4 backdrop-blur-sm transition-all hover:bg-aviation-50/50 dark:border-border-dark dark:bg-surface-card dark:hover:bg-aviation-900/20"
+                  onClick={() => { setSelecionada(c.config.id); setMode('view'); setEditingId(null); setAutoPreencherSetup(true); }}
+                  className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-graphite-200/60 bg-white/80 p-4 backdrop-blur-sm transition-all hover:bg-aviation-50/50 dark:border-border-dark dark:bg-surface-card dark:hover:bg-aviation-900/20"
                 >
                   <div className="flex items-center gap-3">
                     <Calendar className="h-5 w-5 text-aviation-600 dark:text-aviation-400" />
@@ -921,7 +1624,22 @@ export function EscalaMensal() {
                       </p>
                     </div>
                   </div>
-                  <Eye className="h-4 w-4 text-graphite-400" />
+                  <div className="flex items-center gap-2">
+                    {canDeleteEscala && (
+                      <button
+                        type="button"
+                        title="Excluir esta escala mensal"
+                        onClick={event => {
+                          event.stopPropagation();
+                          setDeleteTarget(c);
+                        }}
+                        className="flex items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 transition-all hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" /> Excluir
+                      </button>
+                    )}
+                    <Eye className="h-4 w-4 text-graphite-400" />
+                  </div>
                 </div>
               ))}
             </div>
@@ -937,6 +1655,17 @@ export function EscalaMensal() {
           <p className="text-sm text-graphite-500">Clique em "Nova Escala" para configurar.</p>
         </div>
       )}
+
+      <AlertModal
+        open={!!deleteTarget}
+        title="Excluir escala mensal"
+        message={deleteTarget ? `Deseja excluir a escala de ${MESES[deleteTarget.config.mes - 1]} ${deleteTarget.config.ano} da equipe ${deleteTarget.config.equipe}? Esta ação não pode ser desfeita.` : undefined}
+        variant="danger"
+        confirmLabel="Excluir"
+        loadingLabel="Excluindo..."
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+      />
 
       {msg && (
         <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl bg-graphite-900 px-5 py-3 text-sm font-medium text-white shadow-xl dark:bg-graphite-100 dark:text-graphite-900">

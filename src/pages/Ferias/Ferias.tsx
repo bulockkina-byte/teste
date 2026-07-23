@@ -2647,6 +2647,31 @@ function TabQuadroEfetivos() {
     return [...lista].sort((a, b) => (CARGO_PRIORITY[a.cargo] ?? 99) - (CARGO_PRIORITY[b.cargo] ?? 99));
   }
 
+  function sobrepoeMes(dataInicio: string, dataFim: string, mes: number, anoRef: number): boolean {
+    const mesInicio = new Date(anoRef, mes - 1, 1);
+    const mesFim = new Date(anoRef, mes, 0);
+    return new Date(dataInicio + 'T00:00:00') <= mesFim && new Date(dataFim + 'T00:00:00') >= mesInicio;
+  }
+
+  function isVigenciaRealNoMes(v: VigenciaSubstituicao, mes: number, anoRef: number): boolean {
+    return v.ativa &&
+      !!v.substitutoId &&
+      v.substitutoId !== v.funcionarioOriginalId &&
+      sobrepoeMes(v.dataInicio, v.dataFim, mes, anoRef);
+  }
+
+  function equipeDaVaga(v: VigenciaSubstituicao): string {
+    const original = bombeiros.find(b => b.id === v.funcionarioOriginalId);
+    return original?.equipe || v.equipe;
+  }
+
+  function vigenciaRealPorOriginal(funcionarioId: string, mes: number): VigenciaSubstituicao | undefined {
+    return vigencias.find(v =>
+      v.funcionarioOriginalId === funcionarioId &&
+      isVigenciaRealNoMes(v, mes, ano)
+    );
+  }
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -2697,7 +2722,7 @@ function TabQuadroEfetivos() {
   function getSubstituindo(b: Bombeiro, mes: number): { funcionario: Bombeiro; cargo: Cargo } | null {
     const hoje = new Date().toISOString().split('T')[0];
     const item = allItems.find(i =>
-      i.substitutoId === b.id && i.mes === mes && !i.rejeitado && i.feriasGozoId
+      i.substitutoId === b.id && i.funcionarioId !== b.id && i.mes === mes && !i.rejeitado && i.feriasGozoId
     );
     if (item) {
       const func = bombeiros.find(bb => bb.id === item.funcionarioId);
@@ -2706,7 +2731,7 @@ function TabQuadroEfetivos() {
     const mesInicio = new Date(ano, mes - 1, 1);
     const mesFim = new Date(ano, mes, 0);
     const gozo = feriasGozo.find(g =>
-      g.substitutoId === b.id && g.status !== 'Gozadas' &&
+      g.substitutoId === b.id && g.funcionarioId !== b.id && g.status !== 'Gozadas' &&
       g.dataFim >= hoje &&
       new Date(g.dataInicio + 'T00:00:00') <= mesFim &&
       new Date(g.dataFim + 'T00:00:00') >= mesInicio
@@ -2718,9 +2743,8 @@ function TabQuadroEfetivos() {
 
     // Verificar VigenciaSubstituicao (cadeia de cascata)
     const vigV = vigencias.find(v =>
-      v.substitutoId === b.id && v.ativa &&
-      new Date(v.dataInicio + 'T00:00:00') <= mesFim &&
-      new Date(v.dataFim + 'T00:00:00') >= mesInicio
+      v.substitutoId === b.id &&
+      isVigenciaRealNoMes(v, mes, ano)
     );
     if (vigV) {
       const func = bombeiros.find(bb => bb.id === vigV.funcionarioOriginalId);
@@ -2783,7 +2807,7 @@ function TabQuadroEfetivos() {
           // Verifica se a pessoa tem alguém a substituí-la (via vigência, escala aprovada ou ferista)
           function temSubstituto(b: Bombeiro, mes: number): boolean {
             return !!(
-              vigencias.find(v => v.funcionarioOriginalId === b.id && v.ativa) ||
+              vigenciaRealPorOriginal(b.id, mes) ||
               allItems.find(i => i.funcionarioId === b.id && i.mes === mes && !i.rejeitado && (i.substitutoId || i.feristaId) && i.feriasGozoId)
             );
           }
@@ -2854,6 +2878,16 @@ function TabQuadroEfetivos() {
               if (fer) addSub(fer, func, (item.funcaoSubstituicao || func.cargo) as Cargo);
             }
           }
+
+          for (const vig of vigencias) {
+            if (!isVigenciaRealNoMes(vig, mesSelecionado, ano)) continue;
+            if (equipeDaVaga(vig) !== eq) continue;
+            const func = bombeiros.find(b => b.id === vig.funcionarioOriginalId);
+            const sub = bombeiros.find(b => b.id === vig.substitutoId);
+            if (func && sub && sub.equipe !== eq) {
+              addSub(sub, func, (vig.cargoExercido || func.cargo) as Cargo);
+            }
+          }
           const ordenados = [...disponiveis].sort((a, b) => {
             return (CARGO_PRIORITY[a.cargo] ?? 99) - (CARGO_PRIORITY[b.cargo] ?? 99);
           });
@@ -2892,7 +2926,7 @@ function TabQuadroEfetivos() {
                           const substituindo = subCross ? { funcionario: subCross.substituindo, cargo: subCross.cargo } : getSubstituindo(m, mesSelecionado);
                           const item = getItemSubstituicao(m, mesSelecionado) as EscalaFeriasItem | null;
                           const ferista = getFeristaDesignado(m, mesSelecionado);
-                          const vigSub = vigencias.find(v => v.funcionarioOriginalId === m.id && v.ativa);
+                          const vigSub = vigenciaRealPorOriginal(m.id, mesSelecionado);
                           const vigSubstitutoId = vigSub ? vigSub.substitutoId : '';
                           const temSub = !!(item?.substitutoNome || ferista?.feristaNome || vigSub);
                           

@@ -18,7 +18,7 @@ interface Props {
   className?: string;
   cargo?: string;
   equipe?: string;
-  valueField?: 'nomeGuerra' | 'nomeCompleto';
+  valueField?: 'id' | 'nomeGuerra' | 'nomeCompleto';
   disabledIds?: Set<string>;
   disabledTooltip?: string;
   showCargo?: boolean;
@@ -65,7 +65,9 @@ export function SearchSelect({ value, onChange, placeholder, className = '', car
     b.nomeCompleto.toLowerCase().includes(search.toLowerCase())
   );
 
-  const selected = ativos.find(b => b[valueField] === value);
+  const getValue = (b: AtivoItem) => b[valueField];
+  const getLabel = (b: AtivoItem) => valueField === 'nomeCompleto' ? b.nomeCompleto : b.nomeGuerra;
+  const selected = ativos.find(b => getValue(b) === value);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -86,7 +88,7 @@ export function SearchSelect({ value, onChange, placeholder, className = '', car
       >
         <Search className="mr-2 h-4 w-4 text-aviation-500 shrink-0" />
         <span className={value ? 'text-graphite-900 dark:text-graphite-100 truncate font-semibold' : 'text-graphite-400 italic truncate'}>
-          {selected ? (showCargo && selected.cargo ? `${selected.cargo} ${selected[valueField]}` : selected[valueField]) : placeholder || 'Selecione...'}
+          {selected ? (showCargo && selected.cargo ? `${selected.cargo} ${getLabel(selected)}` : getLabel(selected)) : placeholder || 'Selecione...'}
         </span>
       </div>
 
@@ -104,14 +106,16 @@ export function SearchSelect({ value, onChange, placeholder, className = '', car
             ) : (
               filtered.map(b => {
                 const isDisabled = disabledIds?.has(b.id) || false;
+                const itemValue = getValue(b);
+                const isSelected = itemValue === value;
                 return (
                   <button key={b.id} type="button" disabled={isDisabled}
                     title={isDisabled ? (disabledTooltip || 'Pessoa já selecionada em outro slot') : undefined}
-                    onClick={() => { if (!isDisabled) { onChange(b[valueField]); setOpen(false); setSearch(''); } }}
+                    onClick={() => { if (!isDisabled) { onChange(itemValue); setOpen(false); setSearch(''); } }}
                     className={`flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm transition-all ${
                       isDisabled
                         ? 'cursor-not-allowed opacity-40 bg-graphite-50 text-red-500 dark:bg-graphite-800/50 dark:text-red-400'
-                        : b[valueField] === value
+                        : isSelected
                           ? 'bg-aviation-100 text-aviation-800 shadow-sm ring-1 ring-aviation-400 dark:bg-aviation-900/30 dark:text-aviation-200 dark:ring-aviation-600'
                           : 'text-graphite-800 hover:bg-aviation-50 hover:text-aviation-700 dark:text-graphite-200 dark:hover:bg-aviation-900/20 dark:hover:text-aviation-300'
                     }`}>
@@ -122,7 +126,7 @@ export function SearchSelect({ value, onChange, placeholder, className = '', car
                       <span className={`ml-2 text-xs ${isDisabled ? 'text-red-400' : 'text-graphite-400 dark:text-graphite-500'}`}>{b.nomeCompleto}{showEquipe && b.equipe ? ` · ${b.equipe}` : ''}</span>
                     </span>
                     {isDisabled && <X className="h-4 w-4 shrink-0 text-red-400" />}
-                    {!isDisabled && b[valueField] === value && <Check className="h-4 w-4 shrink-0 text-aviation-600 dark:text-aviation-400" />}
+                    {!isDisabled && isSelected && <Check className="h-4 w-4 shrink-0 text-aviation-600 dark:text-aviation-400" />}
                   </button>
                 );
               })

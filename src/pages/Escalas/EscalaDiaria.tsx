@@ -2,10 +2,10 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Calendar, Shield, Users, Plus, Trash2, FileText, Radio,
   ChevronDown, ChevronUp, Save, Eye, Pencil, Copy, Printer,
-  AlertTriangle, X as XIcon,
+  AlertTriangle,
   ArrowRightLeft, ArrowRight, Sparkles,
 } from 'lucide-react';
-import { SearchSelect } from '../../components/ui/SearchSelect';
+import { SearchSelect, type AtivoItem } from '../../components/ui/SearchSelect';
 import { useAuth } from '../../context/AuthContext';
 import { listarEscalas, criarEscala, atualizarEscala, excluirEscala } from '../../services/escalaService';
 import { listarAtivos } from '../../services/bombeiroService';
@@ -19,6 +19,7 @@ import { gerarRadioPlantao } from '../../services/escalaMensalGenerator';
 import { FUNCOES_BDS_PTR } from '../../types/escala';
 import type { EscalaDiaria } from '../../types/escala';
 import type { Bombeiro, Cargo } from '../../types/bombeiro';
+import type { FeriasGozo } from '../../types/ferias';
 import type { SubstituicaoTemporaria } from '../../types/substituicaoTemporaria';
 import { validarCursoParaFuncao } from '../../utils/validacaoCursos';
 
@@ -65,13 +66,177 @@ function autoPreencher(equipe: string) {
   return horarioPlantaoPorEquipe(equipe);
 }
 
+interface EfetivoDiarioEntry {
+  bombeiro: Bombeiro;
+  cargoExercido: string;
+  substituindo?: {
+    id: string;
+    nome: string;
+    cargo: string;
+  };
+}
+
+function dataLocal(data: string): Date {
+  return new Date(`${data}T12:00:00`);
+}
+
+function dataNoPeriodo(data: string, dataInicio: string, dataFim: string): boolean {
+  if (!data || !dataInicio || !dataFim) return false;
+  const dia = dataLocal(data);
+  return dataLocal(dataInicio) <= dia && dataLocal(dataFim) >= dia;
+}
+
+function montarEfetivoDiario(params: {
+  bombeiros: Bombeiro[];
+  feriasGozo: FeriasGozo[];
+  vigencias: VigenciaSubstituicao[];
+  equipe: string;
+  dataPlantao: string;
+}): EfetivoDiarioEntry[] {
+  const { bombeiros, feriasGozo, vigencias, equipe, dataPlantao } = params;
+  if (!equipe || !dataPlantao) return [];
+
+  const ativos = bombeiros.filter(b => !b.dataDesligamento);
+  const porId = new Map(ativos.map(b => [b.id, b]));
+  const equipeDaVaga = (v: VigenciaSubstituicao): string => {
+    const original = porId.get(v.funcionarioOriginalId);
+    return original?.equipe || v.equipe;
+  };
+
+  const vigenciasNoDia = vigencias.filter(v =>
+    v.ativa &&
+    v.substitutoId &&
+    dataNoPeriodo(dataPlantao, v.dataInicio, v.dataFim) &&
+    equipeDaVaga(v) === equipe
+  );
+  const vigenciasReais = vigenciasNoDia.filter(v => v.substitutoId !== v.funcionarioOriginalId);
+  const vigenciasAuto = vigenciasNoDia.filter(v => v.substitutoId === v.funcionarioOriginalId);
+  const realPorOriginal = new Map<string, VigenciaSubstituicao>();
+  const realPorSubstituto = new Map<string, VigenciaSubstituicao>();
+  for (const v of vigenciasReais) {
+    realPorOriginal.set(v.funcionarioOriginalId, v);
+    realPorSubstituto.set(v.substitutoId, v);
+  }
+
+  const gozosNoDia = feriasGozo.filter(g =>
+    g.status !== 'Gozadas' &&
+    dataNoPeriodo(dataPlantao, g.dataInicio, g.dataFim)
+  );
+  const emGozo = new Set(gozosNoDia.map(g => g.funcionarioId));
+  const vagasAbertas = new Set(vigenciasAuto.map(v => v.funcionarioOriginalId));
+
+  const fallbackPorOriginal = new Map<string, { substituto: Bombeiro; cargo: string; original: Bombeiro }>();
+  const fallbackPorSubstituto = new Map<string, { substituto: Bombeiro; cargo: string; original: Bombeiro }>();
+  for (const gozo of gozosNoDia) {
+    if (realPorOriginal.has(gozo.funcionarioId)) continue;
+    const original = porId.get(gozo.funcionarioId);
+    const substituto = gozo.substitutoId ? porId.get(gozo.substitutoId) : undefined;
+    if (!original || !substituto) continue;
+    if ((original.equipe || gozo.equipe) !== equipe) continue;
+    const fallback = {
+      substituto,
+      cargo: gozo.funcaoSubstituicao || original.cargo,
+      original,
+    };
+    fallbackPorOriginal.set(original.id, fallback);
+    fallbackPorSubstituto.set(substituto.id, fallback);
+  }
+
+  const resultado: EfetivoDiarioEntry[] = [];
+  const adicionados = new Set<string>();
+  const adicionar = (bombeiro: Bombeiro, cargoExercido: string, substituindo?: EfetivoDiarioEntry['substituindo']) => {
+    if (adicionados.has(bombeiro.id)) return;
+    resultado.push({ bombeiro, cargoExercido, substituindo });
+    adicionados.add(bombeiro.id);
+  };
+
+  for (const membro of ativos.filter(b => b.equipe === equipe)) {
+    const substitui = realPorSubstituto.get(membro.id);
+    const fallbackSubstitui = fallbackPorSubstituto.get(membro.id);
+    if (substitui) {
+      adicionar(membro, substitui.cargoExercido || membro.cargo, {
+        id: substitui.funcionarioOriginalId,
+        nome: substitui.funcionarioOriginalNome,
+        cargo: substitui.cargoOriginalFuncionario,
+      });
+      continue;
+    }
+    if (fallbackSubstitui) {
+      adicionar(membro, fallbackSubstitui.cargo, {
+        id: fallbackSubstitui.original.id,
+        nome: fallbackSubstitui.original.nomeCompleto,
+        cargo: fallbackSubstitui.original.cargo,
+      });
+      continue;
+    }
+    if (emGozo.has(membro.id) || realPorOriginal.has(membro.id) || fallbackPorOriginal.has(membro.id) || vagasAbertas.has(membro.id)) {
+      continue;
+    }
+    adicionar(membro, membro.cargo);
+  }
+
+  for (const v of vigenciasReais) {
+    const substituto = porId.get(v.substitutoId);
+    if (!substituto) continue;
+    adicionar(substituto, v.cargoExercido || substituto.cargo, {
+      id: v.funcionarioOriginalId,
+      nome: v.funcionarioOriginalNome,
+      cargo: v.cargoOriginalFuncionario,
+    });
+  }
+
+  for (const fallback of fallbackPorSubstituto.values()) {
+    adicionar(fallback.substituto, fallback.cargo, {
+      id: fallback.original.id,
+      nome: fallback.original.nomeCompleto,
+      cargo: fallback.original.cargo,
+    });
+  }
+
+  const ordemCargo = ['GS', 'BA-CE', 'BA-LR', 'BA-MC', 'BA-2', 'BA-RE', 'OC'];
+  return resultado.sort((a, b) => {
+    const cargoA = ordemCargo.indexOf(a.cargoExercido);
+    const cargoB = ordemCargo.indexOf(b.cargoExercido);
+    if (cargoA !== cargoB) return cargoA - cargoB;
+    return a.bombeiro.nomeGuerra.localeCompare(b.bombeiro.nomeGuerra);
+  });
+}
+
+function montarOpcoesEfetivoDiario(efetivo: EfetivoDiarioEntry[], equipe: string): AtivoItem[] {
+  return efetivo.map(entry => ({
+    id: entry.bombeiro.id,
+    nomeGuerra: entry.bombeiro.nomeGuerra,
+    nomeCompleto: entry.bombeiro.equipe === equipe
+      ? entry.bombeiro.nomeCompleto
+      : `${entry.bombeiro.nomeCompleto} (${entry.bombeiro.equipe})`,
+    cargo: entry.cargoExercido,
+    equipe,
+  }));
+}
+
 const SLOT_ROLE_MAP: Record<string, Cargo> = {
   'BA-CE': 'BA-CE',
   'BA-LR': 'BA-LR',
   'BA-MC': 'BA-MC',
 };
 
-function SlotFuncao({ label, value, onChange, allBombeiros, veiculo }: { label: string; value: string; onChange: (v: string) => void; allBombeiros: Bombeiro[]; veiculo?: 'crs' | 'cci' }) {
+function SlotFuncao({
+  label,
+  value,
+  onChange,
+  allBombeiros,
+  veiculo,
+  options,
+  cargoFiltro,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  allBombeiros: Bombeiro[];
+  veiculo?: 'crs' | 'cci';
+  options: AtivoItem[];
+  cargoFiltro?: string;
+}) {
   const role = SLOT_ROLE_MAP[label];
   const selecionado = value ? allBombeiros.find(b => b.nomeGuerra === value) : null;
   const aviso = selecionado && role ? validarCursoParaFuncao(selecionado, role, veiculo) : null;
@@ -79,7 +244,7 @@ function SlotFuncao({ label, value, onChange, allBombeiros, veiculo }: { label: 
   return (
     <div>
       <p className="mb-1 text-xs font-medium text-graphite-500 dark:text-graphite-400">{label}</p>
-      <SearchSelect value={value} onChange={onChange} placeholder={`Selecione ${label}`} />
+      <SearchSelect value={value} onChange={onChange} placeholder={`Selecione ${label}`} options={options} cargo={cargoFiltro} showCargo showEquipe />
       {aviso && (
         <div className={`mt-1.5 flex items-start gap-2 rounded-lg px-2.5 py-2 text-[11px] leading-tight ${
           aviso.nivel === 'bloqueado'
@@ -106,10 +271,22 @@ function EscalaDiariaForm({
 }) {
   const [form, setForm] = useState(emptyEscala());
   const [allBombeiros, setAllBombeiros] = useState<Bombeiro[]>([]);
+  const [feriasGozo, setFeriasGozo] = useState<FeriasGozo[]>([]);
+  const [vigencias, setVigencias] = useState<VigenciaSubstituicao[]>([]);
   const [substituicoes, setSubstituicoes] = useState<SubstituicaoTemporaria[]>([]);
   const [autoFilling, setAutoFilling] = useState(false);
 
-  useEffect(() => { listarAtivos().then(setAllBombeiros); }, []);
+  useEffect(() => {
+    Promise.all([
+      listarAtivos(),
+      listarFeriasGozo(),
+      listarVigencias({ ativa: true }),
+    ]).then(([ativos, gozos, vigs]) => {
+      setAllBombeiros(ativos);
+      setFeriasGozo(gozos);
+      setVigencias(vigs);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     listarSubstituicoesTemporarias().then(lista => {
@@ -179,9 +356,35 @@ function EscalaDiariaForm({
     }
   }, [form.equipe, form.dataPlantao, allBombeiros]);
 
+  const efetivoDiario = useMemo(() => montarEfetivoDiario({
+    bombeiros: allBombeiros,
+    feriasGozo,
+    vigencias,
+    equipe: form.equipe,
+    dataPlantao: form.dataPlantao,
+  }), [allBombeiros, feriasGozo, vigencias, form.equipe, form.dataPlantao]);
+
+  const efetivoOptions = useMemo(
+    () => montarOpcoesEfetivoDiario(efetivoDiario, form.equipe),
+    [efetivoDiario, form.equipe],
+  );
+
+  const opcoesPorCargo = (cargos: string[]) => efetivoOptions.filter(o => o.cargo && cargos.includes(o.cargo));
+  const opcoesChefe = opcoesPorCargo(['BA-CE']);
+  const opcoesBaMc = opcoesPorCargo(['BA-MC']);
+  const opcoesBaLr = opcoesPorCargo(['BA-LR']);
+  const opcoesBa2 = opcoesPorCargo(['BA-2']);
+  const opcoesBaRe = opcoesPorCargo(['BA-2', 'BA-RE']);
+
   function updateEquipe(equipe: string) {
     const auto = autoPreencher(equipe);
-    const membros = allBombeiros.filter(b => b.equipe === equipe);
+    const membros = montarEfetivoDiario({
+      bombeiros: allBombeiros,
+      feriasGozo,
+      vigencias,
+      equipe,
+      dataPlantao: form.dataPlantao,
+    }).map(entry => ({ nomeGuerra: entry.bombeiro.nomeGuerra, cargo: entry.cargoExercido }));
     const find = (cargo: Cargo) => {
       const idx = membros.findIndex(b => b.cargo === cargo);
       if (idx !== -1) return membros.splice(idx, 1)[0].nomeGuerra;
@@ -202,12 +405,16 @@ function EscalaDiariaForm({
       ...f,
       equipe,
       ...auto,
-      chefeEquipe: chefe || f.chefeEquipe,
+      chefeEquipe: chefe,
       guarnicoes: {
-        crs: { baMc: mc1 || f.guarnicoes?.crs?.baMc || '', baLr: lr || f.guarnicoes?.crs?.baLr || '', baRe1: b2_1 || f.guarnicoes?.crs?.baRe1 || '', baRe2: b2_2 || f.guarnicoes?.crs?.baRe2 || '' },
-        cci02: { baMc: mc2 || f.guarnicoes?.cci02?.baMc || '', baCe: chefe || f.guarnicoes?.cci02?.baCe || '', ba2: b2_3 || f.guarnicoes?.cci02?.ba2 || '' },
-        cci03: { baMc: mc3 || f.guarnicoes?.cci03?.baMc || '', ba2_1: b2_4 || f.guarnicoes?.cci03?.ba2_1 || '', ba2_2: b2_5 || f.guarnicoes?.cci03?.ba2_2 || '' },
+        crs: { baMc: mc1, baLr: lr, baRe1: b2_1, baRe2: b2_2 },
+        cci02: { baMc: mc2, baCe: chefe, ba2: b2_3 },
+        cci03: { baMc: mc3, ba2_1: b2_4, ba2_2: b2_5 },
       },
+      bds: { funcao: '', nomeGuerra: '' },
+      ptr1: { funcao: '', nomeGuerra: '' },
+      ptr2: { funcao: '', nomeGuerra: '' },
+      radio: [],
     }));
   }
 
@@ -222,6 +429,10 @@ function EscalaDiariaForm({
         listarVigencias({ ativa: true }),
         listarCompletas(),
       ]);
+
+      setAllBombeiros(all);
+      setFeriasGozo(gozos);
+      setVigencias(vigs);
 
       const allItems: any[] = [];
       for (const esc of escalas) {
@@ -245,11 +456,24 @@ function EscalaDiariaForm({
 
       // Encontrar substituto de uma pessoa (vigência → gozo → item)
       function encontrarSubstituto(bId: string): { id: string; nome: string } | null {
-        const v = vigs.find((vx: any) => vx.funcionarioOriginalId === bId && vx.ativa);
+        const v = vigs.find((vx: any) =>
+          vx.funcionarioOriginalId === bId &&
+          vx.ativa &&
+          dataNoPeriodo(form.dataPlantao, vx.dataInicio, vx.dataFim)
+        );
         if (v && v.substitutoId) return { id: v.substitutoId, nome: v.substitutoNome };
-        const g = gozos.find((gx: any) => gx.funcionarioId === bId && gx.substitutoId && gx.status !== 'Gozadas');
+        const g = gozos.find((gx: any) =>
+          gx.funcionarioId === bId &&
+          gx.substitutoId &&
+          gx.status !== 'Gozadas' &&
+          dataNoPeriodo(form.dataPlantao, gx.dataInicio, gx.dataFim)
+        );
         if (g) return { id: g.substitutoId, nome: g.substitutoNome };
-        const item = allItems.find((ix: any) => ix.funcionarioId === bId && (ix.substitutoId || ix.feristaId));
+        const item = allItems.find((ix: any) =>
+          ix.funcionarioId === bId &&
+          (ix.substitutoId || ix.feristaId) &&
+          dataNoPeriodo(form.dataPlantao, ix.dataInicio, ix.dataFim)
+        );
         if (item) return { id: item.substitutoId || item.feristaId, nome: item.substitutoNome || item.feristaNome };
         return null;
       }
@@ -324,7 +548,7 @@ function EscalaDiariaForm({
         }
       }
       for (const v of vigs) {
-        if (v.equipe === form.equipe && !ocupados.has(v.substitutoId) && !usados.has(v.substitutoId)) {
+        if (v.ativa && v.equipe === form.equipe && dataNoPeriodo(form.dataPlantao, v.dataInicio, v.dataFim) && !ocupados.has(v.substitutoId) && !usados.has(v.substitutoId)) {
           const sub = all.find((bb: any) => bb.id === v.substitutoId);
           if (sub) { pool.push({ bombeiro: sub, cargo: v.cargoExercido || sub.cargo }); ocupados.add(sub.id); }
         }
@@ -338,8 +562,6 @@ function EscalaDiariaForm({
       for (const t of trocasAtivas) {
         const slotsAtuais = [slotChefe, slotCrsBaMc, slotCrsBaLr, slotCrsBaRe1, slotCrsBaRe2,
           slotCci02BaMc, slotCci02BaCe, slotCci02Ba2, slotCci03BaMc, slotCci03Ba2_1, slotCci03Ba2_2];
-        const slotKeys = ['slotChefe', 'slotCrsBaMc', 'slotCrsBaLr', 'slotCrsBaRe1', 'slotCrsBaRe2',
-          'slotCci02BaMc', 'slotCci02BaCe', 'slotCci02Ba2', 'slotCci03BaMc', 'slotCci03Ba2_1', 'slotCci03Ba2_2'];
         const setVars: ((v: string) => void)[] = [
           v => slotChefe = v, v => slotCrsBaMc = v, v => slotCrsBaLr = v,
           v => slotCrsBaRe1 = v, v => slotCrsBaRe2 = v, v => slotCci02BaMc = v,
@@ -455,14 +677,14 @@ function EscalaDiariaForm({
   function updateGuarnicao(section: 'cci02' | 'cci03' | 'crs', field: string, value: string) {
     setForm(f => ({
       ...f,
-      guarnicoes: { ...(f.guarnicoes || emptyGuarnicoes()), [section]: { ...((f.guarnicoes as any)?.[section] || {}), [field]: value } },
+      guarnicoes: { ...f.guarnicoes, [section]: { ...((f.guarnicoes as any)?.[section]), [field]: value } },
     }));
   }
 
   function updateInstrutor(section: 'bds' | 'ptr1' | 'ptr2', field: 'funcao' | 'nomeGuerra', value: string) {
     setForm(f => ({
       ...f,
-      [section]: { ...f[section], [field]: value },
+      [section]: { ...f[section], [field]: value, ...(field === 'funcao' ? { nomeGuerra: '' } : {}) },
     }));
   }
 
@@ -484,7 +706,7 @@ function EscalaDiariaForm({
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Chefe de Equipe - SCI NVT</label>
-          <SearchSelect value={form.chefeEquipe} onChange={v => setForm(f => ({ ...f, chefeEquipe: v }))} placeholder="Selecione o chefe" />
+          <SearchSelect value={form.chefeEquipe} onChange={v => setForm(f => ({ ...f, chefeEquipe: v }))} placeholder="Selecione o chefe" options={opcoesChefe} cargo="BA-CE" showCargo showEquipe />
           {form.chefeEquipe && (() => {
             const b = allBombeiros.find(x => x.nomeGuerra === form.chefeEquipe);
             const aviso = b ? validarCursoParaFuncao(b, 'BA-CE') : null;
@@ -535,35 +757,43 @@ function EscalaDiariaForm({
           <div className="rounded-xl border border-graphite-200/60 bg-graphite-50/50 p-4 dark:border-border-dark dark:bg-surface-card/50">
             <h4 className="mb-3 text-sm font-bold text-graphite-700 dark:text-graphite-300">CCI 02</h4>
             <div className="space-y-3">
-              <SlotFuncao label="BA-MC" value={form.guarnicoes?.cci02?.baMc || ''} onChange={v => updateGuarnicao('cci02', 'baMc', v)} allBombeiros={allBombeiros} veiculo="cci" />
-              <SlotFuncao label="BA-CE" value={form.guarnicoes?.cci02?.baCe || ''} onChange={v => updateGuarnicao('cci02', 'baCe', v)} allBombeiros={allBombeiros} />
-              <SlotFuncao label="BA-2" value={form.guarnicoes?.cci02?.ba2 || ''} onChange={v => updateGuarnicao('cci02', 'ba2', v)} allBombeiros={allBombeiros} />
+              <SlotFuncao label="BA-MC" value={form.guarnicoes?.cci02?.baMc || ''} onChange={v => updateGuarnicao('cci02', 'baMc', v)} allBombeiros={allBombeiros} veiculo="cci" options={opcoesBaMc} cargoFiltro="BA-MC" />
+              <SlotFuncao label="BA-CE" value={form.guarnicoes?.cci02?.baCe || ''} onChange={v => updateGuarnicao('cci02', 'baCe', v)} allBombeiros={allBombeiros} options={opcoesChefe} cargoFiltro="BA-CE" />
+              <SlotFuncao label="BA-2" value={form.guarnicoes?.cci02?.ba2 || ''} onChange={v => updateGuarnicao('cci02', 'ba2', v)} allBombeiros={allBombeiros} options={opcoesBa2} cargoFiltro="BA-2" />
             </div>
           </div>
           {/* CCI 03 */}
           <div className="rounded-xl border border-graphite-200/60 bg-graphite-50/50 p-4 dark:border-border-dark dark:bg-surface-card/50">
             <h4 className="mb-3 text-sm font-bold text-graphite-700 dark:text-graphite-300">CCI 03</h4>
             <div className="space-y-3">
-              <SlotFuncao label="BA-MC" value={form.guarnicoes?.cci03?.baMc || ''} onChange={v => updateGuarnicao('cci03', 'baMc', v)} allBombeiros={allBombeiros} veiculo="cci" />
-              <SlotFuncao label="BA-2" value={form.guarnicoes?.cci03?.ba2_1 || ''} onChange={v => updateGuarnicao('cci03', 'ba2_1', v)} allBombeiros={allBombeiros} />
-              <SlotFuncao label="BA-2" value={form.guarnicoes?.cci03?.ba2_2 || ''} onChange={v => updateGuarnicao('cci03', 'ba2_2', v)} allBombeiros={allBombeiros} />
+              <SlotFuncao label="BA-MC" value={form.guarnicoes?.cci03?.baMc || ''} onChange={v => updateGuarnicao('cci03', 'baMc', v)} allBombeiros={allBombeiros} veiculo="cci" options={opcoesBaMc} cargoFiltro="BA-MC" />
+              <SlotFuncao label="BA-2" value={form.guarnicoes?.cci03?.ba2_1 || ''} onChange={v => updateGuarnicao('cci03', 'ba2_1', v)} allBombeiros={allBombeiros} options={opcoesBa2} cargoFiltro="BA-2" />
+              <SlotFuncao label="BA-2" value={form.guarnicoes?.cci03?.ba2_2 || ''} onChange={v => updateGuarnicao('cci03', 'ba2_2', v)} allBombeiros={allBombeiros} options={opcoesBa2} cargoFiltro="BA-2" />
             </div>
           </div>
           {/* CRS */}
           <div className="rounded-xl border border-graphite-200/60 bg-graphite-50/50 p-4 dark:border-border-dark dark:bg-surface-card/50">
             <h4 className="mb-3 text-sm font-bold text-graphite-700 dark:text-graphite-300">CRS</h4>
             <div className="space-y-3">
-              <SlotFuncao label="BA-MC" value={form.guarnicoes?.crs?.baMc || ''} onChange={v => updateGuarnicao('crs', 'baMc', v)} allBombeiros={allBombeiros} veiculo="crs" />
-              <SlotFuncao label="BA-LR" value={form.guarnicoes?.crs?.baLr || ''} onChange={v => updateGuarnicao('crs', 'baLr', v)} allBombeiros={allBombeiros} />
-              <SlotFuncao label="BA-RE" value={form.guarnicoes?.crs?.baRe1 || ''} onChange={v => updateGuarnicao('crs', 'baRe1', v)} allBombeiros={allBombeiros} />
-              <SlotFuncao label="BA-RE" value={form.guarnicoes?.crs?.baRe2 || ''} onChange={v => updateGuarnicao('crs', 'baRe2', v)} allBombeiros={allBombeiros} />
+              <SlotFuncao label="BA-MC" value={form.guarnicoes?.crs?.baMc || ''} onChange={v => updateGuarnicao('crs', 'baMc', v)} allBombeiros={allBombeiros} veiculo="crs" options={opcoesBaMc} cargoFiltro="BA-MC" />
+              <SlotFuncao label="BA-LR" value={form.guarnicoes?.crs?.baLr || ''} onChange={v => updateGuarnicao('crs', 'baLr', v)} allBombeiros={allBombeiros} options={opcoesBaLr} cargoFiltro="BA-LR" />
+              <SlotFuncao label="BA-RE" value={form.guarnicoes?.crs?.baRe1 || ''} onChange={v => updateGuarnicao('crs', 'baRe1', v)} allBombeiros={allBombeiros} options={opcoesBaRe} />
+              <SlotFuncao label="BA-RE" value={form.guarnicoes?.crs?.baRe2 || ''} onChange={v => updateGuarnicao('crs', 'baRe2', v)} allBombeiros={allBombeiros} options={opcoesBaRe} />
             </div>
           </div>
         </div>
       </fieldset>
 
       {/* BDS / PTR-1 / PTR-2 */}
-      {(['bds', 'ptr1', 'ptr2'] as const).map(section => (
+      {(['bds', 'ptr1', 'ptr2'] as const).map(section => {
+        const funcaoSelecionada = form[section].funcao;
+        const isApoc = funcaoSelecionada === 'APOC';
+        const instrutorOptions = isApoc
+          ? undefined
+          : funcaoSelecionada
+            ? opcoesPorCargo([funcaoSelecionada])
+            : efetivoOptions;
+        return (
         <fieldset key={section}>
           <legend className="mb-4 text-sm font-semibold uppercase tracking-wider text-aviation-600 dark:text-aviation-400">
             <FileText className="mr-1 inline h-4 w-4" /> {section === 'bds' ? 'BDS' : section === 'ptr1' ? 'PTR-1' : 'PTR-2'}
@@ -571,7 +801,7 @@ function EscalaDiariaForm({
           <div className="flex flex-wrap items-end gap-4">
             <div className="w-48">
               <label className="mb-1 block text-xs font-medium text-graphite-500 dark:text-graphite-400">Função do Instrutor</label>
-              <select value={form[section].funcao} onChange={e => updateInstrutor(section, 'funcao', e.target.value)}
+              <select value={funcaoSelecionada} onChange={e => updateInstrutor(section, 'funcao', e.target.value)}
                 className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated">
                 <option value="" className={optionCls}>Selecione</option>
                 {FUNCOES_BDS_PTR.map(f => <option key={f} value={f} className={optionCls}>{f}</option>)}
@@ -579,11 +809,20 @@ function EscalaDiariaForm({
             </div>
             <div className="flex-1 min-w-48">
               <label className="mb-1 block text-xs font-medium text-graphite-500 dark:text-graphite-400">Nome de Guerra (Instrutor)</label>
-              <SearchSelect value={form[section].nomeGuerra} onChange={v => updateInstrutor(section, 'nomeGuerra', v)} placeholder="Nome de guerra" />
+              <SearchSelect
+                value={form[section].nomeGuerra}
+                onChange={v => updateInstrutor(section, 'nomeGuerra', v)}
+                placeholder="Nome de guerra"
+                cargo={isApoc ? 'APOC' : undefined}
+                options={instrutorOptions}
+                showCargo
+                showEquipe
+              />
             </div>
           </div>
         </fieldset>
-      ))}
+        );
+      })}
 
       {/* Atestados */}
       <fieldset>
@@ -643,7 +882,14 @@ function EscalaDiariaForm({
           <Radio className="mr-1 inline h-4 w-4" /> Escala de Rádio
         </legend>
         <div className="space-y-4">
-          {form.radio.map((r, i) => (
+          {form.radio.map((r, i) => {
+            const isApoc = r.funcao === 'APOC';
+            const radioOptions = isApoc
+              ? undefined
+              : r.funcao
+                ? opcoesPorCargo([r.funcao])
+                : efetivoOptions;
+            return (
             <div key={i} className="rounded-xl border border-graphite-200/60 bg-graphite-50/50 p-4 dark:border-border-dark dark:bg-surface-card/50">
               <div className="mb-2 flex items-center justify-between">
                 <span className="text-xs font-semibold text-graphite-500">Rádio {i + 1}</span>
@@ -657,7 +903,7 @@ function EscalaDiariaForm({
                   <label className="mb-1 block text-xs text-graphite-500">Função</label>
                   <select value={r.funcao} onChange={e => {
                     const next = [...form.radio];
-                    next[i] = { ...next[i], funcao: e.target.value };
+                    next[i] = { ...next[i], funcao: e.target.value, nomeGuerra: '' };
                     setForm(f => ({ ...f, radio: next }));
                   }}
                     className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated">
@@ -671,7 +917,7 @@ function EscalaDiariaForm({
                     const next = [...form.radio];
                     next[i] = { ...next[i], nomeGuerra: v };
                     setForm(f => ({ ...f, radio: next }));
-                  }} placeholder="Nome de guerra" />
+                  }} placeholder="Nome de guerra" cargo={isApoc ? 'APOC' : undefined} options={radioOptions} showCargo showEquipe />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs text-graphite-500">Início</label>
@@ -693,7 +939,8 @@ function EscalaDiariaForm({
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
           <button type="button" onClick={() => setForm(f => ({ ...f, radio: [...f.radio, { funcao: '', nomeGuerra: '', horarioInicio: '', horarioFim: '' }] }))}
             className="flex items-center gap-1 text-sm text-aviation-600 hover:text-aviation-700 dark:text-aviation-400">
             <Plus className="h-4 w-4" /> Adicionar escala de rádio

@@ -3,6 +3,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { SidebarProvider } from './context/SidebarContext';
 import { AuthProvider } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
+import { GlobalAlertProvider } from './context/GlobalAlertContext';
 import { router } from './routes';
 
 export default function App() {
@@ -11,7 +12,9 @@ export default function App() {
       <DataProvider>
         <ThemeProvider>
           <SidebarProvider>
-            <RouterProvider router={router} />
+            <GlobalAlertProvider>
+              <RouterProvider router={router} />
+            </GlobalAlertProvider>
           </SidebarProvider>
         </ThemeProvider>
       </DataProvider>
