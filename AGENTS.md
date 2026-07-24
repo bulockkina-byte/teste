@@ -164,7 +164,7 @@ Podes combinar múltiplas skills carregando-as em sequência. A ordem importa:
 ### Ocorrências
 | Rota | Tela | Descrição |
 |------|------|-----------|
-| `/ocorrencias` | Ocorrências | Registos de ocorrências operacionais — BONA e RAE |
+| `/ocorrencias` | Ocorrências | Registos de ocorrências operacionais — BONA e REA |
 
 ### Inspeções Operacionais
 | Rota | Tela | Descrição |
@@ -286,10 +286,10 @@ Podes combinar múltiplas skills carregando-as em sequência. A ordem importa:
 │   │   ├── Usuarios/
 │   │   └── Viaturas/
 │   ├── routes/             # Configuração do React Router
-│   ├── services/           # 33 ficheiros de serviço (comunicação com Supabase)
+│   ├── services/           # 38 ficheiros de serviço (comunicação com Supabase e geração local)
 │   ├── store/              # Redux store (vazio — apenas hosting RTK Query dead code)
 │   │   └── api/            # 10 ficheiros RTK Query com fakeBaseQuery (DEAD CODE)
-│   ├── types/              # Interfaces TypeScript (~20 ficheiros)
+│   ├── types/              # Interfaces TypeScript (24 ficheiros)
 │   └── utils/              # Utilitários (equipes, regrasOperacionais, validação de cursos, etc.)
 ├── AGENTS.md               # Este ficheiro — guia do agente
 ├── API_ENDPOINTS.md         # Fonte da verdade para endpoints Supabase

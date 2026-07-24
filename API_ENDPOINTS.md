@@ -1,11 +1,11 @@
 # API Endpoints — SESCINC Manager
 
-> **Data:** 2026-07-21  
-> **Total de serviços:** 36 ficheiros em `src/services/`
-> **Comunicação com Supabase:** 29 ficheiros
-> **Total de funções:** ~167
+> **Data:** 2026-07-24  
+> **Total de serviços:** 38 ficheiros em `src/services/`
+> **Comunicação com Supabase:** 30 ficheiros
+> **Total de funções:** ~173
 > **Serviços externos:** 1 (Autentique GraphQL)  
-> **Cálculo puro:** 4 (escalaMensalGenerator, lroGenerator, pdfService, htmlPdfService)  
+> **Cálculo puro:** 5 (escalaMensalGenerator, lroGenerator, pdfService, htmlPdfService, reaPdfService)  
 > **Dead code (localStorage):** 10 ficheiros RTK store + notificacaoService (parcial)
 
 ---
@@ -24,6 +24,7 @@
 | 8 | lroService | `registros_lro` | 6 | ✅ |
 | 9 | lroDraftService | `lro_drafts` | 5 | ⚠️ 2 sem err check |
 | 10 | ocorrenciaService | `ocorrencias_operacionais` | 4 | ⚠️ 1 sem err check |
+| 10.1 | reaService | `rea_registros` | 5 | ✅ |
 | 11 | chatService | `chat_mensagens` | 7 | ⚠️ 1 sem err check |
 | 12 | documentoService | `documents`, `document_fields`, `document_signers`, `document_fills`, Storage | ~25 | ✅ |
 | 13 | apocService | `apocs` | 5 | ✅ |
@@ -800,7 +801,7 @@ GET com filtro `ativa=true`. ✅ OK
 {
   "id": "uuid",
   "createdBy": "string",
-  "tipoDocumento": "BONA | ...",
+  "tipoDocumento": "BONA | REA",
   "numero": "string",
   "data": "string (ISO date)",
   "hora": "string",
@@ -814,6 +815,88 @@ GET com filtro `ativa=true`. ✅ OK
   "acoesTomadas": "string",
   "status": "Aberta | ...",
   "fotos": ["string"]
+}
+```
+
+**Nota de compatibilidade:** registros antigos com `tipo_documento = "RAE"` são normalizados para `REA` no service.
+
+---
+
+# 10.1 REA — `reaService.ts`
+
+**Tabela:** `rea_registros`  
+**Ficheiro:** `src/services/reaService.ts`  
+**Tipo:** `src/types/rea.ts` — `ReaRegistro`
+
+---
+
+### listarReas
+
+**Método HTTP:** GET  
+**REST equivalência:** `GET /rest/v1/rea_registros?select=*&order=created_at.desc`  
+**Query Params opcionais:** `status`, `equipe`, `dataGte`, `dataLte`  
+**Request Body:** —  
+**Response:** `ReaRegistro[]`  
+**Estado:** ✅ OK  
+
+### obterRea
+
+**Método HTTP:** GET  
+**REST equivalência:** `GET /rest/v1/rea_registros?select=*&id=eq.{id}`  
+**Request Body:** —  
+**Response:** `ReaRegistro | null`  
+**Estado:** ✅ OK  
+
+### criarRea
+
+**Método HTTP:** POST  
+**REST equivalência:** `POST /rest/v1/rea_registros`  
+**Request Body:** `ReaRegistroInput`  
+**Response:** `ReaRegistro`  
+**Estado:** ✅ OK  
+
+### atualizarRea
+
+**Método HTTP:** PATCH  
+**REST equivalência:** `PATCH /rest/v1/rea_registros?id=eq.{id}`  
+**Request Body:** `Partial<ReaRegistroInput>`  
+**Response:** `ReaRegistro | null`  
+**Estado:** ✅ OK  
+
+### excluirRea
+
+**Método HTTP:** DELETE  
+**REST equivalência:** `DELETE /rest/v1/rea_registros?id=eq.{id}`  
+**Response:** `boolean`  
+**Estado:** ✅ OK  
+
+**Payload `ReaRegistro`:**
+```json
+{
+  "id": "uuid",
+  "createdBy": "string",
+  "createdAt": "string (ISO datetime)",
+  "updatedAt": "string (ISO datetime)",
+  "numero": "REA-001/2026",
+  "status": "Aberta | Fechada",
+  "equipe": "string",
+  "aerodromo": "string",
+  "cidade": "string",
+  "dataAcidente": "string (ISO date)",
+  "horaAcidente": "string",
+  "matricula": "string",
+  "empresa": "string",
+  "dados": {
+    "aerodromo": "string",
+    "cidade": "string",
+    "dataAcidente": "string",
+    "horaLocalAcidente": "string",
+    "acidentePeriodo": "Dia | Noite | ''",
+    "tipoAeronave": "string",
+    "matricula": "string",
+    "empresa": "string",
+    "...": "demais campos do formulário MMS.BR.BA.FOR.001"
+  }
 }
 ```
 
@@ -1883,5 +1966,6 @@ Todos em `src/store/api/*.ts`. Usam `fakeBaseQuery()` com localStorage. **Nunca 
 | `lroGenerator.ts` | Geração de HTML/PDF para LRO |
 | `pdfService.ts` | Manipulação de PDF com pdf-lib (ler campos, preencher, templates) |
 | `htmlPdfService.ts` | HTML → PDF com html-to-image + jspdf |
+| `reaPdfService.ts` | Preenchimento do PDF-template REA com pdf-lib |
 | `autentiqueService.ts` | API externa Autentique (GraphQL) — sem Supabase |
 | `menuData.ts` | Configuração estática do menu de navegação |

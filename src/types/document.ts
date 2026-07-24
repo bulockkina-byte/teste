@@ -25,7 +25,7 @@ export const SOURCE_MODULE_OPTIONS: { value: SourceModule; label: string }[] = [
   { value: 'ferias', label: 'Férias' },
   { value: 'epis', label: 'EPIs' },
   { value: 'certificacoes', label: 'Certificações' },
-  { value: 'ocorrencias', label: 'Ocorrências (BONA / RAE)' },
+  { value: 'ocorrencias', label: 'Ocorrências (BONA / REA)' },
   { value: 'ordem_servico', label: 'Ordens de Serviço' },
   { value: 'lro', label: 'LRO' },
   { value: 'ptrba', label: 'PTR-BA' },

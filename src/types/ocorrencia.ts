@@ -1,8 +1,8 @@
-export type TipoDocumento = 'BONA' | 'RAE';
+export type TipoDocumento = 'BONA' | 'REA';
 
 export const TIPO_DOCUMENTO: Record<TipoDocumento, string> = {
   BONA: 'BOLETIM DE OCORRÊNCIA NÃO AERONÁUTICO',
-  RAE: 'RELATÓRIO DE ATENDIMENTO A EMERGÊNCIA',
+  REA: 'RELATÓRIO DE REGISTRO DE EMERGÊNCIAS AERONÁUTICAS',
 };
 
 export type CategoriaOcorrencia =

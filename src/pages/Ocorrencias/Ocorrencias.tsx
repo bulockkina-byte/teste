@@ -9,15 +9,31 @@ import { useAuth } from '../../context/AuthContext';
 import { turnoAutoPorEquipe } from '../../types/bombeiro';
 import { listarBombeiros } from '../../services/bombeiroService';
 import { listarOcorrencias, criarOcorrencia, atualizarOcorrencia, excluirOcorrencia } from '../../services/ocorrenciaService';
+import { atualizarRea, criarRea, excluirRea, listarReas, obterRea } from '../../services/reaService';
+import { gerarReaPdf } from '../../services/reaPdfService';
+import { downloadPdf } from '../../services/pdfService';
 import { CATEGORIAS_OCORRENCIA, EQUIPES, TIPO_DOCUMENTO } from '../../types/ocorrencia';
 import type { Ocorrencia, TipoDocumento } from '../../types/ocorrencia';
+import type { ReaDados, ReaRegistro, ReaStatus } from '../../types/rea';
+import { ReaModal } from './ReaModal';
+import { ReaCard } from './ReaCard';
 
 function gerarNumero(tipo: TipoDocumento, existentes: Ocorrencia[]): string {
-  const prefixo = tipo === 'BONA' ? 'BONA' : 'RAE';
+  const prefixo = tipo === 'BONA' ? 'BONA' : 'REA';
   const ano = new Date().getFullYear();
   const doMesmoTipo = existentes.filter(o => o.tipoDocumento === tipo && o.numero.startsWith(prefixo));
   const sequencia = doMesmoTipo.length + 1;
   return `${prefixo}-${String(sequencia).padStart(3, '0')}/${ano}`;
+}
+
+function gerarNumeroRea(existentes: ReaRegistro[]): string {
+  const ano = new Date().getFullYear();
+  const regex = new RegExp(`^REA-(\\d+)\\/${ano}$`);
+  const maior = existentes.reduce((max, item) => {
+    const match = item.numero.match(regex);
+    return match ? Math.max(max, Number(match[1])) : max;
+  }, 0);
+  return `REA-${String(maior + 1).padStart(3, '0')}/${ano}`;
 }
 
 function emptyOcorrencia(): Omit<Ocorrencia, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'> {
@@ -53,6 +69,7 @@ function OcorrenciaForm({
   onAceitar,
   onSolicitarRetrabalho,
   onConcluir,
+  onSelectRea,
   onCancel,
 }: {
   ocorrencia?: Ocorrencia;
@@ -66,6 +83,7 @@ function OcorrenciaForm({
   onAceitar?: () => void;
   onSolicitarRetrabalho?: () => void;
   onConcluir?: () => void;
+  onSelectRea?: () => void;
   onCancel: () => void;
 }) {
   const [form, setForm] = useState(ocorrencia ? {
@@ -98,6 +116,10 @@ function OcorrenciaForm({
   }
 
   function handleTipo(tipo: TipoDocumento) {
+    if (tipo === 'REA' && onSelectRea) {
+      onSelectRea();
+      return;
+    }
     setForm(f => ({
       ...f,
       tipoDocumento: tipo,
@@ -151,7 +173,7 @@ function OcorrenciaForm({
           <div className="mb-5 rounded-xl border border-graphite-200 bg-graphite-50 p-4 dark:border-border-dark dark:bg-surface-card">
             <label className={label}>Tipo de Documento *</label>
             <div className="mt-2 grid grid-cols-2 gap-3">
-              {(['BONA', 'RAE'] as TipoDocumento[]).map(tipo => (
+              {(['BONA', 'REA'] as TipoDocumento[]).map(tipo => (
                 <button key={tipo} type="button" onClick={() => handleTipo(tipo)}
                   className={`flex items-center gap-3 rounded-xl border-2 px-4 py-3 text-left transition-all ${
                     form.tipoDocumento === tipo
@@ -481,11 +503,18 @@ export function Ocorrencias() {
   const canEdit = isAdmin || isGerente || role === 'chefe';
 
   const [ocorrencias, setOcorrencias] = useState<Ocorrencia[]>([]);
+  const [reas, setReas] = useState<ReaRegistro[]>([]);
   const [mode, setMode] = useState<'list' | 'form' | 'view'>('list');
   const [editando, setEditando] = useState<Ocorrencia | null>(null);
+  const [editandoRea, setEditandoRea] = useState<ReaRegistro | null>(null);
+  const [showNovoDocumento, setShowNovoDocumento] = useState(false);
+  const [showReaModal, setShowReaModal] = useState(false);
+  const [savingRea, setSavingRea] = useState(false);
+  const [downloadingReaId, setDownloadingReaId] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
   const [visualizando, setVisualizando] = useState<Ocorrencia | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [confirmDeleteRea, setConfirmDeleteRea] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState('');
   function clearSuccess() { setSuccessMsg(''); }
   useEffect(() => { if (successMsg) { const t = setTimeout(clearSuccess, 3000); return () => clearTimeout(t); } }, [successMsg]);
@@ -501,7 +530,11 @@ export function Ocorrencias() {
   const ANOS = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
   const inputClass = 'rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all duration-200 hover:border-graphite-400 focus:border-aviation-500 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:hover:border-graphite-500 dark:focus:border-aviation-400 dark:focus:bg-surface-elevated dark:focus:ring-aviation-400/10 dark:placeholder:text-graphite-500';
 
-  async function carregar() { setOcorrencias(await listarOcorrencias()); }
+  async function carregar() {
+    const [ocorrenciasData, reasData] = await Promise.all([listarOcorrencias(), listarReas()]);
+    setOcorrencias(ocorrenciasData);
+    setReas(reasData);
+  }
   useEffect(() => { carregar(); }, []);
 
   const filtradas = useMemo(() => {
@@ -524,6 +557,35 @@ export function Ocorrencias() {
     }
     return list;
   }, [ocorrencias, canFilterTeam, userEquipe, filtroEquipe, filtroTipo, filterMode, filtroAno, filtroMes, dataInicio, dataFinal]);
+
+  const reasFiltrados = useMemo(() => {
+    let list = reas;
+    if (filtroTipo && filtroTipo !== 'REA') return [];
+    if (!canFilterTeam && userEquipe) {
+      list = list.filter(r => r.equipe === userEquipe || !r.equipe);
+    }
+    if (canFilterTeam && filtroEquipe) {
+      list = list.filter(r => r.equipe === filtroEquipe);
+    }
+    if (filterMode === 'mes-ano') {
+      if (filtroAno) list = list.filter(r => (r.dataAcidente || r.createdAt).startsWith(filtroAno));
+      if (filtroMes) list = list.filter(r => {
+        const date = r.dataAcidente || r.createdAt.slice(0, 10);
+        return date ? (new Date(date).getMonth() + 1).toString() === filtroMes : false;
+      });
+    } else {
+      if (dataInicio) list = list.filter(r => (r.dataAcidente || r.createdAt.slice(0, 10)) >= dataInicio);
+      if (dataFinal) list = list.filter(r => (r.dataAcidente || r.createdAt.slice(0, 10)) <= dataFinal);
+    }
+    return list;
+  }, [reas, canFilterTeam, userEquipe, filtroEquipe, filtroTipo, filterMode, filtroAno, filtroMes, dataInicio, dataFinal]);
+
+  const documentosFiltrados = useMemo(() => {
+    return [
+      ...filtradas.map(item => ({ tipo: 'ocorrencia' as const, data: item.data || item.createdAt.slice(0, 10), item })),
+      ...reasFiltrados.map(item => ({ tipo: 'rea' as const, data: item.dataAcidente || item.createdAt.slice(0, 10), item })),
+    ].sort((a, b) => b.data.localeCompare(a.data));
+  }, [filtradas, reasFiltrados]);
 
   async function handleSave(data: Omit<Ocorrencia, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>, stayInForm = false) {
     let saved: Ocorrencia | null;
@@ -557,6 +619,65 @@ export function Ocorrencias() {
     carregar();
   }
 
+  async function handleSaveRea(data: { status: ReaStatus; dados: ReaDados }) {
+    setSavingRea(true);
+    try {
+      if (editandoRea) {
+        await atualizarRea(editandoRea.id, {
+          numero: editandoRea.numero,
+          status: data.status,
+          equipe: editandoRea.equipe,
+          dados: data.dados,
+        });
+      } else {
+        await criarRea({
+          createdBy: username,
+          numero: gerarNumeroRea(reas),
+          status: data.status,
+          equipe: userEquipe,
+          dados: data.dados,
+        });
+      }
+      setShowReaModal(false);
+      setEditandoRea(null);
+      await carregar();
+    } finally {
+      setSavingRea(false);
+    }
+  }
+
+  async function handleDeleteRea(id: string) {
+    await excluirRea(id);
+    setConfirmDeleteRea(null);
+    carregar();
+  }
+
+  async function handleDownloadRea(id: string) {
+    setDownloadingReaId(id);
+    try {
+      const rea = await obterRea(id);
+      if (!rea) throw new Error('REA nao encontrado.');
+      const pdf = await gerarReaPdf(rea);
+      downloadPdf(pdf, `${rea.numero.replace(/[^\w-]+/g, '_') || 'REA'}.pdf`);
+    } finally {
+      setDownloadingReaId(null);
+    }
+  }
+
+  function openBonaForm() {
+    setShowNovoDocumento(false);
+    setEditando(null);
+    setSavedId(null);
+    setMode('form');
+  }
+
+  function openReaForm(registro?: ReaRegistro | null) {
+    setShowNovoDocumento(false);
+    setEditandoRea(registro || null);
+    setShowReaModal(true);
+    setMode('list');
+  }
+
   if (mode === 'form') {
     return (
       <PageContainer>
@@ -580,6 +701,7 @@ export function Ocorrencias() {
             if (savedId || editando?.id) handleStatusChange(savedId || editando!.id, 'Fechada');
             setEditando(null); setSavedId(null); setMode('list');
           }}
+          onSelectRea={() => openReaForm(null)}
           onCancel={() => { setMode('list'); setEditando(null); setSavedId(null); }} />
       </PageContainer>
     );
@@ -613,7 +735,7 @@ export function Ocorrencias() {
           <select value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)} className={inputClass}>
             <option value="">Todos os tipos</option>
             <option value="BONA">BONA</option>
-            <option value="RAE">RAE</option>
+            <option value="REA">REA</option>
           </select>
           {filterMode === 'mes-ano' ? (
             <>
@@ -641,29 +763,80 @@ export function Ocorrencias() {
           )}
         </div>
         {canEdit && (
-          <button onClick={() => { setEditando(null); setMode('form'); }}
+          <button onClick={() => setShowNovoDocumento(true)}
             className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
             <Plus className="h-4 w-4" /> Novo Documento
           </button>
         )}
       </div>
 
-      {filtradas.length === 0 ? (
+      {documentosFiltrados.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">
           <AlertTriangle className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
           <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhum documento encontrado</h3>
-          <p className="text-sm text-graphite-400 dark:text-graphite-500">Clique em "Novo Documento" para criar BONA ou RAE.</p>
+          <p className="text-sm text-graphite-400 dark:text-graphite-500">Clique em "Novo Documento" para criar BONA ou REA.</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {filtradas.map(o => (
-            <OcorrenciaCard key={o.id} o={o} isAdmin={isAdmin} isGerente={isGerente}
-              onView={() => { setVisualizando(o); setMode('view'); }}
-              onEdit={() => { setEditando(o); setSavedId(o.id); setMode('form'); }}
-              onDelete={() => setConfirmDelete(o.id)}
+          {documentosFiltrados.map(doc => doc.tipo === 'ocorrencia' ? (
+            <OcorrenciaCard key={`ocorrencia-${doc.item.id}`} o={doc.item} isAdmin={isAdmin} isGerente={isGerente}
+              onView={() => { setVisualizando(doc.item); setMode('view'); }}
+              onEdit={() => { setEditando(doc.item); setSavedId(doc.item.id); setMode('form'); }}
+              onDelete={() => setConfirmDelete(doc.item.id)}
+            />
+          ) : (
+            <ReaCard key={`rea-${doc.item.id}`} rea={doc.item} canEdit={canEdit}
+              downloading={downloadingReaId === doc.item.id}
+              onEdit={() => openReaForm(doc.item)}
+              onDelete={() => setConfirmDeleteRea(doc.item.id)}
+              onDownload={() => handleDownloadRea(doc.item.id)}
             />
           ))}
         </div>
+      )}
+
+      {showNovoDocumento && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl dark:bg-surface-elevated">
+            <h3 className="mb-4 text-lg font-bold text-graphite-900 dark:text-graphite-100">Novo Documento</h3>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button
+                onClick={openBonaForm}
+                className="flex items-start gap-3 rounded-xl border-2 border-graphite-200 bg-white p-4 text-left transition-all hover:border-aviation-400 dark:border-border-dark dark:bg-surface-card"
+              >
+                <FileText className="mt-0.5 h-5 w-5 text-aviation-600 dark:text-aviation-400" />
+                <div>
+                  <p className="text-sm font-bold text-graphite-900 dark:text-graphite-100">BONA</p>
+                  <p className="mt-1 text-xs text-graphite-500 dark:text-graphite-400">{TIPO_DOCUMENTO.BONA}</p>
+                </div>
+              </button>
+              <button
+                onClick={() => openReaForm(null)}
+                className="flex items-start gap-3 rounded-xl border-2 border-graphite-200 bg-white p-4 text-left transition-all hover:border-aviation-400 dark:border-border-dark dark:bg-surface-card"
+              >
+                <FileText className="mt-0.5 h-5 w-5 text-red-600 dark:text-red-400" />
+                <div>
+                  <p className="text-sm font-bold text-graphite-900 dark:text-graphite-100">REA</p>
+                  <p className="mt-1 text-xs text-graphite-500 dark:text-graphite-400">{TIPO_DOCUMENTO.REA}</p>
+                </div>
+              </button>
+            </div>
+            <div className="mt-5 flex justify-end">
+              <button onClick={() => setShowNovoDocumento(false)}
+                className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showReaModal && (
+        <ReaModal
+          registro={editandoRea}
+          numero={editandoRea?.numero || gerarNumeroRea(reas)}
+          saving={savingRea}
+          onSave={handleSaveRea}
+          onCancel={() => { setShowReaModal(false); setEditandoRea(null); }}
+        />
       )}
 
       {confirmDelete && (
@@ -675,6 +848,21 @@ export function Ocorrencias() {
               <button onClick={() => setConfirmDelete(null)}
                 className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">Cancelar</button>
               <button onClick={() => handleDelete(confirmDelete)}
+                className="rounded-xl bg-gradient-to-r from-alert-red to-red-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-red-500/20 transition-all hover:shadow-xl hover:shadow-red-500/30 active:scale-[0.98]">Excluir</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDeleteRea && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl dark:bg-surface-elevated">
+            <h3 className="mb-2 text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar exclusao</h3>
+            <p className="mb-6 text-sm text-graphite-500 dark:text-graphite-400">Tem certeza que deseja excluir este REA?</p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setConfirmDeleteRea(null)}
+                className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">Cancelar</button>
+              <button onClick={() => handleDeleteRea(confirmDeleteRea)}
                 className="rounded-xl bg-gradient-to-r from-alert-red to-red-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-red-500/20 transition-all hover:shadow-xl hover:shadow-red-500/30 active:scale-[0.98]">Excluir</button>
             </div>
           </div>

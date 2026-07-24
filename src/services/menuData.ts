@@ -147,7 +147,7 @@ export const menuItems: MenuItem[] = [
         label: 'Ocorrências',
         icon: AlertTriangle,
         path: '/arquivo/ocorrencias',
-        description: 'Ocorrências arquivadas (BONA e RAE).',
+        description: 'Ocorrências arquivadas (BONA e REA).',
       },
       {
         label: 'Ordens de Serviço',
@@ -251,7 +251,7 @@ export const menuItems: MenuItem[] = [
     label: 'Ocorrências',
     icon: AlertTriangle,
     path: '/ocorrencias',
-    description: 'Registro de ocorrências operacionais — BONA e RAE.',
+    description: 'Registro de ocorrências operacionais — BONA e REA.',
   },
   {
     label: 'Inspeções Operacionais',

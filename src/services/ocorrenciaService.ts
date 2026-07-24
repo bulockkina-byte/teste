@@ -26,12 +26,13 @@ function rowToOcorrencia(row: Record<string, unknown>): Ocorrencia {
   const numero = (row.numero as string) || '';
   const data = (row.data as string) || '';
   const categoria = (row.categoria as Ocorrencia['categoria']) || 'Outros';
+  const tipoDocumento = row.tipo_documento === 'RAE' ? 'REA' : ((row.tipo_documento as Ocorrencia['tipoDocumento']) || 'BONA');
   return {
     id: row.id as string,
     createdBy: (row.created_by as string) || '',
     createdAt: (row.created_at as string) || '',
     updatedAt: (row.updated_at as string) || '',
-    tipoDocumento: (row.tipo_documento as Ocorrencia['tipoDocumento']) || 'BONA',
+    tipoDocumento,
     numero,
     numeroOcorrencia: numero,
     data,

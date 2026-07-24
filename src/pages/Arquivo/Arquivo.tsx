@@ -290,7 +290,7 @@ export default function Arquivo() {
             className="rounded-lg border border-graphite-200 bg-white px-3 py-2 text-sm dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-200">
             <option value="">Todos</option>
             <option value="BONA">BONA</option>
-            <option value="RAE">RAE</option>
+            <option value="REA">REA</option>
           </select>
         )}
         {(!tipo || tipo === 'treinamentos') && (
