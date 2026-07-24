@@ -9,7 +9,6 @@ import type { ReaRegistro } from '../types/rea';
 
 const TEMPLATE_URL = '/templates/rea-template.pdf';
 const TEXT_COLOR = rgb(0, 0, 0);
-const WHITE = rgb(1, 1, 1);
 
 interface TextFieldPosition {
   key: string;
@@ -20,6 +19,7 @@ interface TextFieldPosition {
   fontSize?: number;
   lineHeight?: number;
   maxLines?: number;
+  height?: number;
   date?: boolean;
   align?: 'left' | 'center';
 }
@@ -32,20 +32,14 @@ interface CheckPosition {
   value?: string;
 }
 
-interface MaskPosition {
-  page: number;
-  x: number;
-  top: number;
-  width: number;
-  height: number;
-}
-
 function sanitizeText(value: string): string {
   return value
+    .normalize('NFKC')
     .replace(/\u00a0/g, ' ')
     .replace(/[\u2010-\u2015]/g, '-')
-    .replace(/[“”]/g, '"')
-    .replace(/[‘’]/g, "'");
+    .replace(/[\u201c\u201d]/g, '"')
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[^\t\n\r -~\u00a0-\u00ff]/g, '');
 }
 
 function formatDate(value: string): string {
@@ -77,13 +71,7 @@ function splitLongWord(word: string, font: PDFFont, fontSize: number, maxWidth: 
 }
 
 function wrapText(text: string, font: PDFFont, fontSize: number, maxWidth: number): string[] {
-  const normalizedText = sanitizeText(text)
-    .normalize('NFKC')
-    .replace(/[“”]/g, '"')
-    .replace(/[‘’]/g, "'")
-    .replace(/…/g, '...')
-    .replace(/[^\t\n\r -~\u00a0-\u00ff]/g, '');
-  const paragraphs = normalizedText.split(/\r?\n/);
+  const paragraphs = sanitizeText(text).split(/\r?\n/);
   const lines: string[] = [];
 
   for (const paragraph of paragraphs) {
@@ -120,6 +108,11 @@ function wrapText(text: string, font: PDFFont, fontSize: number, maxWidth: numbe
   return lines;
 }
 
+function resolveMaxLines(field: TextFieldPosition, lineHeight: number): number {
+  const maxByHeight = field.height ? Math.max(1, Math.floor(field.height / lineHeight)) : Number.MAX_SAFE_INTEGER;
+  return Math.min(field.maxLines || maxByHeight || 1, maxByHeight);
+}
+
 function drawTextField(page: PDFPage, font: PDFFont, field: TextFieldPosition, rawValue: string | undefined) {
   let value = rawValue || '';
   if (!value.trim()) return;
@@ -128,7 +121,7 @@ function drawTextField(page: PDFPage, font: PDFFont, field: TextFieldPosition, r
   const { height } = page.getSize();
   const fontSize = field.fontSize || 7;
   const lineHeight = field.lineHeight || fontSize + 2;
-  const maxLines = field.maxLines || 1;
+  const maxLines = resolveMaxLines(field, lineHeight);
   const lines = wrapText(value, font, fontSize, field.width).slice(0, maxLines);
 
   lines.forEach((line, index) => {
@@ -141,17 +134,6 @@ function drawTextField(page: PDFPage, font: PDFFont, field: TextFieldPosition, r
       font,
       color: TEXT_COLOR,
     });
-  });
-}
-
-function drawMask(page: PDFPage, mask: MaskPosition) {
-  const { height } = page.getSize();
-  page.drawRectangle({
-    x: mask.x,
-    y: height - mask.top - mask.height,
-    width: mask.width,
-    height: mask.height,
-    color: WHITE,
   });
 }
 
@@ -202,50 +184,50 @@ const TEXT_FIELDS: TextFieldPosition[] = [
   { key: 'velocidadeVento', page: 1, x: 46, top: 333, width: 220 },
   { key: 'condicoesGeraisTempo', page: 1, x: 300, top: 333, width: 240 },
   { key: 'totalPessoasBordo', page: 1, x: 46, top: 371, width: 150 },
-  { key: 'salvasSemAjudaFeridos', page: 1, x: 251, top: 380, width: 54, align: 'center' },
-  { key: 'salvasSemAjudaIlesos', page: 1, x: 251, top: 395, width: 54, align: 'center' },
-  { key: 'resgatadasVivasFeridos', page: 1, x: 464, top: 380, width: 54, align: 'center' },
-  { key: 'resgatadasVivasIlesos', page: 1, x: 464, top: 395, width: 54, align: 'center' },
-  { key: 'mortosPassageiros', page: 1, x: 105, top: 425, width: 178, align: 'center' },
-  { key: 'mortosTripulantes', page: 1, x: 105, top: 440, width: 178, align: 'center' },
-  { key: 'vitimasTerraMortos', page: 1, x: 355, top: 425, width: 185, align: 'center' },
-  { key: 'vitimasTerraFeridos', page: 1, x: 355, top: 440, width: 185, align: 'center' },
-  { key: 'obitos24hOcupantes', page: 1, x: 110, top: 466, width: 95, align: 'center' },
-  { key: 'obitos24hVitimasTerra', page: 1, x: 132, top: 481, width: 75, align: 'center' },
-  { key: 'mortosVitimasFogo', page: 1, x: 300, top: 466, width: 205, align: 'center' },
-  { key: 'intervaloAvisoPrevio', page: 1, x: 46, top: 542, width: 238, fontSize: 6.3, lineHeight: 7.2, maxLines: 3 },
-  { key: 'intervaloSemAvisoPrevio', page: 1, x: 300, top: 542, width: 238, fontSize: 6.3, lineHeight: 7.2, maxLines: 3 },
-  { key: 'tempoPrimeirosCci', page: 1, x: 46, top: 606, width: 238, fontSize: 6.3, lineHeight: 7.2, maxLines: 3 },
-  { key: 'tempoDemaisCci', page: 1, x: 300, top: 606, width: 238, fontSize: 6.3, lineHeight: 7.2, maxLines: 3 },
-  { key: 'tempoFogoControlado', page: 1, x: 46, top: 682, width: 238, fontSize: 6.3, lineHeight: 7.2, maxLines: 3 },
-  { key: 'tempoExtincaoFogo', page: 1, x: 300, top: 682, width: 238, fontSize: 6.3, lineHeight: 7.2, maxLines: 3 },
-  { key: 'tempoSaidaUltimoSobrevivente', page: 1, x: 46, top: 758, width: 238, fontSize: 6.3, lineHeight: 7.2, maxLines: 3 },
-  { key: 'tempoRemocaoUltimosCadaveres', page: 1, x: 300, top: 758, width: 238, fontSize: 6.3, lineHeight: 7.2, maxLines: 3 },
-  { key: 'descricaoEmergencia', page: 2, x: 46, top: 518, width: 492, maxLines: 10 },
-  { key: 'relatoCondensadoIncendio', page: 2, x: 46, top: 631, width: 492, maxLines: 7 },
-  { key: 'descricaoCondicoesResgate', page: 2, x: 46, top: 738, width: 492, maxLines: 6 },
-  { key: 'condutaOperacoesExtincao', page: 3, x: 46, top: 128, width: 492, maxLines: 7 },
-  { key: 'descricaoEvacuacao', page: 3, x: 46, top: 236, width: 492, maxLines: 7 },
-  { key: 'numeroVitimasTrasladadas', page: 3, x: 184, top: 331, width: 350 },
-  { key: 'salaPrimeirosSocorros', page: 3, x: 205, top: 353, width: 325 },
-  { key: 'hospitais', page: 3, x: 126, top: 373, width: 405 },
-  { key: 'necroterios', page: 3, x: 136, top: 393, width: 395 },
-  { key: 'outrosDetalhesImportantes', page: 3, x: 46, top: 444, width: 492, maxLines: 8 },
-  { key: 'dificuldadesLocalizarAtingir', page: 3, x: 46, top: 536, width: 492, maxLines: 8 },
-  { key: 'avaliacaoEficiencia', page: 3, x: 46, top: 632, width: 492, fontSize: 6.5, lineHeight: 7.4, maxLines: 4 },
-  { key: 'aeronaveDestruidaAcidente', page: 3, x: 211, top: 723, width: 160 },
-  { key: 'aeronaveDestruidaIncendio', page: 3, x: 384, top: 723, width: 160 },
-  { key: 'aeronaveGravementeDanificadaAcidente', page: 3, x: 211, top: 743, width: 160 },
-  { key: 'aeronaveGravementeDanificadaIncendio', page: 3, x: 384, top: 743, width: 160 },
-  { key: 'aeronavePoucosDanosAcidente', page: 3, x: 211, top: 763, width: 160 },
-  { key: 'aeronavePoucosDanosIncendio', page: 3, x: 384, top: 763, width: 160 },
-  { key: 'aeronaveIncolumeAcidente', page: 3, x: 211, top: 782, width: 160 },
-  { key: 'aeronaveIncolumeIncendio', page: 3, x: 384, top: 782, width: 160 },
-  { key: 'diagramaViasAcesso', page: 4, x: 46, top: 112, width: 492, fontSize: 6.5, lineHeight: 7.4, maxLines: 2 },
-  { key: 'diagramaLocalAcidente', page: 4, x: 46, top: 147, width: 492, fontSize: 6.5, lineHeight: 7.4, maxLines: 3 },
-  { key: 'informacoesNaoPassadasChefe', page: 4, x: 46, top: 218, width: 492, fontSize: 6.5, lineHeight: 7.4, maxLines: 2 },
-  { key: 'gerenteSescinc', page: 4, x: 46, top: 373, width: 230, maxLines: 3 },
-  { key: 'coordenadorPrevEmerg', page: 4, x: 301, top: 373, width: 230, maxLines: 3 },
+  { key: 'salvasSemAjudaFeridos', page: 1, x: 251, top: 378, width: 54, align: 'center' },
+  { key: 'salvasSemAjudaIlesos', page: 1, x: 251, top: 393, width: 54, align: 'center' },
+  { key: 'resgatadasVivasFeridos', page: 1, x: 464, top: 378, width: 54, align: 'center' },
+  { key: 'resgatadasVivasIlesos', page: 1, x: 464, top: 393, width: 54, align: 'center' },
+  { key: 'mortosPassageiros', page: 1, x: 105, top: 421, width: 178, align: 'center' },
+  { key: 'mortosTripulantes', page: 1, x: 105, top: 437, width: 178, align: 'center' },
+  { key: 'vitimasTerraMortos', page: 1, x: 355, top: 421, width: 185, align: 'center' },
+  { key: 'vitimasTerraFeridos', page: 1, x: 355, top: 437, width: 185, align: 'center' },
+  { key: 'obitos24hOcupantes', page: 1, x: 110, top: 464, width: 95, align: 'center' },
+  { key: 'obitos24hVitimasTerra', page: 1, x: 132, top: 479, width: 75, align: 'center' },
+  { key: 'mortosVitimasFogo', page: 1, x: 300, top: 464, width: 205, align: 'center' },
+  { key: 'intervaloAvisoPrevio', page: 1, x: 46, top: 542, width: 238, fontSize: 6.3, lineHeight: 7.2, maxLines: 3, height: 34 },
+  { key: 'intervaloSemAvisoPrevio', page: 1, x: 300, top: 542, width: 238, fontSize: 6.3, lineHeight: 7.2, maxLines: 3, height: 34 },
+  { key: 'tempoPrimeirosCci', page: 1, x: 46, top: 606, width: 238, fontSize: 6.3, lineHeight: 7.2, maxLines: 3, height: 34 },
+  { key: 'tempoDemaisCci', page: 1, x: 300, top: 606, width: 238, fontSize: 6.3, lineHeight: 7.2, maxLines: 3, height: 34 },
+  { key: 'tempoFogoControlado', page: 1, x: 46, top: 682, width: 238, fontSize: 6.3, lineHeight: 7.2, maxLines: 3, height: 34 },
+  { key: 'tempoExtincaoFogo', page: 1, x: 300, top: 682, width: 238, fontSize: 6.3, lineHeight: 7.2, maxLines: 3, height: 34 },
+  { key: 'tempoSaidaUltimoSobrevivente', page: 1, x: 46, top: 758, width: 238, fontSize: 6.3, lineHeight: 7.2, maxLines: 3, height: 34 },
+  { key: 'tempoRemocaoUltimosCadaveres', page: 1, x: 300, top: 758, width: 238, fontSize: 6.3, lineHeight: 7.2, maxLines: 3, height: 34 },
+  { key: 'descricaoEmergencia', page: 2, x: 46, top: 518, width: 492, maxLines: 10, height: 92 },
+  { key: 'relatoCondensadoIncendio', page: 2, x: 46, top: 631, width: 492, maxLines: 7, height: 66 },
+  { key: 'descricaoCondicoesResgate', page: 2, x: 46, top: 738, width: 492, maxLines: 6, height: 58 },
+  { key: 'condutaOperacoesExtincao', page: 3, x: 46, top: 128, width: 492, maxLines: 7, height: 78 },
+  { key: 'descricaoEvacuacao', page: 3, x: 46, top: 236, width: 492, maxLines: 7, height: 78 },
+  { key: 'numeroVitimasTrasladadas', page: 3, x: 184, top: 329, width: 350 },
+  { key: 'salaPrimeirosSocorros', page: 3, x: 205, top: 346, width: 325 },
+  { key: 'hospitais', page: 3, x: 126, top: 365, width: 405 },
+  { key: 'necroterios', page: 3, x: 136, top: 382, width: 395 },
+  { key: 'outrosDetalhesImportantes', page: 3, x: 46, top: 444, width: 492, maxLines: 8, height: 76 },
+  { key: 'dificuldadesLocalizarAtingir', page: 3, x: 46, top: 536, width: 492, maxLines: 8, height: 76 },
+  { key: 'avaliacaoEficiencia', page: 3, x: 46, top: 632, width: 492, fontSize: 6.5, lineHeight: 7.4, maxLines: 4, height: 42 },
+  { key: 'aeronaveDestruidaAcidente', page: 3, x: 211, top: 732, width: 160 },
+  { key: 'aeronaveDestruidaIncendio', page: 3, x: 384, top: 732, width: 160 },
+  { key: 'aeronaveGravementeDanificadaAcidente', page: 3, x: 211, top: 750, width: 160 },
+  { key: 'aeronaveGravementeDanificadaIncendio', page: 3, x: 384, top: 750, width: 160 },
+  { key: 'aeronavePoucosDanosAcidente', page: 3, x: 211, top: 767, width: 160 },
+  { key: 'aeronavePoucosDanosIncendio', page: 3, x: 384, top: 767, width: 160 },
+  { key: 'aeronaveIncolumeAcidente', page: 3, x: 211, top: 783, width: 160 },
+  { key: 'aeronaveIncolumeIncendio', page: 3, x: 384, top: 783, width: 160 },
+  { key: 'diagramaViasAcesso', page: 4, x: 46, top: 112, width: 492, fontSize: 6.2, lineHeight: 7, maxLines: 1, height: 10 },
+  { key: 'diagramaLocalAcidente', page: 4, x: 46, top: 147, width: 492, fontSize: 6.2, lineHeight: 7, maxLines: 2, height: 17 },
+  { key: 'informacoesNaoPassadasChefe', page: 4, x: 46, top: 218, width: 492, fontSize: 6.2, lineHeight: 7, maxLines: 2, height: 16 },
+  { key: 'gerenteSescinc', page: 4, x: 46, top: 373, width: 230, maxLines: 3, height: 28 },
+  { key: 'coordenadorPrevEmerg', page: 4, x: 301, top: 373, width: 230, maxLines: 3, height: 28 },
 ];
 
 const CHECK_FIELDS: CheckPosition[] = [
@@ -256,46 +238,6 @@ const CHECK_FIELDS: CheckPosition[] = [
   { key: 'faseOperacao', value: 'Taxi', page: 1, x: 354.5, top: 244.5 },
   { key: 'faseOperacao', value: 'Estacionamento', page: 1, x: 481.5, top: 244.5 },
 ];
-
-const DASH_MASKS: MaskPosition[] = [
-  { page: 1, x: 258, top: 377, width: 146, height: 12 },
-  { page: 1, x: 258, top: 392, width: 146, height: 12 },
-  { page: 1, x: 468, top: 377, width: 74, height: 12 },
-  { page: 1, x: 468, top: 392, width: 74, height: 12 },
-  { page: 1, x: 106, top: 422, width: 183, height: 12 },
-  { page: 1, x: 106, top: 438, width: 183, height: 12 },
-  { page: 1, x: 345, top: 422, width: 211, height: 12 },
-  { page: 1, x: 345, top: 438, width: 211, height: 12 },
-  { page: 1, x: 106, top: 467, width: 106, height: 8 },
-  { page: 1, x: 132, top: 482, width: 80, height: 8 },
-  { page: 1, x: 294, top: 467, width: 220, height: 8 },
-  { page: 3, x: 171, top: 332, width: 365, height: 8 },
-  { page: 3, x: 187, top: 349, width: 360, height: 8 },
-  { page: 3, x: 119, top: 367, width: 430, height: 8 },
-  { page: 3, x: 128, top: 385, width: 420, height: 8 },
-];
-
-const POST_DASH_MASKS: MaskPosition[] = [
-  { page: 3, x: 206, top: 735, width: 174, height: 8 },
-  { page: 3, x: 382, top: 735, width: 166, height: 8 },
-  { page: 3, x: 206, top: 753, width: 174, height: 8 },
-  { page: 3, x: 382, top: 753, width: 166, height: 8 },
-  { page: 3, x: 206, top: 767, width: 174, height: 8 },
-  { page: 3, x: 382, top: 767, width: 166, height: 8 },
-  { page: 3, x: 206, top: 784, width: 174, height: 8 },
-  { page: 3, x: 382, top: 784, width: 166, height: 8 },
-];
-
-const REDRAW_AFTER_POST_MASK_KEYS = new Set([
-  'aeronaveDestruidaAcidente',
-  'aeronaveDestruidaIncendio',
-  'aeronaveGravementeDanificadaAcidente',
-  'aeronaveGravementeDanificadaIncendio',
-  'aeronavePoucosDanosAcidente',
-  'aeronavePoucosDanosIncendio',
-  'aeronaveIncolumeAcidente',
-  'aeronaveIncolumeIncendio',
-]);
 
 const FASE_LEGACY_KEYS: Record<string, string> = {
   Pouso: 'fasePouso',
@@ -325,14 +267,14 @@ function resourceFields(): TextFieldPosition[] {
   ];
 
   return [
-    ...buildResourceSection('aerodromo', 129, cols),
-    ...buildResourceSection('externo', 257, cols),
+    ...buildResourceSection('aerodromo', 126.5, cols),
+    ...buildResourceSection('externo', 252.2, cols),
   ];
 }
 
 function buildResourceSection(prefix: 'aerodromo' | 'externo', startTop: number, cols: { indice: number; campo: 'tipo' | 'quant'; x: number; width: number }[]): TextFieldPosition[] {
   const fields: TextFieldPosition[] = [];
-  const rowSpacing = 16.3;
+  const rowSpacing = 16.8;
   REA_RECURSO_LINHAS.forEach((linha, rowIndex) => {
     cols.forEach(col => {
       fields.push({
@@ -390,26 +332,7 @@ export async function gerarReaPdf(rea: ReaRegistro): Promise<Blob> {
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
   const dados = rea.dados;
-  for (const mask of DASH_MASKS) {
-    const page = pages[mask.page - 1];
-    if (!page) continue;
-    drawMask(page, mask);
-  }
-
   for (const field of [...TEXT_FIELDS, ...resourceFields(), ...extinguisherFields()]) {
-    const page = pages[field.page - 1];
-    if (!page) continue;
-    drawTextField(page, font, field, dados[field.key]);
-  }
-
-  for (const mask of POST_DASH_MASKS) {
-    const page = pages[mask.page - 1];
-    if (!page) continue;
-    drawMask(page, mask);
-  }
-
-  for (const field of TEXT_FIELDS) {
-    if (!REDRAW_AFTER_POST_MASK_KEYS.has(field.key)) continue;
     const page = pages[field.page - 1];
     if (!page) continue;
     drawTextField(page, font, field, dados[field.key]);
