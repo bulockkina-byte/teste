@@ -23,10 +23,11 @@ interface Props {
   disabledTooltip?: string;
   showCargo?: boolean;
   showEquipe?: boolean;
+  displayMode?: 'default' | 'operational';
   options?: AtivoItem[];
 }
 
-export function SearchSelect({ value, onChange, placeholder, className = '', cargo, equipe, valueField = 'nomeGuerra', disabledIds, disabledTooltip, showCargo, showEquipe, options }: Props) {
+export function SearchSelect({ value, onChange, placeholder, className = '', cargo, equipe, valueField = 'nomeGuerra', disabledIds, disabledTooltip, showCargo, showEquipe, displayMode = 'default', options }: Props) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const triggerRef = useRef<HTMLDivElement>(null);
@@ -62,11 +63,19 @@ export function SearchSelect({ value, onChange, placeholder, className = '', car
 
   const filtered = ativos.filter(b =>
     b.nomeGuerra.toLowerCase().includes(search.toLowerCase()) ||
-    b.nomeCompleto.toLowerCase().includes(search.toLowerCase())
+    b.nomeCompleto.toLowerCase().includes(search.toLowerCase()) ||
+    (b.cargo || '').toLowerCase().includes(search.toLowerCase()) ||
+    (b.equipe || '').toLowerCase().includes(search.toLowerCase())
   );
 
   const getValue = (b: AtivoItem) => b[valueField];
   const getLabel = (b: AtivoItem) => valueField === 'nomeCompleto' ? b.nomeCompleto : b.nomeGuerra;
+  const getDisplayLabel = (b: AtivoItem) => {
+    if (displayMode === 'operational') {
+      return [b.cargo, b.nomeGuerra, b.equipe].filter(Boolean).join(' · ');
+    }
+    return showCargo && b.cargo ? `${b.cargo} ${getLabel(b)}` : getLabel(b);
+  };
   const selected = ativos.find(b => getValue(b) === value);
 
   useEffect(() => {
@@ -88,7 +97,7 @@ export function SearchSelect({ value, onChange, placeholder, className = '', car
       >
         <Search className="mr-2 h-4 w-4 text-aviation-500 shrink-0" />
         <span className={value ? 'text-graphite-900 dark:text-graphite-100 truncate font-semibold' : 'text-graphite-400 italic truncate'}>
-          {selected ? (showCargo && selected.cargo ? `${selected.cargo} ${getLabel(selected)}` : getLabel(selected)) : placeholder || 'Selecione...'}
+          {selected ? getDisplayLabel(selected) : placeholder || 'Selecione...'}
         </span>
       </div>
 
@@ -121,9 +130,11 @@ export function SearchSelect({ value, onChange, placeholder, className = '', car
                     }`}>
                     <span className="flex-1 truncate">
                       <span className={`font-semibold ${isDisabled ? 'line-through' : ''}`}>
-                        {showCargo && b.cargo ? `${b.cargo} ` : ''}{b.nomeGuerra}
+                        {displayMode === 'operational' ? getDisplayLabel(b) : `${showCargo && b.cargo ? `${b.cargo} ` : ''}${b.nomeGuerra}`}
                       </span>
-                      <span className={`ml-2 text-xs ${isDisabled ? 'text-red-400' : 'text-graphite-400 dark:text-graphite-500'}`}>{b.nomeCompleto}{showEquipe && b.equipe ? ` · ${b.equipe}` : ''}</span>
+                      {displayMode !== 'operational' && (
+                        <span className={`ml-2 text-xs ${isDisabled ? 'text-red-400' : 'text-graphite-400 dark:text-graphite-500'}`}>{b.nomeCompleto}{showEquipe && b.equipe ? ` · ${b.equipe}` : ''}</span>
+                      )}
                     </span>
                     {isDisabled && <X className="h-4 w-4 shrink-0 text-red-400" />}
                     {!isDisabled && isSelected && <Check className="h-4 w-4 shrink-0 text-aviation-600 dark:text-aviation-400" />}

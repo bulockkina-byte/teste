@@ -444,9 +444,12 @@ export function validarEscalaDiaria(params: {
 export function validarSubstituicaoTemporaria(params: {
   substituicao: Omit<SubstituicaoTemporaria, 'id' | 'createdAt' | 'updatedAt'> | SubstituicaoTemporaria;
   substituicoesExistentes?: SubstituicaoTemporaria[];
+  funcionario?: BombeiroOperacional;
+  substituto?: BombeiroOperacional;
+  bombeiros?: BombeiroOperacional[];
   ignoreSubstituicaoId?: string;
 }): string[] {
-  const { substituicao, substituicoesExistentes, ignoreSubstituicaoId } = params;
+  const { substituicao, substituicoesExistentes, funcionario, substituto, bombeiros, ignoreSubstituicaoId } = params;
   const errors = validarPeriodoBasico(substituicao.dataInicio, substituicao.dataFim, substituicao.dias, 'Substituicao temporaria');
 
   if (!substituicao.funcionarioId) errors.push('Informe o funcionario substituido.');
@@ -461,16 +464,71 @@ export function validarSubstituicaoTemporaria(params: {
     errors.push('Informe se havera plantao extra.');
   }
 
+  if (substituicao.tipo === 'Afastamento') {
+    if (!funcionario) {
+      errors.push('Funcionario afastado nao encontrado no cadastro ativo.');
+    } else if (funcionario.dataDesligamento) {
+      errors.push(`${nomePessoa(funcionario)} esta desligado e nao pode ser afastado.`);
+    }
+
+    if (!substituto) {
+      errors.push('Substituto do afastamento nao encontrado no cadastro ativo.');
+    } else if (substituto.dataDesligamento) {
+      errors.push(`${nomePessoa(substituto)} esta desligado e nao pode substituir.`);
+    }
+
+    if (funcionario && substituto) {
+      const cadeiaValidacao: EloCadeiaValidacao[] = (substituicao.cadeiaSubstituicao || []).map(elo => ({
+        pessoaId: elo.pessoaId,
+        pessoaNome: elo.pessoaNome,
+        pessoaCargo: (elo.pessoaCargo || elo.cargoOriginal || '') as Cargo | '',
+        pessoaEquipe: (elo.pessoaEquipe || '') as Equipe | '',
+        cargoOriginal: (elo.cargoOriginal || elo.pessoaCargo || '') as Cargo | '',
+        cargoVacante: elo.cargoVacante,
+        substituindoNome: elo.substituindoNome,
+      }));
+
+      errors.push(...validarSubstitutoPermitido(funcionario.cargo, substituto));
+      errors.push(...validarCadeiaObrigatoria({
+        funcionario,
+        substituto,
+        cadeia: cadeiaValidacao,
+        bombeiros,
+      }));
+
+      const cadeia = cadeiaValidacao;
+      for (let i = 0; i < cadeia.length; i++) {
+        const elo = cadeia[i];
+        if (!elo.pessoaId) continue;
+        const pessoa = pessoaPorId(bombeiros, elo.pessoaId);
+        if (!pessoa) {
+          errors.push(`Pessoa da cadeia nao encontrada: ${elo.pessoaNome || elo.pessoaId}.`);
+          continue;
+        }
+        const cargoVacante = (i === 0 ? substituto.cargo : (cadeia[i - 1].pessoaCargo || pessoaPorId(bombeiros, cadeia[i - 1].pessoaId)?.cargo)) as Cargo | undefined;
+        if (cargoVacante) {
+          errors.push(...validarSubstitutoPermitido(cargoVacante, pessoa));
+        }
+      }
+    }
+  }
+
+  const idsSubstituicao = (s: SubstituicaoTemporaria | Omit<SubstituicaoTemporaria, 'id' | 'createdAt' | 'updatedAt'>): Set<string> => {
+    const ids = new Set<string>();
+    if (s.funcionarioId) ids.add(s.funcionarioId);
+    if (s.substitutoId) ids.add(s.substitutoId);
+    for (const elo of s.cadeiaSubstituicao || []) {
+      if (elo.pessoaId) ids.add(elo.pessoaId);
+    }
+    return ids;
+  };
+
+  const idsAtuais = idsSubstituicao(substituicao);
   const conflito = substituicoesExistentes?.find(s =>
     s.id !== ignoreSubstituicaoId &&
     (s.status === 'Pendente' || s.status === 'Aprovada') &&
     intervalosSobrepostos(substituicao.dataInicio, substituicao.dataFim, s.dataInicio, s.dataFim) &&
-    (
-      s.funcionarioId === substituicao.funcionarioId ||
-      s.funcionarioId === substituicao.substitutoId ||
-      s.substitutoId === substituicao.funcionarioId ||
-      s.substitutoId === substituicao.substitutoId
-    )
+    [...idsSubstituicao(s)].some(id => idsAtuais.has(id))
   );
   if (conflito) {
     errors.push(`Existe substituicao pendente/aprovada conflitante no periodo ${conflito.dataInicio} a ${conflito.dataFim}.`);

@@ -8,8 +8,18 @@ export type MotivoSubstituicao =
   | 'Doacao Sangue'
   | 'Outro';
 
-export type TipoSubstituicao = 'Substituição' | 'Extra';
+export type TipoSubstituicao = 'Substituição' | 'Extra' | 'Afastamento';
 export type RespostaPlantaoExtra = 'Sim' | 'Nao' | '';
+
+export interface EloCadeiaSubstituicaoTemporaria {
+  pessoaId: string;
+  pessoaNome: string;
+  pessoaCargo: string;
+  pessoaEquipe: string;
+  cargoOriginal: string;
+  cargoVacante: string;
+  substituindoNome: string;
+}
 
 export const MOTIVOS_OBRIGATORIOS_POR_LEI: MotivoSubstituicao[] = [
   'Atestado Medico',
@@ -43,6 +53,7 @@ export interface SubstituicaoTemporaria {
   aprovadoPor: string;
   aprovadoPorNome: string;
   aprovadoEm: string;
+  cadeiaSubstituicao: EloCadeiaSubstituicaoTemporaria[];
   createdAt: string;
   updatedAt: string;
 }

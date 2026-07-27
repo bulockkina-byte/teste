@@ -18,7 +18,7 @@ export interface VigenciaSubstituicao {
   dataInicio: string;
   dataFim: string;
   nivelCascata: number;
-  motivo: 'ferias' | 'cascata';
+  motivo: 'ferias' | 'afastamento' | 'cascata';
   feriasId: string;
   ativa: boolean;
   createdAt: string;
@@ -52,7 +52,7 @@ function rowToVigencia(row: Record<string, unknown>): VigenciaSubstituicao {
     dataInicio: (row.data_inicio as string) || '',
     dataFim: (row.data_fim as string) || '',
     nivelCascata: (row.nivel_cascata as number) || 1,
-    motivo: (row.motivo as 'ferias' | 'cascata') || 'ferias',
+    motivo: (row.motivo as 'ferias' | 'afastamento' | 'cascata') || 'ferias',
     feriasId: (row.ferias_id as string) || '',
     ativa: row.ativa !== false,
     createdAt: (row.created_at as string) || '',
@@ -158,6 +158,7 @@ export async function processarCadeiaSubstituicao(
     funcaoSubstituicao?: string;
     dataInicio: string;
     dataFim: string;
+    motivoOrigem?: 'ferias' | 'afastamento';
   },
   cadeiaInput?: EloCadeiaInput[],
   bombeiros?: Bombeiro[],
@@ -189,7 +190,7 @@ export async function processarCadeiaSubstituicao(
     dataInicio: feriasRecord.dataInicio,
     dataFim: feriasRecord.dataFim,
     nivelCascata: 1,
-    motivo: 'ferias',
+    motivo: feriasRecord.motivoOrigem || 'ferias',
     feriasId: feriasRecord.id,
     ativa: true,
   });
@@ -272,6 +273,7 @@ export async function processarCascata(
     funcaoSubstituicao?: string;
     dataInicio: string;
     dataFim: string;
+    motivoOrigem?: 'ferias' | 'afastamento';
   },
   bombeiros?: Bombeiro[],
   _feriasGozo?: any[],

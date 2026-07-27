@@ -494,7 +494,7 @@ GET com filtro `ativa=true`. ✅ OK
   "substitutoId": "string",
   "substitutoNome": "string",
   "substitutoCargo": "string",
-  "tipo": "Substituição | Extra",
+  "tipo": "Substituição | Extra | Afastamento",
   "motivo": "Atestado Medico | Falecimento Conjuge | ... | Outro",
   "motivoOutro": "string",
   "plantaoExtra": "Sim | Nao | ''",
@@ -508,6 +508,15 @@ GET com filtro `ativa=true`. ✅ OK
   "aprovadoPor": "string",
   "aprovadoPorNome": "string",
   "aprovadoEm": "string (ISO datetime)",
+  "cadeiaSubstituicao": [{
+    "pessoaId": "string",
+    "pessoaNome": "string",
+    "pessoaCargo": "string",
+    "pessoaEquipe": "string",
+    "cargoOriginal": "string",
+    "cargoVacante": "string",
+    "substituindoNome": "string"
+  }],
   "createdAt": "string (ISO datetime)",
   "updatedAt": "string (ISO datetime)"
 }]
@@ -516,7 +525,7 @@ GET com filtro `ativa=true`. ✅ OK
 ### criarSubstituicaoTemporaria / aprovar / rejeitar / excluir
 
 ✅ OK  
-**Regras:** criação e aprovação bloqueiam mesma pessoa como substituto, datas/dias inválidos, motivo `Outro` sem descrição, `Extra` sem resposta de plantão extra e sobreposição com substituições pendentes/aprovadas.
+**Regras:** criação e aprovação bloqueiam mesma pessoa como substituto, datas/dias inválidos, motivo `Outro` sem descrição, `Extra` sem resposta de plantão extra e sobreposição com substituições pendentes/aprovadas. `plantaoExtra` é exibido na UI como `Sim | Nao | ''`, mas persiste em `plantao_extra` como `BOOLEAN` (`Sim` → `true`; `Nao`/vazio → `false`). `Afastamento` usa `cadeia_substituicao` (`JSONB`) para persistir a corrente até Ferista; ao aprovar, gera vigências em `vigencia_substituicoes` com origem `afastamento`, e a tela de funcionários deriva o status `Afastado` de afastamentos aprovados e vigentes.
 
 ---
 

@@ -4,12 +4,15 @@ import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { listarBombeiros, buscarBombeiro } from '../../services/bombeiroService';
 import { listarAPOCs, buscarAPOC } from '../../services/apocService';
+import { listarSubstituicoesTemporarias } from '../../services/substituicaoTemporariaService';
 import type { Bombeiro } from '../../types/bombeiro';
 import type { APOC } from '../../types/apoc';
+import type { SubstituicaoTemporaria } from '../../types/substituicaoTemporaria';
 import { CARGO_OPTIONS, EQUIPE_OPTIONS } from '../../types/bombeiro';
 import { useDebounce } from '../../hooks/useDebounce';
 
 type Tab = 'todos' | 'bombeiros' | 'apoc' | 'substituicoes';
+type SituacaoBombeiro = 'Ativo' | 'Afastado' | 'Desligado';
 
 function capitalize(str: string) {
   return str.replace(/\b\w/g, char => char.toUpperCase());
@@ -23,6 +26,34 @@ function labelCargo(valor: string) {
 function formatDate(d: string) {
   if (!d) return '-';
   return new Date(d).toLocaleDateString('pt-BR');
+}
+
+function todayISO() {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+}
+
+function SituacaoBadge({ situacao }: { situacao: SituacaoBombeiro }) {
+  if (situacao === 'Desligado') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-medium text-alert-red dark:bg-red-900/20">
+        <AlertCircle className="h-3 w-3" />
+        Desligado
+      </span>
+    );
+  }
+  if (situacao === 'Afastado') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-900/20 dark:text-orange-400">
+        <Clock className="h-3 w-3" />
+        Afastado
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex rounded-full bg-status-green/10 px-2.5 py-0.5 text-xs font-medium text-status-green">
+      Ativo
+    </span>
+  );
 }
 
 function InfoRow({ icon: Icon, label, value }: { icon: any; label: string; value: string }) {
@@ -39,7 +70,7 @@ function InfoRow({ icon: Icon, label, value }: { icon: any; label: string; value
   );
 }
 
-function BombeiroDetailModal({ bombeiro, onClose }: { bombeiro: Bombeiro; onClose: () => void }) {
+function BombeiroDetailModal({ bombeiro, situacao, onClose }: { bombeiro: Bombeiro; situacao: SituacaoBombeiro; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 pt-10 pb-10" onClick={onClose}>
       <div className="relative w-full max-w-2xl rounded-2xl bg-white/95 shadow-2xl shadow-black/5 backdrop-blur-sm dark:bg-surface-elevated/95 dark:shadow-black/20" onClick={e => e.stopPropagation()}>
@@ -89,7 +120,7 @@ function BombeiroDetailModal({ bombeiro, onClose }: { bombeiro: Bombeiro; onClos
               <InfoRow icon={Briefcase} label="Cargo" value={labelCargo(bombeiro.cargo)} />
               <InfoRow icon={Shield} label="Equipe" value={bombeiro.equipe} />
               <InfoRow icon={Clock} label="Turno" value={bombeiro.turno} />
-              <InfoRow icon={FileText} label="Situação" value={bombeiro.dataDesligamento ? 'Desligado' : 'Ativo'} />
+              <InfoRow icon={FileText} label="Situação" value={situacao} />
             </div>
           </div>
 
@@ -151,8 +182,6 @@ const TABS: { key: Tab; label: string; icon: any }[] = [
   { key: 'apoc', label: 'APOC', icon: Radio },
 ];
 
-const INPUT_CLASS = "rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm text-graphite-700 outline-none transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-200 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated dark:focus:text-graphite-100 dark:scheme-dark";
-
 export function Funcionarios() {
   const [tab, setTab] = useState<Tab>('todos');
   const [termo, setTermo] = useState('');
@@ -163,6 +192,7 @@ export function Funcionarios() {
 
   const [allBombeiros, setAllBombeiros] = useState<Bombeiro[]>([]);
   const [allApocs, setAllApocs] = useState<APOC[]>([]);
+  const [substituicoes, setSubstituicoes] = useState<SubstituicaoTemporaria[]>([]);
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
   const [apocs, setApocs] = useState<APOC[]>([]);
 
@@ -170,7 +200,12 @@ export function Funcionarios() {
 
   useEffect(() => {
     async function load() {
-      setAllBombeiros(await listarBombeiros());
+      const [bombeirosData, substituicoesData] = await Promise.all([
+        listarBombeiros(),
+        listarSubstituicoesTemporarias(),
+      ]);
+      setAllBombeiros(bombeirosData);
+      setSubstituicoes(substituicoesData);
     }
     load();
   }, []);
@@ -206,6 +241,18 @@ export function Funcionarios() {
   const filteredBombeiros = tab === 'apoc' ? [] : bombeiros;
   const filteredApocs = tab === 'bombeiros' ? [] : apocs;
   const totalRegistros = filteredBombeiros.length + filteredApocs.length;
+  const afastamentosAtivos = useMemo(() => {
+    const hoje = todayISO();
+    return new Set(substituicoes
+      .filter(s => s.tipo === 'Afastamento' && s.status === 'Aprovada' && s.dataInicio <= hoje && s.dataFim >= hoje)
+      .map(s => s.funcionarioId));
+  }, [substituicoes]);
+
+  function situacaoBombeiro(bombeiro: Bombeiro): SituacaoBombeiro {
+    if (bombeiro.dataDesligamento) return 'Desligado';
+    if (afastamentosAtivos.has(bombeiro.id)) return 'Afastado';
+    return 'Ativo';
+  }
 
   function getTabCount(key: Tab): number {
     if (key === 'todos') return allBombeiros.length + allApocs.length;
@@ -336,44 +383,38 @@ export function Funcionarios() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredBombeiros.map(b => (
-                      <tr
-                        key={b.id}
-                        onClick={() => handleSelectBombeiro(b)}
-                        className="cursor-pointer border-b border-graphite-100 transition-colors hover:bg-aviation-50/50 dark:border-border-dark dark:hover:bg-aviation-900/20"
-                      >
-                        <td className="px-4 py-3 font-medium text-graphite-900 dark:text-graphite-100">{b.matricula}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            {b.foto && (
-                              <img src={b.foto} alt="" className="h-8 w-8 rounded-full object-cover" />
-                            )}
-                            <span className="text-graphite-700 dark:text-graphite-300">{capitalize(b.nomeCompleto)}</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{capitalize(b.nomeGuerra)}</td>
-                        <td className="px-4 py-3 text-graphite-500 dark:text-graphite-400 text-xs">{b.email || '-'}</td>
-                        <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{labelCargo(b.cargo)}</td>
-                        <td className="px-4 py-3">
-                          <span className="inline-flex rounded-full bg-aviation-50 px-2.5 py-0.5 text-xs font-medium text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-300">
-                            {b.equipe}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{b.turno}</td>
-                        <td className="px-4 py-3">
-                          {b.dataDesligamento ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-medium text-alert-red dark:bg-red-900/20">
-                              <AlertCircle className="h-3 w-3" />
-                              Desligado
+                    {filteredBombeiros.map(b => {
+                      const situacao = situacaoBombeiro(b);
+                      return (
+                        <tr
+                          key={b.id}
+                          onClick={() => handleSelectBombeiro(b)}
+                          className="cursor-pointer border-b border-graphite-100 transition-colors hover:bg-aviation-50/50 dark:border-border-dark dark:hover:bg-aviation-900/20"
+                        >
+                          <td className="px-4 py-3 font-medium text-graphite-900 dark:text-graphite-100">{b.matricula}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              {b.foto && (
+                                <img src={b.foto} alt="" className="h-8 w-8 rounded-full object-cover" />
+                              )}
+                              <span className="text-graphite-700 dark:text-graphite-300">{capitalize(b.nomeCompleto)}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{capitalize(b.nomeGuerra)}</td>
+                          <td className="px-4 py-3 text-xs text-graphite-500 dark:text-graphite-400">{b.email || '-'}</td>
+                          <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{labelCargo(b.cargo)}</td>
+                          <td className="px-4 py-3">
+                            <span className="inline-flex rounded-full bg-aviation-50 px-2.5 py-0.5 text-xs font-medium text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-300">
+                              {b.equipe}
                             </span>
-                          ) : (
-                            <span className="inline-flex rounded-full bg-status-green/10 px-2.5 py-0.5 text-xs font-medium text-status-green">
-                              Ativo
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{b.turno}</td>
+                          <td className="px-4 py-3">
+                            <SituacaoBadge situacao={situacao} />
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -426,7 +467,11 @@ export function Funcionarios() {
       )}
 
       {selecionado && tipoSelecionado === 'bombeiro' && (
-        <BombeiroDetailModal bombeiro={selecionado as Bombeiro} onClose={() => setSelecionado(null)} />
+        <BombeiroDetailModal
+          bombeiro={selecionado as Bombeiro}
+          situacao={situacaoBombeiro(selecionado as Bombeiro)}
+          onClose={() => setSelecionado(null)}
+        />
       )}
       {selecionado && tipoSelecionado === 'apoc' && (
         <APOCDetailModal apoc={selecionado as APOC} onClose={() => setSelecionado(null)} />

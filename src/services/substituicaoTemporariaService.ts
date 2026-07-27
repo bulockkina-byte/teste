@@ -1,9 +1,16 @@
 import { supabase } from '../lib/supabase';
-import type { SubstituicaoTemporaria } from '../types/substituicaoTemporaria';
+import type { Bombeiro, Cargo } from '../types/bombeiro';
+import type { EloCadeiaSubstituicaoTemporaria, SubstituicaoTemporaria } from '../types/substituicaoTemporaria';
 import {
   assertSemErros,
   validarSubstituicaoTemporaria,
 } from '../utils/regrasOperacionais';
+import { listarAtivos } from './bombeiroService';
+import {
+  desativarVigencias,
+  processarCadeiaSubstituicao,
+  type EloCadeiaInput,
+} from './vigenciaSubstituicaoService';
 
 const TABLE = 'substituicoes_temporarias';
 
@@ -21,6 +28,43 @@ function handleSupabaseError(err: unknown): never {
   throw new Error(msg);
 }
 
+function normalizarTipo(tipo: unknown): SubstituicaoTemporaria['tipo'] {
+  const value = String(tipo || '').trim().toLowerCase();
+  if (value === 'extra') return 'Extra';
+  if (value === 'afastamento') return 'Afastamento';
+  return 'Substituição';
+}
+
+function normalizarPlantaoExtra(value: unknown): SubstituicaoTemporaria['plantaoExtra'] {
+  if (value === true) return 'Sim';
+  if (value === false) return 'Nao';
+  const normalized = String(value || '').trim().toLowerCase();
+  if (['sim', 's', 'true', 't', 'yes', 'y', '1'].includes(normalized)) return 'Sim';
+  if (['nao', 'não', 'n', 'false', 'f', 'no', '0'].includes(normalized)) return 'Nao';
+  if (value === 'Sim' || value === 'Nao') return value;
+  return '';
+}
+
+function plantaoExtraToDb(value: SubstituicaoTemporaria['plantaoExtra'] | undefined): boolean {
+  return value === 'Sim';
+}
+
+function parseCadeia(value: unknown): EloCadeiaSubstituicaoTemporaria[] {
+  if (!Array.isArray(value)) return [];
+  return value.map(item => {
+    const elo = item && typeof item === 'object' ? item as Record<string, unknown> : {};
+    return {
+      pessoaId: String(elo.pessoaId || ''),
+      pessoaNome: String(elo.pessoaNome || ''),
+      pessoaCargo: String(elo.pessoaCargo || elo.cargoOriginal || ''),
+      pessoaEquipe: String(elo.pessoaEquipe || ''),
+      cargoOriginal: String(elo.cargoOriginal || elo.pessoaCargo || ''),
+      cargoVacante: String(elo.cargoVacante || ''),
+      substituindoNome: String(elo.substituindoNome || ''),
+    };
+  }).filter(elo => elo.pessoaId);
+}
+
 function rowToSubstituicao(row: Record<string, unknown>): SubstituicaoTemporaria {
   return {
     id: row.id as string,
@@ -30,10 +74,10 @@ function rowToSubstituicao(row: Record<string, unknown>): SubstituicaoTemporaria
     substitutoId: row.substituto_id as string,
     substitutoNome: row.substituto_nome as string,
     substitutoCargo: row.substituto_cargo as string,
-    tipo: (row.tipo as SubstituicaoTemporaria['tipo']) || 'Substituição',
+    tipo: normalizarTipo(row.tipo),
     motivo: row.motivo as SubstituicaoTemporaria['motivo'],
     motivoOutro: row.motivo_outro as string,
-    plantaoExtra: (row.plantao_extra as SubstituicaoTemporaria['plantaoExtra']) || '',
+    plantaoExtra: normalizarTipo(row.tipo) === 'Extra' ? normalizarPlantaoExtra(row.plantao_extra) : '',
     dataInicio: row.data_inicio as string,
     dataFim: row.data_fim as string,
     dias: row.dias as number,
@@ -44,6 +88,7 @@ function rowToSubstituicao(row: Record<string, unknown>): SubstituicaoTemporaria
     aprovadoPor: row.aprovado_por as string,
     aprovadoPorNome: row.aprovado_por_nome as string,
     aprovadoEm: row.aprovado_em as string,
+    cadeiaSubstituicao: parseCadeia(row.cadeia_substituicao),
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -58,7 +103,7 @@ function substituicaoToRow(data: Partial<SubstituicaoTemporaria>): Record<string
   if (data.substitutoNome !== undefined) row.substituto_nome = data.substitutoNome;
   if (data.substitutoCargo !== undefined) row.substituto_cargo = data.substitutoCargo;
   if (data.tipo !== undefined) row.tipo = data.tipo;
-  if (data.plantaoExtra !== undefined) row.plantao_extra = data.plantaoExtra;
+  if (data.plantaoExtra !== undefined) row.plantao_extra = plantaoExtraToDb(data.plantaoExtra);
   if (data.motivo !== undefined) row.motivo = data.motivo;
   if (data.motivoOutro !== undefined) row.motivo_outro = data.motivoOutro;
   if (data.dataInicio !== undefined) row.data_inicio = data.dataInicio;
@@ -71,7 +116,43 @@ function substituicaoToRow(data: Partial<SubstituicaoTemporaria>): Record<string
   if (data.aprovadoPor !== undefined) row.aprovado_por = data.aprovadoPor;
   if (data.aprovadoPorNome !== undefined) row.aprovado_por_nome = data.aprovadoPorNome;
   if (data.aprovadoEm !== undefined) row.aprovado_em = data.aprovadoEm;
+  if (data.cadeiaSubstituicao !== undefined) row.cadeia_substituicao = data.cadeiaSubstituicao;
   return row;
+}
+
+function contextoValidacao(data: Pick<SubstituicaoTemporaria, 'funcionarioId' | 'substitutoId'>, bombeiros: Bombeiro[]) {
+  return {
+    bombeiros,
+    funcionario: bombeiros.find(b => b.id === data.funcionarioId),
+    substituto: bombeiros.find(b => b.id === data.substitutoId),
+  };
+}
+
+async function processarVigenciasAfastamento(
+  afastamento: SubstituicaoTemporaria,
+  bombeiros: Bombeiro[],
+): Promise<void> {
+  const funcionario = bombeiros.find(b => b.id === afastamento.funcionarioId);
+  const cadeiaInput: EloCadeiaInput[] = afastamento.cadeiaSubstituicao.map(elo => ({
+    pessoaId: elo.pessoaId,
+    pessoaNome: elo.pessoaNome,
+    cargoOriginal: (elo.cargoOriginal || elo.pessoaCargo) as Cargo,
+    cargoVacante: elo.cargoVacante,
+    substituindoNome: elo.substituindoNome,
+  }));
+
+  await processarCadeiaSubstituicao({
+    id: afastamento.id,
+    funcionarioId: afastamento.funcionarioId,
+    funcionarioNome: afastamento.funcionarioNome,
+    equipe: funcionario?.equipe || '',
+    substitutoId: afastamento.substitutoId,
+    substitutoNome: afastamento.substitutoNome,
+    funcaoSubstituicao: afastamento.funcionarioCargo,
+    dataInicio: afastamento.dataInicio,
+    dataFim: afastamento.dataFim,
+    motivoOrigem: 'afastamento',
+  }, cadeiaInput, bombeiros);
 }
 
 export async function listarSubstituicoesTemporarias(): Promise<SubstituicaoTemporaria[]> {
@@ -98,10 +179,15 @@ export async function criarSubstituicaoTemporaria(
   data: Omit<SubstituicaoTemporaria, 'id' | 'createdAt' | 'updatedAt'>,
 ): Promise<SubstituicaoTemporaria> {
   const db = getDb();
-  const existentes = await listarSubstituicoesTemporarias();
+  const [existentes, bombeiros] = await Promise.all([
+    listarSubstituicoesTemporarias(),
+    listarAtivos(),
+  ]);
+  const contexto = contextoValidacao(data, bombeiros);
   assertSemErros(validarSubstituicaoTemporaria({
     substituicao: data,
     substituicoesExistentes: existentes,
+    ...contexto,
   }));
   const now = new Date().toISOString();
   const row = {
@@ -134,11 +220,16 @@ export async function aprovarSubstituicaoTemporaria(
   if (atual.status !== 'Pendente') {
     throw new Error('Somente substituicoes pendentes podem ser aprovadas.');
   }
-  const existentes = await listarSubstituicoesTemporarias();
+  const [existentes, bombeiros] = await Promise.all([
+    listarSubstituicoesTemporarias(),
+    listarAtivos(),
+  ]);
+  const contexto = contextoValidacao(atual, bombeiros);
   assertSemErros(validarSubstituicaoTemporaria({
     substituicao: { ...atual, status: 'Aprovada' },
     substituicoesExistentes: existentes,
     ignoreSubstituicaoId: id,
+    ...contexto,
   }));
   const now = new Date().toISOString();
   const row = {
@@ -155,7 +246,26 @@ export async function aprovarSubstituicaoTemporaria(
     .select()
     .single();
   if (error) handleSupabaseError(error);
-  return updated ? rowToSubstituicao(updated) : null;
+  const aprovado = updated ? rowToSubstituicao(updated) : null;
+  if (aprovado?.tipo === 'Afastamento') {
+    try {
+      await processarVigenciasAfastamento(aprovado, bombeiros);
+    } catch (err) {
+      await desativarVigencias(id).catch(() => undefined);
+      await db
+        .from(TABLE)
+        .update({
+          status: 'Pendente',
+          aprovado_por: '',
+          aprovado_por_nome: '',
+          aprovado_em: '',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id);
+      throw err;
+    }
+  }
+  return aprovado;
 }
 
 export async function rejeitarSubstituicaoTemporaria(
@@ -181,11 +291,13 @@ export async function rejeitarSubstituicaoTemporaria(
     .select()
     .single();
   if (error) handleSupabaseError(error);
+  await desativarVigencias(id);
   return updated ? rowToSubstituicao(updated) : null;
 }
 
 export async function excluirSubstituicaoTemporaria(id: string): Promise<boolean> {
   const db = getDb();
+  await desativarVigencias(id);
   const { error } = await db.from(TABLE).delete().eq('id', id);
   if (error) handleSupabaseError(error);
   return true;
