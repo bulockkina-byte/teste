@@ -718,7 +718,7 @@ export function Ocorrencias() {
 
   return (
     <PageContainer>
-      <PageTitle icon={AlertTriangle} title="Ocorrências" />
+      <PageTitle icon={AlertTriangle} title="BONA/REA" />
 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3">

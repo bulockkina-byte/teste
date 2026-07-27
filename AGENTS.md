@@ -158,20 +158,12 @@ Podes combinar múltiplas skills carregando-as em sequência. A ordem importa:
 |------|------|-----------|
 | `/registros-diarios/ptr-ba` | PTR-BA Diário | Plano de Trabalho de Ronda - Bombeiro de Aeródromo |
 | `/registros-diarios/lro-ocorrencias` | LRO/Ocorrências | Registo de ocorrências do turno |
+| `/registros-diarios/bona-rea` | BONA/REA | Registos de ocorrências operacionais — BONA e REA |
+| `/registros-diarios/inspecoes` | Inspeções | Registos de inspeções operacionais |
+| `/registros-diarios/solicitacoes` | Solicitações | Registos de solicitações operacionais |
+| `/registros-diarios/inspecoes/check` | Check | Checklist de verificação de inspeção |
 | `/registros-diarios/gerar-lro` | Gerar LRO | Gerar Livro de Registo Operacional e enviar para assinatura |
 | `/registros-diarios/preview-lro` | Preview LRO | Pré-visualizar LRO antes de finalizar |
-
-### Ocorrências
-| Rota | Tela | Descrição |
-|------|------|-----------|
-| `/ocorrencias` | Ocorrências | Registos de ocorrências operacionais — BONA e REA |
-
-### Inspeções Operacionais
-| Rota | Tela | Descrição |
-|------|------|-----------|
-| `/inspecoes` | Inspeções | Registos de inspeções operacionais |
-| `/inspecoes/solicitacoes` | Solicitações | Registos de solicitações operacionais |
-| `/inspecoes/check` | Check | Checklist de verificação de inspeção |
 
 ### Viaturas CCI
 | Rota | Tela | Descrição |

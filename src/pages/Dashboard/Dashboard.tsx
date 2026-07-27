@@ -160,7 +160,7 @@ export function Dashboard() {
       {/* Stats */}
       <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <CardStat icon={Users} label="Bombeiros Ativos" value={stats.totalBombeiros} color="bg-gradient-to-br from-blue-500 to-blue-700" onClick={() => navigate('/funcionarios')} />
-        <CardStat icon={AlertTriangle} label="Ocorrências Abertas" value={stats.ocorrenciasAbertas} color="bg-gradient-to-br from-red-500 to-red-700" onClick={() => navigate('/ocorrencias')} />
+        <CardStat icon={AlertTriangle} label="Ocorrências Abertas" value={stats.ocorrenciasAbertas} color="bg-gradient-to-br from-red-500 to-red-700" onClick={() => navigate('/registros-diarios/bona-rea')} />
         <CardStat icon={CalendarClock} label="Férias em Gozo" value={stats.emGozo} color="bg-gradient-to-br from-amber-500 to-amber-700" onClick={() => navigate('/cadastro/ferias')} />
         <CardStat icon={Clock} label="Substituições Pendentes" value={stats.substPendentes} color="bg-gradient-to-br from-purple-500 to-purple-700" onClick={() => navigate('/funcionarios/substituicoes')} />
         <CardStat icon={Award} label="Certificações Vencendo" value={stats.certVencendo} color="bg-gradient-to-br from-emerald-500 to-emerald-700" onClick={() => navigate('/certificacoes')} />
@@ -289,7 +289,7 @@ export function Dashboard() {
             <h3 className="flex items-center gap-2 text-sm font-bold text-graphite-900 dark:text-graphite-100">
               <AlertTriangle className="h-4 w-4 text-red-500" /> Ocorrências Recentes
             </h3>
-            <button onClick={() => navigate('/ocorrencias')} className="text-xs text-aviation-600 hover:text-aviation-700 dark:text-aviation-400">Ver todas</button>
+            <button onClick={() => navigate('/registros-diarios/bona-rea')} className="text-xs text-aviation-600 hover:text-aviation-700 dark:text-aviation-400">Ver todas</button>
           </div>
           <div className="p-3">
             {ocorrenciasRecentes.length === 0 ? (

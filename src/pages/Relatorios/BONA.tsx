@@ -68,7 +68,7 @@ export function BONA() {
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white/50 p-12 text-center dark:border-border-dark dark:bg-surface-card">
           <FileCheck className="mb-4 h-12 w-12 text-graphite-300" />
           <h3 className="text-lg font-semibold text-graphite-700">Nenhuma ocorrência</h3>
-          <p className="text-sm text-graphite-400">Cadastre ocorrências pelo menu Ocorrências.</p>
+          <p className="text-sm text-graphite-400">Cadastre ocorrências pelo menu Registros Diários &gt; BONA/REA.</p>
         </div>
       ) : (
         <div className="space-y-2">
