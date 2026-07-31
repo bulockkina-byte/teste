@@ -29,12 +29,13 @@ import { useAuth } from '../../context/AuthContext';
 import { listarBombeiros } from '../../services/bombeiroService';
 import { listarAPOCs } from '../../services/apocService';
 import { findTemplate } from '../../data/documentTemplates';
+import { podeVerCadastroCompletoBase, resolverContextoOperacional } from '../../utils/permissoes';
 
 type View = 'list' | 'admin' | 'manage' | 'fill' | 'grid';
 
 export function Documentos() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'desenvolvedor' || user?.role === 'admin';
+  const [canManageDocumentos, setCanManageDocumentos] = useState(() => podeVerCadastroCompletoBase(user));
 
   const [documentos, setDocumentos] = useState<Document[]>([]);
   const [selectedDoc, setSelectedDoc] = useState<DocumentWithFields | null>(null);
@@ -91,6 +92,27 @@ export function Documentos() {
   useEffect(() => { loadDocumentos(); }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    setCanManageDocumentos(podeVerCadastroCompletoBase(user));
+
+    resolverContextoOperacional(user)
+      .then(contexto => {
+        if (!cancelled) setCanManageDocumentos(contexto.isAdministradorSistema || contexto.canManageGlobal);
+      })
+      .catch(() => {
+        if (!cancelled) setCanManageDocumentos(podeVerCadastroCompletoBase(user));
+      });
+
+    return () => { cancelled = true; };
+  }, [user]);
+
+  useEffect(() => {
+    if (!canManageDocumentos && (view === 'admin' || view === 'manage')) {
+      setView('list');
+    }
+  }, [canManageDocumentos, view]);
+
+  useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (vincularOpen) {
         const target = e.target as HTMLElement;
@@ -105,6 +127,12 @@ export function Documentos() {
 
   useEffect(() => {
     async function loadFuncionarios() {
+      if (!canManageDocumentos) {
+        setBombeirosList([]);
+        setApocsList([]);
+        return;
+      }
+
       try {
         const [b, a] = await Promise.all([listarBombeiros(), listarAPOCs()]);
         setBombeirosList(b);
@@ -112,7 +140,7 @@ export function Documentos() {
       } catch { /* ignore */ }
     }
     loadFuncionarios();
-  }, []);
+  }, [canManageDocumentos]);
 
   async function loadDocumentos() {
     try {
@@ -126,6 +154,7 @@ export function Documentos() {
   }
 
   async function handleVincular(docId: string, sourceModule: string) {
+    if (!canManageDocumentos) return;
     try {
       await atualizarDocumento(docId, { source_module: sourceModule });
       setDocumentos(prev => prev.map(d => d.id === docId ? { ...d, source_module: sourceModule } : d));
@@ -140,6 +169,7 @@ export function Documentos() {
   }
 
   async function handleDesvincular(docId: string) {
+    if (!canManageDocumentos) return;
     try {
       await atualizarDocumento(docId, { source_module: null });
       setDocumentos(prev => prev.map(d => d.id === docId ? { ...d, source_module: null } : d));
@@ -152,6 +182,7 @@ export function Documentos() {
 
   // ═══ DOCUMENTO ═══
   async function openManage(doc: Document) {
+    if (!canManageDocumentos) return;
     try {
       const full = await buscarDocumento(doc.id);
       if (!full) return;
@@ -228,6 +259,7 @@ export function Documentos() {
   }
 
   async function handleCreateDocument() {
+    if (!canManageDocumentos) return;
     if (!newDocName.trim()) return;
     try {
       const doc = await criarDocumento({
@@ -282,7 +314,7 @@ export function Documentos() {
   }
 
   function handleDeleteDocument(id: string) {
-    if (!isAdmin) {
+    if (!canManageDocumentos) {
       setNotifPopup({ msg: 'Apenas administradores podem excluir documentos.', type: 'error' });
       return;
     }
@@ -837,7 +869,7 @@ export function Documentos() {
       <PageContainer>
         <div className="flex items-center justify-between">
           <PageTitle icon={FileText} title="Documentos" />
-          {isAdmin && (
+          {canManageDocumentos && (
             <button onClick={() => setView('admin')} className="flex items-center gap-2 rounded-lg bg-aviation-600 px-4 py-2 text-sm font-medium text-white hover:bg-aviation-700">
               <Plus className="h-4 w-4" /> Novo Documento
             </button>
@@ -874,6 +906,7 @@ export function Documentos() {
                 {doc.description && <p className="text-sm text-graphite-600 dark:text-graphite-400">{doc.description}</p>}
                 <div className="mt-3 flex items-center justify-between">
                   <div className="flex gap-3">
+                    {canManageDocumentos && (
                     <div className="relative" data-vincular-dropdown>
                       <button onClick={() => setVincularOpen(vincularOpen === doc.id ? null : doc.id)}
                         className={`flex items-center gap-1 text-xs ${
@@ -910,13 +943,14 @@ export function Documentos() {
                         </div>
                       )}
                     </div>
-                    {isAdmin && (
+                    )}
+                    {canManageDocumentos && (
                       <button onClick={() => openManage(doc)} className="flex items-center gap-1 text-xs text-graphite-500 hover:text-graphite-700">
                         <Edit3 className="h-3 w-3" /> Editar
                       </button>
                     )}
                   </div>
-                  {isAdmin && (
+                  {canManageDocumentos && (
                     <button onClick={() => handleDeleteDocument(doc.id)} className="text-graphite-400 hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
                   )}
                 </div>
@@ -1510,7 +1544,7 @@ export function Documentos() {
       <>
         {renderOverlays()}
         <PageContainer>
-          <GridGenerator onBack={() => setView('list')} isAdmin={isAdmin} />
+          <GridGenerator onBack={() => setView('list')} isAdmin={canManageDocumentos} />
         </PageContainer>
       </>
     );
@@ -1579,7 +1613,7 @@ export function Documentos() {
           </button>
           <PageTitle icon={Eye} title={previewDoc.name} />
           <div className="ml-auto flex items-center gap-2">
-            {isAdmin && (
+            {canManageDocumentos && (
               <button onClick={() => { closePreview(); openManage(previewDoc); }}
                 className="flex items-center gap-2 rounded-lg border border-graphite-200 px-3 py-1.5 text-xs hover:bg-graphite-50 dark:border-graphite-700">
                 <Edit3 className="h-3 w-3" /> Editar
@@ -1598,7 +1632,7 @@ export function Documentos() {
               <FileText className="mb-4 h-16 w-16 text-graphite-300" />
               <h3 className="mb-2 text-xl font-semibold text-graphite-700 dark:text-graphite-300">Nenhum PDF para visualizar</h3>
               <p className="mb-4 text-sm text-graphite-500">Este documento ainda nao possui um PDF template configurado.</p>
-              {isAdmin && (
+              {canManageDocumentos && (
                 <button onClick={() => { closePreview(); openManage(previewDoc); }}
                   className="inline-flex items-center gap-2 rounded-lg bg-aviation-600 px-6 py-3 text-sm font-medium text-white hover:bg-aviation-700">
                   <Upload className="h-4 w-4" /> Fazer Upload do PDF

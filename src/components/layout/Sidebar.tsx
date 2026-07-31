@@ -6,20 +6,26 @@ import { useAuth } from '../../context/AuthContext';
 import { Tooltip } from '../ui/Tooltip';
 import { menuItems } from '../../services/menuData';
 import type { MenuItem as MenuItemType } from '../../types/navigation';
+import {
+  isAdministradorSistema,
+  podeVerCadastroCompletoBase,
+  resolverContextoOperacional,
+} from '../../utils/permissoes';
 
-function isVisible(item: MenuItemType, isAdmin: boolean): boolean {
+function isVisible(item: MenuItemType, isAdmin: boolean, canViewCadastroCompleto: boolean): boolean {
   if (item.adminOnly && !isAdmin) return false;
+  if (item.adminOrGsOnly && !canViewCadastroCompleto) return false;
   if (item.children) {
-    const visibleChildren = item.children.filter(c => isVisible(c, isAdmin));
+    const visibleChildren = item.children.filter(c => isVisible(c, isAdmin, canViewCadastroCompleto));
     if (visibleChildren.length === 0) return false;
   }
   return true;
 }
 
-function filterMenu(items: MenuItemType[], isAdmin: boolean): MenuItemType[] {
-  return items.filter(item => isVisible(item, isAdmin)).map(item => {
+function filterMenu(items: MenuItemType[], isAdmin: boolean, canViewCadastroCompleto: boolean): MenuItemType[] {
+  return items.filter(item => isVisible(item, isAdmin, canViewCadastroCompleto)).map(item => {
     if (item.children) {
-      return { ...item, children: filterMenu(item.children, isAdmin) };
+      return { ...item, children: filterMenu(item.children, isAdmin, canViewCadastroCompleto) };
     }
     return item;
   });
@@ -134,8 +140,9 @@ function SidebarGroup({ item, collapsed, onPin, depth = 0 }: { item: MenuItemTyp
 export function Sidebar() {
   const { collapsed, effectiveCollapsed, toggleSidebar, setPeeking, setPinned } = useSidebar();
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin' || user?.role === 'desenvolvedor';
-  const visibleMenu = filterMenu(menuItems, isAdmin);
+  const isAdmin = isAdministradorSistema(user);
+  const [canViewCadastroCompleto, setCanViewCadastroCompleto] = useState(() => podeVerCadastroCompletoBase(user));
+  const visibleMenu = filterMenu(menuItems, isAdmin, canViewCadastroCompleto);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const asideRef = useRef<HTMLElement>(null);
@@ -144,6 +151,23 @@ export function Sidebar() {
     setPinned(true);
     setPeeking(false);
   }, [setPinned, setPeeking]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setCanViewCadastroCompleto(podeVerCadastroCompletoBase(user));
+
+    resolverContextoOperacional(user)
+      .then(contexto => {
+        if (!cancelled) {
+          setCanViewCadastroCompleto(contexto.isAdministradorSistema || contexto.canManageGlobal);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setCanViewCadastroCompleto(podeVerCadastroCompletoBase(user));
+      });
+
+    return () => { cancelled = true; };
+  }, [user]);
 
   useEffect(() => {
     if (effectiveCollapsed) return;

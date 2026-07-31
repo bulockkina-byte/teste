@@ -7,6 +7,7 @@ import { listarExtintores, criarExtintor, atualizarExtintor, excluirExtintor } f
 import type { Extintor, TipoExtintor, SeloInmetro, StatusExtintor } from '../../types/extintor';
 import { TIPO_EXTINTOR_OPTIONS, CAPACIDADE_OPTIONS, STATUS_EXTINTOR_OPTIONS, INTERVALO_CONFERENCIA_OPTIONS } from '../../types/extintor';
 import { useDebounce } from '../../hooks/useDebounce';
+import { canGerenciarCadastroModulo, resolverContextoOperacional } from '../../utils/permissoes';
 
 const INPUT_CLASS = "w-full rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all hover:border-graphite-400 focus:border-aviation-500 focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:hover:border-graphite-500 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated dark:focus:ring-aviation-400/10 dark:scheme-dark";
 const LABEL_CLASS = 'block mb-1.5 text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400';
@@ -26,9 +27,9 @@ const EMPTY: Omit<Extintor, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'> = {
 
 export function AgentesExtintores() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin' || user?.role === 'desenvolvedor';
 
   const [lista, setLista] = useState<Extintor[]>([]);
+  const [canManage, setCanManage] = useState(false);
   const [termo, setTermo] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [formOpen, setFormOpen] = useState(false);
@@ -39,6 +40,18 @@ export function AgentesExtintores() {
   const debouncedTermo = useDebounce(termo, 400);
 
   useEffect(() => { carregar(); }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    resolverContextoOperacional(user)
+      .then(contexto => {
+        if (!cancelled) setCanManage(canGerenciarCadastroModulo(contexto, 'extintores'));
+      })
+      .catch(() => {
+        if (!cancelled) setCanManage(false);
+      });
+    return () => { cancelled = true; };
+  }, [user]);
 
   async function carregar() {
     setLista(await listarExtintores());
@@ -54,12 +67,14 @@ export function AgentesExtintores() {
   });
 
   function openNew() {
+    if (!canManage) return;
     setEditando(null);
     setForm(EMPTY);
     setFormOpen(true);
   }
 
   function openEdit(e: Extintor) {
+    if (!canManage) return;
     setEditando(e);
     setForm({
       numeroSerie: e.numeroSerie,
@@ -77,6 +92,7 @@ export function AgentesExtintores() {
   }
 
   async function handleSave() {
+    if (!canManage) return;
     try {
       if (editando) {
         await atualizarExtintor(editando.id, form);
@@ -91,6 +107,7 @@ export function AgentesExtintores() {
   }
 
   async function handleDelete(id: string) {
+    if (!canManage) return;
     try {
       await excluirExtintor(id);
       setConfirmDelete(null);
@@ -111,7 +128,7 @@ export function AgentesExtintores() {
     <PageContainer>
       <div className="mb-6 flex items-center justify-between">
         <PageTitle icon={Flame} title="Extintores" />
-        {isAdmin && (
+        {canManage && (
           <button onClick={openNew} className="flex items-center gap-2 rounded-xl bg-aviation-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-aviation-700 dark:bg-aviation-500 dark:hover:bg-aviation-600">
             <Plus className="h-4 w-4" /> Novo Extintor
           </button>
@@ -142,7 +159,7 @@ export function AgentesExtintores() {
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300/60 bg-white/50 p-12 text-center dark:border-border-dark dark:bg-surface-card">
           <Flame className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
           <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhum extintor encontrado</h3>
-          <p className="text-sm text-graphite-400">{isAdmin ? 'Clique em "Novo Extintor" para cadastrar.' : 'Nenhum extintor cadastrado ainda.'}</p>
+          <p className="text-sm text-graphite-400">{canManage ? 'Clique em "Novo Extintor" para cadastrar.' : 'Nenhum extintor cadastrado ainda.'}</p>
         </div>
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-graphite-200/60 bg-white/80 backdrop-blur-sm dark:border-border-dark dark:bg-surface-card">
@@ -157,7 +174,7 @@ export function AgentesExtintores() {
                 <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">INMETRO</th>
                 <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Localização</th>
                 <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Status</th>
-                {isAdmin && <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Ações</th>}
+                {canManage && <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Ações</th>}
               </tr>
             </thead>
             <tbody>
@@ -179,7 +196,7 @@ export function AgentesExtintores() {
                   </td>
                   <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{e.localizacao || '-'}</td>
                   <td className="px-4 py-3"><span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColor(e.status)}`}>{e.status}</span></td>
-                  {isAdmin && (
+                  {canManage && (
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
                         <button onClick={() => openEdit(e)} className="rounded-lg p-1.5 text-graphite-400 transition-colors hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover dark:hover:text-graphite-300">

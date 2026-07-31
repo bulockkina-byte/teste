@@ -62,6 +62,13 @@ function formatDate(d: string) {
   return new Date(d + 'T12:00:00').toLocaleDateString('pt-BR');
 }
 
+function motivoVigenciaLabel(motivo: VigenciaSubstituicao['motivo']): string {
+  if (motivo === 'ferias') return 'férias';
+  if (motivo === 'afastamento') return 'afastamento';
+  if (motivo === 'substituicao') return 'substituição';
+  return 'cascata';
+}
+
 function autoPreencher(equipe: string) {
   return horarioPlantaoPorEquipe(equipe);
 }
@@ -1071,7 +1078,7 @@ function EscalaCard({ escala, onView, onEdit, onDelete, onClone, isAdmin }: {
                     <span className="mx-1.5 text-graphite-400">({v.cargoExercido})</span>
                     <span className="text-graphite-400">→ substitui </span>
                     <span className="font-medium text-graphite-900 dark:text-graphite-100">{v.funcionarioOriginalNome}</span>
-                    <span className="mx-1.5 text-graphite-400">({v.motivo === 'ferias' ? 'férias' : 'cascata'})</span>
+                    <span className="mx-1.5 text-graphite-400">({motivoVigenciaLabel(v.motivo)})</span>
                     <span className="ml-2 text-[10px] text-graphite-400">nível {v.nivelCascata}</span>
                   </p>
                 ))}
@@ -1395,7 +1402,7 @@ function ViewMode({ escala, onBack }: { escala: EscalaDiaria; onBack: () => void
                   <span className="mx-1.5 text-graphite-400">({v.cargoExercido})</span>
                   <span className="text-graphite-400">→ substitui </span>
                   <span className="font-medium text-graphite-900 dark:text-graphite-100">{v.funcionarioOriginalNome}</span>
-                  <span className="mx-1.5 text-graphite-400">({v.motivo === 'ferias' ? 'férias' : 'cascata'})</span>
+                  <span className="mx-1.5 text-graphite-400">({motivoVigenciaLabel(v.motivo)})</span>
                   <span className="ml-2 text-[10px] text-graphite-400">nível {v.nivelCascata}</span>
                 </p>
               ))}

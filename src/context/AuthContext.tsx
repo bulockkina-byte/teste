@@ -21,6 +21,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 };
 
 export interface PessoaVinculada {
+  id?: string;
   nomeGuerra: string;
   foto?: string;
   funcao: string;
@@ -272,6 +273,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (b) {
             userData.name = b.nomeCompleto;
             userData.pessoa = {
+              id: b.id,
               nomeGuerra: b.nomeGuerra,
               foto: b.foto || undefined,
               funcao: b.cargo,
@@ -293,6 +295,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (a) {
             userData.name = a.nomeCompleto;
             userData.pessoa = {
+              id: a.id,
               nomeGuerra: a.nomeGuerra,
               foto: undefined,
               funcao: a.funcao,
@@ -310,6 +313,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (bombeiro) {
           userData.name = bombeiro.nomeCompleto;
           userData.pessoa = {
+            id: bombeiro.id,
             nomeGuerra: bombeiro.nomeGuerra,
             foto: bombeiro.foto || undefined,
             funcao: bombeiro.cargo,

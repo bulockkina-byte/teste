@@ -7,6 +7,7 @@ import { listarViaturas, criarViatura, atualizarViatura, excluirViatura } from '
 import type { Viatura, StatusViatura, TipoViatura, TipoCCI, CategoriaCAT, SistemaRadio, SistemaSinalizacao } from '../../types/viatura';
 import { TIPO_VIATURA_OPTIONS, STATUS_VIATURA_OPTIONS, TIPO_CCI_OPTIONS, CATEGORIA_CAT_OPTIONS, SISTEMA_RADIO_OPTIONS, SISTEMA_SINALIZACAO_OPTIONS } from '../../types/viatura';
 import { useDebounce } from '../../hooks/useDebounce';
+import { canGerenciarCadastroModulo, resolverContextoOperacional } from '../../utils/permissoes';
 
 function statusColor(s: StatusViatura) {
   return STATUS_VIATURA_OPTIONS.find(o => o.value === s)?.color || '';
@@ -17,8 +18,8 @@ const labelCls = 'mb-1 block text-xs font-semibold uppercase tracking-wider text
 
 export function Viaturas() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin' || user?.role === 'desenvolvedor';
   const [lista, setLista] = useState<Viatura[]>([]);
+  const [canManage, setCanManage] = useState(false);
   const [termo, setTermo] = useState('');
   const [filterTipo, setFilterTipo] = useState('');
   const [formOpen, setFormOpen] = useState(false);
@@ -29,6 +30,18 @@ export function Viaturas() {
   const debouncedTermo = useDebounce(termo, 400);
 
   useEffect(() => { listarViaturas().then(setLista); }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    resolverContextoOperacional(user)
+      .then(contexto => {
+        if (!cancelled) setCanManage(canGerenciarCadastroModulo(contexto, 'viaturas'));
+      })
+      .catch(() => {
+        if (!cancelled) setCanManage(false);
+      });
+    return () => { cancelled = true; };
+  }, [user]);
 
   const filtrados = useMemo(() => lista.filter(v => {
     const mt = !debouncedTermo || v.prefixo.toLowerCase().includes(debouncedTermo.toLowerCase()) || v.placa.toLowerCase().includes(debouncedTermo.toLowerCase()) || v.marca.toLowerCase().includes(debouncedTermo.toLowerCase()) || v.modelo.toLowerCase().includes(debouncedTermo.toLowerCase());
@@ -47,9 +60,15 @@ export function Viaturas() {
 
   const [form, setForm] = useState(emptyForm);
 
-  function openNew() { setEditando(null); setForm({ ...emptyForm }); setFormOpen(true); }
+  function openNew() {
+    if (!canManage) return;
+    setEditando(null);
+    setForm({ ...emptyForm });
+    setFormOpen(true);
+  }
 
   function openEdit(v: Viatura) {
+    if (!canManage) return;
     setEditando(v);
     setForm({
       prefixo: v.prefixo, placa: v.placa, renavam: v.renavam, tipo: v.tipo, tipoCCI: v.tipoCCI, categoriaCAT: v.categoriaCAT,
@@ -65,6 +84,7 @@ export function Viaturas() {
   }
 
   async function handleSave() {
+    if (!canManage) return;
     setSaving(true);
     try {
       if (editando) {
@@ -78,6 +98,7 @@ export function Viaturas() {
   }
 
   async function handleDelete(id: string) {
+    if (!canManage) return;
     try {
       await excluirViatura(id);
       setConfirmDelete(null);
@@ -91,7 +112,7 @@ export function Viaturas() {
     <PageContainer>
       <div className="mb-6 flex items-center justify-between">
         <PageTitle icon={Truck} title="Viaturas CCI" />
-        {isAdmin && (
+        {canManage && (
           <button onClick={openNew} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
             <Plus className="h-4 w-4" /> Nova Viatura
           </button>
@@ -137,7 +158,7 @@ export function Viaturas() {
                     <p className="text-sm text-graphite-500 dark:text-graphite-400">{v.placa ? `Placa: ${v.placa}` : ''}{v.marca ? ` · ${v.marca} ${v.modelo}` : ''}{v.ano ? ` · ${v.ano}` : ''}</p>
                   </div>
                 </div>
-                {isAdmin && (
+                {canManage && (
                   <div className="flex gap-1 shrink-0">
                     <button onClick={() => openEdit(v)} className="rounded-xl p-1.5 text-graphite-400 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover"><Pencil className="h-4 w-4" /></button>
                     <button onClick={() => setConfirmDelete(v.id)} className="rounded-xl p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"><Trash2 className="h-4 w-4" /></button>

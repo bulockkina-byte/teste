@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Radio, Search, Plus, Pencil, Trash2 } from 'lucide-react';
+import { Radio, Search, Plus, Pencil, Trash2, Lock } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { useAuth } from '../../context/AuthContext';
@@ -8,12 +8,13 @@ import { listarAPOCs, buscarAPOC, criarAPOC, atualizarAPOC, excluirAPOC } from '
 import type { APOC } from '../../types/apoc';
 import { useDebounce } from '../../hooks/useDebounce';
 import { AlertModal } from '../../components/ui/AlertModal';
+import { podeVerCadastroCompletoBase, resolverContextoOperacional } from '../../utils/permissoes';
 
 export function APOCs() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin' || user?.role === 'desenvolvedor';
 
   const [apocs, setApocs] = useState<APOC[]>([]);
+  const [canManageCadastro, setCanManageCadastro] = useState(() => podeVerCadastroCompletoBase(user));
   const [termo, setTermo] = useState('');
   const [formOpen, setFormOpen] = useState(false);
   const [editando, setEditando] = useState<APOC | null>(null);
@@ -25,14 +26,34 @@ export function APOCs() {
   const debouncedTermo = useDebounce(termo, 400);
 
   useEffect(() => {
+    let cancelled = false;
+    setCanManageCadastro(podeVerCadastroCompletoBase(user));
+
+    resolverContextoOperacional(user)
+      .then(contexto => {
+        if (!cancelled) setCanManageCadastro(contexto.isAdministradorSistema || contexto.canManageGlobal);
+      })
+      .catch(() => {
+        if (!cancelled) setCanManageCadastro(podeVerCadastroCompletoBase(user));
+      });
+
+    return () => { cancelled = true; };
+  }, [user]);
+
+  useEffect(() => {
+    if (!canManageCadastro) {
+      setApocs([]);
+      return;
+    }
     carregar();
-  }, [debouncedTermo]);
+  }, [canManageCadastro, debouncedTermo]);
 
   async function carregar() {
     setApocs(debouncedTermo ? await buscarAPOC(debouncedTermo) : await listarAPOCs());
   }
 
   async function handleSave(data: Omit<APOC, 'id' | 'createdAt' | 'updatedAt'>) {
+    if (!canManageCadastro) return;
     try {
       if (editando) {
         await atualizarAPOC(editando.id, data);
@@ -48,6 +69,7 @@ export function APOCs() {
   }
 
   async function handleDelete(id: string) {
+    if (!canManageCadastro) return;
     if (deleting) return;
     setDeleting(true);
     try {
@@ -64,6 +86,19 @@ export function APOCs() {
 
   function capitalize(str: string) {
     return str.replace(/\b\w/g, char => char.toUpperCase());
+  }
+
+  if (!canManageCadastro) {
+    return (
+      <PageContainer>
+        <PageTitle icon={Radio} title="APOC - Centro de Operacoes Aeroportuarias" />
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300/60 bg-white/50 p-12 text-center backdrop-blur-sm dark:border-border-dark dark:bg-surface-card">
+          <Lock className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
+          <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Acesso Restrito</h3>
+          <p className="text-sm text-graphite-400">Apenas Administradores e GS podem acessar o cadastro de APOC.</p>
+        </div>
+      </PageContainer>
+    );
   }
 
   return (
@@ -89,7 +124,7 @@ export function APOCs() {
             className="w-full rounded-xl border border-graphite-300/60 bg-white/70 py-2.5 pl-10 pr-4 text-sm text-graphite-900 placeholder-graphite-400 outline-none transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated"
           />
         </div>
-        {isAdmin && (
+        {canManageCadastro && (
           <button
             onClick={() => { setEditando(null); setFormOpen(true); }}
             className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]"
@@ -120,7 +155,7 @@ export function APOCs() {
                 <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">E-mail</th>
                 <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Equipe</th>
                 <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Função</th>
-                {isAdmin && <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Ações</th>}
+                {canManageCadastro && <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Ações</th>}
               </tr>
             </thead>
             <tbody>
@@ -139,7 +174,7 @@ export function APOCs() {
                       {a.funcao}
                     </span>
                   </td>
-                  {isAdmin && (
+                  {canManageCadastro && (
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
                         <button

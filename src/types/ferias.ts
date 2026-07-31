@@ -195,7 +195,7 @@ export interface EloCorrenteSubstituicao {
   substituindoId: string;
   substituindoNome: string;
   cargoExercido: string;
-  motivo: 'ferias' | 'cascata';
+  motivo: 'ferias' | 'afastamento' | 'substituicao' | 'cascata';
 }
 
 // ---------------------------------------------------------------------------

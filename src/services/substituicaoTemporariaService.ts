@@ -128,12 +128,12 @@ function contextoValidacao(data: Pick<SubstituicaoTemporaria, 'funcionarioId' | 
   };
 }
 
-async function processarVigenciasAfastamento(
-  afastamento: SubstituicaoTemporaria,
+async function processarVigenciasSubstituicaoTemporaria(
+  substituicao: SubstituicaoTemporaria,
   bombeiros: Bombeiro[],
 ): Promise<void> {
-  const funcionario = bombeiros.find(b => b.id === afastamento.funcionarioId);
-  const cadeiaInput: EloCadeiaInput[] = afastamento.cadeiaSubstituicao.map(elo => ({
+  const funcionario = bombeiros.find(b => b.id === substituicao.funcionarioId);
+  const cadeiaInput: EloCadeiaInput[] = substituicao.cadeiaSubstituicao.map(elo => ({
     pessoaId: elo.pessoaId,
     pessoaNome: elo.pessoaNome,
     cargoOriginal: (elo.cargoOriginal || elo.pessoaCargo) as Cargo,
@@ -142,17 +142,17 @@ async function processarVigenciasAfastamento(
   }));
 
   await processarCadeiaSubstituicao({
-    id: afastamento.id,
-    funcionarioId: afastamento.funcionarioId,
-    funcionarioNome: afastamento.funcionarioNome,
+    id: substituicao.id,
+    funcionarioId: substituicao.funcionarioId,
+    funcionarioNome: substituicao.funcionarioNome,
     equipe: funcionario?.equipe || '',
-    substitutoId: afastamento.substitutoId,
-    substitutoNome: afastamento.substitutoNome,
-    funcaoSubstituicao: afastamento.funcionarioCargo,
-    dataInicio: afastamento.dataInicio,
-    dataFim: afastamento.dataFim,
-    motivoOrigem: 'afastamento',
-  }, cadeiaInput, bombeiros);
+    substitutoId: substituicao.substitutoId,
+    substitutoNome: substituicao.substitutoNome,
+    funcaoSubstituicao: substituicao.funcionarioCargo,
+    dataInicio: substituicao.dataInicio,
+    dataFim: substituicao.dataFim,
+    motivoOrigem: substituicao.tipo === 'Afastamento' ? 'afastamento' : 'substituicao',
+  }, substituicao.tipo === 'Afastamento' ? cadeiaInput : undefined, bombeiros);
 }
 
 export async function listarSubstituicoesTemporarias(): Promise<SubstituicaoTemporaria[]> {
@@ -247,9 +247,9 @@ export async function aprovarSubstituicaoTemporaria(
     .single();
   if (error) handleSupabaseError(error);
   const aprovado = updated ? rowToSubstituicao(updated) : null;
-  if (aprovado?.tipo === 'Afastamento') {
+  if (aprovado?.tipo === 'Afastamento' || aprovado?.tipo === 'Substituição') {
     try {
-      await processarVigenciasAfastamento(aprovado, bombeiros);
+      await processarVigenciasSubstituicaoTemporaria(aprovado, bombeiros);
     } catch (err) {
       await desativarVigencias(id).catch(() => undefined);
       await db

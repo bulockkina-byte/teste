@@ -20,6 +20,7 @@ import type { Bombeiro } from '../../types/bombeiro';
 import type { APOC } from '../../types/apoc';
 import { CARGO_OPTIONS } from '../../types/bombeiro';
 import { FUNCAO_APOC_OPTIONS } from '../../types/apoc';
+import { podeVerCadastroCompletoBase, resolverContextoOperacional } from '../../utils/permissoes';
 
 const ROLE_BADGE: Record<string, string> = {
   desenvolvedor: 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400',
@@ -60,9 +61,9 @@ function CountdownTimer({ expiresAt }: { expiresAt: string }) {
 
 export function Usuarios() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin' || user?.role === 'desenvolvedor';
 
   const [usuarios, setUsuarios] = useState<[string, StoredUser][]>([]);
+  const [canManageCadastro, setCanManageCadastro] = useState(() => podeVerCadastroCompletoBase(user));
   const [termo, setTermo] = useState('');
   const [formOpen, setFormOpen] = useState(false);
   const [editando, setEditando] = useState<{ username: string; name: string; role?: UserRole; previousRole?: UserRole; personId?: string; personType?: 'bombeiro' | 'apoc' } | null>(null);
@@ -75,11 +76,32 @@ export function Usuarios() {
   const [apocs, setApocs] = useState<APOC[]>([]);
 
   useEffect(() => {
+    let cancelled = false;
+    setCanManageCadastro(podeVerCadastroCompletoBase(user));
+
+    resolverContextoOperacional(user)
+      .then(contexto => {
+        if (!cancelled) setCanManageCadastro(contexto.isAdministradorSistema || contexto.canManageGlobal);
+      })
+      .catch(() => {
+        if (!cancelled) setCanManageCadastro(podeVerCadastroCompletoBase(user));
+      });
+
+    return () => { cancelled = true; };
+  }, [user]);
+
+  useEffect(() => {
+    if (!canManageCadastro) {
+      setBombeiros([]);
+      setApocs([]);
+      return;
+    }
+
     Promise.all([listarAtivos(), listarAPOCs()]).then(([b, a]) => {
       setBombeiros(b);
       setApocs(a);
     }).catch(() => {});
-  }, []);
+  }, [canManageCadastro]);
 
   function resolvePerson(data: StoredUser) {
     if (!data.personId || !data.personType) return null;
@@ -118,8 +140,21 @@ export function Usuarios() {
     }
   }
 
-  useEffect(() => { carregar(); }, [termo]);
-  useEffect(() => { listarConvites().then(setConvites); }, []);
+  useEffect(() => {
+    if (!canManageCadastro) {
+      setUsuarios([]);
+      return;
+    }
+    carregar();
+  }, [canManageCadastro, termo]);
+
+  useEffect(() => {
+    if (!canManageCadastro) {
+      setConvites([]);
+      return;
+    }
+    listarConvites().then(setConvites);
+  }, [canManageCadastro]);
 
   async function copiarUrl(codigo: string) {
     const url = `${window.location.origin}/cadastro/convite/${codigo}`;
@@ -142,6 +177,7 @@ export function Usuarios() {
   }
 
   async function handleGerarConvite() {
+    if (!canManageCadastro) return;
     const convite = await criarConvite();
     const lista = await listarConvites();
     setConvites(lista);
@@ -153,6 +189,7 @@ export function Usuarios() {
   }
 
   async function handleSave(data: { username: string; name: string; password: string; role: UserRole; personId?: string; personType?: 'bombeiro' | 'apoc' }) {
+    if (!canManageCadastro) return;
     try {
       if (editando) {
         if (data.role === 'desenvolvedor' && user?.role !== 'desenvolvedor') {
@@ -216,6 +253,7 @@ export function Usuarios() {
   }
 
   async function handleDelete(username: string) {
+    if (!canManageCadastro) return;
     if (username === 'serra') return;
     try {
       await excluirUsuario(username);
@@ -229,6 +267,7 @@ export function Usuarios() {
   }
 
   async function handleToggleAdmin(username: string) {
+    if (!canManageCadastro) return;
     if (username === 'serra') return;
     try {
       const remote = await listarUsuariosDb();
@@ -262,7 +301,7 @@ export function Usuarios() {
     }
   }
 
-  if (!isAdmin) {
+  if (!canManageCadastro) {
     return (
       <PageContainer>
         <PageTitle icon={UserCog} title="Usuários" />

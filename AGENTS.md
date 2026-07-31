@@ -282,7 +282,7 @@ Podes combinar múltiplas skills carregando-as em sequência. A ordem importa:
 │   ├── store/              # Redux store (vazio — apenas hosting RTK Query dead code)
 │   │   └── api/            # 10 ficheiros RTK Query com fakeBaseQuery (DEAD CODE)
 │   ├── types/              # Interfaces TypeScript (24 ficheiros)
-│   └── utils/              # Utilitários (equipes, regrasOperacionais, validação de cursos, etc.)
+│   └── utils/              # Utilitários (equipes, permissoes, regrasOperacionais, validação de cursos, etc.)
 ├── AGENTS.md               # Este ficheiro — guia do agente
 ├── API_ENDPOINTS.md         # Fonte da verdade para endpoints Supabase
 ├── CLAUDE.md               # Instruções RTK (token optimization)
@@ -450,6 +450,18 @@ Referência: **21/07/2026** = Alfa + Bravo
 **Helper**: `src/utils/equipes.ts` — `equipesNoDia(data)` devolve `['Alfa', 'Bravo']` ou `['Charlie', 'Delta']`; `horarioPlantaoPorEquipe(equipe)` devolve horários oficiais; `dataSaidaPlantao(equipe, data)` calcula saída do turno noturno.
 **Regras operacionais**: `src/utils/regrasOperacionais.ts` centraliza validações puras de férias, escala anual, escala diária e substituições temporárias; `npm run test:domain` cobre os cenários críticos.
 **Smoke E2E**: `npm run test:e2e:operational` valida login, sidebar e rotas críticas sem criar dados.
+
+### Permissões por Cargo/Equipa Efetivos
+
+**Helper**: `src/utils/permissoes.ts` — resolve cargo/equipa efetivos a partir de `vigencia_substituicoes` para aplicar permissões quando há férias, substituições temporárias ou cascatas.
+
+| Área | Regra |
+|------|-------|
+| Cadastro completo | Administradores do sistema (`admin`/`desenvolvedor`) e bombeiros exercendo `GS` |
+| Cadastro visível aos demais | Equipamentos, Agentes Extintores, Hidrantes e Viaturas |
+| Equipamentos e Viaturas | Criar/editar/excluir: Admin/GS ou `BA-CE`/`BA-LR` exercendo função na equipa `Bravo` |
+| Agentes Extintores e Hidrantes | Criar/editar/excluir: Admin/GS ou `BA-CE`/`BA-LR` exercendo função na equipa `Alfa` |
+| Dados pessoais auxiliares | Listas de bombeiros/APOCs para vínculos ficam restritas a Admin/GS |
 
 ### Horários por Equipa
 

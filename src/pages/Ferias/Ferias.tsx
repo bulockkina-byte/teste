@@ -9,7 +9,7 @@ import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { AlertModal } from '../../components/ui/AlertModal';
 import { useAuth } from '../../context/AuthContext';
-import { listarAtivos } from '../../services/bombeiroService';
+import { listarAtivos, obterBombeiro } from '../../services/bombeiroService';
 import {
   calcularPeriodosAquisitivos, MESES, ABBR_CARGO,
   STATUS_ESCALA_COLORS,
@@ -80,6 +80,24 @@ interface TeamStatsRow {
   vencidas: number;
 }
 
+type AuthUserPermissao = {
+  role?: string;
+  name?: string;
+  pessoa?: {
+    id?: string;
+    nomeGuerra?: string;
+    personType?: string;
+    funcao?: string;
+    equipe?: string;
+  };
+} | null;
+
+interface ContextoPermissaoFerias {
+  equipe: Equipe | null;
+  cargo: string | null;
+  canManage: boolean;
+}
+
 // -- Helpers ---------------------------------------------------------------------
 
 function calcDias(inicio: string, fim: string): number {
@@ -124,6 +142,100 @@ function buildPeriodos(b: Bombeiro, gozos: FeriasGozo[]): PeriodoView[] {
 
 function monthStart(year: number, month: number): string {
   return `${year}-${String(month).padStart(2, '0')}-01`;
+}
+
+function isAdministradorSistema(user: AuthUserPermissao): boolean {
+  return user?.role === 'desenvolvedor' || user?.role === 'admin';
+}
+
+function isGS(user: AuthUserPermissao): boolean {
+  return user?.pessoa?.personType === 'bombeiro' && user.pessoa.funcao === 'GS';
+}
+
+function podeGerenciarFerias(user: AuthUserPermissao): boolean {
+  return isAdministradorSistema(user) || isGS(user);
+}
+
+function equipeDoUsuario(user: AuthUserPermissao): Equipe | null {
+  const equipe = user?.pessoa?.equipe;
+  return equipe && (EQUIPES as string[]).includes(equipe) ? equipe as Equipe : null;
+}
+
+function equipeValida(equipe: string | undefined): Equipe | null {
+  return equipe && (EQUIPES as string[]).includes(equipe) ? equipe as Equipe : null;
+}
+
+async function resolverContextoPermissaoFerias(user: AuthUserPermissao): Promise<ContextoPermissaoFerias> {
+  const permissaoBase = {
+    equipe: equipeDoUsuario(user),
+    cargo: user?.pessoa?.funcao || null,
+    canManage: podeGerenciarFerias(user),
+  };
+
+  if (!user || isAdministradorSistema(user) || user.pessoa?.personType !== 'bombeiro') {
+    return permissaoBase;
+  }
+
+  let bombeiro: Bombeiro | null = null;
+  const pessoaId = user.pessoa?.id;
+  if (pessoaId) {
+    try {
+      bombeiro = await obterBombeiro(pessoaId);
+    } catch {
+      bombeiro = null;
+    }
+  }
+
+  if (!bombeiro) {
+    const equipeBase = equipeDoUsuario(user);
+    const ativos = equipeBase ? await listarAtivos({ equipe: equipeBase }) : await listarAtivos();
+    bombeiro = ativos.find(b =>
+      b.nomeCompleto === user.name ||
+      b.nomeGuerra === user.pessoa?.nomeGuerra ||
+      b.id === pessoaId
+    ) || null;
+  }
+
+  if (!bombeiro) return permissaoBase;
+
+  const hoje = new Date().toISOString().split('T')[0];
+  const vigencias = await listarVigencias({
+    ativa: true,
+    substitutoId: bombeiro.id,
+    dataInicio: hoje,
+    dataFim: hoje,
+  });
+  const vigenciaAtual = vigencias.find(v =>
+    v.substitutoId !== v.funcionarioOriginalId &&
+    v.dataInicio <= hoje &&
+    hoje <= v.dataFim
+  );
+  const cargoEfetivo = vigenciaAtual?.cargoExercido || bombeiro.cargo;
+  const equipeEfetiva = equipeValida(vigenciaAtual?.equipe) || bombeiro.equipe;
+
+  return {
+    equipe: equipeEfetiva,
+    cargo: cargoEfetivo,
+    canManage: cargoEfetivo === 'GS',
+  };
+}
+
+function uniqueBombeiros(lista: Bombeiro[]): Bombeiro[] {
+  return Array.from(new Map(lista.map(b => [b.id, b])).values());
+}
+
+async function listarAtivosEscopados(equipe: Equipe | null, incluirFeristas = false): Promise<Bombeiro[]> {
+  if (!equipe) return [];
+  const equipes = incluirFeristas && equipe !== 'Ferista' ? [equipe, 'Ferista' as Equipe] : [equipe];
+  const listas = await Promise.all(equipes.map(eq => listarAtivos({ equipe: eq })));
+  return uniqueBombeiros(listas.flat());
+}
+
+async function listarFeriasGozoEscopadas(equipe: Equipe | null, incluirFeristas = false): Promise<FeriasGozo[]> {
+  if (!equipe) return [];
+  const equipes = incluirFeristas && equipe !== 'Ferista' ? [equipe, 'Ferista' as Equipe] : [equipe];
+  const listas = await Promise.all(equipes.map(eq => listarFeriasGozo({ equipe: eq })));
+  return listas.flat();
 }
 
 // -- Dashboard Stats Calculation --------------------------------------------------
@@ -214,26 +326,24 @@ function calcularStatsPorEquipe(todos: Bombeiro[], feriasGozo: FeriasGozo[]): Te
 
 // -- DashboardFerias --------------------------------------------------------------
 
-function DashboardFerias({ myEquipe }: { myEquipe?: string | null }) {
+function DashboardFerias({ myEquipe }: { myEquipe?: Equipe | null }) {
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
   const [feriasGozo, setFeriasGozo] = useState<FeriasGozo[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
-      const [b, g] = await Promise.all([listarAtivos(), listarFeriasGozo()]);
+      setLoading(true);
+      const [b, g] = myEquipe
+        ? await Promise.all([listarAtivos({ equipe: myEquipe }), listarFeriasGozo({ equipe: myEquipe })])
+        : await Promise.all([listarAtivos(), listarFeriasGozo()]);
       setBombeiros(b);
       setFeriasGozo(g);
       setLoading(false);
     })();
-  }, []);
+  }, [myEquipe]);
 
-  const filtered = useMemo(
-    () => (myEquipe ? bombeiros.filter(b => b.equipe === myEquipe) : bombeiros),
-    [bombeiros, myEquipe],
-  );
-
-  const stats = useMemo(() => calcularStats(filtered, feriasGozo), [filtered, feriasGozo]);
+  const stats = useMemo(() => calcularStats(bombeiros, feriasGozo), [bombeiros, feriasGozo]);
   const teamStats = useMemo(() => calcularStatsPorEquipe(bombeiros, feriasGozo), [bombeiros, feriasGozo]);
 
   const teamMembers = useMemo(() => {
@@ -1123,9 +1233,9 @@ function TabAprovacoes() {
 
 // -- Tab Escala Geral (Admin / Gerente) ------------------------------------------
 
-function TabEscalaGeral() {
-  const { effectiveRole } = useAuth();
-  const podeExcluir = effectiveRole === 'desenvolvedor' || effectiveRole === 'admin';
+function TabEscalaGeral({ canManage, equipeUsuario }: { canManage: boolean; equipeUsuario: Equipe | null }) {
+  const { user } = useAuth();
+  const podeExcluir = isAdministradorSistema(user);
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
   const [escalas, setEscalas] = useState<EscalaFerias[]>([]);
   const [itemsByEscala, setItemsByEscala] = useState<Map<string, EscalaFeriasItem[]>>(new Map());
@@ -1137,11 +1247,28 @@ function TabEscalaGeral() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
 
-  useEffect(() => { loadData(); }, [ano, mes]);
+  const equipesVisiveis = useMemo(
+    () => (canManage ? EQUIPES : equipeUsuario ? [equipeUsuario] : []),
+    [canManage, equipeUsuario],
+  );
+
+  useEffect(() => { loadData(); }, [ano, mes, canManage, equipeUsuario]);
 
   async function loadData() {
     setLoading(true);
-    const [b, escalasList] = await Promise.all([listarAtivos(), listarEscalas(undefined, ano)]);
+    if (!canManage && !equipeUsuario) {
+      setBombeiros([]);
+      setEscalas([]);
+      setItemsByEscala(new Map());
+      setLoading(false);
+      return;
+    }
+
+    const equipeFiltro = canManage ? undefined : equipeUsuario || undefined;
+    const [b, escalasList] = await Promise.all([
+      equipeFiltro ? listarAtivos({ equipe: equipeFiltro }) : listarAtivos(),
+      listarEscalas(equipeFiltro, ano),
+    ]);
     setBombeiros(b);
 
     const itemsMap = new Map<string, EscalaFeriasItem[]>();
@@ -1210,7 +1337,7 @@ function TabEscalaGeral() {
       </div>
 
       <div className="space-y-3">
-        {EQUIPES.map(eq => {
+        {equipesVisiveis.map(eq => {
           const esc = escalasByEquipe.get(eq);
           const items = esc ? itemsByEscala.get(esc.id) || [] : [];
           const teamMembers = bombeiros.filter(b => b.equipe === eq);
@@ -1372,9 +1499,8 @@ function TabEscalaGeral() {
 
 // -- Tab Escala Anual (Chefe de Equipe) ------------------------------------------
 
-function TabEscalaAnual() {
-  const { effectiveRole, user } = useAuth();
-  const isAdmin = effectiveRole === 'desenvolvedor' || effectiveRole === 'admin' || effectiveRole === 'gerente';
+function TabEscalaAnual({ canManage, equipeUsuario }: { canManage: boolean; equipeUsuario: Equipe | null }) {
+  const { user } = useAuth();
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
   const [myBombeiro, setMyBombeiro] = useState<Bombeiro | null>(null);
   const [selectedEquipe, setSelectedEquipe] = useState<Equipe | ''>('');
@@ -1407,7 +1533,7 @@ function TabEscalaAnual() {
   }[]>([]);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const activeEquipe = isAdmin ? (selectedEquipe || '') : (myBombeiro?.equipe || '');
+  const activeEquipe = canManage ? (selectedEquipe || '') : (equipeUsuario || myBombeiro?.equipe || '');
 
   const teamMembers = useMemo(
     () => activeEquipe ? bombeiros.filter(b => b.equipe === activeEquipe) : [],
@@ -1452,20 +1578,45 @@ function TabEscalaAnual() {
   }, [formFuncId, formSubId, chainElos]);
 
   const equipes: Equipe[] = ['Alfa', 'Bravo', 'Charlie', 'Delta', 'Ferista'];
+  const tiposSubstituto = canManage
+    ? (['mesma-equipe', 'outras-equipes', 'ferista'] as const)
+    : (['mesma-equipe', 'ferista'] as const);
 
   useEffect(() => {
     (async () => {
-      const [all, gozos] = await Promise.all([listarAtivos(), listarFeriasGozo()]);
+      setLoading(true);
+      if (!canManage && !equipeUsuario) {
+        setBombeiros([]);
+        setFeriasGozo([]);
+        setMyBombeiro(null);
+        setLoading(false);
+        return;
+      }
+      const [all, gozos] = canManage
+        ? await Promise.all([listarAtivos(), listarFeriasGozo()])
+        : await Promise.all([
+          listarAtivosEscopados(equipeUsuario, true),
+          listarFeriasGozoEscopadas(equipeUsuario, true),
+        ]);
       setBombeiros(all);
       setFeriasGozo(gozos);
       if (user) {
-        const me = all.find(b => b.nomeCompleto === user.name);
+        const me = all.find(b => b.nomeCompleto === user.name || b.nomeGuerra === user.pessoa?.nomeGuerra);
         setMyBombeiro(me || null);
-        if (!isAdmin && me) setSelectedEquipe(me.equipe);
+        if (!canManage) setSelectedEquipe((equipeUsuario || me?.equipe || '') as Equipe | '');
       }
       setLoading(false);
     })();
-  }, [user, isAdmin]);
+  }, [user, canManage, equipeUsuario]);
+
+  useEffect(() => {
+    if (!canManage && subTipo === 'outras-equipes') {
+      setSubTipo('mesma-equipe');
+      setFormSubId('');
+      setFormFerista('');
+      setChainElos([]);
+    }
+  }, [canManage, subTipo]);
 
   useEffect(() => {
     if (!activeEquipe) return;
@@ -1731,7 +1882,7 @@ function TabEscalaAnual() {
     );
   }
 
-  if (!activeEquipe && !loading && isAdmin) {
+  if (!activeEquipe && !loading && canManage) {
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">
         <CalendarDays className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
@@ -1757,15 +1908,15 @@ function TabEscalaAnual() {
 
   const canEditBase = escala?.status === 'Rascunho' || escala?.status === 'Rejeitado';
   const isFeristaTeam = activeEquipe === 'Ferista';
-  const canEdit = canEditBase && (!isFeristaTeam || isAdmin);
-  const canDelete = effectiveRole === 'desenvolvedor' || effectiveRole === 'admin';
-  const canDeleteItem = isAdmin;
+  const canEdit = canEditBase && (!isFeristaTeam || canManage);
+  const canDelete = isAdministradorSistema(user);
+  const canDeleteItem = canManage;
   const canSend = escala?.status === 'Rascunho' || escala?.status === 'Rejeitado';
 
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center gap-3">
-        {isAdmin && (
+        {canManage && (
           <div>
             <label className={labelCls}>Equipe</label>
             <select value={selectedEquipe} onChange={e => setSelectedEquipe(e.target.value as Equipe)} className={`${selectCls} !w-auto`}>
@@ -1806,7 +1957,7 @@ function TabEscalaAnual() {
         </div>
       )}
 
-      {isFeristaTeam && !isAdmin && (
+      {isFeristaTeam && !canManage && (
         <div className="mb-6 rounded-xl border border-orange-300 bg-orange-50 p-4 dark:border-orange-700 dark:bg-orange-900/20">
           <div className="flex items-center gap-2 mb-1">
             <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
@@ -2018,7 +2169,7 @@ function TabEscalaAnual() {
                             </label>
                           </div>
                           <div className="flex gap-2">
-                            {(['mesma-equipe', 'outras-equipes', 'ferista'] as const).map(tipo => (
+                            {tiposSubstituto.map(tipo => (
                               <button key={tipo} type="button" onClick={() => { setSubTipo(tipo); handleSubstitutoChange(''); }}
                                 className={`flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-all ${
                                   subTipo === tipo
@@ -2209,9 +2360,8 @@ function TabEscalaAnual() {
 
 // -- Tab Minha Equipe (Chefe) ----------------------------------------------------
 
-function TabMinhaEquipe() {
-  const { effectiveRole, user } = useAuth();
-  const isAdmin = effectiveRole === 'desenvolvedor' || effectiveRole === 'admin' || effectiveRole === 'gerente';
+function TabMinhaEquipe({ canManage, equipeUsuario }: { canManage: boolean; equipeUsuario: Equipe | null }) {
+  const { user } = useAuth();
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
   const [feriasGozo, setFeriasGozo] = useState<FeriasGozo[]>([]);
   const [allItems, setAllItems] = useState<EscalaFeriasItem[]>([]);
@@ -2224,7 +2374,22 @@ function TabMinhaEquipe() {
 
   useEffect(() => {
     (async () => {
-      const [all, gozos, escalas] = await Promise.all([listarAtivos(), listarFeriasGozo(), listarEscalas()]);
+      setLoading(true);
+      if (!canManage && !equipeUsuario) {
+        setBombeiros([]);
+        setFeriasGozo([]);
+        setAllItems([]);
+        setMyBombeiro(null);
+        setLoading(false);
+        return;
+      }
+      const [all, gozos, escalas] = canManage
+        ? await Promise.all([listarAtivos(), listarFeriasGozo(), listarEscalas()])
+        : await Promise.all([
+          listarAtivos({ equipe: equipeUsuario as Equipe }),
+          listarFeriasGozo({ equipe: equipeUsuario as Equipe }),
+          listarEscalas(equipeUsuario as Equipe),
+        ]);
       setBombeiros(all);
       setFeriasGozo(gozos);
       const items: EscalaFeriasItem[] = [];
@@ -2234,15 +2399,15 @@ function TabMinhaEquipe() {
       }
       setAllItems(items);
       if (user) {
-        const me = all.find(b => b.nomeCompleto === user.name);
+        const me = all.find(b => b.nomeCompleto === user.name || b.nomeGuerra === user.pessoa?.nomeGuerra);
         setMyBombeiro(me || null);
-        if (me && !isAdmin) setSelectedEquipe(me.equipe);
+        if (!canManage) setSelectedEquipe((equipeUsuario || me?.equipe || '') as Equipe | '');
       }
       setLoading(false);
     })();
-  }, [user, isAdmin]);
+  }, [user, canManage, equipeUsuario]);
 
-  const activeEquipe = isAdmin ? selectedEquipe : (myBombeiro?.equipe || '');
+  const activeEquipe = canManage ? selectedEquipe : (equipeUsuario || myBombeiro?.equipe || '');
 
   const teamMembers = useMemo(
     () => activeEquipe ? bombeiros.filter(b => b.equipe === activeEquipe) : [],
@@ -2257,7 +2422,7 @@ function TabMinhaEquipe() {
     );
   }
 
-  if (!activeEquipe && !loading && isAdmin) {
+  if (!activeEquipe && !loading && canManage) {
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">
         <Users className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
@@ -2284,7 +2449,7 @@ function TabMinhaEquipe() {
 
   return (
     <div>
-      {isAdmin && (
+      {canManage && (
         <div className="mb-4">
           <label className={labelCls}>Equipe</label>
           <select value={selectedEquipe} onChange={e => setSelectedEquipe(e.target.value as Equipe)} className={`${selectCls} !w-auto`}>
@@ -2483,8 +2648,7 @@ function TabMinhaEquipe() {
 // -- Tab Férias Feristas (Gerente) -------------------------------------------------
 
 function TabEscalaFeristas() {
-  const { effectiveRole, user } = useAuth();
-  const canManage = effectiveRole === 'desenvolvedor' || effectiveRole === 'admin' || effectiveRole === 'gerente';
+  const { user } = useAuth();
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
   const [feriasGozo, setFeriasGozo] = useState<FeriasGozo[]>([]);
   const [ano, setAno] = useState(new Date().getFullYear());
@@ -3637,23 +3801,39 @@ function ModalCadastroFeriasManual({ onClose, onSuccess }: { onClose: () => void
 // -- Pagina Principal -------------------------------------------------------------
 
 export function Ferias() {
-  const { effectiveRole, user } = useAuth();
-  const canManage = effectiveRole === 'desenvolvedor' || effectiveRole === 'admin' || effectiveRole === 'gerente';
-  const [myEquipe, setMyEquipe] = useState<string | null>(null);
-  const [resolving, setResolving] = useState(!canManage);
+  const { user } = useAuth();
+  const [permissao, setPermissao] = useState<ContextoPermissaoFerias>(() => ({
+    equipe: equipeDoUsuario(user),
+    cargo: user?.pessoa?.funcao || null,
+    canManage: podeGerenciarFerias(user),
+  }));
+  const canManage = permissao.canManage;
+  const myEquipe = canManage ? null : permissao.equipe;
+  const [resolving, setResolving] = useState(true);
   const [tab, setTab] = useState<string>('');
   const [showCadastroManual, setShowCadastroManual] = useState(false);
   const [quadroRefreshKey, setQuadroRefreshKey] = useState(0);
 
   useEffect(() => {
-    if (canManage) { setResolving(false); return; }
-    if (!user) { setResolving(false); return; }
-    listarAtivos().then(all => {
-      const me = all.find(b => b.nomeCompleto === user.name);
-      setMyEquipe(me?.equipe ?? null);
-      setResolving(false);
-    }).catch(() => setResolving(false));
-  }, [canManage, user]);
+    let cancelled = false;
+    setResolving(true);
+    resolverContextoPermissaoFerias(user)
+      .then(ctx => {
+        if (cancelled) return;
+        setPermissao(ctx);
+        setResolving(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setPermissao({
+          equipe: equipeDoUsuario(user),
+          cargo: user?.pessoa?.funcao || null,
+          canManage: podeGerenciarFerias(user),
+        });
+        setResolving(false);
+      });
+    return () => { cancelled = true; };
+  }, [user]);
 
   const adminTabs = [
     { key: 'bombeiros', label: 'Bombeiros', icon: Users },
@@ -3665,14 +3845,16 @@ export function Ferias() {
   ] as const;
 
   const chefeTabs = [
+    { key: 'escala-geral', label: 'Escala Geral', icon: Eye },
     { key: 'escala', label: 'Escala Anual', icon: CalendarDays },
     { key: 'equipe', label: 'Minha Equipe', icon: Users },
+    { key: 'efetivos', label: 'Quadro de Efetivos', icon: BarChart3 },
   ] as const;
 
   const tabs = canManage ? adminTabs : chefeTabs;
 
   useEffect(() => {
-    if (!tab && tabs.length > 0) setTab(tabs[0].key);
+    if (tabs.length > 0 && !tabs.some(t => t.key === tab)) setTab(tabs[0].key);
   }, [tab, tabs]);
 
   if (resolving) {
@@ -3686,11 +3868,24 @@ export function Ferias() {
     );
   }
 
+  if (!canManage && !myEquipe) {
+    return (
+      <PageContainer>
+        <PageTitle icon={CalendarDays} title="Ferias" />
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">
+          <AlertTriangle className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
+          <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Equipe não identificada</h3>
+          <p className="text-sm text-graphite-400 dark:text-graphite-500">Não foi possível vincular seu usuário a uma equipe operacional.</p>
+        </div>
+      </PageContainer>
+    );
+  }
+
   return (
     <PageContainer>
       <PageTitle icon={CalendarDays} title="Ferias" />
 
-      <DashboardFerias myEquipe={myEquipe} />
+      <DashboardFerias myEquipe={canManage ? null : myEquipe} />
 
       <div className="mt-6 mb-6 flex flex-wrap items-center gap-2">
         {canManage && (
@@ -3717,14 +3912,14 @@ export function Ferias() {
         ))}
       </div>
 
-      {tab === 'bombeiros' && <TabBombeiros />}
-      {tab === 'aprovacoes' && <TabAprovacoes />}
-      {tab === 'escala-geral' && <TabEscalaGeral />}
-      {tab === 'escala' && <TabEscalaAnual />}
-      {tab === 'equipe' && <TabMinhaEquipe />}
+      {canManage && tab === 'bombeiros' && <TabBombeiros />}
+      {canManage && tab === 'aprovacoes' && <TabAprovacoes />}
+      {tab === 'escala-geral' && <TabEscalaGeral canManage={canManage} equipeUsuario={myEquipe} />}
+      {tab === 'escala' && <TabEscalaAnual canManage={canManage} equipeUsuario={myEquipe} />}
+      {tab === 'equipe' && <TabMinhaEquipe canManage={canManage} equipeUsuario={myEquipe} />}
       {tab === 'efetivos' && <TabQuadroEfetivos key={quadroRefreshKey} />}
 
-      {showCadastroManual && (
+      {canManage && showCadastroManual && (
         <ModalCadastroFeriasManual
           onClose={() => setShowCadastroManual(false)}
           onSuccess={() => { setShowCadastroManual(false); setQuadroRefreshKey(k => k + 1); }}

@@ -51,21 +51,20 @@ export const menuItems: MenuItem[] = [
   {
     label: 'Cadastro',
     icon: Database,
-    adminOnly: true,
     children: [
       {
         label: 'Bombeiros',
         icon: Shield,
         path: '/cadastro/bombeiros',
         description: 'Cadastro de bombeiros e equipes operacionais.',
-        adminOnly: true,
+        adminOrGsOnly: true,
       },
       {
         label: 'APOC',
         icon: Radio,
         path: '/cadastro/apoc',
         description: 'Centro de Operações Aeroportuárias — pessoal MOTIVA.',
-        adminOnly: true,
+        adminOrGsOnly: true,
       },
       {
         label: 'Equipamentos',
@@ -74,7 +73,7 @@ export const menuItems: MenuItem[] = [
         description: 'Cadastro e manutenção de equipamentos operacionais.',
       },
       {
-        label: 'Extintores',
+        label: 'Agentes Extintores',
         icon: Flame,
         path: '/cadastro/extintores',
         description: 'Controle de agentes extintores e recargas.',
@@ -90,21 +89,20 @@ export const menuItems: MenuItem[] = [
         icon: Truck,
         path: '/cadastro/viaturas',
         description: 'Cadastro de viaturas operacionais.',
-        adminOnly: true,
       },
       {
         label: 'Gerenciar Documentos',
         icon: FileText,
         path: '/cadastro/documentos',
         description: 'Templates de documentos para preenchimento e assinatura.',
-        adminOnly: true,
+        adminOrGsOnly: true,
       },
       {
         label: 'Usuários',
         icon: UserCog,
         path: '/usuarios',
         description: 'Gerenciamento de usuários do sistema.',
-        adminOnly: true,
+        adminOrGsOnly: true,
       },
     ],
   },

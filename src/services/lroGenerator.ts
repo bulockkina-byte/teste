@@ -30,6 +30,13 @@ function secaoCheckbox(titulo: string, temAlteracao: boolean, texto: string): st
   </table>`;
 }
 
+function motivoSubstituicaoLabel(motivo: string | undefined): string {
+  if (motivo === 'ferias') return 'Férias';
+  if (motivo === 'afastamento') return 'Afastamento';
+  if (motivo === 'substituicao') return 'Substituição';
+  return 'Cascata';
+}
+
 export function montarHTML(dados: Record<string, unknown>, showMarkers = false, isPdf = false): string {
   const e = (k: string, fallback = '') => String(dados[k] ?? fallback);
 
@@ -105,9 +112,9 @@ export function montarHTML(dados: Record<string, unknown>, showMarkers = false, 
     : '';
 
   const substituicoesAtivasHTML = temSubstituicoesAtivas
-    ? `<tr><td style="border-top:1px solid #000; border-bottom:1px solid #000; padding:2px 3px; font-weight:bold; font-size:11px; background:#d4d4d4; text-align:center;" colspan="7">CADEIA DE SUBSTITUIÇÕES (FÉRIAS / CASCATA)</td></tr>
+    ? `<tr><td style="border-top:1px solid #000; border-bottom:1px solid #000; padding:2px 3px; font-weight:bold; font-size:11px; background:#d4d4d4; text-align:center;" colspan="7">CADEIA DE SUBSTITUIÇÕES (FÉRIAS / TEMPORÁRIAS / CASCATA)</td></tr>
 ${substituicoesAtivas.map(s => `
-    <tr><td colspan="7" style="padding:4px 4px; font-size:11px;"><div style="display:grid; grid-template-columns:2fr 1fr 2fr; text-align:center; align-items:center;"><div><span class="b" style="font-size:11px;">${s.cargoAusente || ''}</span> <span style="font-size:11px;">${(s.nomeAusente || '').toUpperCase()}</span></div><div style="align-self:center;"><span style="font-size:14px;">→</span></div><div><span class="b" style="font-size:11px;">${s.cargoPresente || ''}</span> <span style="font-size:11px;">${(s.nomePresente || '').toUpperCase()}</span></div></div><div style="font-size:10px; color:#555; text-align:center; margin-top:2px;">${s.motivo === 'ferias' ? 'Férias' : 'Cascata'} · Nível ${s.nivel || 1}</div></td></tr>
+    <tr><td colspan="7" style="padding:4px 4px; font-size:11px;"><div style="display:grid; grid-template-columns:2fr 1fr 2fr; text-align:center; align-items:center;"><div><span class="b" style="font-size:11px;">${s.cargoAusente || ''}</span> <span style="font-size:11px;">${(s.nomeAusente || '').toUpperCase()}</span></div><div style="align-self:center;"><span style="font-size:14px;">→</span></div><div><span class="b" style="font-size:11px;">${s.cargoPresente || ''}</span> <span style="font-size:11px;">${(s.nomePresente || '').toUpperCase()}</span></div></div><div style="font-size:10px; color:#555; text-align:center; margin-top:2px;">${motivoSubstituicaoLabel(s.motivo)} · Nível ${s.nivel || 1}</div></td></tr>
   `).join('')}`
     : '';
 

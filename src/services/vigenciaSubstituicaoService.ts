@@ -5,6 +5,8 @@ import { criarVagaPendente } from './vagaPendenteService';
 
 const TABLE = 'vigencia_substituicoes';
 
+export type MotivoVigenciaSubstituicao = 'ferias' | 'afastamento' | 'substituicao' | 'cascata';
+
 export interface VigenciaSubstituicao {
   id: string;
   substitutoId: string;
@@ -18,7 +20,7 @@ export interface VigenciaSubstituicao {
   dataInicio: string;
   dataFim: string;
   nivelCascata: number;
-  motivo: 'ferias' | 'afastamento' | 'cascata';
+  motivo: MotivoVigenciaSubstituicao;
   feriasId: string;
   ativa: boolean;
   createdAt: string;
@@ -52,7 +54,7 @@ function rowToVigencia(row: Record<string, unknown>): VigenciaSubstituicao {
     dataInicio: (row.data_inicio as string) || '',
     dataFim: (row.data_fim as string) || '',
     nivelCascata: (row.nivel_cascata as number) || 1,
-    motivo: (row.motivo as 'ferias' | 'afastamento' | 'cascata') || 'ferias',
+    motivo: (row.motivo as MotivoVigenciaSubstituicao) || 'ferias',
     feriasId: (row.ferias_id as string) || '',
     ativa: row.ativa !== false,
     createdAt: (row.created_at as string) || '',
@@ -158,7 +160,7 @@ export async function processarCadeiaSubstituicao(
     funcaoSubstituicao?: string;
     dataInicio: string;
     dataFim: string;
-    motivoOrigem?: 'ferias' | 'afastamento';
+    motivoOrigem?: Exclude<MotivoVigenciaSubstituicao, 'cascata'>;
   },
   cadeiaInput?: EloCadeiaInput[],
   bombeiros?: Bombeiro[],
@@ -273,7 +275,7 @@ export async function processarCascata(
     funcaoSubstituicao?: string;
     dataInicio: string;
     dataFim: string;
-    motivoOrigem?: 'ferias' | 'afastamento';
+    motivoOrigem?: Exclude<MotivoVigenciaSubstituicao, 'cascata'>;
   },
   bombeiros?: Bombeiro[],
   _feriasGozo?: any[],

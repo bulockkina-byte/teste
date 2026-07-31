@@ -7,4 +7,5 @@ export interface MenuItem {
   description?: string;
   children?: MenuItem[];
   adminOnly?: boolean;
+  adminOrGsOnly?: boolean;
 }

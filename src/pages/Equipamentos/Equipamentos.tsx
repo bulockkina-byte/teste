@@ -20,6 +20,7 @@ import type { Bombeiro } from '../../types/bombeiro';
 import type { APOC } from '../../types/apoc';
 import { CARGO_OPTIONS } from '../../types/bombeiro';
 import { FUNCAO_APOC_OPTIONS } from '../../types/apoc';
+import { canGerenciarCadastroModulo, resolverContextoOperacional } from '../../utils/permissoes';
 
 const INPUT_CLASS = 'w-full rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all hover:border-graphite-400 focus:border-aviation-500 focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100';
 const LABEL_CLASS = 'block mb-1.5 text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400';
@@ -62,9 +63,10 @@ function getCategoriaIcon(cat: CategoriaEquipamento) {
 
 export function Equipamentos() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin' || user?.role === 'desenvolvedor';
 
   const [lista, setLista] = useState<Equipamento[]>([]);
+  const [canManage, setCanManage] = useState(false);
+  const [canManageResponsavel, setCanManageResponsavel] = useState(false);
   const [termo, setTermo] = useState('');
   const [filterCategoria, setFilterCategoria] = useState<CategoriaEquipamento | ''>('');
   const [filterStatus, setFilterStatus] = useState<StatusEquipamento | ''>('');
@@ -84,11 +86,34 @@ export function Equipamentos() {
   useEffect(() => { listarEquipamentos().then(setLista); }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    resolverContextoOperacional(user)
+      .then(contexto => {
+        if (cancelled) return;
+        setCanManage(canGerenciarCadastroModulo(contexto, 'equipamentos'));
+        setCanManageResponsavel(contexto.isAdministradorSistema || contexto.canManageGlobal);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCanManage(false);
+          setCanManageResponsavel(false);
+        }
+      });
+    return () => { cancelled = true; };
+  }, [user]);
+
+  useEffect(() => {
+    if (!canManageResponsavel) {
+      setBombeiros([]);
+      setApocs([]);
+      return;
+    }
+
     Promise.all([listarAtivos(), listarAPOCs()]).then(([b, a]) => {
       setBombeiros(b);
       setApocs(a);
     }).catch(() => {});
-  }, []);
+  }, [canManageResponsavel]);
 
   const filtrados = useMemo(() => {
     return lista.filter(e => {
@@ -104,12 +129,14 @@ export function Equipamentos() {
   }, [lista, debouncedTermo, filterCategoria, filterStatus]);
 
   function openNew() {
+    if (!canManage) return;
     setEditando(null);
     setForm(EMPTY);
     setFormOpen(true);
   }
 
   function openEdit(v: Equipamento) {
+    if (!canManage) return;
     setEditando(v);
     setForm({
       nome: v.nome, descricao: v.descricao, categoria: v.categoria,
@@ -124,6 +151,7 @@ export function Equipamentos() {
   }
 
   async function handleSave() {
+    if (!canManage) return;
     setSaving(true);
     try {
       if (editando) {
@@ -141,6 +169,7 @@ export function Equipamentos() {
   }
 
   async function handleDelete(id: string) {
+    if (!canManage) return;
     try {
       await excluirEquipamento(id);
       setConfirmDelete(null);
@@ -184,7 +213,7 @@ export function Equipamentos() {
   }, [bombeiros, apocs, debouncedPessoa]);
 
   async function handleLinkPerson(person: PersonLink) {
-    if (!linkModal) return;
+    if (!linkModal || !canManageResponsavel) return;
     await atualizarEquipamento(linkModal.id, {
       responsavel: person.nome,
       responsavelId: person.id,
@@ -196,7 +225,7 @@ export function Equipamentos() {
   }
 
   async function handleUnlinkPerson() {
-    if (!linkModal) return;
+    if (!linkModal || !canManageResponsavel) return;
     await atualizarEquipamento(linkModal.id, {
       responsavel: '',
       responsavelId: undefined,
@@ -218,7 +247,7 @@ export function Equipamentos() {
     <PageContainer>
       <div className="mb-6 flex items-center justify-between">
         <PageTitle icon={Wrench} title="Equipamentos — Bombeiro de Aeródromo" />
-        {isAdmin && (
+        {canManage && (
           <button onClick={openNew} className="flex items-center gap-2 rounded-xl bg-aviation-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-aviation-700 dark:bg-aviation-500 dark:hover:bg-aviation-600">
             <Plus className="h-4 w-4" /> Novo Equipamento
           </button>
@@ -260,7 +289,7 @@ export function Equipamentos() {
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300/60 bg-white/50 p-12 text-center dark:border-border-dark dark:bg-surface-card">
           <Wrench className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
           <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhum equipamento encontrado</h3>
-          <p className="text-sm text-graphite-400">{isAdmin ? 'Clique em "Novo Equipamento" para cadastrar.' : 'Nenhum equipamento cadastrado.'}</p>
+          <p className="text-sm text-graphite-400">{canManage ? 'Clique em "Novo Equipamento" para cadastrar.' : 'Nenhum equipamento cadastrado.'}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -292,10 +321,10 @@ export function Equipamentos() {
                       </p>
                       <div className="mt-1 flex flex-wrap gap-3 text-xs text-graphite-400 dark:text-graphite-500">
                         {v.localizacao && <span>📍 {v.localizacao}</span>}
-                        {v.responsavel && (
+                        {canManageResponsavel && v.responsavel && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-aviation-50 px-2 py-0.5 text-aviation-700 dark:bg-aviation-900/20 dark:text-aviation-400">
                             👤 {v.responsavel}
-                            {v.responsavelId && (() => {
+                            {canManageResponsavel && v.responsavelId && (() => {
                               const b = bombeiros.find(b => b.id === v.responsavelId);
                               const a = apocs.find(a => a.id === v.responsavelId);
                               const funcao = b ? (CARGO_OPTIONS.find(c => c.value === b.cargo)?.label || b.cargo)
@@ -309,11 +338,13 @@ export function Equipamentos() {
                       </div>
                     </div>
                   </div>
-                  {isAdmin && (
+                  {canManage && (
                     <div className="flex shrink-0 items-center gap-1">
+                      {canManageResponsavel && (
                       <button onClick={() => setLinkModal(v)} className="rounded-lg p-1.5 text-graphite-400 transition-colors hover:bg-aviation-50 hover:text-aviation-600 dark:hover:bg-aviation-900/20 dark:hover:text-aviation-400" title="Vincular responsável">
                         <Link2 className="h-4 w-4" />
                       </button>
+                      )}
                       <button onClick={() => openEdit(v)} className="rounded-lg p-1.5 text-graphite-400 transition-colors hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover dark:hover:text-graphite-300">
                         <Pencil className="h-4 w-4" />
                       </button>
@@ -396,11 +427,11 @@ export function Equipamentos() {
                     {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                   </select>
                 </div>
-                <div>
+                <div className={canManageResponsavel ? '' : 'hidden'}>
                   <label className={LABEL_CLASS}>Responsável</label>
                   <div className="flex items-center gap-2">
                     <input type="text" value={form.responsavel} readOnly className={INPUT_CLASS + ' cursor-default opacity-70'} placeholder="Vincule pelo botão 🔗 na listagem" />
-                    {form.responsavel && (
+                    {form.responsavel && canManageResponsavel && (
                       <button type="button" onClick={() => {
                         updateField('responsavel', '');
                         updateField('responsavelId', undefined);
@@ -492,7 +523,7 @@ export function Equipamentos() {
         </div>
       )}
 
-      {linkModal && (
+      {linkModal && canManageResponsavel && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => { setLinkModal(null); setBuscaPessoa(''); }}>
           <div className="w-full max-w-lg rounded-2xl bg-white/95 p-6 shadow-2xl backdrop-blur-sm dark:bg-surface-elevated/95" onClick={e => e.stopPropagation()}>
             <div className="mb-4 flex items-center justify-between">

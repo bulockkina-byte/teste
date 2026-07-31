@@ -9,12 +9,13 @@ import { CARGO_OPTIONS, EQUIPE_OPTIONS, ABBR_CARGO, getHorarioTrabalho } from '.
 import { BombeiroForm } from './BombeiroForm';
 import { useDebounce } from '../../hooks/useDebounce';
 import { AlertModal } from '../../components/ui/AlertModal';
+import { podeVerCadastroCompletoBase, resolverContextoOperacional } from '../../utils/permissoes';
 
 export function Bombeiros() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin' || user?.role === 'desenvolvedor';
 
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
+  const [canManageCadastro, setCanManageCadastro] = useState(() => podeVerCadastroCompletoBase(user));
   const [termo, setTermo] = useState('');
   const [filterEquipe, setFilterEquipe] = useState('');
   const [filterCargo, setFilterCargo] = useState('');
@@ -25,7 +26,32 @@ export function Bombeiros() {
   const [saveError, setSaveError] = useState('');
   const [deleting, setDeleting] = useState(false);
 
-  if (!isAdmin) {
+  const debouncedTermo = useDebounce(termo, 400);
+
+  useEffect(() => {
+    let cancelled = false;
+    setCanManageCadastro(podeVerCadastroCompletoBase(user));
+
+    resolverContextoOperacional(user)
+      .then(contexto => {
+        if (!cancelled) setCanManageCadastro(contexto.isAdministradorSistema || contexto.canManageGlobal);
+      })
+      .catch(() => {
+        if (!cancelled) setCanManageCadastro(podeVerCadastroCompletoBase(user));
+      });
+
+    return () => { cancelled = true; };
+  }, [user]);
+
+  useEffect(() => {
+    if (!canManageCadastro) {
+      setBombeiros([]);
+      return;
+    }
+    carregar();
+  }, [canManageCadastro, debouncedTermo, filterEquipe, filterCargo]);
+
+  if (!canManageCadastro) {
     return (
       <PageContainer>
         <PageTitle icon={Shield} title="Bombeiros" />
@@ -35,18 +61,12 @@ export function Bombeiros() {
             Acesso Restrito
           </h3>
           <p className="text-sm text-graphite-400">
-            Apenas administradores podem acessar o cadastro de bombeiros.
+            Apenas Administradores e GS podem acessar o cadastro de bombeiros.
           </p>
         </div>
       </PageContainer>
     );
   }
-
-  const debouncedTermo = useDebounce(termo, 400);
-
-  useEffect(() => {
-    carregar();
-  }, [debouncedTermo, filterEquipe, filterCargo]);
 
   async function carregar() {
     let lista = debouncedTermo ? await buscarBombeiro(debouncedTermo) : await listarBombeiros();
@@ -56,6 +76,7 @@ export function Bombeiros() {
   }
 
   async function handleSave(data: Omit<Bombeiro, 'id' | 'createdAt' | 'updatedAt'>) {
+    if (!canManageCadastro) return;
     try {
       setSaveError('');
       if (editando) {
@@ -72,6 +93,7 @@ export function Bombeiros() {
   }
 
   function handleEdit(b: Bombeiro) {
+    if (!canManageCadastro) return;
     setEditando(b);
     setFormOpen(true);
   }
@@ -86,6 +108,7 @@ export function Bombeiros() {
   }
 
   async function handleDelete(id: string) {
+    if (!canManageCadastro) return;
     if (deleting) return;
     setDeleting(true);
     try {
@@ -207,7 +230,7 @@ export function Bombeiros() {
                       >
                         <Pencil className="h-4 w-4" />
                       </button>
-                      {isAdmin && (
+                      {canManageCadastro && (
                         <button
                           onClick={() => setConfirmDelete(b.id)}
                           className="rounded-xl p-1.5 text-alert-red transition-all duration-200 hover:bg-red-50 dark:hover:bg-red-900/20"

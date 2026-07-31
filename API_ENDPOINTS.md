@@ -525,7 +525,7 @@ GET com filtro `ativa=true`. ✅ OK
 ### criarSubstituicaoTemporaria / aprovar / rejeitar / excluir
 
 ✅ OK  
-**Regras:** criação e aprovação bloqueiam mesma pessoa como substituto, datas/dias inválidos, motivo `Outro` sem descrição, `Extra` sem resposta de plantão extra e sobreposição com substituições pendentes/aprovadas. `plantaoExtra` é exibido na UI como `Sim | Nao | ''`, mas persiste em `plantao_extra` como `BOOLEAN` (`Sim` → `true`; `Nao`/vazio → `false`). `Afastamento` usa `cadeia_substituicao` (`JSONB`) para persistir a corrente até Ferista; ao aprovar, gera vigências em `vigencia_substituicoes` com origem `afastamento`, e a tela de funcionários deriva o status `Afastado` de afastamentos aprovados e vigentes.
+**Regras:** criação e aprovação bloqueiam mesma pessoa como substituto, datas/dias inválidos, motivo `Outro` sem descrição, `Extra` sem resposta de plantão extra e sobreposição com substituições pendentes/aprovadas. `plantaoExtra` é exibido na UI como `Sim | Nao | ''`, mas persiste em `plantao_extra` como `BOOLEAN` (`Sim` → `true`; `Nao`/vazio → `false`). `Substituição` aprovada gera vigência direta em `vigencia_substituicoes` com origem `substituicao`, fazendo o substituto herdar cargo/equipe do substituído durante o período. `Afastamento` usa `cadeia_substituicao` (`JSONB`) para persistir a corrente até Ferista; ao aprovar, gera vigências em `vigencia_substituicoes` com origem `afastamento`, e a tela de funcionários deriva o status `Afastado` de afastamentos aprovados e vigentes.
 
 ---
 
@@ -1554,7 +1554,7 @@ RPC `atualizar_senha(p_username, p_password)`. Retorna `boolean`. ✅ OK
   "dataInicio": "string (ISO date)",
   "dataFim": "string (ISO date)",
   "nivelCascata": "number (1=substituto direto, 2+=cascata)",
-  "motivo": "ferias | cascata",
+  "motivo": "ferias | afastamento | substituicao | cascata",
   "feriasId": "string | '' (FK para o registo de férias original)",
   "ativa": "boolean",
   "createdAt": "string (ISO datetime)"

@@ -7,6 +7,7 @@ import { listarHidrantes, criarHidrante, atualizarHidrante, excluirHidrante } fr
 import type { Hidrante, TipoHidrante, StatusHidrante } from '../../types/hidrante';
 import { TIPO_HIDRANTE_OPTIONS, STATUS_HIDRANTE_OPTIONS, INTERVALO_CONFERENCIA_OPTIONS } from '../../types/hidrante';
 import { useDebounce } from '../../hooks/useDebounce';
+import { canGerenciarCadastroModulo, resolverContextoOperacional } from '../../utils/permissoes';
 
 const INPUT_CLASS = "w-full rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all hover:border-graphite-400 focus:border-aviation-500 focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:hover:border-graphite-500 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated dark:focus:ring-aviation-400/10 dark:scheme-dark";
 const LABEL_CLASS = 'block mb-1.5 text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400';
@@ -23,9 +24,9 @@ const EMPTY: Omit<Hidrante, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'> = {
 
 export function Hidrantes() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin' || user?.role === 'desenvolvedor';
 
   const [lista, setLista] = useState<Hidrante[]>([]);
+  const [canManage, setCanManage] = useState(false);
   const [termo, setTermo] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [formOpen, setFormOpen] = useState(false);
@@ -36,6 +37,18 @@ export function Hidrantes() {
   const debouncedTermo = useDebounce(termo, 400);
 
   useEffect(() => { carregar(); }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    resolverContextoOperacional(user)
+      .then(contexto => {
+        if (!cancelled) setCanManage(canGerenciarCadastroModulo(contexto, 'hidrantes'));
+      })
+      .catch(() => {
+        if (!cancelled) setCanManage(false);
+      });
+    return () => { cancelled = true; };
+  }, [user]);
 
   async function carregar() {
     setLista(await listarHidrantes());
@@ -50,12 +63,14 @@ export function Hidrantes() {
   });
 
   function openNew() {
+    if (!canManage) return;
     setEditando(null);
     setForm(EMPTY);
     setFormOpen(true);
   }
 
   function openEdit(h: Hidrante) {
+    if (!canManage) return;
     setEditando(h);
     setForm({
       numero: h.numero,
@@ -70,6 +85,7 @@ export function Hidrantes() {
   }
 
   async function handleSave() {
+    if (!canManage) return;
     try {
       if (editando) {
         await atualizarHidrante(editando.id, form);
@@ -84,6 +100,7 @@ export function Hidrantes() {
   }
 
   async function handleDelete(id: string) {
+    if (!canManage) return;
     try {
       await excluirHidrante(id);
       setConfirmDelete(null);
@@ -104,7 +121,7 @@ export function Hidrantes() {
     <PageContainer>
       <div className="mb-6 flex items-center justify-between">
         <PageTitle icon={Droplets} title="Hidrantes" />
-        {isAdmin && (
+        {canManage && (
           <button onClick={openNew} className="flex items-center gap-2 rounded-xl bg-aviation-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-aviation-700 dark:bg-aviation-500 dark:hover:bg-aviation-600">
             <Plus className="h-4 w-4" /> Novo Hidrante
           </button>
@@ -135,7 +152,7 @@ export function Hidrantes() {
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300/60 bg-white/50 p-12 text-center dark:border-border-dark dark:bg-surface-card">
           <Droplets className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
           <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhum hidrante encontrado</h3>
-          <p className="text-sm text-graphite-400">{isAdmin ? 'Clique em "Novo Hidrante" para cadastrar.' : 'Nenhum hidrante cadastrado ainda.'}</p>
+          <p className="text-sm text-graphite-400">{canManage ? 'Clique em "Novo Hidrante" para cadastrar.' : 'Nenhum hidrante cadastrado ainda.'}</p>
         </div>
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-graphite-200/60 bg-white/80 backdrop-blur-sm dark:border-border-dark dark:bg-surface-card">
@@ -148,7 +165,7 @@ export function Hidrantes() {
                 <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Pressão</th>
                 <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Intervalo</th>
                 <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Status</th>
-                {isAdmin && <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Ações</th>}
+                {canManage && <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Ações</th>}
               </tr>
             </thead>
             <tbody>
@@ -160,7 +177,7 @@ export function Hidrantes() {
                 <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{h.pressao || '-'}</td>
                 <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{INTERVALO_CONFERENCIA_OPTIONS.find(o => o.value === h.intervaloConferencia)?.label || '-'}</td>
                 <td className="px-4 py-3"><span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColor(h.status)}`}>{h.status}</span></td>
-                  {isAdmin && (
+                  {canManage && (
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
                         <button onClick={() => openEdit(h)} className="rounded-lg p-1.5 text-graphite-400 transition-colors hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover dark:hover:text-graphite-300">
