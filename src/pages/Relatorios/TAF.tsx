@@ -1,17 +1,17 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Plus, Search, Trash2, Save, X, Target,
-  AlertTriangle, Users, Clock,
+  AlertTriangle, Users, Lock,
 } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { SearchSelect } from '../../components/ui/SearchSelect';
-import { useAuth } from '../../context/AuthContext';
+import { useContextoOperacional } from '../../hooks/useContextoOperacional';
 import { listarAtivos } from '../../services/bombeiroService';
 import { listarFeriasGozo } from '../../services/feriasService';
 import { listarVigencias } from '../../services/vigenciaSubstituicaoService';
 import { listarTAFs, criarTAF, atualizarTAF, excluirTAF, obterProximoNumero } from '../../services/tafService';
-import { equipesNoDia } from '../../utils/equipes';
 import type { TreinamentoTAF } from '../../types/taf';
 
 const EQUIPES = ['Alfa', 'Bravo', 'Charlie', 'Delta'] as const;
@@ -29,7 +29,10 @@ const labelCls = 'mb-1.5 block text-xs font-semibold uppercase tracking-wider te
 function fmt(d: string) { if (!d) return '-'; return new Date(d + 'T12:00:00').toLocaleDateString('pt-BR'); }
 
 export function TAF() {
-  const { user } = useAuth();
+  const { user, canManageGlobal, canManageEquipe, equipeEfetiva, loadingContexto } = useContextoOperacional();
+  const location = useLocation();
+  const isRelatorioRoute = location.pathname.startsWith('/relatorios');
+  const canCreate = canManageGlobal || !!equipeEfetiva;
   const [registros, setRegistros] = useState<TreinamentoTAF[]>([]);
   const [bombeiros, setBombeiros] = useState<any[]>([]);
   const [search, setSearch] = useState('');
@@ -53,10 +56,17 @@ export function TAF() {
   );
   const [fObs, setFObs] = useState('');
 
+  const equipesFormulario = useMemo(() => {
+    if (canManageGlobal) return [...EQUIPES];
+    return equipeEfetiva ? [equipeEfetiva] : [];
+  }, [canManageGlobal, equipeEfetiva]);
+
   useEffect(() => {
+    if (isRelatorioRoute && loadingContexto) return;
+    if (isRelatorioRoute && !canManageGlobal) return;
     listarAtivos().then(setBombeiros);
     carregar();
-  }, []);
+  }, [isRelatorioRoute, canManageGlobal, loadingContexto]);
 
   useEffect(() => { carregar(); }, [filtroAno]);
 
@@ -82,7 +92,8 @@ export function TAF() {
   }
 
   function resetForm() {
-    setFEquipe(''); setFNumero(0); setFAno(''); setFData(''); setFHora(''); setFTurno(''); setFTipo('');
+    const equipePadrao = canManageGlobal ? '' : equipeEfetiva || '';
+    setFEquipe(equipePadrao); setFNumero(0); setFAno(''); setFData(''); setFHora(''); setFTurno(turnoAuto(equipePadrao)); setFTipo('');
     setFPessoas(Array.from({ length: 10 }, () => ({ nome: '', funcao: '', idade: 0, tempo: '' })));
     setFObs('');
   }
@@ -166,6 +177,10 @@ export function TAF() {
   }, [fEquipe, fData, formOpen]);
 
   async function handleNovo() {
+    if (!canCreate) {
+      alert('Você precisa ter uma equipe efetiva para criar treinamentos.');
+      return;
+    }
     resetForm();
     setEditando(null);
     const a = new Date().getFullYear().toString();
@@ -175,6 +190,10 @@ export function TAF() {
   }
 
   function handleEditar(r: TreinamentoTAF) {
+    if (!canManageEquipe(r.equipe)) {
+      alert('Você só pode editar treinamentos da sua equipe efetiva.');
+      return;
+    }
     setEditando(r);
     setFEquipe(r.equipe); setFNumero(r.numero); setFAno(r.ano); setFData(r.data); setFHora(r.hora); setFTurno(r.turno); setFTipo(r.tipoTaf);
     setFPessoas(Array.from({ length: 10 }, (_, i) => ({ nome: (r as any)[`p${i+1}Nome`] || '', funcao: (r as any)[`p${i+1}Funcao`] || '', idade: (r as any)[`p${i+1}Idade`] || 0, tempo: (r as any)[`p${i+1}Tempo`] || '' })));
@@ -183,10 +202,19 @@ export function TAF() {
   }
 
   async function handleSalvar() {
-    if (!fEquipe || !fData || !fTipo) return;
+    const equipeAlvo = canManageGlobal ? fEquipe : equipeEfetiva || '';
+    if (!equipeAlvo || !fData || !fTipo) return;
+    if (editando && !canManageEquipe(editando.equipe)) {
+      alert('Você só pode editar treinamentos da sua equipe efetiva.');
+      return;
+    }
+    if (!canManageEquipe(equipeAlvo)) {
+      alert('Você só pode salvar treinamentos da sua equipe efetiva.');
+      return;
+    }
     setSaving(true);
     try {
-      const data: any = { equipe: fEquipe, numero: fNumero, ano: fAno, data: fData, hora: fHora, turno: fTurno, tipoTaf: fTipo, observacoes: fObs, chefeEquipe: user?.name || '' };
+      const data: any = { equipe: equipeAlvo, numero: fNumero, ano: fAno, data: fData, hora: fHora, turno: turnoAuto(equipeAlvo), tipoTaf: fTipo, observacoes: fObs, chefeEquipe: user?.name || '' };
       for (let i = 0; i < 10; i++) {
         data[`p${i+1}Nome`] = fPessoas[i].nome; data[`p${i+1}Funcao`] = fPessoas[i].funcao; data[`p${i+1}Idade`] = fPessoas[i].idade; data[`p${i+1}Tempo`] = fPessoas[i].tempo;
       }
@@ -195,7 +223,17 @@ export function TAF() {
     } catch (err) { alert('Erro: ' + (err instanceof Error ? err.message : 'Erro')); } finally { setSaving(false); }
   }
 
-  async function handleExcluir(id: string) { await excluirTAF(id); await carregar(); setDeleteConfirm(null); }
+  async function handleExcluir(id: string) {
+    const registro = registros.find(r => r.id === id);
+    if (registro && !canManageEquipe(registro.equipe)) {
+      alert('Você só pode excluir treinamentos da sua equipe efetiva.');
+      setDeleteConfirm(null);
+      return;
+    }
+    await excluirTAF(id);
+    await carregar();
+    setDeleteConfirm(null);
+  }
 
   function SlotLinha({ idx, slot }: { idx: number; slot: typeof SLOTS[number] }) {
     const p = fPessoas[idx];
@@ -212,6 +250,22 @@ export function TAF() {
     );
   }
 
+  if (isRelatorioRoute && loadingContexto) {
+    return <PageContainer><div className="flex justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-4 border-aviation-500 border-t-transparent" /></div></PageContainer>;
+  }
+
+  if (isRelatorioRoute && !canManageGlobal) {
+    return (
+      <PageContainer>
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">
+          <Lock className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
+          <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Acesso restrito</h3>
+          <p className="text-sm text-graphite-400 dark:text-graphite-500">A tela de relatórios está disponível apenas para GS e administradores do sistema.</p>
+        </div>
+      </PageContainer>
+    );
+  }
+
   return (
     <PageContainer>
       <PageTitle icon={Target} title="TAF - Teste de Aptidão Física" />
@@ -224,10 +278,12 @@ export function TAF() {
               <p className="text-[9px] font-bold uppercase tracking-wider text-aviation-500">{filtroAno}</p>
             </div>
           </div>
-          <button onClick={handleNovo}
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
-            <Plus className="h-4 w-4" /> Novo TAF
-          </button>
+          {canCreate && (
+            <button onClick={handleNovo}
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
+              <Plus className="h-4 w-4" /> Novo TAF
+            </button>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -261,12 +317,14 @@ export function TAF() {
                     <p className="text-xs text-graphite-500 dark:text-graphite-400 truncate">{fmt(r.data)} {r.hora && `às ${r.hora}`} · {r.turno}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <button onClick={() => handleEditar(r)} className="rounded-xl p-1.5 text-graphite-400 hover:bg-graphite-100 dark:hover:bg-surface-hover">
-                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                  </button>
-                  <button onClick={() => setDeleteConfirm(r.id)} className="rounded-xl p-1.5 text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="h-4 w-4" /></button>
-                </div>
+                {canManageEquipe(r.equipe) && (
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button onClick={() => handleEditar(r)} className="rounded-xl p-1.5 text-graphite-400 hover:bg-graphite-100 dark:hover:bg-surface-hover">
+                      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    </button>
+                    <button onClick={() => setDeleteConfirm(r.id)} className="rounded-xl p-1.5 text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="h-4 w-4" /></button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -286,9 +344,9 @@ export function TAF() {
               <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
                 <div>
                   <label className={labelCls}>Equipe</label>
-                  <select value={fEquipe} onChange={e => { setFEquipe(e.target.value); setFTurno(turnoAuto(e.target.value)); }} className={inputCls}>
+                  <select value={fEquipe} onChange={e => { setFEquipe(e.target.value); setFTurno(turnoAuto(e.target.value)); }} disabled={!canManageGlobal} className={inputCls}>
                     <option value="">Selecione</option>
-                    {EQUIPES.map(eq => <option key={eq} value={eq}>{eq}</option>)}
+                    {equipesFormulario.map(eq => <option key={eq} value={eq}>{eq}</option>)}
                   </select>
                 </div>
                 <div>

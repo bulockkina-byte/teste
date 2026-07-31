@@ -2,6 +2,7 @@ import type { APOC } from '../types/apoc';
 import { supabase } from '../lib/supabase';
 
 const TABLE = 'apocs';
+const PUBLIC_COLUMNS = 'id, nome_completo, nome_guerra, funcao, equipe, created_at, updated_at';
 
 function getDb() {
   if (!supabase) throw new Error('Supabase não configurado. Verifique as credenciais no arquivo .env');
@@ -30,6 +31,13 @@ function rowToApoc(row: Record<string, unknown>): APOC {
   };
 }
 
+function rowToApocPublico(row: Record<string, unknown>): APOC {
+  return rowToApoc({
+    email: '',
+    ...row,
+  });
+}
+
 export async function listarAPOCs(): Promise<APOC[]> {
   const db = getDb();
   const { data, error } = await db
@@ -38,6 +46,16 @@ export async function listarAPOCs(): Promise<APOC[]> {
     .order('created_at', { ascending: false });
   if (error) handleSupabaseError(error);
   return (data || []).map(rowToApoc);
+}
+
+export async function listarAPOCsPublico(): Promise<APOC[]> {
+  const db = getDb();
+  const { data, error } = await db
+    .from(TABLE)
+    .select(PUBLIC_COLUMNS)
+    .order('created_at', { ascending: false });
+  if (error) handleSupabaseError(error);
+  return (data || []).map(rowToApocPublico);
 }
 
 export async function buscarAPOC(termo: string): Promise<APOC[]> {
@@ -49,6 +67,17 @@ export async function buscarAPOC(termo: string): Promise<APOC[]> {
     .or(`nome_completo.ilike.%${t}%,nome_guerra.ilike.%${t}%,email.ilike.%${t}%`);
   if (error) handleSupabaseError(error);
   return (data || []).map(rowToApoc);
+}
+
+export async function buscarAPOCPublico(termo: string): Promise<APOC[]> {
+  const t = termo.toLowerCase();
+  const db = getDb();
+  const { data, error } = await db
+    .from(TABLE)
+    .select(PUBLIC_COLUMNS)
+    .or(`nome_completo.ilike.%${t}%,nome_guerra.ilike.%${t}%`);
+  if (error) handleSupabaseError(error);
+  return (data || []).map(rowToApocPublico);
 }
 
 export async function criarAPOC(data: Omit<APOC, 'id' | 'createdAt' | 'updatedAt'>): Promise<APOC> {

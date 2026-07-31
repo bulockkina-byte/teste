@@ -4,8 +4,7 @@ import {
 } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
-import { useAuth } from '../../context/AuthContext';
-import { listarBombeiros } from '../../services/bombeiroService';
+import { useContextoOperacional } from '../../hooks/useContextoOperacional';
 import { listarOcorrencias, criarOcorrencia, atualizarOcorrencia, excluirOcorrencia } from '../../services/ocorrenciaService';
 import { CATEGORIAS_OCORRENCIA, STATUS_OCORRENCIA, EQUIPES } from '../../types/ocorrencia';
 import type { Ocorrencia } from '../../types/ocorrencia';
@@ -31,40 +30,18 @@ function emptyOcorrencia(): Omit<Ocorrencia, 'id' | 'createdAt' | 'updatedAt' | 
   };
 }
 
-async function getUserRole(username: string): Promise<'admin' | 'gerente' | 'chefe'> {
-  if (username === 'admin') return 'admin';
-  const users = JSON.parse(localStorage.getItem('sescinc-users') || '{}');
-  const stored = users[username];
-  if (stored?.role === 'desenvolvedor' || stored?.role === 'admin') return 'admin';
-  const bombeiros = await listarBombeiros();
-  const b = bombeiros.find(
-    x => x.nomeGuerra.toLowerCase() === username.toLowerCase() ||
-         x.nomeCompleto.toLowerCase().includes(username.toLowerCase()),
-  );
-  if (b?.cargo === 'GS' || b?.equipe === 'Embaixador') return 'gerente';
-  if (b?.cargo === 'BA-CE' || b?.cargo === 'BA-LR') return 'chefe';
-  return 'chefe';
-}
-
-async function getUserEquipe(username: string): Promise<string> {
-  const bombeiros = await listarBombeiros();
-  const b = bombeiros.find(
-    x => x.nomeGuerra.toLowerCase() === username.toLowerCase() ||
-         x.nomeCompleto.toLowerCase().includes(username.toLowerCase()),
-  );
-  return b?.equipe || '';
-}
-
 /* ───────── Formulário ───────── */
 
 function OcorrenciaForm({
   ocorrencia,
   userEquipe,
+  canManageGlobal,
   onSave,
   onCancel,
 }: {
   ocorrencia?: Ocorrencia;
   userEquipe: string;
+  canManageGlobal: boolean;
   onSave: (data: Omit<Ocorrencia, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) => void;
   onCancel: () => void;
 }) {
@@ -108,9 +85,9 @@ function OcorrenciaForm({
             </div>
             <div>
               <label className={label}>Equipe *</label>
-              <select value={form.equipe} onChange={e => setForm(f => ({ ...f, equipe: e.target.value }))} className={select}>
+              <select value={form.equipe} onChange={e => setForm(f => ({ ...f, equipe: e.target.value }))} className={select} disabled={!canManageGlobal}>
                 <option value="">Selecione</option>
-                {EQUIPES.map(eq => <option key={eq} value={eq}>{eq}</option>)}
+                {EQUIPES.filter(eq => canManageGlobal || eq === userEquipe).map(eq => <option key={eq} value={eq}>{eq}</option>)}
               </select>
             </div>
             <div>
@@ -310,26 +287,9 @@ function OcorrenciaCard({
 /* ───────── Página principal ───────── */
 
 export function LROOcorrencias() {
-  const { user } = useAuth();
+  const { user, canManageGlobal, canManageEquipe, equipeEfetiva } = useContextoOperacional();
   const username = user?.username || '';
-  const [role, setRole] = useState<'admin' | 'gerente' | 'chefe'>('chefe');
-  const [userEquipe, setUserEquipe] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      const r = await getUserRole(username);
-      if (cancelled) return;
-      setRole(r);
-      const eq = await getUserEquipe(username);
-      if (!cancelled) setUserEquipe(eq);
-    }
-    load();
-    return () => { cancelled = true; };
-  }, [username]);
-  const isAdmin = role === 'admin';
-  const isGerente = role === 'gerente';
-  const canFilterTeam = isAdmin || isGerente;
-  const canEdit = isAdmin || role === 'chefe';
+  const canCreate = canManageGlobal || !!equipeEfetiva;
 
   const [ocorrencias, setOcorrencias] = useState<Ocorrencia[]>([]);
   const [mode, setMode] = useState<'list' | 'form' | 'view'>('list');
@@ -351,10 +311,7 @@ export function LROOcorrencias() {
 
   const filtradas = useMemo(() => {
     let list = ocorrencias;
-    if (!canFilterTeam && userEquipe) {
-      list = list.filter(o => o.equipe === userEquipe);
-    }
-    if (canFilterTeam && filtroEquipe) {
+    if (filtroEquipe) {
       list = list.filter(o => o.equipe === filtroEquipe);
     }
     if (filtroStatus) {
@@ -370,13 +327,23 @@ export function LROOcorrencias() {
       });
     }
     return list;
-  }, [ocorrencias, canFilterTeam, userEquipe, filtroEquipe, filtroStatus, filtroAno, filtroMes]);
+  }, [ocorrencias, filtroEquipe, filtroStatus, filtroAno, filtroMes]);
 
   async function handleSave(data: Omit<Ocorrencia, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) {
+    const equipeAlvo = canManageGlobal ? data.equipe : equipeEfetiva || data.equipe;
+    if (!canManageEquipe(equipeAlvo)) {
+      alert('Você só pode salvar ocorrências da sua equipe efetiva.');
+      return;
+    }
+    if (editando?.id && !canManageEquipe(editando.equipe)) {
+      alert('Você só pode editar ocorrências da sua equipe efetiva.');
+      return;
+    }
+    const payload = { ...data, equipe: equipeAlvo as string };
     if (editando && editando.id) {
-      await atualizarOcorrencia(editando.id, data);
+      await atualizarOcorrencia(editando.id, payload);
     } else {
-      await criarOcorrencia({ ...data, createdBy: username });
+      await criarOcorrencia({ ...payload, createdBy: username });
     }
     carregar();
     setEditando(null);
@@ -384,6 +351,12 @@ export function LROOcorrencias() {
   }
 
   async function handleDelete(id: string) {
+    const alvo = ocorrencias.find(o => o.id === id);
+    if (!alvo || !canManageEquipe(alvo.equipe)) {
+      alert('Você só pode excluir ocorrências da sua equipe efetiva.');
+      setConfirmDelete(null);
+      return;
+    }
     await excluirOcorrencia(id);
     setConfirmDelete(null);
     carregar();
@@ -393,7 +366,13 @@ export function LROOcorrencias() {
     return (
       <PageContainer>
         <PageTitle icon={AlertCircle} title={editando ? 'Editar Ocorrência' : 'Nova Ocorrência'} />
-        <OcorrenciaForm ocorrencia={editando || undefined} userEquipe={userEquipe} onSave={handleSave} onCancel={() => { setMode('list'); setEditando(null); }} />
+        <OcorrenciaForm
+          ocorrencia={editando || undefined}
+          userEquipe={equipeEfetiva || ''}
+          canManageGlobal={canManageGlobal}
+          onSave={handleSave}
+          onCancel={() => { setMode('list'); setEditando(null); }}
+        />
       </PageContainer>
     );
   }
@@ -425,15 +404,13 @@ export function LROOcorrencias() {
             <option value="">Todos os status</option>
             {STATUS_OCORRENCIA.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
-          {canFilterTeam && (
-            <select value={filtroEquipe} onChange={e => setFiltroEquipe(e.target.value)} className={inputClass}>
-              <option value="">Todas as equipes</option>
-              {EQUIPES.map(eq => <option key={eq} value={eq}>{eq}</option>)}
-            </select>
-          )}
+          <select value={filtroEquipe} onChange={e => setFiltroEquipe(e.target.value)} className={inputClass}>
+            <option value="">Todas as equipes</option>
+            {EQUIPES.map(eq => <option key={eq} value={eq}>{eq}</option>)}
+          </select>
           <p className="text-sm text-graphite-500 dark:text-graphite-400">{filtradas.length} ocorrência(s)</p>
         </div>
-        {canEdit && (
+        {canCreate && (
           <button onClick={() => { setEditando(null); setMode('form'); }}
             className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
             <Plus className="h-4 w-4" /> Nova Ocorrência
@@ -445,12 +422,12 @@ export function LROOcorrencias() {
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300/60 bg-white/50 p-12 text-center backdrop-blur-sm dark:border-border-dark dark:bg-surface-card">
           <AlertCircle className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
           <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhuma ocorrência encontrada</h3>
-          <p className="text-sm text-graphite-400">Clique em "Nova Ocorrência" para registrar.</p>
+          <p className="text-sm text-graphite-400">{canCreate ? 'Clique em "Nova Ocorrência" para registrar.' : 'Nenhuma ocorrência disponível.'}</p>
         </div>
       ) : (
         <div className="space-y-3">
           {filtradas.map(o => (
-            <OcorrenciaCard key={o.id} o={o} canEdit={canEdit}
+            <OcorrenciaCard key={o.id} o={o} canEdit={canManageEquipe(o.equipe)}
               onView={() => { setVisualizando(o); setMode('view'); }}
               onEdit={() => { setEditando(o); setMode('form'); }}
               onDelete={() => setConfirmDelete(o.id)}

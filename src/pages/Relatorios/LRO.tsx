@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
-import { FileSpreadsheet, Search, ChevronDown, ChevronUp } from 'lucide-react';
+import { FileSpreadsheet, Search, ChevronDown, ChevronUp, Lock } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { listarLROs } from '../../services/lroService';
 import type { LRO } from '../../types/lro';
+import { useContextoOperacional } from '../../hooks/useContextoOperacional';
 
 function fmt(d: string) {
   if (!d) return '-';
@@ -11,6 +12,7 @@ function fmt(d: string) {
 }
 
 export function LRO() {
+  const { canManageGlobal, loadingContexto } = useContextoOperacional();
   const [lros, setLros] = useState<LRO[]>([]);
   const [search, setSearch] = useState('');
   const [filterEquipe, setFilterEquipe] = useState('');
@@ -18,8 +20,13 @@ export function LRO() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (loadingContexto) return;
+    if (!canManageGlobal) {
+      setLoading(false);
+      return;
+    }
     listarLROs().then(l => { setLros(l); setLoading(false); }).catch(() => setLoading(false));
-  }, []);
+  }, [canManageGlobal, loadingContexto]);
 
   const filtered = useMemo(() => {
     let lista = lros;
@@ -41,7 +48,19 @@ export function LRO() {
     porEquipe: equipes.map(eq => ({ equipe: eq, total: lros.filter(l => l.equipe === eq).length })),
   }), [lros, equipes]);
 
-  if (loading) return <PageContainer><div className="flex justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-4 border-aviation-500 border-t-transparent" /></div></PageContainer>;
+  if (loading || loadingContexto) return <PageContainer><div className="flex justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-4 border-aviation-500 border-t-transparent" /></div></PageContainer>;
+
+  if (!canManageGlobal) {
+    return (
+      <PageContainer>
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">
+          <Lock className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
+          <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Acesso restrito</h3>
+          <p className="text-sm text-graphite-400 dark:text-graphite-500">A tela de relatórios está disponível apenas para GS e administradores do sistema.</p>
+        </div>
+      </PageContainer>
+    );
+  }
 
   return (
     <PageContainer>

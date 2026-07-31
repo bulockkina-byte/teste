@@ -23,6 +23,11 @@ import {
 } from '../../types/epi';
 import type { EPI, EPIEstoque, EstadoConservacao } from '../../types/epi';
 import type { Bombeiro } from '../../types/bombeiro';
+import {
+  canAcessarDadosPessoais,
+  podeVerDadosPessoaisBase,
+  resolverContextoOperacional,
+} from '../../utils/permissoes';
 
 type Tab = 'funcionarios' | 'epis';
 
@@ -48,27 +53,11 @@ function setControleNotificacao(username: string) {
   } catch { /* ignore */ }
 }
 
-async function getUserRole(username: string): Promise<'admin' | 'gerente' | 'chefe'> {
-  if (username === 'admin') return 'admin';
-  const users = JSON.parse(localStorage.getItem('sescinc-users') || '{}');
-  const stored = users[username];
-  if (stored?.role === 'desenvolvedor' || stored?.role === 'admin') return 'admin';
-  const b = (await listarBombeiros()).find(
-    x => x.nomeGuerra.toLowerCase() === username.toLowerCase() ||
-         x.nomeCompleto.toLowerCase().includes(username.toLowerCase()),
-  );
-  if (b?.cargo === 'GS' || b?.equipe === 'Embaixador') return 'gerente';
-  return 'chefe';
-}
-
 export function EPIs() {
   const { user } = useAuth();
   const username = user?.username || '';
-  const [role, setRole] = useState<'admin' | 'gerente' | 'chefe'>('chefe');
-  useEffect(() => { (async () => { setRole(await getUserRole(username)); })(); }, [username]);
-  const isAdmin = role === 'admin';
-  const isGerente = role === 'gerente';
-  const canManage = isAdmin;
+  const [canDeleteEpis, setCanDeleteEpis] = useState(() => podeVerDadosPessoaisBase(user));
+  const canManage = true;
 
   const [tab, setTab] = useState<Tab>('funcionarios');
   const [epis, setEpis] = useState<EPI[]>([]);
@@ -88,6 +77,21 @@ export function EPIs() {
   const [confirmPagar, setConfirmPagar] = useState<{ estoque: EPIEstoque; bombeiro: Bombeiro } | null>(null);
   const [confirmDevolver, setConfirmDevolver] = useState<{ epi: EPI; bombeiro: Bombeiro } | null>(null);
 
+  useEffect(() => {
+    let cancelled = false;
+    setCanDeleteEpis(podeVerDadosPessoaisBase(user));
+
+    resolverContextoOperacional(user)
+      .then(contexto => {
+        if (!cancelled) setCanDeleteEpis(canAcessarDadosPessoais(contexto));
+      })
+      .catch(() => {
+        if (!cancelled) setCanDeleteEpis(podeVerDadosPessoaisBase(user));
+      });
+
+    return () => { cancelled = true; };
+  }, [user]);
+
   async function carregar() {
     const [episData, funcsData, estoqueData] = await Promise.all([listarEPIs(), listarBombeiros(), listarEstoque()]);
     setEpis(episData);
@@ -96,35 +100,12 @@ export function EPIs() {
   }
   useEffect(() => { carregar(); }, []);
 
-  const meuBombeiro = useMemo(() => {
-    return funcionarios.find(
-      f => f.nomeGuerra.toLowerCase() === username.toLowerCase() ||
-           f.nomeCompleto.toLowerCase().includes(username.toLowerCase()),
-    );
-  }, [funcionarios, username]);
-
-  const minhaEquipe = useMemo(() => {
-    if (isGerente || isAdmin) return null;
-    return meuBombeiro?.equipe || null;
-  }, [meuBombeiro, isGerente, isAdmin]);
-
-  const funcionariosDaMinhaEquipe = useMemo(() => {
-    if (!minhaEquipe) return funcionarios;
-    return funcionarios.filter(f => f.equipe === minhaEquipe);
-  }, [funcionarios, minhaEquipe]);
-
-  const episFiltradosParaNotificacao = useMemo(() => {
-    if (isGerente || isAdmin) return epis;
-    const idsFuncs = new Set(funcionariosDaMinhaEquipe.map(f => f.id));
-    return epis.filter(e => idsFuncs.has(e.colaboradorId) || funcionariosDaMinhaEquipe.some(f => f.nomeGuerra === e.colaborador));
-  }, [epis, isGerente, isAdmin, funcionariosDaMinhaEquipe]);
-
   const notificacoes = useMemo(() => {
     const vencidos: { epi: EPI; func: Bombeiro | undefined }[] = [];
     const criticos: { epi: EPI; func: Bombeiro | undefined }[] = [];
     const atencao: { epi: EPI; func: Bombeiro | undefined }[] = [];
 
-    episFiltradosParaNotificacao.forEach(epi => {
+    epis.forEach(epi => {
       if (epi.status === 'devolvido' || !epi.dataValidade) return;
       const prioridade = getPrioridade(epi.dataValidade);
       const func = funcionarios.find(f => f.id === epi.colaboradorId || f.nomeGuerra === epi.colaborador);
@@ -134,16 +115,15 @@ export function EPIs() {
     });
 
     return { vencidos, criticos, atencao };
-  }, [episFiltradosParaNotificacao, funcionarios]);
+  }, [epis, funcionarios]);
 
   const deveMostrarNotificacao = useMemo(() => {
-    if (!isGerente && !isAdmin && !meuBombeiro) return false;
     if (notificacoes.vencidos.length === 0 && notificacoes.criticos.length === 0 && notificacoes.atencao.length === 0) return false;
     const controle = getControleNotificacao(username);
     if (!controle) return true;
     const tempoDecorrido = Date.now() - new Date(controle.ultima).getTime();
     return tempoDecorrido >= INTERVALO_NOTIFICACAO_MS;
-  }, [username, isGerente, isAdmin, meuBombeiro, notificacoes]);
+  }, [username, notificacoes]);
 
   const dismissNotificacao = useCallback(() => {
     setControleNotificacao(username);
@@ -167,7 +147,6 @@ export function EPIs() {
 
   const funcionariosFiltrados = useMemo(() => {
     let lista = funcionarios;
-    if (minhaEquipe) lista = lista.filter(f => f.equipe === minhaEquipe);
     if (filtroEquipe) lista = lista.filter(f => f.equipe === filtroEquipe);
     if (filtroFuncao) lista = lista.filter(f => f.cargo === filtroFuncao);
     if (termo) {
@@ -189,16 +168,11 @@ export function EPIs() {
       });
     }
     return lista;
-  }, [funcionarios, filtroEquipe, filtroFuncao, termo, filtroValidade, epis, minhaEquipe]);
+  }, [funcionarios, filtroEquipe, filtroFuncao, termo, filtroValidade, epis]);
 
   const episEntregues = useMemo(() => {
-    let lista = filtradas.filter(e => e.status !== 'devolvido');
-    if (minhaEquipe) {
-      const idsFuncs = new Set(funcionarios.filter(f => f.equipe === minhaEquipe).map(f => f.id));
-      lista = lista.filter(e => idsFuncs.has(e.colaboradorId) || funcionarios.some(f => f.nomeGuerra === e.colaborador && f.equipe === minhaEquipe));
-    }
-    return lista;
-  }, [filtradas, minhaEquipe, funcionarios]);
+    return filtradas.filter(e => e.status !== 'devolvido');
+  }, [filtradas]);
 
   const estoqueComValidade = useMemo(() => {
     return estoque.map(e => ({
@@ -247,12 +221,14 @@ export function EPIs() {
   }
 
   async function handleExcluirEstoque(id: string) {
+    if (!canDeleteEpis) return;
     await excluirEstoque(id);
     setConfirmDeleteEstoque(null);
     await carregar();
   }
 
   async function handleExcluirEpi(id: string) {
+    if (!canDeleteEpis) return;
     const { excluirEPI } = await import('../../services/epiService');
     await excluirEPI(id);
     setConfirmDeleteEpi(null);
@@ -484,10 +460,12 @@ export function EPIs() {
                                   className="rounded-lg p-1 text-graphite-400 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover">
                                   <Pencil className="h-3.5 w-3.5" />
                                 </button>
-                                <button onClick={() => setConfirmDeleteEstoque(e.id)} title="Excluir"
-                                  className="rounded-lg p-1 text-alert-red hover:bg-red-50 dark:hover:bg-red-900/20">
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
+                                {canDeleteEpis && (
+                                  <button onClick={() => setConfirmDeleteEstoque(e.id)} title="Excluir"
+                                    className="rounded-lg p-1 text-alert-red hover:bg-red-50 dark:hover:bg-red-900/20">
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
                               </div>
                             </td>
                           )}
@@ -521,7 +499,7 @@ export function EPIs() {
                       <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Validade</th>
                       <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Estado</th>
                       <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Status</th>
-                      {canManage && <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Ações</th>}
+                      {canDeleteEpis && <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Ações</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -557,7 +535,7 @@ export function EPIs() {
                               {EPI_STATUS_LABELS[e.status]}
                             </span>
                           </td>
-                          {canManage && (
+                          {canDeleteEpis && (
                             <td className="px-4 py-3">
                               <button onClick={() => setConfirmDeleteEpi(e.id)} title="Excluir"
                                 className="rounded-lg p-1 text-alert-red hover:bg-red-50 dark:hover:bg-red-900/20">
@@ -680,7 +658,7 @@ export function EPIs() {
         </div>
       )}
 
-      {confirmDeleteEstoque && (
+      {canDeleteEpis && confirmDeleteEstoque && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="w-full max-w-sm rounded-2xl bg-white/95 p-6 shadow-xl backdrop-blur-sm dark:bg-surface-elevated/95">
             <h3 className="mb-2 text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar exclusão</h3>
@@ -695,7 +673,7 @@ export function EPIs() {
         </div>
       )}
 
-      {confirmDeleteEpi && (
+      {canDeleteEpis && confirmDeleteEpi && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="w-full max-w-sm rounded-2xl bg-white/95 p-6 shadow-xl backdrop-blur-sm dark:bg-surface-elevated/95">
             <h3 className="mb-2 text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar exclusão</h3>

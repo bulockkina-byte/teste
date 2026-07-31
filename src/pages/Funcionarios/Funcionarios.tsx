@@ -2,14 +2,30 @@ import { useState, useEffect, useMemo } from 'react';
 import { Users, Search, AlertCircle, X, Calendar, Shield, Droplets, User, Hash, IdCard, Car, Briefcase, Clock, FileText, Radio, Mail } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
-import { listarBombeiros, buscarBombeiro } from '../../services/bombeiroService';
-import { listarAPOCs, buscarAPOC } from '../../services/apocService';
+import {
+  listarBombeiros,
+  buscarBombeiro,
+  listarBombeirosPublico,
+  buscarBombeiroPublico,
+} from '../../services/bombeiroService';
+import {
+  listarAPOCs,
+  buscarAPOC,
+  listarAPOCsPublico,
+  buscarAPOCPublico,
+} from '../../services/apocService';
 import { listarSubstituicoesTemporarias } from '../../services/substituicaoTemporariaService';
 import type { Bombeiro } from '../../types/bombeiro';
 import type { APOC } from '../../types/apoc';
 import type { SubstituicaoTemporaria } from '../../types/substituicaoTemporaria';
 import { CARGO_OPTIONS, EQUIPE_OPTIONS } from '../../types/bombeiro';
 import { useDebounce } from '../../hooks/useDebounce';
+import { useAuth } from '../../context/AuthContext';
+import {
+  canAcessarDadosPessoais,
+  podeVerDadosPessoaisBase,
+  resolverContextoOperacional,
+} from '../../utils/permissoes';
 
 type Tab = 'todos' | 'bombeiros' | 'apoc' | 'substituicoes';
 type SituacaoBombeiro = 'Ativo' | 'Afastado' | 'Desligado';
@@ -183,12 +199,14 @@ const TABS: { key: Tab; label: string; icon: any }[] = [
 ];
 
 export function Funcionarios() {
+  const { user } = useAuth();
   const [tab, setTab] = useState<Tab>('todos');
   const [termo, setTermo] = useState('');
   const [filterEquipe, setFilterEquipe] = useState('');
   const [filterCargo, setFilterCargo] = useState('');
   const [selecionado, setSelecionado] = useState<Bombeiro | APOC | null>(null);
   const [tipoSelecionado, setTipoSelecionado] = useState<'bombeiro' | 'apoc'>('bombeiro');
+  const [canViewDetails, setCanViewDetails] = useState(() => podeVerDadosPessoaisBase(user));
 
   const [allBombeiros, setAllBombeiros] = useState<Bombeiro[]>([]);
   const [allApocs, setAllApocs] = useState<APOC[]>([]);
@@ -199,33 +217,50 @@ export function Funcionarios() {
   const debouncedTermo = useDebounce(termo, 400);
 
   useEffect(() => {
+    let cancelled = false;
+    setCanViewDetails(podeVerDadosPessoaisBase(user));
+
+    resolverContextoOperacional(user)
+      .then(contexto => {
+        if (!cancelled) setCanViewDetails(canAcessarDadosPessoais(contexto));
+      })
+      .catch(() => {
+        if (!cancelled) setCanViewDetails(podeVerDadosPessoaisBase(user));
+      });
+
+    return () => { cancelled = true; };
+  }, [user]);
+
+  useEffect(() => {
     async function load() {
       const [bombeirosData, substituicoesData] = await Promise.all([
-        listarBombeiros(),
+        canViewDetails ? listarBombeiros() : listarBombeirosPublico(),
         listarSubstituicoesTemporarias(),
       ]);
       setAllBombeiros(bombeirosData);
       setSubstituicoes(substituicoesData);
     }
     load();
-  }, []);
+  }, [canViewDetails]);
 
   useEffect(() => {
     async function load() {
-      setAllApocs(await listarAPOCs());
+      setAllApocs(await (canViewDetails ? listarAPOCs() : listarAPOCsPublico()));
     }
     load();
-  }, []);
+  }, [canViewDetails]);
 
   useEffect(() => {
     async function load() {
-      let lista = debouncedTermo ? await buscarBombeiro(debouncedTermo) : allBombeiros;
+      let lista = debouncedTermo
+        ? await (canViewDetails ? buscarBombeiro(debouncedTermo) : buscarBombeiroPublico(debouncedTermo))
+        : allBombeiros;
       if (filterEquipe) lista = lista.filter(b => b.equipe === filterEquipe);
       if (filterCargo) lista = lista.filter(b => b.cargo === filterCargo);
       setBombeiros(lista);
     }
     load();
-  }, [debouncedTermo, filterEquipe, filterCargo, allBombeiros]);
+  }, [debouncedTermo, filterEquipe, filterCargo, allBombeiros, canViewDetails]);
 
   useEffect(() => {
     async function load() {
@@ -233,10 +268,10 @@ export function Funcionarios() {
         setApocs(allApocs);
         return;
       }
-      setApocs(await buscarAPOC(debouncedTermo));
+      setApocs(await (canViewDetails ? buscarAPOC(debouncedTermo) : buscarAPOCPublico(debouncedTermo)));
     }
     load();
-  }, [debouncedTermo, allApocs]);
+  }, [debouncedTermo, allApocs, canViewDetails]);
 
   const filteredBombeiros = tab === 'apoc' ? [] : bombeiros;
   const filteredApocs = tab === 'bombeiros' ? [] : apocs;
@@ -261,11 +296,13 @@ export function Funcionarios() {
   }
 
   function handleSelectBombeiro(b: Bombeiro) {
+    if (!canViewDetails) return;
     setSelecionado(b);
     setTipoSelecionado('bombeiro');
   }
 
   function handleSelectApoc(a: APOC) {
+    if (!canViewDetails) return;
     setSelecionado(a);
     setTipoSelecionado('apoc');
   }
@@ -285,7 +322,7 @@ export function Funcionarios() {
                 type="text"
                 value={termo}
                 onChange={e => setTermo(e.target.value)}
-                placeholder="Pesquisar por matrícula, nome, CPF..."
+                placeholder="Pesquisar por matrícula, nome ou equipe..."
                 className="w-full rounded-xl border border-graphite-300/60 bg-white/70 py-2.5 pl-10 pr-4 text-sm text-graphite-900 placeholder-graphite-400 outline-none transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-graphite-600 dark:bg-graphite-800 dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-graphite-700"
               />
             </div>
@@ -375,7 +412,7 @@ export function Funcionarios() {
                       <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Matrícula</th>
                       <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Nome</th>
                       <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Nome de Guerra</th>
-                      <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">E-mail</th>
+                      {canViewDetails && <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">E-mail</th>}
                       <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Cargo</th>
                       <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Equipe</th>
                       <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Turno</th>
@@ -388,8 +425,12 @@ export function Funcionarios() {
                       return (
                         <tr
                           key={b.id}
-                          onClick={() => handleSelectBombeiro(b)}
-                          className="cursor-pointer border-b border-graphite-100 transition-colors hover:bg-aviation-50/50 dark:border-border-dark dark:hover:bg-aviation-900/20"
+                          onClick={canViewDetails ? () => handleSelectBombeiro(b) : undefined}
+                          className={`border-b border-graphite-100 transition-colors dark:border-border-dark ${
+                            canViewDetails
+                              ? 'cursor-pointer hover:bg-aviation-50/50 dark:hover:bg-aviation-900/20'
+                              : 'cursor-default'
+                          }`}
                         >
                           <td className="px-4 py-3 font-medium text-graphite-900 dark:text-graphite-100">{b.matricula}</td>
                           <td className="px-4 py-3">
@@ -401,7 +442,7 @@ export function Funcionarios() {
                             </div>
                           </td>
                           <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{capitalize(b.nomeGuerra)}</td>
-                          <td className="px-4 py-3 text-xs text-graphite-500 dark:text-graphite-400">{b.email || '-'}</td>
+                          {canViewDetails && <td className="px-4 py-3 text-xs text-graphite-500 dark:text-graphite-400">{b.email || '-'}</td>}
                           <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{labelCargo(b.cargo)}</td>
                           <td className="px-4 py-3">
                             <span className="inline-flex rounded-full bg-aviation-50 px-2.5 py-0.5 text-xs font-medium text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-300">
@@ -437,7 +478,7 @@ export function Funcionarios() {
                     <tr className="border-b border-graphite-200 bg-graphite-50 text-left dark:border-border-dark dark:bg-surface-card">
                       <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Nome de Guerra</th>
                       <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Nome Completo</th>
-                      <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">E-mail</th>
+                      {canViewDetails && <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">E-mail</th>}
                       <th className="px-4 py-3 font-semibold text-graphite-600 dark:text-graphite-300">Função</th>
                     </tr>
                   </thead>
@@ -445,12 +486,16 @@ export function Funcionarios() {
                     {filteredApocs.map(a => (
                       <tr
                         key={a.id}
-                        onClick={() => handleSelectApoc(a)}
-                        className="cursor-pointer border-b border-graphite-100 transition-colors hover:bg-aviation-50/50 dark:border-border-dark dark:hover:bg-aviation-900/20"
+                        onClick={canViewDetails ? () => handleSelectApoc(a) : undefined}
+                        className={`border-b border-graphite-100 transition-colors dark:border-border-dark ${
+                          canViewDetails
+                            ? 'cursor-pointer hover:bg-aviation-50/50 dark:hover:bg-aviation-900/20'
+                            : 'cursor-default'
+                        }`}
                       >
                         <td className="px-4 py-3 font-medium text-graphite-900 dark:text-graphite-100">{capitalize(a.nomeGuerra)}</td>
                         <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{capitalize(a.nomeCompleto)}</td>
-                        <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{a.email}</td>
+                        {canViewDetails && <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{a.email}</td>}
                         <td className="px-4 py-3">
                           <span className="inline-flex rounded-full bg-aviation-50 px-2.5 py-0.5 text-xs font-medium text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-300">
                             {a.funcao}
@@ -466,14 +511,14 @@ export function Funcionarios() {
         </div>
       )}
 
-      {selecionado && tipoSelecionado === 'bombeiro' && (
+      {canViewDetails && selecionado && tipoSelecionado === 'bombeiro' && (
         <BombeiroDetailModal
           bombeiro={selecionado as Bombeiro}
           situacao={situacaoBombeiro(selecionado as Bombeiro)}
           onClose={() => setSelecionado(null)}
         />
       )}
-      {selecionado && tipoSelecionado === 'apoc' && (
+      {canViewDetails && selecionado && tipoSelecionado === 'apoc' && (
         <APOCDetailModal apoc={selecionado as APOC} onClose={() => setSelecionado(null)} />
       )}
     </PageContainer>

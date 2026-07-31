@@ -51,9 +51,12 @@ function toRow(data: Partial<CertificacaoCurso>): Record<string, unknown> {
   return r;
 }
 
-export async function listarCertificacoesCursos(): Promise<CertificacaoCurso[]> {
+export async function listarCertificacoesCursos(params?: { funcionarioIds?: string[] }): Promise<CertificacaoCurso[]> {
   const db = getDb();
-  const { data, error } = await db.from(TABLE).select('*');
+  if (params?.funcionarioIds && params.funcionarioIds.length === 0) return [];
+  let query = db.from(TABLE).select('*');
+  if (params?.funcionarioIds) query = query.in('funcionario_id', params.funcionarioIds);
+  const { data, error } = await query;
   if (error) handleSupabaseError(error);
   return (data || []).map(rowToCertificacaoCurso);
 }

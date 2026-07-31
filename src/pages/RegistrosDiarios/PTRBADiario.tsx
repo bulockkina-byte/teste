@@ -6,7 +6,7 @@ import {
 import { SearchSelect, type AtivoItem } from '../../components/ui/SearchSelect';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
-import { useAuth } from '../../context/AuthContext';
+import { useContextoOperacional } from '../../hooks/useContextoOperacional';
 import { listarPTRBs, criarPTRB, atualizarPTRB, excluirPTRB } from '../../services/ptrbService';
 import { listarBombeiros } from '../../services/bombeiroService';
 import { listarFeriasGozo } from '../../services/feriasService';
@@ -76,6 +76,22 @@ function emptyPTRB(): Omit<PTRB, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>
 }
 
 // ─── FORM ────────────────────────────────────────────────
+function montarPTRBInicial(equipePadrao?: string | null): Omit<PTRB, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'> {
+  const base = emptyPTRB();
+  if (!equipePadrao || !EQUIPES_FILTRO.includes(equipePadrao as any)) return base;
+  const horario = horarioPlantaoPorEquipe(equipePadrao);
+  const duracao = calcDuracao(horario.horarioInicio, horario.horarioTermino);
+  return {
+    ...base,
+    equipe: equipePadrao as Equipe,
+    turno: horario.turno,
+    horaInicio: horario.horarioInicio,
+    horaTermino: horario.horarioTermino,
+    duracao,
+    horas: calcHorasFromDuracao(duracao),
+  };
+}
+
 function PTRBAForm({
   ptrb,
   onSave,
@@ -86,6 +102,8 @@ function PTRBAForm({
   trocaFills,
   vigencias,
   apocs,
+  canManageGlobal,
+  equipeEfetiva,
 }: {
   ptrb?: PTRB;
   onSave: (data: Omit<PTRB, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) => void;
@@ -96,8 +114,10 @@ function PTRBAForm({
   trocaFills: any[];
   vigencias: any[];
   apocs: APOC[];
+  canManageGlobal: boolean;
+  equipeEfetiva: string | null;
 }) {
-  const [form, setForm] = useState(emptyPTRB());
+  const [form, setForm] = useState(() => montarPTRBInicial(canManageGlobal ? null : equipeEfetiva));
 
   useEffect(() => {
     if (ptrb) {
@@ -117,10 +137,13 @@ function PTRBAForm({
         informacoesComplementares: ptrb.informacoesComplementares,
         fotos: ptrb.fotos.length ? ptrb.fotos : ['', '', ''],
       });
+    } else if (!canManageGlobal && equipeEfetiva) {
+      setForm(montarPTRBInicial(equipeEfetiva));
     }
-  }, [ptrb]);
+  }, [ptrb, canManageGlobal, equipeEfetiva]);
 
   function updateEquipe(equipe: string) {
+    if (!canManageGlobal) return;
     const horario = horarioPlantaoPorEquipe(equipe);
     const duracao = calcDuracao(horario.horarioInicio, horario.horarioTermino);
     setForm(f => ({
@@ -355,8 +378,8 @@ function PTRBAForm({
           </div>
           <div>
             <label className={label}>Equipe</label>
-            <select value={form.equipe} onChange={e => updateEquipe(e.target.value)} className={input}>
-              {EQUIPES_FILTRO.map(eq => <option key={eq} value={eq}>{eq}</option>)}
+            <select value={form.equipe} onChange={e => updateEquipe(e.target.value)} className={input} disabled={!canManageGlobal}>
+              {EQUIPES_FILTRO.filter(eq => canManageGlobal || eq === equipeEfetiva).map(eq => <option key={eq} value={eq}>{eq}</option>)}
             </select>
           </div>
           <div>
@@ -702,51 +725,10 @@ function ViewMode({ ptrb, onBack }: { ptrb: PTRB; onBack: () => void }) {
 }
 
 // ─── MAIN ────────────────────────────────────────────────
-async function getUserRole(username: string): Promise<'admin' | 'gerente' | 'chefe'> {
-  if (username === 'admin') return 'admin';
-  const users = JSON.parse(localStorage.getItem('sescinc-users') || '{}');
-  const stored = users[username];
-  if (stored?.role === 'desenvolvedor' || stored?.role === 'admin') return 'admin';
-  const bombeiros = await listarBombeiros();
-  const b = bombeiros.find(
-    x => x.nomeGuerra.toLowerCase() === username.toLowerCase() ||
-         x.nomeCompleto.toLowerCase().includes(username.toLowerCase()),
-  );
-  if (b?.cargo === 'GS' || b?.equipe === 'Embaixador') return 'gerente';
-  if (b?.cargo === 'BA-CE' || b?.cargo === 'BA-LR') return 'chefe';
-  return 'chefe';
-}
-
-async function getUserEquipe(username: string): Promise<string> {
-  const bombeiros = await listarBombeiros();
-  const b = bombeiros.find(
-    x => x.nomeGuerra.toLowerCase() === username.toLowerCase() ||
-         x.nomeCompleto.toLowerCase().includes(username.toLowerCase()),
-  );
-  return b?.equipe || '';
-}
-
 export function PTRBADiario() {
-  const { user } = useAuth();
+  const { user, canManageGlobal, canManageEquipe, equipeEfetiva } = useContextoOperacional();
   const username = user?.username || '';
-  const [role, setRole] = useState<'admin' | 'gerente' | 'chefe'>('chefe');
-  const [userEquipe, setUserEquipe] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      const r = await getUserRole(username);
-      if (cancelled) return;
-      setRole(r);
-      const eq = await getUserEquipe(username);
-      if (!cancelled) setUserEquipe(eq);
-    }
-    load();
-    return () => { cancelled = true; };
-  }, [username]);
-  const isAdmin = role === 'admin';
-  const isGerente = role === 'gerente';
-  const canFilterTeam = isAdmin || isGerente;
-  const canEdit = isAdmin || role === 'chefe';
+  const canCreate = canManageGlobal || !!equipeEfetiva;
   const [ptrbs, setPtrbs] = useState<PTRB[]>([]);
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
   const [feriasGozo, setFeriasGozo] = useState<FeriasGozo[]>([]);
@@ -779,13 +761,7 @@ export function PTRBADiario() {
   async function carregar() {
     try {
       const todas = await listarPTRBs();
-      if (isAdmin || isGerente) {
-        setPtrbs(todas);
-      } else if (userEquipe) {
-        setPtrbs(todas.filter(e => e.equipe === userEquipe));
-      } else {
-        setPtrbs(todas.filter(e => e.createdBy === username));
-      }
+      setPtrbs(todas);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Erro ao carregar PTR-BAs');
     }
@@ -826,15 +802,25 @@ export function PTRBADiario() {
     }
     init();
     return () => { cancelled = true; };
-  }, [isAdmin, isGerente, username, userEquipe]);
+  }, [username]);
 
   async function handleSave(data: Omit<PTRB, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) {
     try {
+      const equipeAlvo = canManageGlobal ? data.equipe : equipeEfetiva || data.equipe;
+      if (!canManageEquipe(equipeAlvo)) {
+        alert('Você só pode salvar PTR-BA da sua equipe efetiva.');
+        return;
+      }
+      if (editando?.id && !canManageEquipe(editando.equipe)) {
+        alert('Você só pode editar PTR-BA da sua equipe efetiva.');
+        return;
+      }
+      const payload = { ...data, equipe: equipeAlvo as Equipe };
       let saved: PTRB | null;
       if (editando && editando.id) {
-        saved = await atualizarPTRB(editando.id, data);
+        saved = await atualizarPTRB(editando.id, payload);
       } else {
-        saved = await criarPTRB({ ...data, createdBy: username });
+        saved = await criarPTRB({ ...payload, createdBy: username });
       }
       setEditando(null);
       await carregar();
@@ -850,6 +836,10 @@ export function PTRBADiario() {
   }
 
   function handleClone(e: PTRB) {
+    if (!canManageEquipe(e.equipe)) {
+      alert('Você só pode clonar PTR-BA da sua equipe efetiva.');
+      return;
+    }
     setEditando({
       ...e,
       id: '',
@@ -869,6 +859,12 @@ export function PTRBADiario() {
 
   async function handleDelete(id: string) {
     try {
+      const alvo = ptrbs.find(e => e.id === id);
+      if (!alvo || !canManageEquipe(alvo.equipe)) {
+        alert('Você só pode excluir PTR-BA da sua equipe efetiva.');
+        setConfirmDelete(null);
+        return;
+      }
       await excluirPTRB(id);
       setConfirmDelete(null);
       await carregar();
@@ -891,6 +887,8 @@ export function PTRBADiario() {
           trocaFills={trocaFills}
           vigencias={vigencias}
           apocs={apocs}
+          canManageGlobal={canManageGlobal}
+          equipeEfetiva={equipeEfetiva}
         />
       </PageContainer>
     );
@@ -928,17 +926,15 @@ export function PTRBADiario() {
             <option value="">Todos os meses</option>
             {MESES.slice(1).map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
           </select>
-          {canFilterTeam && (
-            <select value={filtroEquipe} onChange={e => setFiltroEquipe(e.target.value)} className={inputClass}>
-              <option value="">Todas as equipes</option>
-              {EQUIPES_FILTRO.map(eq => <option key={eq} value={eq}>{eq}</option>)}
-            </select>
-          )}
+          <select value={filtroEquipe} onChange={e => setFiltroEquipe(e.target.value)} className={inputClass}>
+            <option value="">Todas as equipes</option>
+            {EQUIPES_FILTRO.map(eq => <option key={eq} value={eq}>{eq}</option>)}
+          </select>
           <p className="text-sm text-graphite-500 dark:text-graphite-400">
             {ptrbsFiltradas.length} registro(s)
           </p>
         </div>
-        {canEdit && (
+        {canCreate && (
           <button onClick={() => { setEditando(null); setMode('form'); }}
             className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
             <Plus className="h-4 w-4" /> Novo PTR-BA
@@ -950,7 +946,7 @@ export function PTRBADiario() {
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300/60 bg-white/50 p-12 text-center backdrop-blur-sm dark:border-border-dark dark:bg-surface-card">
           <FileText className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
           <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhum registro encontrado</h3>
-          <p className="text-sm text-graphite-400">Clique em "Novo PTR-BA" para criar o primeiro.</p>
+          <p className="text-sm text-graphite-400">{canCreate ? 'Clique em "Novo PTR-BA" para criar o primeiro.' : 'Nenhum registro disponível.'}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -958,7 +954,7 @@ export function PTRBADiario() {
             <PTRBCard
               key={e.id}
               ptrb={e}
-              canEdit={canEdit}
+              canEdit={canManageEquipe(e.equipe)}
               onView={() => { setVisualizando(e); setMode('view'); }}
               onEdit={() => { setEditando(e); setMode('form'); }}
               onClone={() => handleClone(e)}

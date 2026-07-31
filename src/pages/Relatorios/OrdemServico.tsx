@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
+import { useContextoOperacional } from '../../hooks/useContextoOperacional';
 import { listarBombeiros } from '../../services/bombeiroService';
 import type { Bombeiro } from '../../types/bombeiro';
 
@@ -61,6 +62,7 @@ const inputCls = 'w-full rounded-xl border border-graphite-300 bg-white px-3 py-
 const labelCls = 'mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300';
 
 export function OrdemServico() {
+  const { canManageGlobal, canManageEquipe, equipeEfetiva } = useContextoOperacional();
   const [ordens, setOrdens] = useState<OrdemServico[]>([]);
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
   const [search, setSearch] = useState('');
@@ -111,7 +113,7 @@ export function OrdemServico() {
     setFormData(new Date().toISOString().split('T')[0]);
     setFormSolicitante('');
     setFormSolicitanteNome('');
-    setFormEquipe('');
+    setFormEquipe(canManageGlobal ? '' : equipeEfetiva || '');
     setFormDescricao('');
     setFormPrioridade('Média');
     setFormStatus('Aberta');
@@ -121,12 +123,20 @@ export function OrdemServico() {
   }
 
   function handleNovo() {
+    if (!canManageGlobal && !equipeEfetiva) {
+      alert('Seu usuário não possui equipe efetiva para criar ordem de serviço.');
+      return;
+    }
     resetForm();
     setEditando(null);
     setFormOpen(true);
   }
 
   function handleEditar(os: OrdemServico) {
+    if (!canManageEquipe(os.equipe)) {
+      alert('Você só pode editar ordens de serviço da sua equipe efetiva.');
+      return;
+    }
     setEditando(os);
     setFormNumero(os.numero);
     setFormData(os.dataEmissao);
@@ -144,18 +154,27 @@ export function OrdemServico() {
 
   function handleSalvar() {
     if (!formNumero || !formSolicitante || !formDescricao) return;
+    const equipeAlvo = canManageGlobal ? formEquipe : equipeEfetiva || formEquipe;
+    if (!canManageEquipe(equipeAlvo)) {
+      alert('Você só pode salvar ordens de serviço da sua equipe efetiva.');
+      return;
+    }
     const lista = carregar();
     const now = new Date().toISOString();
     if (editando) {
       const idx = lista.findIndex(o => o.id === editando.id);
       if (idx >= 0) {
+        if (!canManageEquipe(lista[idx].equipe)) {
+          alert('Você só pode editar ordens de serviço da sua equipe efetiva.');
+          return;
+        }
         lista[idx] = { ...lista[idx], numero: formNumero, dataEmissao: formData, dataConclusao: formConclusao,
-          solicitanteId: formSolicitante, solicitanteNome: formSolicitanteNome, equipe: formEquipe,
+          solicitanteId: formSolicitante, solicitanteNome: formSolicitanteNome, equipe: equipeAlvo,
           descricao: formDescricao, prioridade: formPrioridade as any, status: formStatus as any, observacoes: formObservacoes, updatedAt: now };
       }
     } else {
       lista.push({ id: crypto.randomUUID(), numero: formNumero, dataEmissao: formData, dataConclusao: formConclusao,
-        solicitanteId: formSolicitante, solicitanteNome: formSolicitanteNome, equipe: formEquipe,
+        solicitanteId: formSolicitante, solicitanteNome: formSolicitanteNome, equipe: equipeAlvo,
         descricao: formDescricao, prioridade: formPrioridade as any, status: formStatus as any,
         observacoes: formObservacoes, createdAt: now, updatedAt: now });
     }
@@ -165,7 +184,14 @@ export function OrdemServico() {
   }
 
   function handleDelete(id: string) {
-    const lista = carregar().filter(o => o.id !== id);
+    const atual = carregar();
+    const alvo = atual.find(o => o.id === id);
+    if (!alvo || !canManageEquipe(alvo.equipe)) {
+      alert('Você só pode excluir ordens de serviço da sua equipe efetiva.');
+      setConfirmDelete(null);
+      return;
+    }
+    const lista = atual.filter(o => o.id !== id);
     salvar(lista);
     setOrdens(lista);
     setConfirmDelete(null);
@@ -225,10 +251,12 @@ export function OrdemServico() {
             <option value="">Todas Prioridades</option>
             {PRIORIDADES.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
-          <button onClick={handleNovo}
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
-            <Plus className="h-4 w-4" /> Nova OS
-          </button>
+          {(canManageGlobal || equipeEfetiva) && (
+            <button onClick={handleNovo}
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
+              <Plus className="h-4 w-4" /> Nova OS
+            </button>
+          )}
         </div>
 
         {filtered.length === 0 ? (
@@ -258,10 +286,14 @@ export function OrdemServico() {
                   </div>
                   <div className="flex gap-1">
                     <button onClick={() => handleGerar(os)} className="rounded-xl p-1.5 text-aviation-500 hover:bg-aviation-50 hover:text-aviation-700 dark:hover:bg-aviation-900/20" title="Gerar"><Printer className="h-4 w-4" /></button>
-                    <button onClick={() => handleEditar(os)} className="rounded-xl p-1.5 text-graphite-400 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover" title="Editar">
-                      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                    </button>
-                    <button onClick={() => setConfirmDelete(os.id)} className="rounded-xl p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20" title="Excluir"><Trash2 className="h-4 w-4" /></button>
+                    {canManageEquipe(os.equipe) && (
+                      <>
+                        <button onClick={() => handleEditar(os)} className="rounded-xl p-1.5 text-graphite-400 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover" title="Editar">
+                          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        </button>
+                        <button onClick={() => setConfirmDelete(os.id)} className="rounded-xl p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20" title="Excluir"><Trash2 className="h-4 w-4" /></button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -315,9 +347,9 @@ export function OrdemServico() {
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                   <label className={labelCls}>Equipe</label>
-                  <select value={formEquipe} onChange={e => setFormEquipe(e.target.value)} className={inputCls}>
+                  <select value={formEquipe} onChange={e => setFormEquipe(e.target.value)} className={inputCls} disabled={!canManageGlobal}>
                     <option value="">Selecione</option>
-                    {EQUIPES.map(eq => <option key={eq} value={eq}>{eq}</option>)}
+                    {EQUIPES.filter(eq => canManageGlobal || eq === equipeEfetiva).map(eq => <option key={eq} value={eq}>{eq}</option>)}
                   </select>
                 </div>
                 <div>
@@ -355,7 +387,7 @@ export function OrdemServico() {
 
               <div className="flex justify-end gap-3 border-t border-graphite-200 pt-4 dark:border-border-dark">
                 <button onClick={() => setFormOpen(false)} className="rounded-xl border border-graphite-300 bg-white px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">Cancelar</button>
-                <button onClick={handleSalvar} disabled={!formNumero || !formSolicitante || !formDescricao}
+                <button onClick={handleSalvar} disabled={!formNumero || !formSolicitante || !formDescricao || !formEquipe}
                   className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl active:scale-[0.98] disabled:opacity-50">
                   <Save className="h-4 w-4" /> Salvar
                 </button>

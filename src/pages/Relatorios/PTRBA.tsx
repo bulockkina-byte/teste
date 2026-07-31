@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
-import { FileText, ChevronDown, ChevronUp, Eye, Printer, ArrowLeft, Users } from 'lucide-react';
+import { FileText, ChevronDown, ChevronUp, Eye, Printer, ArrowLeft, Users, Lock } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { listarPTRBs } from '../../services/ptrbService';
 import { listarBombeiros } from '../../services/bombeiroService';
 import type { PTRB } from '../../types/ptrb';
 import { EQUIPES, ASSUNTOS } from '../../types/ptrb';
+import { useContextoOperacional } from '../../hooks/useContextoOperacional';
 
 function formatDate(d: string) {
   if (!d) return '-';
@@ -192,6 +193,7 @@ function imprimirHTMLEfetivo(titulo: string, allAssuntos: string[], equipes: { e
 }
 
 export function PTRBA() {
+  const { canManageGlobal, loadingContexto } = useContextoOperacional();
   const [ptrbs, setPtrbs] = useState<PTRB[]>([]);
   const [bombeiros, setBombeiros] = useState<Map<string, { nomeGuerra: string; cargo: string; equipe: string }>>(new Map());
   const [loading, setLoading] = useState(true);
@@ -216,6 +218,10 @@ export function PTRBA() {
   const ANOS = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
 
   function carregarDados() {
+    if (!canManageGlobal) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     Promise.all([listarPTRBs(), listarBombeiros()]).then(([p, b]) => {
       setPtrbs(p);
@@ -227,13 +233,17 @@ export function PTRBA() {
     }).catch(() => {}).finally(() => setLoading(false));
   }
 
-  useEffect(() => { carregarDados(); }, []);
+  useEffect(() => {
+    if (loadingContexto) return;
+    carregarDados();
+  }, [canManageGlobal, loadingContexto]);
 
   useEffect(() => {
+    if (loadingContexto || !canManageGlobal) return;
     const onFocus = () => carregarDados();
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
-  }, []);
+  }, [canManageGlobal, loadingContexto]);
 
   function applyPeriodFilter(lista: PTRB[]): PTRB[] {
     if (filterMode === 'mes-ano') {
@@ -780,11 +790,23 @@ export function PTRBA() {
     );
   }
 
-  if (loading) {
+  if (loading || loadingContexto) {
     return (
       <PageContainer>
         <div className="flex justify-center py-20">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-aviation-500 border-t-transparent" />
+        </div>
+      </PageContainer>
+    );
+  }
+
+  if (!canManageGlobal) {
+    return (
+      <PageContainer>
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">
+          <Lock className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
+          <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Acesso restrito</h3>
+          <p className="text-sm text-graphite-400 dark:text-graphite-500">A tela de relatórios está disponível apenas para GS e administradores do sistema.</p>
         </div>
       </PageContainer>
     );

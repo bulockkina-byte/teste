@@ -6,7 +6,7 @@ import {
   ArrowRightLeft, ArrowRight, Sparkles,
 } from 'lucide-react';
 import { SearchSelect, type AtivoItem } from '../../components/ui/SearchSelect';
-import { useAuth } from '../../context/AuthContext';
+import { useContextoOperacional } from '../../hooks/useContextoOperacional';
 import { listarEscalas, criarEscala, atualizarEscala, excluirEscala } from '../../services/escalaService';
 import { listarAtivos } from '../../services/bombeiroService';
 import { equipesNoDia, horarioPlantaoPorEquipe } from '../../utils/equipes';
@@ -54,6 +54,19 @@ function emptyEscala(): Omit<EscalaDiaria, 'id' | 'createdAt' | 'updatedAt' | 'c
     atestados: [],
     trocas: [],
     radio: [],
+  };
+}
+
+function montarEscalaInicial(equipePadrao?: string | null): Omit<EscalaDiaria, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'> {
+  const base = emptyEscala();
+  if (!equipePadrao || !EQUIPES.includes(equipePadrao as any)) return base;
+  const horario = horarioPlantaoPorEquipe(equipePadrao);
+  return {
+    ...base,
+    equipe: equipePadrao,
+    horarioInicio: horario.horarioInicio,
+    horarioTermino: horario.horarioTermino,
+    turno: horario.turno,
   };
 }
 
@@ -271,12 +284,16 @@ function EscalaDiariaForm({
   escala,
   onSave,
   onCancel,
+  canManageGlobal,
+  equipeEfetiva,
 }: {
   escala?: EscalaDiaria;
   onSave: (data: Omit<EscalaDiaria, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) => void;
   onCancel: () => void;
+  canManageGlobal: boolean;
+  equipeEfetiva: string | null;
 }) {
-  const [form, setForm] = useState(emptyEscala());
+  const [form, setForm] = useState(() => montarEscalaInicial(canManageGlobal ? null : equipeEfetiva));
   const [allBombeiros, setAllBombeiros] = useState<Bombeiro[]>([]);
   const [feriasGozo, setFeriasGozo] = useState<FeriasGozo[]>([]);
   const [vigencias, setVigencias] = useState<VigenciaSubstituicao[]>([]);
@@ -342,18 +359,21 @@ function EscalaDiariaForm({
         trocas: escala.trocas,
         radio: escala.radio,
       });
+    } else if (!canManageGlobal && equipeEfetiva) {
+      setForm(montarEscalaInicial(equipeEfetiva));
     }
-  }, [escala]);
+  }, [escala, canManageGlobal, equipeEfetiva]);
 
   // Auto-selecionar equipa com base na data se nenhuma equipa foi escolhida
   useEffect(() => {
     if (!form.dataPlantao) return;
+    if (!canManageGlobal) return;
     const data = new Date(form.dataPlantao + 'T12:00:00');
     const equipes = equipesNoDia(data);
     if (!equipes.some(eq => eq === form.equipe)) {
       setForm(f => ({ ...f, equipe: equipes[0] }));
     }
-  }, [form.dataPlantao]);
+  }, [form.dataPlantao, canManageGlobal]);
 
   const autoFilledRef = useRef(false);
   useEffect(() => {
@@ -384,6 +404,7 @@ function EscalaDiariaForm({
   const opcoesBaRe = opcoesPorCargo(['BA-2', 'BA-RE']);
 
   function updateEquipe(equipe: string) {
+    if (!canManageGlobal) return;
     const auto = autoPreencher(equipe);
     const membros = montarEfetivoDiario({
       bombeiros: allBombeiros,
@@ -707,8 +728,9 @@ function EscalaDiariaForm({
         <div>
           <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Equipe</label>
           <select value={form.equipe} onChange={e => updateEquipe(e.target.value)}
-            className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated">
-            {EQUIPES.map(eq => <option key={eq} value={eq} className={optionCls}>{eq}</option>)}
+            className="w-full rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated"
+            disabled={!canManageGlobal}>
+            {EQUIPES.filter(eq => canManageGlobal || eq === equipeEfetiva).map(eq => <option key={eq} value={eq} className={optionCls}>{eq}</option>)}
           </select>
         </div>
         <div>
@@ -981,13 +1003,13 @@ function EscalaDiariaForm({
 }
 
 // ─── LIST VIEW ──────────────────────────────────────────────
-function EscalaCard({ escala, onView, onEdit, onDelete, onClone, isAdmin }: {
+function EscalaCard({ escala, onView, onEdit, onDelete, onClone, canManage }: {
   escala: EscalaDiaria;
   onView: () => void;
   onEdit: () => void;
   onDelete: () => void;
   onClone: () => void;
-  isAdmin: boolean;
+  canManage: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [vigenciasAtivas, setVigenciasAtivas] = useState<VigenciaSubstituicao[]>([]);
@@ -1020,15 +1042,19 @@ function EscalaCard({ escala, onView, onEdit, onDelete, onClone, isAdmin }: {
             className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover dark:hover:text-graphite-300">
             <Eye className="h-4 w-4" />
           </button>
-          <button onClick={onEdit} title="Editar"
-            className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover dark:hover:text-graphite-300">
-            <Pencil className="h-4 w-4" />
-          </button>
-          <button onClick={onClone} title="Clonar"
-            className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover dark:hover:text-graphite-300">
-            <Copy className="h-4 w-4" />
-          </button>
-          {isAdmin && (
+          {canManage && (
+            <>
+              <button onClick={onEdit} title="Editar"
+                className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover dark:hover:text-graphite-300">
+                <Pencil className="h-4 w-4" />
+              </button>
+              <button onClick={onClone} title="Clonar"
+                className="rounded-xl p-1.5 text-graphite-400 transition-all duration-200 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover dark:hover:text-graphite-300">
+                <Copy className="h-4 w-4" />
+              </button>
+            </>
+          )}
+          {canManage && (
             <button onClick={onDelete} title="Excluir"
               className="rounded-xl p-1.5 text-alert-red transition-all duration-200 hover:bg-red-50 dark:hover:bg-red-900/20">
               <Trash2 className="h-4 w-4" />
@@ -1128,9 +1154,9 @@ function EscalaCard({ escala, onView, onEdit, onDelete, onClone, isAdmin }: {
 
 // ─── MAIN ────────────────────────────────────────────────
 export function EscalaDiariaView() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'admin' || user?.role === 'desenvolvedor';
+  const { user, canManageGlobal, canManageEquipe, equipeEfetiva } = useContextoOperacional();
   const username = user?.username || '';
+  const canCreate = canManageGlobal || !!equipeEfetiva;
   const [escalas, setEscalas] = useState<EscalaDiaria[]>([]);
   const [mode, setMode] = useState<'list' | 'form' | 'view'>('list');
   const [editando, setEditando] = useState<EscalaDiaria | null>(null);
@@ -1157,21 +1183,27 @@ export function EscalaDiariaView() {
 
   async function carregar() {
     const todas = await listarEscalas();
-    if (isAdmin) {
-      setEscalas(todas);
-    } else {
-      setEscalas(todas.filter(e => e.createdBy === username));
-    }
+    setEscalas(todas);
   }
 
-  useEffect(() => { carregar(); }, [isAdmin, username]);
+  useEffect(() => { carregar(); }, [username]);
 
   async function handleSave(data: Omit<EscalaDiaria, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) {
+    const equipeAlvo = canManageGlobal ? data.equipe : equipeEfetiva || data.equipe;
+    if (!canManageEquipe(equipeAlvo)) {
+      alert('Você só pode salvar escalas da sua equipe efetiva.');
+      return;
+    }
+    if (editando?.id && !canManageEquipe(editando.equipe)) {
+      alert('Você só pode editar escalas da sua equipe efetiva.');
+      return;
+    }
+    const payload = { ...data, equipe: equipeAlvo as string };
     let saved: EscalaDiaria | null;
     if (editando && editando.id) {
-      saved = await atualizarEscala(editando.id, data);
+      saved = await atualizarEscala(editando.id, payload);
     } else {
-      saved = await criarEscala({ ...data, createdBy: username });
+      saved = await criarEscala({ ...payload, createdBy: username });
     }
     setEditando(null);
     carregar();
@@ -1184,6 +1216,10 @@ export function EscalaDiariaView() {
   }
 
   function handleClone(e: EscalaDiaria) {
+    if (!canManageEquipe(e.equipe)) {
+      alert('Você só pode clonar escalas da sua equipe efetiva.');
+      return;
+    }
     setEditando({
       ...e,
       id: '',
@@ -1196,6 +1232,12 @@ export function EscalaDiariaView() {
   }
 
   async function handleDelete(id: string) {
+    const alvo = escalas.find(e => e.id === id);
+    if (!alvo || !canManageEquipe(alvo.equipe)) {
+      alert('Você só pode excluir escalas da sua equipe efetiva.');
+      setConfirmDelete(null);
+      return;
+    }
     await excluirEscala(id);
     setConfirmDelete(null);
     carregar();
@@ -1210,7 +1252,13 @@ export function EscalaDiariaView() {
             {editando?.id ? 'Editar Escala Diária' : editando && !editando.id ? 'Clonar Escala Diária' : 'Nova Escala Diária'}
           </h3>
         </div>
-        <EscalaDiariaForm escala={editando || undefined} onSave={handleSave} onCancel={() => { setMode('list'); setEditando(null); }} />
+        <EscalaDiariaForm
+          escala={editando || undefined}
+          onSave={handleSave}
+          onCancel={() => { setMode('list'); setEditando(null); }}
+          canManageGlobal={canManageGlobal}
+          equipeEfetiva={equipeEfetiva}
+        />
       </div>
     );
   }
@@ -1253,21 +1301,21 @@ export function EscalaDiariaView() {
               <input type="date" value={dataFinal} onChange={e => setDataFinal(e.target.value)} className={inputClass} placeholder="Data fim" />
             </>
           )}
-          {isAdmin && (
-            <select value={filtroEquipe} onChange={e => setFiltroEquipe(e.target.value)} className={inputClass}>
-              <option value="" className={optionCls}>Todas as equipes</option>
-              {EQUIPES.map(eq => <option key={eq} value={eq} className={optionCls}>{eq}</option>)}
-            </select>
-          )}
+          <select value={filtroEquipe} onChange={e => setFiltroEquipe(e.target.value)} className={inputClass}>
+            <option value="" className={optionCls}>Todas as equipes</option>
+            {EQUIPES.map(eq => <option key={eq} value={eq} className={optionCls}>{eq}</option>)}
+          </select>
           <p className="text-sm text-graphite-500 dark:text-graphite-400">
             {escalasFiltradas.length} escala(s)
           </p>
         </div>
         <div className="flex items-center gap-3">
+          {canCreate && (
           <button onClick={() => { setEditando(null); setMode('form'); }}
             className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
             <Plus className="h-4 w-4" /> Nova Escala Diária
           </button>
+          )}
         </div>
       </div>
 
@@ -1275,7 +1323,7 @@ export function EscalaDiariaView() {
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300/60 bg-white/50 p-12 text-center backdrop-blur-sm dark:border-border-dark dark:bg-surface-card">
           <Calendar className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
           <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhuma escala encontrada</h3>
-          <p className="text-sm text-graphite-400">Clique em "Nova Escala Diária" para criar a primeira.</p>
+          <p className="text-sm text-graphite-400">{canCreate ? 'Clique em "Nova Escala Diária" para criar a primeira.' : 'Nenhuma escala disponível.'}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -1283,7 +1331,7 @@ export function EscalaDiariaView() {
             <EscalaCard
               key={e.id}
               escala={e}
-              isAdmin={isAdmin}
+              canManage={canManageEquipe(e.equipe)}
               onView={() => { setVisualizando(e); setMode('view'); }}
               onEdit={() => { setEditando(e); setMode('form'); }}
               onClone={() => handleClone(e)}

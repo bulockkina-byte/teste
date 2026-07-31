@@ -8,6 +8,7 @@ import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { listarBombeiros } from '../../services/bombeiroService';
 import type { Bombeiro } from '../../types/bombeiro';
+import { useContextoOperacional } from '../../hooks/useContextoOperacional';
 
 interface Treinamento {
   id: string;
@@ -19,6 +20,7 @@ interface Treinamento {
   instrutor: string;
   participantes: string[];
   createdAt: string;
+  createdBy?: string;
 }
 
 const STORAGE_KEY = 'sescinc-treinamentos';
@@ -50,6 +52,9 @@ const inputCls = 'w-full rounded-xl border border-graphite-300 bg-white px-3 py-
 const labelCls = 'mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300';
 
 export function Treinamentos({ tipoPadrao }: { tipoPadrao?: string }) {
+  const { user, canManageGlobal } = useContextoOperacional();
+  const currentUsername = user?.username || user?.name || '';
+  const canCreate = canManageGlobal || !!currentUsername;
   const [treinos, setTreinos] = useState<Treinamento[]>([]);
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
   const [search, setSearch] = useState('');
@@ -96,13 +101,26 @@ export function Treinamentos({ tipoPadrao }: { tipoPadrao?: string }) {
     setSearchPart('');
   }
 
+  function canManageTreino(t: Treinamento): boolean {
+    if (canManageGlobal) return true;
+    return !!t.createdBy && t.createdBy === currentUsername;
+  }
+
   function handleNovo() {
+    if (!canCreate) {
+      alert('Você precisa estar autenticado para criar treinamentos.');
+      return;
+    }
     resetForm();
     setEditando(null);
     setFormOpen(true);
   }
 
   function handleEditar(t: Treinamento) {
+    if (!canManageTreino(t)) {
+      alert('Você só pode editar treinamentos criados por você.');
+      return;
+    }
     setEditando(t);
     setFormTipo(t.tipo);
     setFormData(t.data);
@@ -118,10 +136,14 @@ export function Treinamentos({ tipoPadrao }: { tipoPadrao?: string }) {
     if (!formTitulo || !formDescricao) return;
     const lista = carregar();
     if (editando) {
+      if (!canManageTreino(editando)) {
+        alert('Você só pode editar treinamentos criados por você.');
+        return;
+      }
       const idx = lista.findIndex(t => t.id === editando.id);
-      if (idx >= 0) lista[idx] = { ...lista[idx], tipo: formTipo as any, data: formData, titulo: formTitulo, descricao: formDescricao, cargaHoraria: formCarga, instrutor: formInstrutor, participantes: formParticipantes };
+      if (idx >= 0) lista[idx] = { ...lista[idx], tipo: formTipo as any, data: formData, titulo: formTitulo, descricao: formDescricao, cargaHoraria: formCarga, instrutor: formInstrutor, participantes: formParticipantes, createdBy: lista[idx].createdBy || currentUsername };
     } else {
-      lista.push({ id: crypto.randomUUID(), tipo: formTipo as any, data: formData, titulo: formTitulo, descricao: formDescricao, cargaHoraria: formCarga, instrutor: formInstrutor, participantes: formParticipantes, createdAt: new Date().toISOString() });
+      lista.push({ id: crypto.randomUUID(), tipo: formTipo as any, data: formData, titulo: formTitulo, descricao: formDescricao, cargaHoraria: formCarga, instrutor: formInstrutor, participantes: formParticipantes, createdAt: new Date().toISOString(), createdBy: currentUsername });
     }
     salvar(lista);
     setTreinos(lista);
@@ -129,6 +151,11 @@ export function Treinamentos({ tipoPadrao }: { tipoPadrao?: string }) {
   }
 
   function handleExcluir(id: string) {
+    const treino = treinos.find(t => t.id === id);
+    if (treino && !canManageTreino(treino)) {
+      alert('Você só pode excluir treinamentos criados por você.');
+      return;
+    }
     setTreinos(prev => { const n = prev.filter(t => t.id !== id); salvar(n); return n; });
   }
 
@@ -174,10 +201,12 @@ export function Treinamentos({ tipoPadrao }: { tipoPadrao?: string }) {
             </div>
             </>)}
           </div>
-          <button onClick={handleNovo}
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
-            <Plus className="h-4 w-4" /> Novo Treinamento
-          </button>
+          {canCreate && (
+            <button onClick={handleNovo}
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
+              <Plus className="h-4 w-4" /> Novo Treinamento
+            </button>
+          )}
         </div>
 
         <div className="relative max-w-md">
@@ -211,12 +240,14 @@ export function Treinamentos({ tipoPadrao }: { tipoPadrao?: string }) {
                       <p className="mt-0.5 text-xs text-graphite-500 dark:text-graphite-400 truncate">{t.descricao}</p>
                       <p className="text-[10px] text-graphite-400 dark:text-graphite-500">{fmt(t.data)} · {t.cargaHoraria}h · {t.instrutor || 'N/A'} · {t.participantes.length} participante(s)</p>
                   </div>
-                  <div className="flex gap-1">
-                    <button onClick={() => handleEditar(t)} className="rounded-xl p-1.5 text-graphite-400 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover" title="Editar">
-                      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                    </button>
-                    <button onClick={() => handleExcluir(t.id)} className="rounded-xl p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20" title="Excluir"><Trash2 className="h-4 w-4" /></button>
-                  </div>
+                  {canManageTreino(t) && (
+                    <div className="flex gap-1">
+                      <button onClick={() => handleEditar(t)} className="rounded-xl p-1.5 text-graphite-400 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover" title="Editar">
+                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      </button>
+                      <button onClick={() => handleExcluir(t.id)} className="rounded-xl p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20" title="Excluir"><Trash2 className="h-4 w-4" /></button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

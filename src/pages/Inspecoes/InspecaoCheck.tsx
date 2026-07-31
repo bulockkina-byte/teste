@@ -4,6 +4,7 @@ import { listarExtintores } from '../../services/extintorService';
 import { listarHidrantes } from '../../services/hidranteService';
 import { listarBombeiros } from '../../services/bombeiroService';
 import { criarConferencia } from '../../services/conferenciaService';
+import { useContextoOperacional } from '../../hooks/useContextoOperacional';
 import type { Extintor } from '../../types/extintor';
 import type { Hidrante } from '../../types/hidrante';
 import type { Bombeiro, Equipe } from '../../types/bombeiro';
@@ -26,6 +27,7 @@ function calcularDataProxima(dataAtual: Date, meses: number): string {
 }
 
 export function InspecaoCheck() {
+  const { canManageGlobal, canManageEquipe, equipeEfetiva } = useContextoOperacional();
   const [step, setStep] = useState<Step>('buscar');
   const [tipo, setTipo] = useState<TipoBusca>('extintor');
   const [busca, setBusca] = useState('');
@@ -45,6 +47,10 @@ export function InspecaoCheck() {
   const [erro, setErro] = useState('');
 
   useEffect(() => { carregar(); }, []);
+
+  useEffect(() => {
+    if (!canManageGlobal && equipeEfetiva) setEquipeSelecionada(equipeEfetiva);
+  }, [canManageGlobal, equipeEfetiva]);
 
   async function carregar() {
     const [e, h, b] = await Promise.all([listarExtintores(), listarHidrantes(), listarBombeiros()]);
@@ -84,7 +90,7 @@ export function InspecaoCheck() {
     setItens(checklist.map((pergunta, idx) => ({
       id: `${tipo}-${idx}`, pergunta, status: 'OK' as StatusItemChecklist, observacao: '',
     })));
-    setEquipeSelecionada('');
+    setEquipeSelecionada(canManageGlobal ? '' : equipeEfetiva || '');
     setPessoaSelecionada(null);
     setResultadoFinal(null);
     setObs('');
@@ -107,6 +113,10 @@ export function InspecaoCheck() {
 
   async function handleSalvar() {
     if (!equipamento || !pessoaSelecionada || !resultadoFinal) return;
+    if (!canManageEquipe(pessoaSelecionada.equipe)) {
+      setErro('Você só pode registrar conferências para sua equipe efetiva.');
+      return;
+    }
     setSaving(true);
     setErro('');
     try {
@@ -239,7 +249,7 @@ export function InspecaoCheck() {
             </div>
 
             <div className="mb-3 flex flex-wrap gap-1.5">
-              {EQUIPE_OPTIONS.map(eq => (
+              {EQUIPE_OPTIONS.filter(eq => canManageGlobal || eq === equipeEfetiva).map(eq => (
                 <button key={eq} onClick={() => { setEquipeSelecionada(eq); setPessoaSelecionada(null); }}
                   className={`rounded-lg border px-3 py-1.5 text-xs font-medium ${
                     equipeSelecionada === eq

@@ -2,8 +2,9 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   RefreshCw, Plus, ArrowLeft, FileText, Loader2,
   Save, ChevronDown, ChevronUp, Filter,
-  AlertTriangle, AlertCircle, Edit, Trash2, Eye, CheckCircle, Send, X, ArrowRight, Archive,
+  AlertTriangle, AlertCircle, Edit, Trash2, Eye, CheckCircle, Send, X, ArrowRight, Archive, Lock,
 } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { Autocomplete } from '../../components/documentos/Autocomplete';
@@ -17,7 +18,7 @@ import { preencherPdf } from '../../services/pdfService';
 import { DOCUMENT_TEMPLATES, findTemplate } from '../../data/documentTemplates';
 import type { TemplateFieldDef } from '../../data/documentTemplates';
 import type { DocumentWithFields, DocumentField, DocumentFill } from '../../types/document';
-import { useAuth } from '../../context/AuthContext';
+import { useContextoOperacional } from '../../hooks/useContextoOperacional';
 import { listarBombeiros } from '../../services/bombeiroService';
 import { listarAPOCs } from '../../services/apocService';
 import type { Bombeiro } from '../../types/bombeiro';
@@ -107,13 +108,13 @@ function formatCpf(v: string): string {
 }
 
 export function Trocas() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'desenvolvedor' || user?.role === 'admin';
-  const isGerente = user?.role === 'gerente';
+  const { user, canManageGlobal, canManageEquipe, equipeEfetiva, loadingContexto } = useContextoOperacional();
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [subView, setSubView] = useState<SubView>('list');
-  const isRelatorioRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/relatorios');
+  const isRelatorioRoute = location.pathname.startsWith('/relatorios');
   const [viewMode, setViewMode] = useState<ViewMode>(isRelatorioRoute ? 'report' : 'list');
+  const canCreateTroca = !isRelatorioRoute && (canManageGlobal || !!equipeEfetiva);
 
   const [archiveConfirmFill, setArchiveConfirmFill] = useState<DocumentFill | null>(null);
   const [templateDoc, setTemplateDoc] = useState<DocumentWithFields | null>(null);
@@ -170,7 +171,6 @@ export function Trocas() {
     return fills.filter(fill => {
       if (fill.status === 'archived') return false;
       const d = new Date(fill.created_at);
-      if (!isAdmin && fill.filled_by !== user?.username) return false;
       if (filterEquipe) {
         const data = fill.filled_data as Record<string, string>;
         const p1 = getPessoaByNome(data.nome_solicitante || '');
@@ -183,7 +183,7 @@ export function Trocas() {
     }).sort((a, b) => {
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
-  }, [fills, filterMonth, filterYear, filterEquipe, isAdmin, user]);
+  }, [fills, filterMonth, filterYear, filterEquipe]);
 
   const violationFillIds = useMemo(() => {
     const pessoaFills: Record<string, { id: string; created_at: string }[]> = {};
@@ -240,7 +240,14 @@ export function Trocas() {
     }).length;
   }, [fills, user]);
 
-  useEffect(() => { init(); }, []);
+  useEffect(() => {
+    if (isRelatorioRoute && loadingContexto) return;
+    if (isRelatorioRoute && !canManageGlobal) {
+      setLoading(false);
+      return;
+    }
+    init();
+  }, [isRelatorioRoute, canManageGlobal, loadingContexto]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -334,7 +341,11 @@ export function Trocas() {
   }
 
   function startNewTroca() {
-    if (currentUserTrocasThisMonth >= MAX_TROCAS_PER_MONTH && !isAdmin) {
+    if (!canCreateTroca) {
+      setShowNotifPopup({ msg: 'Você precisa ter uma equipe efetiva para criar trocas.', type: 'error' });
+      return;
+    }
+    if (currentUserTrocasThisMonth >= MAX_TROCAS_PER_MONTH && !canManageGlobal) {
       setLimitPopupData({ count: currentUserTrocasThisMonth, targetName: '' });
       setShowLimitPopup(true);
       return;
@@ -404,6 +415,30 @@ export function Trocas() {
       return { cargo: match._raw.cargo || '', nomeGuerra: match._raw.nomeGuerra || '', nomeCompleto: match._raw.nomeCompleto || '', equipe: match._raw.equipe || '', turno: match._raw.turno || '' };
     }
     return { cargo: match._raw.funcao || 'APOC', nomeGuerra: match._raw.nomeGuerra || match.label, nomeCompleto: match._raw.nomeCompleto || match.label, equipe: match._raw.equipe || '', turno: match._raw.turno || '' };
+  }
+
+  function getFillEquipes(fill: DocumentFill): string[] {
+    const data = fill.filled_data as Record<string, string>;
+    return Array.from(new Set([
+      data.equipe || '',
+      getPessoaByNome(data.nome_solicitante || '')?.equipe || '',
+      getPessoaByNome(data.nome_solicitado || '')?.equipe || '',
+    ].filter(Boolean)));
+  }
+
+  function canManageFill(fill: DocumentFill): boolean {
+    if (canManageGlobal) return true;
+    return getFillEquipes(fill).some(eq => canManageEquipe(eq));
+  }
+
+  function canManageFormData(data: Record<string, string>): boolean {
+    if (canManageGlobal) return true;
+    const equipes = [
+      data.equipe || '',
+      getPessoaByNome(data.nome_solicitante || '')?.equipe || '',
+      getPessoaByNome(data.nome_solicitado || '')?.equipe || '',
+    ].filter(Boolean);
+    return equipes.some(eq => canManageEquipe(eq));
   }
 
   function displayNomeGuerra(nome: string): string {
@@ -535,6 +570,17 @@ export function Trocas() {
 
   async function handleConfirmGerarPdf() {
     setShowConfirmPdf(false);
+    if (!canManageFormData(formData)) {
+      setShowNotifPopup({ msg: 'Você só pode enviar trocas vinculadas à sua equipe efetiva.', type: 'error' });
+      return;
+    }
+    if (editingFillId) {
+      const existingFill = fills.find(fill => fill.id === editingFillId);
+      if (existingFill && !canManageFill(existingFill)) {
+        setShowNotifPopup({ msg: 'Você só pode editar trocas vinculadas à sua equipe efetiva.', type: 'error' });
+        return;
+      }
+    }
     setSaving(true);
     try {
       const doc = await ensureDocumentExists();
@@ -674,6 +720,10 @@ export function Trocas() {
 
   function handleGerarPdf() {
     if (!validateForm()) return;
+    if (!canManageFormData(formData)) {
+      setShowNotifPopup({ msg: 'Você só pode enviar trocas vinculadas à sua equipe efetiva.', type: 'error' });
+      return;
+    }
     if (precisaAutorizacaoGerente(formData.nome_solicitante || '', formData.nome_solicitado || '')) {
       setShowAutorizacaoAviso(true);
     } else {
@@ -732,6 +782,10 @@ export function Trocas() {
   }
 
   function handleEditFill(fill: DocumentFill) {
+    if (!canManageFill(fill)) {
+      setShowNotifPopup({ msg: 'Você só pode editar trocas vinculadas à sua equipe efetiva.', type: 'error' });
+      return;
+    }
     const data = fill.filled_data as Record<string, string>;
     const initialData: Record<string, string> = {};
     displayFields.forEach(f => { initialData[f.field_name] = data[f.field_name] || ''; });
@@ -741,6 +795,11 @@ export function Trocas() {
   }
 
   async function handleArchiveFill(fill: DocumentFill) {
+    if (!canManageFill(fill)) {
+      setArchiveConfirmFill(null);
+      setShowNotifPopup({ msg: 'Você só pode arquivar trocas vinculadas à sua equipe efetiva.', type: 'error' });
+      return;
+    }
     try {
       await atualizarPreenchimento(fill.id, { status: 'archived' as any });
       setFills(prev => prev.filter(f => f.id !== fill.id));
@@ -752,12 +811,24 @@ export function Trocas() {
   }
 
   function handleDeleteFill(fillId: string) {
+    const fill = fills.find(item => item.id === fillId);
+    if (fill && !canManageFill(fill)) {
+      setShowNotifPopup({ msg: 'Você só pode excluir trocas vinculadas à sua equipe efetiva.', type: 'error' });
+      return;
+    }
     setDeleteTargetId(fillId);
     setShowDeleteConfirm(true);
   }
 
   async function confirmDeleteFill() {
     if (!deleteTargetId) return;
+    const fill = fills.find(item => item.id === deleteTargetId);
+    if (fill && !canManageFill(fill)) {
+      setShowDeleteConfirm(false);
+      setDeleteTargetId(null);
+      setShowNotifPopup({ msg: 'Você só pode excluir trocas vinculadas à sua equipe efetiva.', type: 'error' });
+      return;
+    }
     try {
       await excluirPreenchimento(deleteTargetId);
       setFills(prev => prev.filter(f => f.id !== deleteTargetId));
@@ -771,6 +842,17 @@ export function Trocas() {
 
   async function handleSaveDraft() {
     if (!validateForm()) return;
+    if (!canManageFormData(formData)) {
+      setShowNotifPopup({ msg: 'Você só pode salvar trocas vinculadas à sua equipe efetiva.', type: 'error' });
+      return;
+    }
+    if (editingFillId) {
+      const existingFill = fills.find(fill => fill.id === editingFillId);
+      if (existingFill && !canManageFill(existingFill)) {
+        setShowNotifPopup({ msg: 'Você só pode editar trocas vinculadas à sua equipe efetiva.', type: 'error' });
+        return;
+      }
+    }
     setSaving(true);
     try {
       const doc = await ensureDocumentExists();
@@ -891,8 +973,20 @@ export function Trocas() {
     return displayFields.find(f => f.field_name === name);
   }
 
-  if (loading) {
+  if (loading || (isRelatorioRoute && loadingContexto)) {
     return <PageContainer><div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-aviation-500" /></div></PageContainer>;
+  }
+
+  if (isRelatorioRoute && !canManageGlobal) {
+    return (
+      <PageContainer>
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">
+          <Lock className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
+          <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Acesso restrito</h3>
+          <p className="text-sm text-graphite-400 dark:text-graphite-500">A tela de relatórios está disponível apenas para GS e administradores do sistema.</p>
+        </div>
+      </PageContainer>
+    );
   }
 
   if (subView === 'form') {
@@ -1217,7 +1311,7 @@ export function Trocas() {
       <div className="flex items-center justify-between">
         <PageTitle icon={RefreshCw} title="Trocas de Servico" />
         <div className="flex items-center gap-2">
-          {!isRelatorioRoute && (
+          {!isRelatorioRoute && canManageGlobal && (
           <button onClick={() => setViewMode(viewMode === 'list' ? 'report' : 'list')}
             className={`flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-all ${
               viewMode === 'report'
@@ -1227,7 +1321,7 @@ export function Trocas() {
             <FileText className="h-4 w-4" /> {viewMode === 'report' ? 'Voltar à Lista' : 'Pré Relatório'}
           </button>
           )}
-          {!isRelatorioRoute && (
+          {canCreateTroca && (
           <button onClick={startNewTroca} className="flex items-center gap-2 rounded-lg bg-aviation-600 px-4 py-2 text-sm font-medium text-white hover:bg-aviation-700">
             <Plus className="h-4 w-4" /> Criar Troca
           </button>
@@ -1242,12 +1336,10 @@ export function Trocas() {
         <select value={filterYear} onChange={e => setFilterYear(Number(e.target.value))} className="rounded-lg border border-graphite-200 bg-white px-3 py-1.5 text-sm text-graphite-700 dark:border-graphite-600 dark:bg-graphite-700 dark:text-graphite-200">
           {years.map(y => (<option key={y} value={y}>{y}</option>))}
         </select>
-        {(isAdmin || isGerente) && (
-          <select value={filterEquipe} onChange={e => setFilterEquipe(e.target.value)} className="rounded-lg border border-graphite-200 bg-white px-3 py-1.5 text-sm text-graphite-700 dark:border-graphite-600 dark:bg-graphite-700 dark:text-graphite-200">
-            <option value="">Todas as Equipes</option>
-            {EQUIPE_OPTIONS.map(eq => (<option key={eq} value={eq}>{eq}</option>))}
-          </select>
-        )}
+        <select value={filterEquipe} onChange={e => setFilterEquipe(e.target.value)} className="rounded-lg border border-graphite-200 bg-white px-3 py-1.5 text-sm text-graphite-700 dark:border-graphite-600 dark:bg-graphite-700 dark:text-graphite-200">
+          <option value="">Todas as Equipes</option>
+          {EQUIPE_OPTIONS.map(eq => (<option key={eq} value={eq}>{eq}</option>))}
+        </select>
         {isRelatorioRoute && (
           <button onClick={() => window.print()}
             className="flex items-center gap-1 rounded-lg border border-graphite-300 bg-white px-3 py-1.5 text-xs font-medium hover:bg-graphite-50 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200 dark:hover:bg-surface-hover">
@@ -1560,22 +1652,22 @@ export function Trocas() {
                     <button onClick={() => setExpandedFill(isExpanded ? null : fill.id)} className="rounded p-1 text-graphite-400 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-graphite-700">
                       {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                     </button>
-                    {isAdmin && fill.status === 'draft' && (
+                    {canManageFill(fill) && fill.status === 'draft' && (
                       <button onClick={() => handleEditFill(fill)} title="Editar" className="rounded p-1 text-graphite-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20 dark:hover:text-blue-400">
                         <Edit className="h-4 w-4" />
                       </button>
                     )}
-                    {isAdmin && templateDoc?.template_pdf_url && (
+                    {templateDoc?.template_pdf_url && (
                       <button onClick={() => handleVisualizarPdf(fill)} title="Visualizar PDF" className="rounded p-1 text-graphite-400 hover:bg-graphite-100 hover:text-aviation-600 dark:hover:bg-graphite-700 dark:hover:text-aviation-400">
                         <Eye className="h-4 w-4" />
                       </button>
                     )}
-                    {isAdmin && (
+                    {canManageFill(fill) && (
                       <button onClick={() => setArchiveConfirmFill(fill)} title="Arquivar" className="rounded p-1 text-graphite-400 hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-900/20 dark:hover:text-amber-400">
                         <Archive className="h-4 w-4" />
                       </button>
                     )}
-                    {isAdmin && (
+                    {canManageFill(fill) && (
                       <button onClick={() => handleDeleteFill(fill.id)} title="Excluir" className="rounded p-1 text-graphite-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 dark:hover:text-red-400">
                         <Trash2 className="h-4 w-4" />
                       </button>

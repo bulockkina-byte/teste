@@ -2,6 +2,7 @@ import type { Bombeiro } from '../types/bombeiro';
 import { supabase } from '../lib/supabase';
 
 const TABLE = 'bombeiros';
+const PUBLIC_COLUMNS = 'id, matricula, nome_completo, nome_guerra, cargo, equipe, turno, foto, data_desligamento, created_at, updated_at';
 
 function getDb() {
   if (!supabase) throw new Error('Supabase não configurado. Verifique as credenciais no arquivo .env');
@@ -59,6 +60,36 @@ function rowToBombeiro(row: Record<string, unknown>): Bombeiro {
   };
 }
 
+function rowToBombeiroPublico(row: Record<string, unknown>): Bombeiro {
+  return rowToBombeiro({
+    email: '',
+    data_nascimento: '',
+    idade: 0,
+    data_admissao: '',
+    tipo_sanguineo: '',
+    cpf: '',
+    rg: '',
+    cnh_numero: '',
+    cnh_categoria: '',
+    cnh_validade: '',
+    credencial_validade: '',
+    endereco: '',
+    numero_endereco: '',
+    complemento: '',
+    bairro: '',
+    cep: '',
+    uf: '',
+    municipio: '',
+    celular: '',
+    sexo: 'M',
+    curso_chefe_equipe: false,
+    curso_motorista_cci: false,
+    curso_cve: false,
+    cve_validade: '',
+    ...row,
+  });
+}
+
 function bombeiroToRow(data: Omit<Bombeiro, 'id' | 'createdAt' | 'updatedAt'>): Record<string, unknown> {
   return {
     matricula: data.matricula,
@@ -111,6 +142,19 @@ export async function listarBombeiros(params?: {
   return (data || []).map(rowToBombeiro);
 }
 
+export async function listarBombeirosPublico(params?: {
+  equipe?: string;
+  cargo?: string;
+}): Promise<Bombeiro[]> {
+  const db = getDb();
+  let query = db.from(TABLE).select(PUBLIC_COLUMNS).order('created_at', { ascending: false });
+  if (params?.equipe) query = query.eq('equipe', params.equipe);
+  if (params?.cargo) query = query.eq('cargo', params.cargo);
+  const { data, error } = await query;
+  if (error) handleSupabaseError(error);
+  return (data || []).map(rowToBombeiroPublico);
+}
+
 export async function buscarBombeiro(termo: string): Promise<Bombeiro[]> {
   const t = termo.toLowerCase();
   const db = getDb();
@@ -120,6 +164,17 @@ export async function buscarBombeiro(termo: string): Promise<Bombeiro[]> {
     .or(`nome_completo.ilike.%${t}%,nome_guerra.ilike.%${t}%,cpf.ilike.%${t}%,matricula.ilike.%${t}%,equipe.ilike.%${t}%`);
   if (error) handleSupabaseError(error);
   return (data || []).map(rowToBombeiro);
+}
+
+export async function buscarBombeiroPublico(termo: string): Promise<Bombeiro[]> {
+  const t = termo.toLowerCase();
+  const db = getDb();
+  const { data, error } = await db
+    .from(TABLE)
+    .select(PUBLIC_COLUMNS)
+    .or(`nome_completo.ilike.%${t}%,nome_guerra.ilike.%${t}%,matricula.ilike.%${t}%,equipe.ilike.%${t}%`);
+  if (error) handleSupabaseError(error);
+  return (data || []).map(rowToBombeiroPublico);
 }
 
 export async function obterBombeiro(id: string): Promise<Bombeiro | null> {

@@ -5,9 +5,8 @@ import {
 } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
-import { useAuth } from '../../context/AuthContext';
+import { useContextoOperacional } from '../../hooks/useContextoOperacional';
 import { turnoAutoPorEquipe } from '../../types/bombeiro';
-import { listarBombeiros } from '../../services/bombeiroService';
 import { listarOcorrencias, criarOcorrencia, atualizarOcorrencia, excluirOcorrencia } from '../../services/ocorrenciaService';
 import { atualizarRea, criarRea, excluirRea, listarReas, obterRea } from '../../services/reaService';
 import { gerarReaPdf } from '../../services/reaPdfService';
@@ -63,6 +62,7 @@ function OcorrenciaForm({
   todas,
   savedId,
   role,
+  canManageGlobal,
   onSave,
   onSaveDraft,
   onEncaminhar,
@@ -77,6 +77,7 @@ function OcorrenciaForm({
   todas: Ocorrencia[];
   savedId: string | null;
   role: string;
+  canManageGlobal: boolean;
   onSave: (data: Omit<Ocorrencia, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) => void;
   onSaveDraft: (data: Omit<Ocorrencia, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) => void;
   onEncaminhar?: () => void;
@@ -147,8 +148,8 @@ function OcorrenciaForm({
     'Fechada': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
   };
 
-  const isGestor = role === 'gestor' || role === 'admin';
-  const isChefe = role === 'chefe';
+  const isGestor = role === 'gestor' || role === 'gerente' || role === 'admin';
+  const isChefe = role === 'chefe' || role === 'admin';
   const status = form.status;
 
   return (
@@ -205,9 +206,9 @@ function OcorrenciaForm({
             </div>
             <div>
               <label className={label}>Equipe *</label>
-              <select value={form.equipe} onChange={e => handleEquipe(e.target.value)} className={select}>
+              <select value={form.equipe} onChange={e => handleEquipe(e.target.value)} className={select} disabled={!canManageGlobal}>
                 <option value="">Selecione</option>
-                {EQUIPES.map(eq => <option key={eq} value={eq}>{eq}</option>)}
+                {EQUIPES.filter(eq => canManageGlobal || eq === userEquipe).map(eq => <option key={eq} value={eq}>{eq}</option>)}
               </select>
             </div>
             <div>
@@ -392,9 +393,9 @@ function OcorrenciaView({ ocorrencia, onBack }: { ocorrencia: Ocorrencia; onBack
 /* ───────── Card ───────── */
 
 function OcorrenciaCard({
-  o, isAdmin, isGerente, onView, onEdit, onDelete,
+  o, canManage, onView, onEdit, onDelete,
 }: {
-  o: Ocorrencia; isAdmin: boolean; isGerente: boolean;
+  o: Ocorrencia; canManage: boolean;
   onView: () => void; onEdit: () => void; onDelete: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -408,8 +409,8 @@ function OcorrenciaCard({
     ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
     : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400';
 
-  const canEdit = o.status === 'Aberta' && (isAdmin || isGerente);
-  const canDelete = o.status === 'Aberta' && isAdmin;
+  const canEdit = o.status === 'Aberta' && canManage;
+  const canDelete = o.status === 'Aberta' && canManage;
 
   return (
     <div className="rounded-2xl border border-graphite-200 bg-white shadow-sm transition-all hover:shadow-md dark:border-border-dark dark:bg-surface-card">
@@ -466,41 +467,11 @@ function OcorrenciaCard({
 
 /* ───────── Página principal ───────── */
 
-async function getUserRole(username: string): Promise<'admin' | 'gerente' | 'chefe'> {
-  if (username === 'admin') return 'admin';
-  const users = JSON.parse(localStorage.getItem('sescinc-users') || '{}');
-  const stored = users[username];
-  if (stored?.role === 'desenvolvedor' || stored?.role === 'admin') return 'admin';
-  const b = (await listarBombeiros()).find(
-    x => x.nomeGuerra.toLowerCase() === username.toLowerCase() ||
-         x.nomeCompleto.toLowerCase().includes(username.toLowerCase()),
-  );
-  if (b?.cargo === 'GS' || b?.equipe === 'Embaixador') return 'gerente';
-  if (b?.cargo === 'BA-CE' || b?.cargo === 'BA-LR') return 'chefe';
-  return 'chefe';
-}
-
-async function getUserEquipe(username: string): Promise<string> {
-  const b = (await listarBombeiros()).find(
-    x => x.nomeGuerra.toLowerCase() === username.toLowerCase() ||
-         x.nomeCompleto.toLowerCase().includes(username.toLowerCase()),
-  );
-  return b?.equipe || '';
-}
-
 export function Ocorrencias() {
-  const { user } = useAuth();
+  const { user, canManageGlobal, canManageEquipe, equipeEfetiva } = useContextoOperacional();
   const username = user?.username || '';
-  const [role, setRole] = useState<'admin' | 'gerente' | 'chefe'>('chefe');
-  const [userEquipe, setUserEquipe] = useState('');
-  useEffect(() => { (async () => {
-    setRole(await getUserRole(username));
-    setUserEquipe(await getUserEquipe(username));
-  })(); }, [username]);
-  const isAdmin = role === 'admin';
-  const isGerente = role === 'gerente';
-  const canFilterTeam = isAdmin || isGerente;
-  const canEdit = isAdmin || isGerente || role === 'chefe';
+  const role = canManageGlobal ? 'admin' : 'chefe';
+  const canCreate = canManageGlobal || !!equipeEfetiva;
 
   const [ocorrencias, setOcorrencias] = useState<Ocorrencia[]>([]);
   const [reas, setReas] = useState<ReaRegistro[]>([]);
@@ -539,10 +510,7 @@ export function Ocorrencias() {
 
   const filtradas = useMemo(() => {
     let list = ocorrencias;
-    if (!canFilterTeam && userEquipe) {
-      list = list.filter(o => o.equipe === userEquipe);
-    }
-    if (canFilterTeam && filtroEquipe) {
+    if (filtroEquipe) {
       list = list.filter(o => o.equipe === filtroEquipe);
     }
     if (filtroTipo) {
@@ -556,15 +524,12 @@ export function Ocorrencias() {
       if (dataFinal) list = list.filter(o => o.data <= dataFinal);
     }
     return list;
-  }, [ocorrencias, canFilterTeam, userEquipe, filtroEquipe, filtroTipo, filterMode, filtroAno, filtroMes, dataInicio, dataFinal]);
+  }, [ocorrencias, filtroEquipe, filtroTipo, filterMode, filtroAno, filtroMes, dataInicio, dataFinal]);
 
   const reasFiltrados = useMemo(() => {
     let list = reas;
     if (filtroTipo && filtroTipo !== 'REA') return [];
-    if (!canFilterTeam && userEquipe) {
-      list = list.filter(r => r.equipe === userEquipe || !r.equipe);
-    }
-    if (canFilterTeam && filtroEquipe) {
+    if (filtroEquipe) {
       list = list.filter(r => r.equipe === filtroEquipe);
     }
     if (filterMode === 'mes-ano') {
@@ -578,7 +543,7 @@ export function Ocorrencias() {
       if (dataFinal) list = list.filter(r => (r.dataAcidente || r.createdAt.slice(0, 10)) <= dataFinal);
     }
     return list;
-  }, [reas, canFilterTeam, userEquipe, filtroEquipe, filtroTipo, filterMode, filtroAno, filtroMes, dataInicio, dataFinal]);
+  }, [reas, filtroEquipe, filtroTipo, filterMode, filtroAno, filtroMes, dataInicio, dataFinal]);
 
   const documentosFiltrados = useMemo(() => {
     return [
@@ -588,11 +553,22 @@ export function Ocorrencias() {
   }, [filtradas, reasFiltrados]);
 
   async function handleSave(data: Omit<Ocorrencia, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>, stayInForm = false) {
+    const equipeAlvo = canManageGlobal ? data.equipe : equipeEfetiva || data.equipe;
+    if (!canManageEquipe(equipeAlvo)) {
+      alert('Você só pode salvar BONA da sua equipe efetiva.');
+      return;
+    }
+    const alvo = savedId ? ocorrencias.find(o => o.id === savedId) || editando : editando;
+    if (alvo && !canManageEquipe(alvo.equipe)) {
+      alert('Você só pode editar BONA da sua equipe efetiva.');
+      return;
+    }
+    const payload = { ...data, equipe: equipeAlvo as string };
     let saved: Ocorrencia | null;
     if (savedId) {
-      saved = await atualizarOcorrencia(savedId, data);
+      saved = await atualizarOcorrencia(savedId, payload);
     } else {
-      saved = await criarOcorrencia({ ...data, createdBy: username });
+      saved = await criarOcorrencia({ ...payload, createdBy: username });
       if (saved) setSavedId(saved.id);
     }
     carregar();
@@ -609,11 +585,22 @@ export function Ocorrencias() {
   }
 
   async function handleStatusChange(id: string, newStatus: Ocorrencia['status']) {
+    const alvo = ocorrencias.find(o => o.id === id);
+    if (!alvo || !canManageEquipe(alvo.equipe)) {
+      alert('Você só pode alterar status de BONA da sua equipe efetiva.');
+      return;
+    }
     await atualizarOcorrencia(id, { status: newStatus });
     carregar();
   }
 
   async function handleDelete(id: string) {
+    const alvo = ocorrencias.find(o => o.id === id);
+    if (!alvo || !canManageEquipe(alvo.equipe)) {
+      alert('Você só pode excluir BONA da sua equipe efetiva.');
+      setConfirmDelete(null);
+      return;
+    }
     await excluirOcorrencia(id);
     setConfirmDelete(null);
     carregar();
@@ -623,6 +610,10 @@ export function Ocorrencias() {
     setSavingRea(true);
     try {
       if (editandoRea) {
+        if (!canManageEquipe(editandoRea.equipe)) {
+          alert('Você só pode editar REA da sua equipe efetiva.');
+          return;
+        }
         await atualizarRea(editandoRea.id, {
           numero: editandoRea.numero,
           status: data.status,
@@ -630,11 +621,15 @@ export function Ocorrencias() {
           dados: data.dados,
         });
       } else {
+        if (!canManageEquipe(equipeEfetiva)) {
+          alert('Você só pode criar REA quando possui equipe efetiva.');
+          return;
+        }
         await criarRea({
           createdBy: username,
           numero: gerarNumeroRea(reas),
           status: data.status,
-          equipe: userEquipe,
+          equipe: equipeEfetiva || '',
           dados: data.dados,
         });
       }
@@ -647,6 +642,12 @@ export function Ocorrencias() {
   }
 
   async function handleDeleteRea(id: string) {
+    const alvo = reas.find(r => r.id === id);
+    if (!alvo || !canManageEquipe(alvo.equipe)) {
+      alert('Você só pode excluir REA da sua equipe efetiva.');
+      setConfirmDeleteRea(null);
+      return;
+    }
     await excluirRea(id);
     setConfirmDeleteRea(null);
     carregar();
@@ -665,6 +666,10 @@ export function Ocorrencias() {
   }
 
   function openBonaForm() {
+    if (!canCreate) {
+      alert('Seu usuário não possui equipe efetiva para criar BONA.');
+      return;
+    }
     setShowNovoDocumento(false);
     setEditando(null);
     setSavedId(null);
@@ -672,6 +677,14 @@ export function Ocorrencias() {
   }
 
   function openReaForm(registro?: ReaRegistro | null) {
+    if (registro && !canManageEquipe(registro.equipe)) {
+      alert('Você só pode editar REA da sua equipe efetiva.');
+      return;
+    }
+    if (!registro && !canCreate) {
+      alert('Seu usuário não possui equipe efetiva para criar REA.');
+      return;
+    }
     setShowNovoDocumento(false);
     setEditandoRea(registro || null);
     setShowReaModal(true);
@@ -682,7 +695,13 @@ export function Ocorrencias() {
     return (
       <PageContainer>
         <PageTitle icon={AlertTriangle} title={editando ? 'Editar Documento' : 'Novo Documento'} />
-        <OcorrenciaForm ocorrencia={editando || undefined} userEquipe={userEquipe} todas={ocorrencias} savedId={savedId} role={role}
+        <OcorrenciaForm
+          ocorrencia={editando || undefined}
+          userEquipe={equipeEfetiva || ''}
+          todas={ocorrencias}
+          savedId={savedId}
+          role={role}
+          canManageGlobal={canManageGlobal}
           onSave={(d) => handleSave(d, false)}
           onSaveDraft={(d) => { handleSave(d, true); setSuccessMsg('Documento salvo com sucesso! Preencha os campos restantes e clique em "Salvar" para finalizar.'); }}
           onEncaminhar={() => {
@@ -755,14 +774,12 @@ export function Ocorrencias() {
               <input type="date" value={dataFinal} onChange={e => setDataFinal(e.target.value)} className={inputClass} placeholder="Data fim" />
             </>
           )}
-          {canFilterTeam && (
-            <select value={filtroEquipe} onChange={e => setFiltroEquipe(e.target.value)} className={inputClass}>
-              <option value="">Todas as equipes</option>
-              {EQUIPES.map(eq => <option key={eq} value={eq}>{eq}</option>)}
-            </select>
-          )}
+          <select value={filtroEquipe} onChange={e => setFiltroEquipe(e.target.value)} className={inputClass}>
+            <option value="">Todas as equipes</option>
+            {EQUIPES.map(eq => <option key={eq} value={eq}>{eq}</option>)}
+          </select>
         </div>
-        {canEdit && (
+        {canCreate && (
           <button onClick={() => setShowNovoDocumento(true)}
             className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
             <Plus className="h-4 w-4" /> Novo Documento
@@ -774,18 +791,18 @@ export function Ocorrencias() {
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">
           <AlertTriangle className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
           <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhum documento encontrado</h3>
-          <p className="text-sm text-graphite-400 dark:text-graphite-500">Clique em "Novo Documento" para criar BONA ou REA.</p>
+          <p className="text-sm text-graphite-400 dark:text-graphite-500">{canCreate ? 'Clique em "Novo Documento" para criar BONA ou REA.' : 'Nenhum documento disponível.'}</p>
         </div>
       ) : (
         <div className="space-y-3">
           {documentosFiltrados.map(doc => doc.tipo === 'ocorrencia' ? (
-            <OcorrenciaCard key={`ocorrencia-${doc.item.id}`} o={doc.item} isAdmin={isAdmin} isGerente={isGerente}
+            <OcorrenciaCard key={`ocorrencia-${doc.item.id}`} o={doc.item} canManage={canManageEquipe(doc.item.equipe)}
               onView={() => { setVisualizando(doc.item); setMode('view'); }}
               onEdit={() => { setEditando(doc.item); setSavedId(doc.item.id); setMode('form'); }}
               onDelete={() => setConfirmDelete(doc.item.id)}
             />
           ) : (
-            <ReaCard key={`rea-${doc.item.id}`} rea={doc.item} canEdit={canEdit}
+            <ReaCard key={`rea-${doc.item.id}`} rea={doc.item} canEdit={canManageEquipe(doc.item.equipe)}
               downloading={downloadingReaId === doc.item.id}
               onEdit={() => openReaForm(doc.item)}
               onDelete={() => setConfirmDeleteRea(doc.item.id)}

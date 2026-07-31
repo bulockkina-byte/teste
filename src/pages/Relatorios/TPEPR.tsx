@@ -1,10 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ScrollText, Plus, Trash2, Save, Clock, Users, Search } from 'lucide-react';
+import { ScrollText, Plus, Trash2, Save, Clock, Users, Search, Lock } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { listarBombeiros } from '../../services/bombeiroService';
 import type { Bombeiro } from '../../types/bombeiro';
 import { CARGO_OPTIONS } from '../../types/bombeiro';
+import { useContextoOperacional } from '../../hooks/useContextoOperacional';
 
 interface TempoRegistro {
   pessoaId: string;
@@ -20,6 +22,7 @@ interface TreinamentoTPEPR {
   id: string;
   data: string;
   createdAt: string;
+  createdBy?: string;
   registros: TempoRegistro[];
 }
 
@@ -48,6 +51,11 @@ function formatDate(d: string) {
 }
 
 export function TPEPR() {
+  const { user, canManageGlobal, loadingContexto } = useContextoOperacional();
+  const location = useLocation();
+  const isRelatorioRoute = location.pathname.startsWith('/relatorios');
+  const currentUsername = user?.username || user?.name || '';
+  const canCreate = canManageGlobal || !!currentUsername;
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
   const [treinamentos, setTreinamentos] = useState<TreinamentoTPEPR[]>([]);
   const [mode, setMode] = useState<'list' | 'form'>('list');
@@ -57,15 +65,22 @@ export function TPEPR() {
   const [search, setSearch] = useState('');
 
   useEffect(() => {
+    if (isRelatorioRoute && loadingContexto) return;
+    if (isRelatorioRoute && !canManageGlobal) return;
     listarBombeiros().then(setBombeiros).catch(() => {});
     setTreinamentos(carregar());
-  }, []);
+  }, [isRelatorioRoute, canManageGlobal, loadingContexto]);
 
   const filtered = useMemo(() => {
     if (!search) return bombeiros;
     const t = search.toLowerCase();
     return bombeiros.filter(b => b.nomeCompleto.toLowerCase().includes(t) || b.nomeGuerra.toLowerCase().includes(t));
   }, [bombeiros, search]);
+
+  function canManageTreinamento(t: TreinamentoTPEPR): boolean {
+    if (canManageGlobal) return true;
+    return !!t.createdBy && t.createdBy === currentUsername;
+  }
 
   function adicionarPessoa(b: Bombeiro) {
     if (registros.some(r => r.pessoaId === b.id)) return;
@@ -90,6 +105,10 @@ export function TPEPR() {
   }
 
   function handleNovo() {
+    if (!canCreate) {
+      alert('Você precisa estar autenticado para criar treinamentos.');
+      return;
+    }
     setEditandoId(null);
     setDataTreino(new Date().toISOString().split('T')[0]);
     setRegistros([]);
@@ -97,6 +116,10 @@ export function TPEPR() {
   }
 
   function handleEditar(t: TreinamentoTPEPR) {
+    if (!canManageTreinamento(t)) {
+      alert('Você só pode editar treinamentos criados por você.');
+      return;
+    }
     setEditandoId(t.id);
     setDataTreino(t.data);
     setRegistros(t.registros);
@@ -105,10 +128,16 @@ export function TPEPR() {
 
   function handleSalvar() {
     const lista = carregar();
+    const original = editandoId ? lista.find(t => t.id === editandoId) : null;
+    if (original && !canManageTreinamento(original)) {
+      alert('Você só pode editar treinamentos criados por você.');
+      return;
+    }
     const novo: TreinamentoTPEPR = {
       id: editandoId || crypto.randomUUID(),
       data: dataTreino,
       createdAt: editandoId ? (lista.find(t => t.id === editandoId)?.createdAt || new Date().toISOString()) : new Date().toISOString(),
+      createdBy: original?.createdBy || currentUsername,
       registros,
     };
     if (editandoId) {
@@ -123,9 +152,30 @@ export function TPEPR() {
   }
 
   function handleExcluir(id: string) {
+    const item = treinamentos.find(t => t.id === id);
+    if (item && !canManageTreinamento(item)) {
+      alert('Você só pode excluir treinamentos criados por você.');
+      return;
+    }
     const lista = carregar().filter(t => t.id !== id);
     salvar(lista);
     setTreinamentos(lista);
+  }
+
+  if (isRelatorioRoute && loadingContexto) {
+    return <PageContainer><div className="flex justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-4 border-aviation-500 border-t-transparent" /></div></PageContainer>;
+  }
+
+  if (isRelatorioRoute && !canManageGlobal) {
+    return (
+      <PageContainer>
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">
+          <Lock className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
+          <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Acesso restrito</h3>
+          <p className="text-sm text-graphite-400 dark:text-graphite-500">A tela de relatórios está disponível apenas para GS e administradores do sistema.</p>
+        </div>
+      </PageContainer>
+    );
   }
 
   return (
@@ -136,10 +186,12 @@ export function TPEPR() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <p className="text-sm text-graphite-500 dark:text-graphite-400">{treinamentos.length} treinamento(s)</p>
-            <button onClick={handleNovo}
-              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
-              <Plus className="h-4 w-4" /> + TP/EPR
-            </button>
+            {canCreate && (
+              <button onClick={handleNovo}
+                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
+                <Plus className="h-4 w-4" /> + TP/EPR
+              </button>
+            )}
           </div>
 
           {treinamentos.length === 0 ? (
@@ -162,16 +214,18 @@ export function TPEPR() {
                         <p className="text-xs text-graphite-500 dark:text-graphite-400">{t.registros.length} participantes</p>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => handleEditar(t)}
-                        className="rounded-lg border border-graphite-300 bg-white px-3 py-1.5 text-xs font-medium text-graphite-700 hover:bg-graphite-50 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">
-                        Editar
-                      </button>
-                      <button onClick={() => handleExcluir(t.id)}
-                        className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
+                    {canManageTreinamento(t) && (
+                      <div className="flex gap-2">
+                        <button onClick={() => handleEditar(t)}
+                          className="rounded-lg border border-graphite-300 bg-white px-3 py-1.5 text-xs font-medium text-graphite-700 hover:bg-graphite-50 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">
+                          Editar
+                        </button>
+                        <button onClick={() => handleExcluir(t.id)}
+                          className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

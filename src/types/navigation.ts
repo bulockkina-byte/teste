@@ -8,4 +8,6 @@ export interface MenuItem {
   children?: MenuItem[];
   adminOnly?: boolean;
   adminOrGsOnly?: boolean;
+  arquivoOnly?: boolean;
+  certificacoesOnly?: boolean;
 }

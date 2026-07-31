@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Award, Plus, Search, ChevronDown, ChevronUp, X, Eye,
-  Shield, GraduationCap, Car, FileText, Upload, Trash2, Check, BadgeCheck,
+  Shield, GraduationCap, Car, FileText, Upload, Trash2, BadgeCheck, Lock,
 } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
@@ -12,14 +12,22 @@ import { listarBombeiros } from '../../services/bombeiroService';
 import { NR_OPTIONS } from '../../types/certificacao';
 import type { CertificacaoNR } from '../../types/certificacao';
 import {
-  listarCertificacoes, criarCertificacao, excluirCertificacao,
+  listarCertificacoes, criarCertificacao,
 } from '../../services/certificacaoService';
 import { CURSO_OPTIONS } from '../../types/certificacaoCurso';
 import type { CertificacaoCurso } from '../../types/certificacaoCurso';
 import {
-  listarCertificacoesCursos, criarCertificacaoCurso, excluirCertificacaoCurso,
+  listarCertificacoesCursos, criarCertificacaoCurso,
 } from '../../services/certificacaoCursoService';
 import { temCategoriaD } from '../../utils/validacaoCursos';
+import {
+  canGerenciarCertificacoes,
+  canVisualizarCertificacoes,
+  equipeEscopoCertificacoes,
+  podeVerCertificacoesBase,
+  podeVerDadosPessoaisBase,
+  resolverContextoOperacional,
+} from '../../utils/permissoes';
 
 const NR_COLORS: Record<string, string> = {
   'NR-1': 'from-slate-500 to-slate-600',
@@ -308,11 +316,11 @@ function CursoFormInline({ funcionarioId, funcionarioNome, onSave, onCancel }: {
 /* ───────── Card Funcionário ───────── */
 
 function FuncionarioCard({
-  funcionario, certNR, certCurso, isAdmin,
+  funcionario, certNR, certCurso, canManage,
   onAddNR, onAddCurso, onViewArquivo,
 }: {
   funcionario: Bombeiro; certNR: CertificacaoNR[]; certCurso: CertificacaoCurso[];
-  isAdmin: boolean; onAddNR: (id: string, nome: string) => void;
+  canManage: boolean; onAddNR: (id: string, nome: string) => void;
   onAddCurso: (id: string, nome: string) => void; onViewArquivo: (arquivo: string, title: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -489,7 +497,7 @@ function FuncionarioCard({
               <h4 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-purple-500 dark:text-purple-400">
                 <GraduationCap className="h-3.5 w-3.5" /> Cursos Anexados
               </h4>
-              {isAdmin && (
+              {canManage && (
                 <button onClick={() => onAddCurso(funcionario.id, funcionario.nomeCompleto)}
                   className="flex items-center gap-1 rounded-lg border border-purple-300 bg-purple-50 px-2.5 py-1 text-[10px] font-medium text-purple-700 transition-all hover:bg-purple-100 dark:border-purple-700 dark:bg-purple-900/20 dark:text-purple-300">
                   <Plus className="h-3 w-3" /> Adicionar
@@ -536,7 +544,7 @@ function FuncionarioCard({
               <h4 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-teal-500 dark:text-teal-400">
                 <GraduationCap className="h-3.5 w-3.5" /> Cursos Motiva
               </h4>
-              {isAdmin && (
+              {canManage && (
                 <button onClick={() => onAddCurso(funcionario.id, funcionario.nomeCompleto)}
                   className="flex items-center gap-1 rounded-lg border border-teal-300 bg-teal-50 px-2.5 py-1 text-[10px] font-medium text-teal-700 transition-all hover:bg-teal-100 dark:border-teal-700 dark:bg-teal-900/20 dark:text-teal-300">
                   <Plus className="h-3 w-3" /> Adicionar
@@ -583,7 +591,7 @@ function FuncionarioCard({
               <h4 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">
                 <Shield className="h-3.5 w-3.5" /> Normas Regulamentadoras
               </h4>
-              {isAdmin && (
+              {canManage && (
                 <button onClick={() => onAddNR(funcionario.id, funcionario.nomeCompleto)}
                   className="flex items-center gap-1 rounded-lg border border-aviation-300 bg-aviation-50 px-2.5 py-1 text-[10px] font-medium text-aviation-700 transition-all hover:bg-aviation-100 dark:border-aviation-700 dark:bg-aviation-900/20 dark:text-aviation-300">
                   <Plus className="h-3 w-3" /> Adicionar
@@ -628,9 +636,6 @@ function FuncionarioCard({
 
 export function Certificacoes() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin' || user?.role === 'desenvolvedor';
-  const isGerente = user?.role === 'gerente';
-  const isChefe = user?.role === 'chefe';
   const [certNR, setCertNR] = useState<CertificacaoNR[]>([]);
   const [certCurso, setCertCurso] = useState<CertificacaoCurso[]>([]);
   const [termo, setTermo] = useState('');
@@ -640,31 +645,76 @@ export function Certificacoes() {
   const [funcNome, setFuncNome] = useState('');
   const [arquivoModal, setArquivoModal] = useState<{ arquivo: string; title: string } | null>(null);
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
+  const [canViewCertificacoes, setCanViewCertificacoes] = useState(() => podeVerCertificacoesBase(user));
+  const [canManageCertificacoes, setCanManageCertificacoes] = useState(() => podeVerDadosPessoaisBase(user));
+  const [equipeEscopo, setEquipeEscopo] = useState<Equipe | null>(null);
+  const [permissoesReady, setPermissoesReady] = useState(false);
 
-  const podeFiltrar = isAdmin || isGerente;
+  const podeFiltrar = canManageCertificacoes;
 
   useEffect(() => {
-    (async () => {
-      const lista = await listarBombeiros();
-      if (isChefe) {
-        const meu = lista.find(b => b.nomeGuerra.toLowerCase() === user?.username.toLowerCase());
-        if (meu?.equipe) {
-          setBombeiros(lista.filter(b => b.equipe === meu.equipe));
-          setEquipeFiltro(meu.equipe);
-        } else {
-          setBombeiros(lista);
-        }
-      } else {
-        setBombeiros(lista);
-      }
-    })();
-  }, [isChefe, user?.username]);
-  async function carregar() { setCertNR(await listarCertificacoes()); setCertCurso(await listarCertificacoesCursos()); }
-  useEffect(() => { carregar(); }, []);
+    let cancelled = false;
+    setCanViewCertificacoes(podeVerCertificacoesBase(user));
+    setCanManageCertificacoes(podeVerDadosPessoaisBase(user));
+    setEquipeEscopo(null);
+    setPermissoesReady(false);
+
+    resolverContextoOperacional(user)
+      .then(contexto => {
+        if (cancelled) return;
+        const canManage = canGerenciarCertificacoes(contexto);
+        const canView = canVisualizarCertificacoes(contexto);
+        setCanManageCertificacoes(canManage);
+        setCanViewCertificacoes(canView);
+        setEquipeEscopo(equipeEscopoCertificacoes(contexto));
+        setEquipeFiltro(canManage ? '' : (contexto.equipe || ''));
+        setPermissoesReady(true);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        const canViewBase = podeVerCertificacoesBase(user);
+        setCanManageCertificacoes(podeVerDadosPessoaisBase(user));
+        setCanViewCertificacoes(canViewBase);
+        setEquipeEscopo(null);
+        setPermissoesReady(true);
+      });
+
+    return () => { cancelled = true; };
+  }, [user]);
+
+  async function carregar() {
+    if (!canViewCertificacoes) {
+      setBombeiros([]);
+      setCertNR([]);
+      setCertCurso([]);
+      return;
+    }
+
+    if (!canManageCertificacoes && !equipeEscopo) {
+      setBombeiros([]);
+      setCertNR([]);
+      setCertCurso([]);
+      return;
+    }
+
+    const paramsBombeiros = canManageCertificacoes ? undefined : { equipe: equipeEscopo as Equipe };
+    const lista = await listarBombeiros(paramsBombeiros);
+    const funcionarioIds = lista.map(b => b.id);
+    const filtroCertificacoes = canManageCertificacoes ? undefined : { funcionarioIds };
+    const [nrs, cursos] = await Promise.all([
+      listarCertificacoes(filtroCertificacoes),
+      listarCertificacoesCursos(filtroCertificacoes),
+    ]);
+    setBombeiros(lista);
+    setCertNR(nrs);
+    setCertCurso(cursos);
+  }
+
+  useEffect(() => { carregar(); }, [canViewCertificacoes, canManageCertificacoes, equipeEscopo]);
 
   const filtrados = useMemo(() => {
     let result = bombeiros;
-    if (equipeFiltro) {
+    if (canManageCertificacoes && equipeFiltro) {
       result = result.filter(b => b.equipe === equipeFiltro);
     }
     if (termo) {
@@ -672,7 +722,31 @@ export function Certificacoes() {
       result = result.filter(b => b.nomeCompleto.toLowerCase().includes(t) || b.nomeGuerra.toLowerCase().includes(t));
     }
     return result;
-  }, [bombeiros, termo, equipeFiltro]);
+  }, [bombeiros, termo, equipeFiltro, canManageCertificacoes]);
+
+  if (!permissoesReady) {
+    return (
+      <PageContainer>
+        <PageTitle icon={Award} title="Certificações" />
+        <div className="flex items-center justify-center py-20">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-aviation-500 border-t-transparent" />
+        </div>
+      </PageContainer>
+    );
+  }
+
+  if (!canViewCertificacoes) {
+    return (
+      <PageContainer>
+        <PageTitle icon={Award} title="Certificações" />
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">
+          <Lock className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
+          <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Acesso restrito</h3>
+          <p className="text-sm text-graphite-400">Somente Administradores, GS, BA-CE e BA-LR podem visualizar certificações.</p>
+        </div>
+      </PageContainer>
+    );
+  }
 
   return (
     <PageContainer>
@@ -709,30 +783,30 @@ export function Certificacoes() {
             <div key={b.id}>
               <FuncionarioCard
                 funcionario={b} certNR={certNR.filter(c => c.funcionarioId === b.id)}
-                certCurso={certCurso.filter(c => c.funcionarioId === b.id)} isAdmin={isAdmin}
+                certCurso={certCurso.filter(c => c.funcionarioId === b.id)} canManage={canManageCertificacoes}
                 onAddNR={(id, nome) => { setFormNR(id); setFormCurso(null); setFuncNome(nome); }}
                 onAddCurso={(id, nome) => { setFormCurso(id); setFormNR(null); setFuncNome(nome); }}
                 onViewArquivo={(arquivo, title) => setArquivoModal({ arquivo, title })}
               />
-              {formNR === b.id && (
+              {canManageCertificacoes && formNR === b.id && (
                 <div className="mt-2 overflow-hidden rounded-2xl border border-aviation-200 bg-white shadow-lg dark:border-aviation-700 dark:bg-surface-card">
                   <div className="flex items-center justify-between border-b border-graphite-200 px-4 py-3 dark:border-border-dark">
                     <h4 className="text-sm font-bold text-graphite-900 dark:text-graphite-100">Adicionar NR — {funcNome}</h4>
                     <button onClick={() => setFormNR(null)} className="rounded-lg p-1 text-graphite-400 hover:bg-graphite-100 dark:hover:bg-surface-hover"><X className="h-4 w-4" /></button>
                   </div>
                   <div className="p-4">
-                    <NRFormInline funcionarioId={b.id} funcionarioNome={b.nomeCompleto} onSave={async d => { await criarCertificacao(d); carregar(); setFormNR(null); }} onCancel={() => setFormNR(null)} />
+                    <NRFormInline funcionarioId={b.id} funcionarioNome={b.nomeCompleto} onSave={async d => { if (!canManageCertificacoes) return; await criarCertificacao(d); await carregar(); setFormNR(null); }} onCancel={() => setFormNR(null)} />
                   </div>
                 </div>
               )}
-              {formCurso === b.id && (
+              {canManageCertificacoes && formCurso === b.id && (
                 <div className="mt-2 overflow-hidden rounded-2xl border border-purple-200 bg-white shadow-lg dark:border-purple-700 dark:bg-surface-card">
                   <div className="flex items-center justify-between border-b border-graphite-200 px-4 py-3 dark:border-border-dark">
                     <h4 className="text-sm font-bold text-graphite-900 dark:text-graphite-100">Adicionar Curso — {funcNome}</h4>
                     <button onClick={() => setFormCurso(null)} className="rounded-lg p-1 text-graphite-400 hover:bg-graphite-100 dark:hover:bg-surface-hover"><X className="h-4 w-4" /></button>
                   </div>
                   <div className="p-4">
-                    <CursoFormInline funcionarioId={b.id} funcionarioNome={b.nomeCompleto} onSave={async d => { await criarCertificacaoCurso(d); carregar(); setFormCurso(null); }} onCancel={() => setFormCurso(null)} />
+                    <CursoFormInline funcionarioId={b.id} funcionarioNome={b.nomeCompleto} onSave={async d => { if (!canManageCertificacoes) return; await criarCertificacaoCurso(d); await carregar(); setFormCurso(null); }} onCancel={() => setFormCurso(null)} />
                   </div>
                 </div>
               )}

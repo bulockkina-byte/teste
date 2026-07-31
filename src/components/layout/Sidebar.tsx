@@ -7,25 +7,43 @@ import { Tooltip } from '../ui/Tooltip';
 import { menuItems } from '../../services/menuData';
 import type { MenuItem as MenuItemType } from '../../types/navigation';
 import {
+  canVisualizarArquivo,
+  canVisualizarCertificacoes,
   isAdministradorSistema,
   podeVerCadastroCompletoBase,
+  podeVerArquivoBase,
+  podeVerCertificacoesBase,
   resolverContextoOperacional,
 } from '../../utils/permissoes';
 
-function isVisible(item: MenuItemType, isAdmin: boolean, canViewCadastroCompleto: boolean): boolean {
+function isVisible(
+  item: MenuItemType,
+  isAdmin: boolean,
+  canViewCadastroCompleto: boolean,
+  canViewArquivo: boolean,
+  canViewCertificacoes: boolean,
+): boolean {
   if (item.adminOnly && !isAdmin) return false;
   if (item.adminOrGsOnly && !canViewCadastroCompleto) return false;
+  if (item.arquivoOnly && !canViewArquivo) return false;
+  if (item.certificacoesOnly && !canViewCertificacoes) return false;
   if (item.children) {
-    const visibleChildren = item.children.filter(c => isVisible(c, isAdmin, canViewCadastroCompleto));
+    const visibleChildren = item.children.filter(c => isVisible(c, isAdmin, canViewCadastroCompleto, canViewArquivo, canViewCertificacoes));
     if (visibleChildren.length === 0) return false;
   }
   return true;
 }
 
-function filterMenu(items: MenuItemType[], isAdmin: boolean, canViewCadastroCompleto: boolean): MenuItemType[] {
-  return items.filter(item => isVisible(item, isAdmin, canViewCadastroCompleto)).map(item => {
+function filterMenu(
+  items: MenuItemType[],
+  isAdmin: boolean,
+  canViewCadastroCompleto: boolean,
+  canViewArquivo: boolean,
+  canViewCertificacoes: boolean,
+): MenuItemType[] {
+  return items.filter(item => isVisible(item, isAdmin, canViewCadastroCompleto, canViewArquivo, canViewCertificacoes)).map(item => {
     if (item.children) {
-      return { ...item, children: filterMenu(item.children, isAdmin, canViewCadastroCompleto) };
+      return { ...item, children: filterMenu(item.children, isAdmin, canViewCadastroCompleto, canViewArquivo, canViewCertificacoes) };
     }
     return item;
   });
@@ -142,7 +160,9 @@ export function Sidebar() {
   const { user } = useAuth();
   const isAdmin = isAdministradorSistema(user);
   const [canViewCadastroCompleto, setCanViewCadastroCompleto] = useState(() => podeVerCadastroCompletoBase(user));
-  const visibleMenu = filterMenu(menuItems, isAdmin, canViewCadastroCompleto);
+  const [canViewArquivo, setCanViewArquivo] = useState(() => podeVerArquivoBase(user));
+  const [canViewCertificacoes, setCanViewCertificacoes] = useState(() => podeVerCertificacoesBase(user));
+  const visibleMenu = filterMenu(menuItems, isAdmin, canViewCadastroCompleto, canViewArquivo, canViewCertificacoes);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const asideRef = useRef<HTMLElement>(null);
@@ -155,15 +175,23 @@ export function Sidebar() {
   useEffect(() => {
     let cancelled = false;
     setCanViewCadastroCompleto(podeVerCadastroCompletoBase(user));
+    setCanViewArquivo(podeVerArquivoBase(user));
+    setCanViewCertificacoes(podeVerCertificacoesBase(user));
 
     resolverContextoOperacional(user)
       .then(contexto => {
         if (!cancelled) {
           setCanViewCadastroCompleto(contexto.isAdministradorSistema || contexto.canManageGlobal);
+          setCanViewArquivo(canVisualizarArquivo(contexto));
+          setCanViewCertificacoes(canVisualizarCertificacoes(contexto));
         }
       })
       .catch(() => {
-        if (!cancelled) setCanViewCadastroCompleto(podeVerCadastroCompletoBase(user));
+        if (!cancelled) {
+          setCanViewCadastroCompleto(podeVerCadastroCompletoBase(user));
+          setCanViewArquivo(podeVerArquivoBase(user));
+          setCanViewCertificacoes(podeVerCertificacoesBase(user));
+        }
       });
 
     return () => { cancelled = true; };

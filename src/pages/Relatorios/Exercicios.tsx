@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Activity, Target, Award, Search, ChevronDown, ChevronUp, Timer } from 'lucide-react';
+import { Activity, Target, Award, Search, ChevronDown, ChevronUp, Timer, Lock } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
+import { useContextoOperacional } from '../../hooks/useContextoOperacional';
 
 interface Treinamento {
   id: string; tipo: string; data: string; titulo: string;
@@ -22,13 +23,16 @@ function fmt(d: string) {
 }
 
 export function Exercicios() {
+  const { canManageGlobal, loadingContexto } = useContextoOperacional();
   const navigate = useNavigate();
   const [treinos, setTreinos] = useState<Treinamento[]>([]);
   const [search, setSearch] = useState('');
   const [filterTipo, setFilterTipo] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  useEffect(() => { setTreinos(carregar()); }, []);
+  useEffect(() => {
+    if (!loadingContexto && canManageGlobal) setTreinos(carregar());
+  }, [canManageGlobal, loadingContexto]);
 
   const filtered = useMemo(() => {
     let lista = treinos;
@@ -44,6 +48,22 @@ export function Exercicios() {
     total: treinos.length,
     tipos: new Set(treinos.map(t => t.tipo)).size,
   }), [treinos]);
+
+  if (loadingContexto) {
+    return <PageContainer><div className="flex justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-4 border-aviation-500 border-t-transparent" /></div></PageContainer>;
+  }
+
+  if (!canManageGlobal) {
+    return (
+      <PageContainer>
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">
+          <Lock className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
+          <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Acesso restrito</h3>
+          <p className="text-sm text-graphite-400 dark:text-graphite-500">A tela de relatórios está disponível apenas para GS e administradores do sistema.</p>
+        </div>
+      </PageContainer>
+    );
+  }
 
   return (
     <PageContainer>

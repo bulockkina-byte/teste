@@ -4,6 +4,8 @@ import { listarVigencias } from '../services/vigenciaSubstituicaoService';
 
 const EQUIPES: readonly Equipe[] = ['Alfa', 'Bravo', 'Charlie', 'Delta', 'Ferista', 'Embaixador'];
 const CARGOS_RESPONSAVEIS_EQUIPE: readonly Cargo[] = ['BA-CE', 'BA-LR'];
+const CARGOS_VISUALIZAM_ARQUIVO: readonly Cargo[] = ['BA-CE', 'BA-LR'];
+const CARGOS_VISUALIZAM_CERTIFICACOES: readonly Cargo[] = ['BA-CE', 'BA-LR'];
 
 export type CadastroModuloRestrito = 'equipamentos' | 'viaturas' | 'extintores' | 'hidrantes';
 
@@ -38,6 +40,22 @@ export function isGSBase(user: AuthUserPermissao): boolean {
 
 export function podeVerCadastroCompletoBase(user: AuthUserPermissao): boolean {
   return isAdministradorSistema(user) || isGSBase(user);
+}
+
+export function podeVerDadosPessoaisBase(user: AuthUserPermissao): boolean {
+  return podeVerCadastroCompletoBase(user);
+}
+
+export function podeVerArquivoBase(user: AuthUserPermissao): boolean {
+  if (podeVerCadastroCompletoBase(user)) return true;
+  const cargo = user?.pessoa?.personType === 'bombeiro' ? user.pessoa.funcao : null;
+  return CARGOS_VISUALIZAM_ARQUIVO.includes(cargo as Cargo);
+}
+
+export function podeVerCertificacoesBase(user: AuthUserPermissao): boolean {
+  if (podeVerCadastroCompletoBase(user)) return true;
+  const cargo = user?.pessoa?.personType === 'bombeiro' ? user.pessoa.funcao : null;
+  return CARGOS_VISUALIZAM_CERTIFICACOES.includes(cargo as Cargo);
 }
 
 function equipeValida(equipe: string | undefined | null): Equipe | null {
@@ -138,4 +156,54 @@ export function canGerenciarCadastroModulo(
   }
 
   return contexto.equipe === 'Alfa';
+}
+
+export function canAcessarDadosPessoais(contexto: ContextoOperacionalPermissao): boolean {
+  return contexto.isAdministradorSistema || contexto.canManageGlobal;
+}
+
+export function canGerenciarEquipe(
+  contexto: ContextoOperacionalPermissao,
+  equipe?: string | null,
+): boolean {
+  if (canAcessarDadosPessoais(contexto)) return true;
+  return !!contexto.equipe && !!equipe && contexto.equipe === equipe;
+}
+
+export function canCriarNaEquipe(
+  contexto: ContextoOperacionalPermissao,
+  equipe?: string | null,
+): boolean {
+  return canGerenciarEquipe(contexto, equipe);
+}
+
+export function podeVerRelatoriosBase(user: AuthUserPermissao): boolean {
+  return podeVerDadosPessoaisBase(user);
+}
+
+export function canVisualizarRelatorios(contexto: ContextoOperacionalPermissao): boolean {
+  return canAcessarDadosPessoais(contexto);
+}
+
+export function canGerenciarArquivo(contexto: ContextoOperacionalPermissao): boolean {
+  return canAcessarDadosPessoais(contexto);
+}
+
+export function canVisualizarArquivo(contexto: ContextoOperacionalPermissao): boolean {
+  if (canGerenciarArquivo(contexto)) return true;
+  return CARGOS_VISUALIZAM_ARQUIVO.includes(contexto.cargo as Cargo);
+}
+
+export function canGerenciarCertificacoes(contexto: ContextoOperacionalPermissao): boolean {
+  return canAcessarDadosPessoais(contexto);
+}
+
+export function canVisualizarCertificacoes(contexto: ContextoOperacionalPermissao): boolean {
+  if (canGerenciarCertificacoes(contexto)) return true;
+  return CARGOS_VISUALIZAM_CERTIFICACOES.includes(contexto.cargo as Cargo);
+}
+
+export function equipeEscopoCertificacoes(contexto: ContextoOperacionalPermissao): Equipe | null {
+  if (canGerenciarCertificacoes(contexto)) return null;
+  return canVisualizarCertificacoes(contexto) ? contexto.equipe : null;
 }

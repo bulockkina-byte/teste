@@ -4,7 +4,7 @@ import { FileText, Save, Send, Eye, AlertTriangle, ArrowLeft, ArrowRight, Trash2
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { AlertModal } from '../../components/ui/AlertModal';
-import { useAuth } from '../../context/AuthContext';
+import { useContextoOperacional } from '../../hooks/useContextoOperacional';
 import { listarAtivos } from '../../services/bombeiroService';
 import { listarFeriasGozo } from '../../services/feriasService';
 import { listarSubstituicoesTemporarias } from '../../services/substituicaoTemporariaService';
@@ -116,9 +116,10 @@ const STATUS_LABELS: Record<LRODraftStatus, string> = {
 };
 
 export function GerarLRO() {
-  const { user } = useAuth();
+  const { user, canManageGlobal, canManageEquipe, equipeEfetiva } = useContextoOperacional();
   const navigate = useNavigate();
   const username = user?.username || '';
+  const canCreate = canManageGlobal || !!equipeEfetiva;
 
   const [step, setStep] = useState<Step>('equipe');
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
@@ -181,13 +182,10 @@ export function GerarLRO() {
 
   const MESES = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   const ANOS = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
-  const isAdmin = user?.role === 'admin' || user?.role === 'desenvolvedor';
-  const isGerente = user?.role === 'gerente';
-  const userEquipe = useMemo(() => {
-    if (!user?.pessoa?.nomeGuerra) return '';
-    const b = bombeiros.find(bb => bb.nomeGuerra === user.pessoa!.nomeGuerra);
-    return b?.equipe || '';
-  }, [bombeiros, user]);
+  const equipesFormulario = useMemo(() => {
+    if (canManageGlobal) return ['Alfa', 'Bravo', 'Charlie', 'Delta'] as EquipeOpcao[];
+    return equipeEfetiva ? [equipeEfetiva as EquipeOpcao] : [];
+  }, [canManageGlobal, equipeEfetiva]);
   const inputClass = 'w-full rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all hover:border-graphite-400 focus:border-aviation-500 focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400 dark:focus:ring-aviation-400/10';
   const [view, setView] = useState<'lista' | 'wizard'>('lista');
   const [showConfirm, setShowConfirm] = useState(false);
@@ -202,6 +200,23 @@ export function GerarLRO() {
   const [filtroEquipeLista, setFiltroEquipeLista] = useState('');
   const [cloneOrigem, setCloneOrigem] = useState<LRODraft | null>(null);
   const [draftCountdowns, setDraftCountdowns] = useState<Record<string, string>>({});
+
+  function canManageDraft(draft: LRODraft): boolean {
+    const dados = draft.dados as Record<string, unknown>;
+    return canManageEquipe(draft.equipe || (dados?.equipeNome as string | undefined) || '');
+  }
+
+  function bloquearEquipeAtual(acao: string): boolean {
+    if (canManageEquipe(equipe)) return false;
+    setErroValidacao(`Você só pode ${acao} LRO da sua equipe efetiva.`);
+    return true;
+  }
+
+  useEffect(() => {
+    if (!canManageGlobal && equipeEfetiva && equipe !== equipeEfetiva) {
+      setEquipe(equipeEfetiva as EquipeOpcao);
+    }
+  }, [canManageGlobal, equipeEfetiva, equipe]);
 
   useEffect(() => {
     const tick = () => {
@@ -281,9 +296,7 @@ export function GerarLRO() {
           });
           setTrocaFills(comNome);
         }
-        const d = isAdmin
-          ? await listarDrafts('').catch(() => [])
-          : await listarDrafts(username).catch(() => []);
+        const d = await listarDrafts('').catch(() => []);
         setDrafts(d);
         const saved = sessionStorage.getItem('lro_form_backup');
         if (saved) {
@@ -510,6 +523,7 @@ export function GerarLRO() {
   }, [dataInicio, equipe, substituicoesMap, disponiveis, bombeiros, chefeEquipe]);
 
   async function handleSalvarRascunho() {
+    if (bloquearEquipeAtual('salvar')) return;
     setSaving(true);
     try {
       const dados = {
@@ -558,7 +572,7 @@ export function GerarLRO() {
       };
       const saved = await salvarDraft(dados, equipe, dataInicio, username, draftId || undefined);
       setDraftId(saved.id);
-      const updated = await listarDrafts(username).catch(() => []);
+      const updated = await listarDrafts('').catch(() => []);
       setDrafts(updated);
       setView('lista');
       setStep('equipe');
@@ -571,6 +585,7 @@ export function GerarLRO() {
   }
 
   async function handleGerarLRO() {
+    if (bloquearEquipeAtual('gerar')) return;
     setSaving(true);
     try {
       const dados = {
@@ -624,6 +639,7 @@ export function GerarLRO() {
   }
 
   function handlePreview() {
+    if (bloquearEquipeAtual('visualizar')) return;
     sessionStorage.setItem('lro_form_backup', JSON.stringify({
       step, equipe, dataInicio, dataFim,
       chefeEquipe, comunicacao,
@@ -688,6 +704,7 @@ export function GerarLRO() {
 
   function handleEnviarAutentique() {
     setShowConfirm(false);
+    if (bloquearEquipeAtual('enviar')) return;
     const gerenteEncontrado = bombeiros.find((b: any) => b.cargo === 'GS');
     const dados = {
       equipeNome: equipe, dataInicio, dataFim, chefeEquipe, comunicacao,
@@ -791,10 +808,7 @@ export function GerarLRO() {
         const mes = String(parseInt(d.data_plantao.substring(5, 7), 10));
         if (mes !== filtroMes) return false;
       }
-      if (!isAdmin && !isGerente && userEquipe && d.equipe !== userEquipe) return false;
-      if (isGerente && userEquipe && filtroEquipeLista && d.equipe !== filtroEquipeLista) return false;
-      if (isGerente && userEquipe && !filtroEquipeLista && d.equipe !== userEquipe) return false;
-      if (isAdmin && filtroEquipeLista && d.equipe !== filtroEquipeLista) return false;
+      if (filtroEquipeLista && d.equipe !== filtroEquipeLista) return false;
       return true;
     });
 
@@ -803,14 +817,18 @@ export function GerarLRO() {
         <div className="mb-6 flex items-center justify-between">
           <PageTitle icon={FileText} title="LRO - Livro Ata de Chefe de Equipe" />
           <div className="flex gap-3">
-            <button onClick={() => setCloneOrigem({ id: 'novo', equipe: '', data_plantao: '', status: 'rascunho', dados: {}, created_by: username, created_at: '', updated_at: '', expires_at: '' } as any)}
-              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-amber-500/20 transition-all hover:from-amber-400 hover:to-amber-500 hover:shadow-xl hover:shadow-amber-500/30 active:scale-[0.98]">
-              <FileText className="h-4 w-4" /> Clonar LRO
-            </button>
-            <button onClick={() => { setDraftId(null); setStep('equipe'); setView('wizard'); }}
-              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
-              <FileText className="h-4 w-4" /> Novo LRO
-            </button>
+            {canCreate && (
+              <>
+                <button onClick={() => setCloneOrigem({ id: 'novo', equipe: equipeEfetiva || '', data_plantao: '', status: 'rascunho', dados: {}, created_by: username, created_at: '', updated_at: '', expires_at: '' } as any)}
+                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-amber-500/20 transition-all hover:from-amber-400 hover:to-amber-500 hover:shadow-xl hover:shadow-amber-500/30 active:scale-[0.98]">
+                  <FileText className="h-4 w-4" /> Clonar LRO
+                </button>
+                <button onClick={() => { setDraftId(null); setEquipe((canManageGlobal ? 'Alfa' : equipeEfetiva || 'Alfa') as EquipeOpcao); setStep('equipe'); setView('wizard'); }}
+                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
+                  <FileText className="h-4 w-4" /> Novo LRO
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -825,17 +843,10 @@ export function GerarLRO() {
               <option value="">Todos os meses</option>
               {MESES.slice(1).map((m, i) => <option key={i + 1} value={String(i + 1)}>{m}</option>)}
             </select>
-            {isAdmin && (
-              <select value={filtroEquipeLista} onChange={e => setFiltroEquipeLista(e.target.value)} className={inputClass}>
-                <option value="">Todas as equipes</option>
-                {['Alfa','Bravo','Charlie','Delta'].map(eq => <option key={eq} value={eq}>{eq}</option>)}
-              </select>
-            )}
-            {!isAdmin && userEquipe && (
-              <span className="rounded-full bg-graphite-100 px-3 py-1.5 text-xs font-medium text-graphite-600 dark:bg-graphite-800 dark:text-graphite-300">
-                Equipe {userEquipe}
-              </span>
-            )}
+            <select value={filtroEquipeLista} onChange={e => setFiltroEquipeLista(e.target.value)} className={inputClass}>
+              <option value="">Todas as equipes</option>
+              {['Alfa','Bravo','Charlie','Delta'].map(eq => <option key={eq} value={eq}>{eq}</option>)}
+            </select>
             <p className="text-sm text-graphite-500 dark:text-graphite-400">{filtradas.length} LRO(s)</p>
           </div>
         </div>
@@ -876,11 +887,13 @@ export function GerarLRO() {
                         Exclui em: {draftCountdowns[d.id]}
                       </span>
                     )}
-                    <button onClick={() => setCloneOrigem(d)} title="Clonar LRO"
-                      className="rounded-lg p-1.5 text-graphite-400 transition-all hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-900/20">
-                      <FileText className="h-4 w-4" />
-                    </button>
-                    {d.status === 'rascunho' ? (
+                    {canCreate && (
+                      <button onClick={() => setCloneOrigem(d)} title="Clonar LRO"
+                        className="rounded-lg p-1.5 text-graphite-400 transition-all hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-900/20">
+                        <FileText className="h-4 w-4" />
+                      </button>
+                    )}
+                    {d.status === 'rascunho' && canManageDraft(d) ? (
                       <button onClick={() => {
                         setDraftId(d.id);
                         setStep('preencher');
@@ -927,8 +940,11 @@ export function GerarLRO() {
                         Continuar
                       </button>
                     ) : null}
-                    {(d.status === 'rascunho' || isAdmin) && (
-                      <button onClick={() => excluirDraft(d.id).then(() => setDrafts(prev => prev.filter(x => x.id !== d.id)))}
+                    {canManageDraft(d) && (d.status === 'rascunho' || canManageGlobal) && (
+                      <button onClick={() => {
+                        if (!canManageDraft(d)) return;
+                        excluirDraft(d.id).then(() => setDrafts(prev => prev.filter(x => x.id !== d.id)));
+                      }}
                         className="rounded-lg p-1.5 text-alert-red transition-all hover:bg-red-50 dark:hover:bg-red-900/20">
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -963,8 +979,8 @@ export function GerarLRO() {
                 )}
                 <div>
                   <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Nova equipe</label>
-                  <select id="cloneEquipe" className="w-full rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm dark:border-border-dark dark:bg-surface-card">
-                    {['Alfa','Bravo','Charlie','Delta'].map(e => <option key={e} value={e} selected={e === cloneOrigem.equipe}>{e}</option>)}
+                  <select id="cloneEquipe" defaultValue={canManageGlobal ? (cloneOrigem.equipe || equipesFormulario[0] || '') : (equipeEfetiva || '')} disabled={!canManageGlobal} className="w-full rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm dark:border-border-dark dark:bg-surface-card disabled:opacity-60">
+                    {equipesFormulario.map(e => <option key={e} value={e}>{e}</option>)}
                   </select>
                 </div>
                 <div>
@@ -981,7 +997,13 @@ export function GerarLRO() {
                   if (!selCloneId) return;
                   const origem = selCloneId === cloneOrigem.id ? cloneOrigem : drafts.find(d => d.id === selCloneId);
                   if (!origem) return;
-                  const selEquipe = (document.getElementById('cloneEquipe') as HTMLSelectElement)?.value || origem.equipe;
+                  const selEquipe = canManageGlobal
+                    ? ((document.getElementById('cloneEquipe') as HTMLSelectElement)?.value || origem.equipe)
+                    : (equipeEfetiva || '');
+                  if (!canManageEquipe(selEquipe)) {
+                    alert('Você só pode clonar LRO para sua equipe efetiva.');
+                    return;
+                  }
                   const selData = (document.getElementById('cloneData') as HTMLInputElement)?.value || new Date().toISOString().split('T')[0];
                   const frota = origem.dados?.frota as Array<Record<string, string>> | undefined;
                   const frotaClone = frota?.map(f => ({
@@ -1002,11 +1024,12 @@ export function GerarLRO() {
                     solicitacoes: [],
                   };
                   const saved = await salvarDraft(novosDados, selEquipe, selData, username);
-                  const d = isAdmin
-                    ? await listarDrafts('').catch(() => [])
-                    : await listarDrafts(username).catch(() => []);
+                  const d = await listarDrafts('').catch(() => []);
                   setDrafts(d);
                   setDraftId(saved.id);
+                  setEquipe(selEquipe as EquipeOpcao);
+                  setDataInicio(selData);
+                  setDataFim(dataSaidaPlantao(selEquipe, selData));
                   setView('wizard');
                   setStep('preencher');
                   setCloneOrigem(null);
@@ -1055,11 +1078,8 @@ export function GerarLRO() {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               <div>
                 <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Equipe *</label>
-                <select value={equipe} onChange={e => setEquipe(e.target.value as EquipeOpcao)} className={inputClass}>
-                  <option value="Alfa">Alfa</option>
-                  <option value="Bravo">Bravo</option>
-                  <option value="Charlie">Charlie</option>
-                  <option value="Delta">Delta</option>
+                <select value={equipe} onChange={e => setEquipe(e.target.value as EquipeOpcao)} disabled={!canManageGlobal} className={inputClass}>
+                  {equipesFormulario.map(eq => <option key={eq} value={eq}>{eq}</option>)}
                 </select>
               </div>
               <div>
@@ -1126,6 +1146,7 @@ export function GerarLRO() {
           <div className="flex justify-end">
             <button onClick={() => {
               if (!dataInicio) { setErroValidacao('Selecione a data de início do plantão.'); return; }
+              if (bloquearEquipeAtual('preencher')) return;
               setErroValidacao('');
               setStep('trocas');
             }} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-6 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
@@ -1768,6 +1789,7 @@ export function GerarLRO() {
                 if (!chefeEquipe) { setErroValidacao('Selecione o Chefe de Equipe (campo 1.1).'); return; }
                 if (!comunicacao) { setErroValidacao('Selecione a Comunicação BA-OC (campo 1.2).'); return; }
                 if (!dataInicio) { setErroValidacao('Data de início do plantão é obrigatória.'); return; }
+                if (bloquearEquipeAtual('revisar')) return;
                 setErroValidacao('');
                 setStep('revisar');
               }} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-6 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">

@@ -109,7 +109,7 @@ export const menuItems: MenuItem[] = [
   {
     label: 'Arquivo',
     icon: Archive,
-    adminOnly: true,
+    arquivoOnly: true,
     children: [
       {
         label: 'Todos',
@@ -206,6 +206,7 @@ export const menuItems: MenuItem[] = [
         icon: Award,
         path: '/certificacoes',
         description: 'Gestão de certificações e licenças NR.',
+        certificacoesOnly: true,
       },
       {
         label: 'Férias',
@@ -292,12 +293,6 @@ export const menuItems: MenuItem[] = [
         description: 'Gestão de escalas de trabalho.',
       },
       {
-        label: 'Agentes Extintores',
-        icon: Flame,
-        path: '/cadastro/extintores',
-        description: 'Controle de agentes extintores e recargas.',
-      },
-      {
         label: 'Ordens de Serviço',
         icon: ClipboardList,
         path: '/relatorios/ordem-servico',
@@ -344,6 +339,7 @@ export const menuItems: MenuItem[] = [
   {
     label: 'Relatórios',
     icon: FileBarChart,
+    adminOrGsOnly: true,
     children: [
       {
         label: 'LRO',

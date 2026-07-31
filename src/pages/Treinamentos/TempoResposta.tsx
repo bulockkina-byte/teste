@@ -6,7 +6,7 @@ import {
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { SearchSelect } from '../../components/ui/SearchSelect';
-import { useAuth } from '../../context/AuthContext';
+import { useContextoOperacional } from '../../hooks/useContextoOperacional';
 import { listarAtivos } from '../../services/bombeiroService';
 import {
   listarTreinos, criarTreino, atualizarTreino,
@@ -28,7 +28,8 @@ function fmt(d: string) {
 }
 
 export default function TempoResposta() {
-  const { user } = useAuth();
+  const { user, canManageGlobal, canManageEquipe, equipeEfetiva } = useContextoOperacional();
+  const canCreate = canManageGlobal || !!equipeEfetiva;
   const [treinos, setTreinos] = useState<TreinamentoTempoResposta[]>([]);
   const [bombeiros, setBombeiros] = useState<any[]>([]);
   const [search, setSearch] = useState('');
@@ -86,6 +87,11 @@ export default function TempoResposta() {
   const [formFeedbackSci, setFormFeedbackSci] = useState('');
   const [formGerente, setFormGerente] = useState('');
 
+  const equipesFormulario = useMemo(() => {
+    if (canManageGlobal) return [...EQUIPES];
+    return equipeEfetiva ? [equipeEfetiva] : [];
+  }, [canManageGlobal, equipeEfetiva]);
+
   useEffect(() => {
     listarAtivos().then(setBombeiros);
     carregar();
@@ -117,7 +123,7 @@ export default function TempoResposta() {
   }), [treinos]);
 
   function resetForm() {
-    setFormEquipe(''); setFormNumero(0); setFormAno(''); setFormData(''); setFormHora(''); setFormLocal('');
+    setFormEquipe(canManageGlobal ? '' : equipeEfetiva || ''); setFormNumero(0); setFormAno(''); setFormData(''); setFormHora(''); setFormLocal('');
     setF2Cci(''); setF2BaMc(''); setF2BaCe(''); setF2Ba2(''); setF2T1(''); setF2T2(''); setF2T3(''); setF2Conceito(''); setF2Performance('');
     setF3Cci(''); setF3BaMc(''); setF3Ba21(''); setF3Ba22(''); setF3T1(''); setF3T2(''); setF3T3(''); setF3Conceito(''); setF3Performance('');
     setFormObservacoes(''); setFormResumo(''); setFormConsideracoes(''); setFormCoordenacao('');
@@ -127,6 +133,10 @@ export default function TempoResposta() {
   }
 
   async function handleNovo() {
+    if (!canCreate) {
+      alert('Você precisa ter uma equipe efetiva para criar treinamentos.');
+      return;
+    }
     resetForm();
     setEditando(null);
     const anoAtual = new Date().getFullYear().toString();
@@ -139,6 +149,10 @@ export default function TempoResposta() {
   }
 
   function handleEditar(t: TreinamentoTempoResposta) {
+    if (!canManageEquipe(t.equipe)) {
+      alert('Você só pode editar treinamentos da sua equipe efetiva.');
+      return;
+    }
     setEditando(t);
     setFormEquipe(t.equipe); setFormNumero(t.numero); setFormAno(t.ano);
     setFormData(t.data); setFormHora(t.hora); setFormLocal(t.local);
@@ -155,11 +169,20 @@ export default function TempoResposta() {
   }
 
   async function handleSalvar() {
-    if (!formEquipe || !formData) return;
+    const equipeAlvo = canManageGlobal ? formEquipe : equipeEfetiva || '';
+    if (!equipeAlvo || !formData) return;
+    if (editando && !canManageEquipe(editando.equipe)) {
+      alert('Você só pode editar treinamentos da sua equipe efetiva.');
+      return;
+    }
+    if (!canManageEquipe(equipeAlvo)) {
+      alert('Você só pode salvar treinamentos da sua equipe efetiva.');
+      return;
+    }
     setSaving(true);
     try {
       const data: Omit<TreinamentoTempoResposta, 'id' | 'createdAt' | 'updatedAt'> = {
-        equipe: formEquipe, numero: formNumero, ano: formAno,
+        equipe: equipeAlvo, numero: formNumero, ano: formAno,
         data: formData, hora: formHora, local: formLocal,
         f2Cci, f2BaMc, f2BaCe, f2Ba2, f2T1, f2T2, f2T3, f2Conceito, f2Performance,
         f3Cci, f3BaMc, f3Ba21, f3Ba22, f3T1, f3T2, f3T3, f3Conceito, f3Performance,
@@ -184,6 +207,12 @@ export default function TempoResposta() {
   }
 
   async function handleExcluir(id: string) {
+    const treino = treinos.find(t => t.id === id);
+    if (treino && !canManageEquipe(treino.equipe)) {
+      alert('Você só pode excluir treinamentos da sua equipe efetiva.');
+      setDeleteConfirm(null);
+      return;
+    }
     await excluirTreino(id);
     await carregar();
     setDeleteConfirm(null);
@@ -232,10 +261,12 @@ export default function TempoResposta() {
               <p className="text-[9px] font-bold uppercase tracking-wider text-aviation-500">{filtroAno}</p>
             </div>
           </div>
-          <button onClick={handleNovo}
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
-            <Plus className="h-4 w-4" /> Novo Treino
-          </button>
+          {canCreate && (
+            <button onClick={handleNovo}
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
+              <Plus className="h-4 w-4" /> Novo Treino
+            </button>
+          )}
         </div>
 
         {/* Filtros */}
@@ -281,16 +312,18 @@ export default function TempoResposta() {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <button onClick={() => handleEditar(t)}
-                    className="rounded-xl p-1.5 text-graphite-400 hover:bg-graphite-100 dark:hover:bg-surface-hover">
-                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                  </button>
-                  <button onClick={() => setDeleteConfirm(t.id)}
-                    className="rounded-xl p-1.5 text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
+                {canManageEquipe(t.equipe) && (
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button onClick={() => handleEditar(t)}
+                      className="rounded-xl p-1.5 text-graphite-400 hover:bg-graphite-100 dark:hover:bg-surface-hover">
+                      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    </button>
+                    <button onClick={() => setDeleteConfirm(t.id)}
+                      className="rounded-xl p-1.5 text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -316,9 +349,9 @@ export default function TempoResposta() {
               <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
                 <div>
                   <label className={labelCls}>Equipe</label>
-                  <select value={formEquipe} onChange={e => setFormEquipe(e.target.value)} className={inputCls}>
+                  <select value={formEquipe} onChange={e => setFormEquipe(e.target.value)} disabled={!canManageGlobal} className={inputCls}>
                     <option value="">Selecione</option>
-                    {EQUIPES.map(eq => <option key={eq} value={eq}>{eq}</option>)}
+                    {equipesFormulario.map(eq => <option key={eq} value={eq}>{eq}</option>)}
                   </select>
                 </div>
                 <div>

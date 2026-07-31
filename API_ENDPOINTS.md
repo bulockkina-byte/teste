@@ -3,7 +3,7 @@
 > **Data:** 2026-07-24  
 > **Total de serviços:** 38 ficheiros em `src/services/`
 > **Comunicação com Supabase:** 30 ficheiros
-> **Total de funções:** ~173
+> **Total de funções:** ~177
 > **Serviços externos:** 1 (Autentique GraphQL)  
 > **Cálculo puro:** 5 (escalaMensalGenerator, lroGenerator, pdfService, htmlPdfService, reaPdfService)  
 > **Dead code (localStorage):** 10 ficheiros RTK store + notificacaoService (parcial)
@@ -14,7 +14,7 @@
 
 | # | Serviço | Tabelas | Funções | Estado Geral |
 |---|---------|---------|---------|-------------|
-| 1 | bombeiroService | `bombeiros` | 7 | ✅ |
+| 1 | bombeiroService | `bombeiros` | 9 | ✅ |
 | 2 | feriasService | `ferias`, `ferias_escala`, `ferias_escala_item` | 16 + 5 stubs | ✅ (+5 ❌ stubs) |
 | 3 | substituicaoService | `substituicoes_ativas` | 7 | ⚠️ 2 bugs `.single()` |
 | 4 | substituicaoTemporariaService | `substituicoes_temporarias` | 5 | ✅ |
@@ -27,7 +27,7 @@
 | 10.1 | reaService | `rea_registros` | 5 | ✅ |
 | 11 | chatService | `chat_mensagens` | 7 | ⚠️ 1 sem err check |
 | 12 | documentoService | `documents`, `document_fields`, `document_signers`, `document_fills`, Storage | ~25 | ✅ |
-| 13 | apocService | `apocs` | 5 | ✅ |
+| 13 | apocService | `apocs` | 7 | ✅ |
 | 14 | viaturaService | `viaturas` | 4 | ✅ |
 | 15 | extintorService | `extintores` | 4 | ✅ |
 | 16 | hidranteService | `hidrantes` | 4 | ✅ |
@@ -61,8 +61,8 @@
 ### listarBombeiros
 
 **Método HTTP:** GET  
-**REST equivalência:** `GET /rest/v1/bombeiros?select=*&order=created_at.desc`  
-**Query Params:** (nenhum)  
+**REST equivalência:** `GET /rest/v1/bombeiros?select=*&order=created_at.desc` com filtros opcionais `equipe`, `cargo` e `ids`
+**Query Params:** `equipe?: string`, `cargo?: string`, `ids?: string[]`
 **Request Body:** —  
 **Response:** `Bombeiro[]`  
 **Estado:** ✅ OK  
@@ -109,6 +109,18 @@
 
 ---
 
+### listarBombeirosPublico
+
+**Método HTTP:** GET
+**REST equivalência:** `GET /rest/v1/bombeiros?select=id,matricula,nome_completo,nome_guerra,cargo,equipe,turno,foto,data_desligamento,created_at,updated_at&order=created_at.desc`
+**Query Params:** `equipe?: string`, `cargo?: string`
+**Request Body:** —
+**Response:** `Bombeiro[]` com campos pessoais sensíveis preenchidos como vazio no mapper
+**Estado:** ✅ OK
+**Uso:** listagem geral de funcionários para usuários sem permissão de dados pessoais.
+
+---
+
 ### buscarBombeiro
 
 **Método HTTP:** GET  
@@ -117,6 +129,18 @@
 **Request Body:** —  
 **Response:** `Bombeiro[]`  
 **Estado:** ✅ OK  
+
+---
+
+### buscarBombeiroPublico
+
+**Método HTTP:** GET
+**REST equivalência:** `GET /rest/v1/bombeiros?select=id,matricula,nome_completo,nome_guerra,cargo,equipe,turno,foto,data_desligamento,created_at,updated_at&or=(nome_completo.ilike.%termo%,nome_guerra.ilike.%termo%,matricula.ilike.%termo%,equipe.ilike.%termo%)`
+**Query Params:** `termo: string`
+**Request Body:** —
+**Response:** `Bombeiro[]` com campos pessoais sensíveis preenchidos como vazio no mapper
+**Estado:** ✅ OK
+**Uso:** busca pública na aba Funcionários > Todos, sem CPF/e-mail/RG/CNH.
 
 ---
 
@@ -1081,7 +1105,27 @@ GET com joins: busca `document` + `document_fields` + `document_signers` em para
 
 ### listarAPOCs / buscarAPOC / criarAPOC / atualizarAPOC / excluirAPOC
 
-✅ OK  
+✅ OK
+
+### listarAPOCsPublico
+
+**Método HTTP:** GET
+**REST equivalência:** `GET /rest/v1/apocs?select=id,nome_completo,nome_guerra,funcao,equipe,created_at,updated_at&order=created_at.desc`
+**Query Params:** (nenhum)
+**Request Body:** —
+**Response:** `APOC[]` com `email` preenchido como vazio no mapper
+**Estado:** ✅ OK
+**Uso:** listagem geral de funcionários para usuários sem permissão de dados pessoais.
+
+### buscarAPOCPublico
+
+**Método HTTP:** GET
+**REST equivalência:** `GET /rest/v1/apocs?select=id,nome_completo,nome_guerra,funcao,equipe,created_at,updated_at&or=(nome_completo.ilike.%termo%,nome_guerra.ilike.%termo%)`
+**Query Params:** `termo: string`
+**Request Body:** —
+**Response:** `APOC[]` com `email` preenchido como vazio no mapper
+**Estado:** ✅ OK
+**Uso:** busca pública na aba Funcionários > Todos, sem e-mail.
 
 **Payload `APOC`:**
 ```json
@@ -1239,7 +1283,15 @@ GET com joins: busca `document` + `document_fields` + `document_signers` em para
 
 ---
 
-### listarCertificacoes / certificacoesPorFuncionario / criarCertificacao / atualizarCertificacao
+### listarCertificacoes
+
+**Método HTTP:** GET
+**REST equivalência:** `GET /rest/v1/certificacoes_nr?select=*` com filtro opcional `funcionario_id=in.(...)`
+**Query Params:** `funcionarioIds?: string[]`
+**Response:** `CertificacaoNR[]`
+**Estado:** ✅ OK
+
+### certificacoesPorFuncionario / criarCertificacao / atualizarCertificacao
 
 ✅ OK  
 
@@ -1275,7 +1327,15 @@ GET com joins: busca `document` + `document_fields` + `document_signers` em para
 
 ---
 
-### listarCertificacoesCursos / certificacoesCursosPorFuncionario / criarCertificacaoCurso
+### listarCertificacoesCursos
+
+**Método HTTP:** GET
+**REST equivalência:** `GET /rest/v1/certificacoes_cursos?select=*` com filtro opcional `funcionario_id=in.(...)`
+**Query Params:** `funcionarioIds?: string[]`
+**Response:** `CertificacaoCurso[]`
+**Estado:** ✅ OK
+
+### certificacoesCursosPorFuncionario / criarCertificacaoCurso
 
 ✅ OK  
 

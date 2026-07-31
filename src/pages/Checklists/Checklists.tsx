@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  ClipboardCheck, Plus, Search, Save, Trash2, X, CheckCircle,
+  ClipboardCheck, Plus, Search, Save, Trash2, X, CheckCircle, Printer,
 } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
+import { useContextoOperacional } from '../../hooks/useContextoOperacional';
 
 interface ChecklistItem {
   id: string;
@@ -133,6 +134,7 @@ function ChecklistForm({ onSave, onCancel, editando }: {
 }
 
 export function Checklists() {
+  const { canManageGlobal } = useContextoOperacional();
   const [checklists, setChecklists] = useState<Checklist[]>([]);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -159,6 +161,10 @@ export function Checklists() {
   }), [checklists]);
 
   function handleSave(data: Omit<Checklist, 'id' | 'createdAt'>) {
+    if (!canManageGlobal) {
+      alert('Apenas Administradores e GS podem alterar checklists.');
+      return;
+    }
     const lista = carregar();
     const now = new Date().toISOString();
     if (editando) {
@@ -173,6 +179,10 @@ export function Checklists() {
   }
 
   function handleDelete(id: string) {
+    if (!canManageGlobal) {
+      alert('Apenas Administradores e GS podem excluir checklists.');
+      return;
+    }
     const lista = carregar().filter(c => c.id !== id);
     salvar(lista);
     setChecklists(lista);
@@ -207,17 +217,19 @@ export function Checklists() {
           <option value="pendente">Pendentes</option>
           <option value="concluido">Concluídos</option>
         </select>
-        <button onClick={() => { setEditando(null); setFormOpen(true); }}
-          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg transition-all hover:shadow-xl active:scale-[0.98]">
-          <Plus className="h-4 w-4" /> Novo Checklist
-        </button>
+        {canManageGlobal && (
+          <button onClick={() => { setEditando(null); setFormOpen(true); }}
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg transition-all hover:shadow-xl active:scale-[0.98]">
+            <Plus className="h-4 w-4" /> Novo Checklist
+          </button>
+        )}
       </div>
 
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white/50 p-12 text-center dark:border-border-dark dark:bg-surface-card">
           <ClipboardCheck className="mb-4 h-12 w-12 text-graphite-300" />
           <h3 className="text-lg font-semibold text-graphite-700">Nenhum checklist</h3>
-          <p className="text-sm text-graphite-500">Clique em "Novo Checklist" para criar.</p>
+          <p className="text-sm text-graphite-500">{canManageGlobal ? 'Clique em "Novo Checklist" para criar.' : 'Nenhum checklist disponível para visualização.'}</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -235,10 +247,17 @@ export function Checklists() {
                   <p className="mt-0.5 text-xs text-graphite-500">{fmt(c.data)} · {c.equipe} · {c.responsavel} · {c.itens.filter(i => i.concluido).length}/{c.itens.length} itens</p>
                 </div>
                 <div className="flex gap-1">
-                  <button onClick={() => { setEditando(c); setFormOpen(true); }} className="rounded-xl p-1.5 text-graphite-400 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover">
-                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  <button onClick={() => window.print()} className="rounded-xl p-1.5 text-aviation-500 hover:bg-aviation-50 hover:text-aviation-700 dark:hover:bg-aviation-900/20" title="Imprimir">
+                    <Printer className="h-4 w-4" />
                   </button>
-                  <button onClick={() => setConfirmDelete(c.id)} className="rounded-xl p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"><Trash2 className="h-4 w-4" /></button>
+                  {canManageGlobal && (
+                    <>
+                      <button onClick={() => { setEditando(c); setFormOpen(true); }} className="rounded-xl p-1.5 text-graphite-400 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover" title="Editar">
+                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      </button>
+                      <button onClick={() => setConfirmDelete(c.id)} className="rounded-xl p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20" title="Excluir"><Trash2 className="h-4 w-4" /></button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -246,9 +265,9 @@ export function Checklists() {
         </div>
       )}
 
-      {formOpen && <ChecklistForm onSave={handleSave} onCancel={() => setFormOpen(false)} editando={editando} />}
+      {formOpen && canManageGlobal && <ChecklistForm onSave={handleSave} onCancel={() => setFormOpen(false)} editando={editando} />}
 
-      {confirmDelete && (
+      {confirmDelete && canManageGlobal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl dark:bg-surface-elevated">
             <h3 className="mb-2 text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar exclusão</h3>

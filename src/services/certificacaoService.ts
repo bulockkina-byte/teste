@@ -49,9 +49,12 @@ function toRow(data: Partial<CertificacaoNR>): Record<string, unknown> {
   return row;
 }
 
-export async function listarCertificacoes(): Promise<CertificacaoNR[]> {
+export async function listarCertificacoes(params?: { funcionarioIds?: string[] }): Promise<CertificacaoNR[]> {
   const db = getDb();
-  const { data, error } = await db.from(TABLE).select('*');
+  if (params?.funcionarioIds && params.funcionarioIds.length === 0) return [];
+  let query = db.from(TABLE).select('*');
+  if (params?.funcionarioIds) query = query.in('funcionario_id', params.funcionarioIds);
+  const { data, error } = await query;
   if (error) handleSupabaseError(error);
   return (data || []).map(rowToCertificacao);
 }

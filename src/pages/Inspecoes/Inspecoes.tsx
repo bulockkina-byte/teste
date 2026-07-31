@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { ShieldCheck, Plus, ArrowLeft, Clock, CalendarDays, Users, FileText, ChevronDown, ChevronUp } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
-import { useAuth } from '../../context/AuthContext';
+import { useContextoOperacional } from '../../hooks/useContextoOperacional';
 import { criarConferencia, listarConferencias } from '../../services/conferenciaService';
 import type { Equipe } from '../../types/bombeiro';
 import { EQUIPE_OPTIONS } from '../../types/bombeiro';
@@ -17,14 +17,12 @@ const ANOS = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).
 const INPUT_CLASS = "w-full rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all hover:border-graphite-400 focus:border-aviation-500 focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:hover:border-graphite-500 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated dark:focus:ring-aviation-400/10 dark:scheme-dark";
 
 export function Inspecoes() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'admin' || user?.role === 'desenvolvedor';
-  const userEquipe = user?.pessoa?.equipe as Equipe | undefined;
+  const { user, canManageGlobal, canManageEquipe, equipeEfetiva } = useContextoOperacional();
 
   const [modo, setModo] = useState<'lista' | 'form'>('lista');
   const [data, setData] = useState(new Date().toISOString().split('T')[0]);
   const [hora, setHora] = useState(new Date().toTimeString().split(':').slice(0, 2).join(':'));
-  const [equipe, setEquipe] = useState<Equipe | ''>(userEquipe || '');
+  const [equipe, setEquipe] = useState<Equipe | ''>('');
   const [descricao, setDescricao] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -39,6 +37,10 @@ export function Inspecoes() {
 
   useEffect(() => { carregar(); }, []);
 
+  useEffect(() => {
+    if (!canManageGlobal && equipeEfetiva) setEquipe(equipeEfetiva);
+  }, [canManageGlobal, equipeEfetiva]);
+
   async function carregar() {
     const [c] = await Promise.all([listarConferencias()]);
     setRegistros(c.filter(r => r.tipo === 'Inspeção Operacional'));
@@ -47,10 +49,6 @@ export function Inspecoes() {
   const filtrados = useMemo(() => {
     let lista = registros;
 
-    if (!isAdmin) {
-      const username = user?.username || '';
-      lista = lista.filter(r => r.equipe === userEquipe || r.createdBy === username);
-    }
     if (filtroEquipe) {
       lista = lista.filter(r => r.equipe === filtroEquipe);
     }
@@ -71,11 +69,16 @@ export function Inspecoes() {
     }
 
     return lista.sort((a, b) => (b.dataConferencia || '').localeCompare(a.dataConferencia || ''));
-  }, [registros, isAdmin, userEquipe, filtroEquipe, filterMode, filtroMes, filtroAno, dataInicio, dataFinal]);
+  }, [registros, filtroEquipe, filterMode, filtroMes, filtroAno, dataInicio, dataFinal]);
 
   async function handleSalvar(e: React.FormEvent) {
     e.preventDefault();
     if (!user || !equipe || !descricao.trim()) return;
+    const equipeAlvo = canManageGlobal ? equipe : equipeEfetiva;
+    if (!canManageEquipe(equipeAlvo)) {
+      alert('Você só pode registrar inspeções para sua equipe efetiva.');
+      return;
+    }
     setSaving(true);
     try {
       const dataHora = `${data}T${hora}:00`;
@@ -89,7 +92,7 @@ export function Inspecoes() {
         inspetorUsername: user.username || '',
         inspetorNomeGuerra: user.username || '',
         inspetorCargo: '',
-        equipe: equipe as Equipe,
+        equipe: equipeAlvo as Equipe,
         itens: [],
         resultadoFinal: 'Aprovado',
         observacoes: descricao.trim(),
@@ -110,7 +113,7 @@ export function Inspecoes() {
     <PageContainer>
       <div className="mb-6 flex items-center justify-between">
         <PageTitle icon={ShieldCheck} title="Inspeções" />
-        {modo === 'lista' && (
+        {modo === 'lista' && (canManageGlobal || equipeEfetiva) && (
           <button onClick={() => setModo('form')}
             className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
             <Plus className="h-4 w-4" /> Nova Inspeção
@@ -146,9 +149,9 @@ export function Inspecoes() {
                 <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-graphite-500">
                   <Users className="h-3.5 w-3.5" /> Equipe
                 </label>
-                <select value={equipe} onChange={e => setEquipe(e.target.value as Equipe)} className={INPUT_CLASS} required>
+                <select value={equipe} onChange={e => setEquipe(e.target.value as Equipe)} className={INPUT_CLASS} disabled={!canManageGlobal} required>
                   <option value="">Selecione a equipe</option>
-                  {EQUIPES_INSPECAO.map(eq => <option key={eq} value={eq}>{eq}</option>)}
+                  {EQUIPES_INSPECAO.filter(eq => canManageGlobal || eq === equipeEfetiva).map(eq => <option key={eq} value={eq}>{eq}</option>)}
                 </select>
               </div>
             </div>
@@ -206,12 +209,10 @@ export function Inspecoes() {
                 <input type="date" value={dataFinal} onChange={e => setDataFinal(e.target.value)} className={inputClass} placeholder="Data fim" />
               </>
             )}
-            {isAdmin && (
-              <select value={filtroEquipe} onChange={e => setFiltroEquipe(e.target.value as Equipe)} className={inputClass}>
-                <option value="">Todas equipes</option>
-                {EQUIPES_INSPECAO.map(eq => <option key={eq} value={eq}>{eq}</option>)}
-              </select>
-            )}
+            <select value={filtroEquipe} onChange={e => setFiltroEquipe(e.target.value as Equipe)} className={inputClass}>
+              <option value="">Todas equipes</option>
+              {EQUIPES_INSPECAO.map(eq => <option key={eq} value={eq}>{eq}</option>)}
+            </select>
             <span className="text-xs text-graphite-400">{filtrados.length} registro(s)</span>
           </div>
 

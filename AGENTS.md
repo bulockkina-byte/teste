@@ -202,7 +202,7 @@ Podes combinar múltiplas skills carregando-as em sequência. A ordem importa:
 | `/relatorios/exercicios/tp-epr` | TP/EPR | Relatório de TP/EPR |
 | `/relatorios/trocas` | Trocas | Registos de trocas de serviço |
 
-### Arquivo (Admin/Desenvolvedor)
+### Arquivo (Admin/GS gerem; BA-CE/BA-LR visualizam)
 | Rota | Tela | Descrição |
 |------|------|-----------|
 | `/arquivo/:tipo?` | Arquivo | Documentos arquivados por categoria (trocas, férias, EPIs, certificações, ocorrências, ordem_servico, lro, ptrba, treinamentos, dds, checklists) |
@@ -246,7 +246,7 @@ Podes combinar múltiplas skills carregando-as em sequência. A ordem importa:
 │   │   ├── ThemeContext.tsx # Tema claro/escuro
 │   │   └── SidebarContext.tsx # Estado da sidebar (collapsed/pinned)
 │   ├── data/               # Dados estáticos (templates de documentos)
-│   ├── hooks/              # useTheme, useSidebar, useDebounce
+│   ├── hooks/              # useTheme, useSidebar, useDebounce, useContextoOperacional
 │   ├── lib/                # Cliente Supabase, setup pdfjs
 │   ├── pages/              # Páginas organizadas por domínio
 │   │   ├── AgentesExtintores/
@@ -462,6 +462,19 @@ Referência: **21/07/2026** = Alfa + Bravo
 | Equipamentos e Viaturas | Criar/editar/excluir: Admin/GS ou `BA-CE`/`BA-LR` exercendo função na equipa `Bravo` |
 | Agentes Extintores e Hidrantes | Criar/editar/excluir: Admin/GS ou `BA-CE`/`BA-LR` exercendo função na equipa `Alfa` |
 | Dados pessoais auxiliares | Listas de bombeiros/APOCs para vínculos ficam restritas a Admin/GS |
+| Arquivo | Visualizar: Admin/GS/`BA-CE`/`BA-LR`; editar/excluir/restaurar: apenas Admin/GS |
+| Funcionários > Todos | Todos visualizam a listagem; modal de detalhes e colunas pessoais: apenas Admin/GS |
+| EPIs | Todos visualizam e operam estoque/pagamento/devolução; excluir EPI/estoque: apenas Admin/GS |
+| Certificações | Admin/GS visualizam e editam tudo; `BA-CE`/`BA-LR` visualizam somente a equipe efetiva; demais cargos sem acesso |
+| Férias | Botões de cadastro manual, bombeiros e aprovações: apenas Admin/GS; escalas e cards ficam globais para Admin/GS e por equipe efetiva para os demais; Quadro de Efetivos é visível a todos |
+| Registos Diários | Todos visualizam todas as equipes; criar/editar/excluir/salvar/enviar: apenas a equipe efetiva do usuário, exceto Admin/GS que gerem todas |
+| Viaturas CCI | Todos visualizam |
+| Documentos > Trocas | Todos visualizam; editar/excluir/arquivar/enviar: apenas quando a troca envolve a equipe efetiva, exceto Admin/GS |
+| Documentos > Checklists | Todos visualizam e imprimem; criar/editar/excluir: apenas Admin/GS |
+| Documentos > Escalas | Todos visualizam; editar/excluir/salvar: apenas a equipe efetiva, exceto Admin/GS |
+| Documentos > Ordens de Serviço | Todos visualizam; criar/editar/excluir: apenas a equipe efetiva, exceto Admin/GS |
+| Treinamentos | Todos visualizam; registros com equipe podem ser criados/editados/excluídos apenas pela equipe efetiva, exceto Admin/GS; registros locais sem equipe usam `createdBy` e legados sem dono só são editáveis por Admin/GS |
+| Relatórios | Acesso à sidebar e rotas diretas apenas para Admin/GS |
 
 ### Horários por Equipa
 

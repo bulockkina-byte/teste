@@ -4,16 +4,21 @@ import {
   Archive, Search, FileText, Loader2, CheckCircle, XCircle, Clock,
   RefreshCw, CalendarDays, HardHat, Award, AlertTriangle,
   ClipboardList, FileSpreadsheet, Target, ScrollText, ClipboardCheck,
-  Activity, FileDown, ArrowRight, RotateCcw,
+  Activity, ArrowRight, Lock,
 } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
-import {
-  listarDocumentos, listarPreenchimentos, atualizarPreenchimento,
-} from '../../services/documentoService';
+import { listarDocumentos, listarPreenchimentos } from '../../services/documentoService';
 import type { Document, DocumentFill } from '../../types/document';
 import { SOURCE_MODULE_OPTIONS } from '../../types/document';
 import { useAuth } from '../../context/AuthContext';
+import {
+  canGerenciarArquivo,
+  canVisualizarArquivo,
+  podeVerArquivoBase,
+  podeVerCadastroCompletoBase,
+  resolverContextoOperacional,
+} from '../../utils/permissoes';
 
 const MONTHS = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -122,9 +127,10 @@ function getCardInfo(doc: Document, fill: DocumentFill): { titulo: string; subti
 export default function Arquivo() {
   const { tipo } = useParams<{ tipo: string }>();
   const { user } = useAuth();
-  const isAdmin = user?.role === 'desenvolvedor' || user?.role === 'admin';
 
   const [loading, setLoading] = useState(true);
+  const [canViewArquivo, setCanViewArquivo] = useState(() => podeVerArquivoBase(user));
+  const [canManageArquivo, setCanManageArquivo] = useState(() => podeVerCadastroCompletoBase(user));
   const [documents, setDocuments] = useState<Document[]>([]);
   const [fills, setFills] = useState<DocumentFill[]>([]);
   const [search, setSearch] = useState('');
@@ -134,9 +140,38 @@ export default function Arquivo() {
   const [filterTipoOcorrencia, setFilterTipoOcorrencia] = useState<string>('');
   const [filterTipoTreinamento, setFilterTipoTreinamento] = useState<string>('');
   const [filterEquipe, setFilterEquipe] = useState<string>('');
-  const [restoreConfirmFill, setRestoreConfirmFill] = useState<DocumentFill | null>(null);
 
-  useEffect(() => { loadData(); }, [filterYear, filterMonth]);
+  useEffect(() => {
+    let cancelled = false;
+    setCanViewArquivo(podeVerArquivoBase(user));
+    setCanManageArquivo(podeVerCadastroCompletoBase(user));
+
+    resolverContextoOperacional(user)
+      .then(contexto => {
+        if (cancelled) return;
+        setCanViewArquivo(canVisualizarArquivo(contexto));
+        setCanManageArquivo(canGerenciarArquivo(contexto));
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCanViewArquivo(podeVerArquivoBase(user));
+          setCanManageArquivo(podeVerCadastroCompletoBase(user));
+        }
+      });
+
+    return () => { cancelled = true; };
+  }, [user]);
+
+  useEffect(() => {
+    if (!canViewArquivo) {
+      setDocuments([]);
+      setFills([]);
+      setLoading(false);
+      return;
+    }
+
+    loadData();
+  }, [canViewArquivo, filterYear, filterMonth]);
 
   async function loadData() {
     try {
@@ -228,14 +263,6 @@ export default function Arquivo() {
     return Array.from(s).sort((a, b) => b - a);
   }, [fills]);
 
-  async function handleRestoreFill(fill: DocumentFill) {
-    try {
-      await atualizarPreenchimento(fill.id, { status: 'signed' as any });
-      setRestoreConfirmFill(null);
-      loadData();
-    } catch { /* ignore */ }
-  }
-
   if (loading) {
     return (
       <PageContainer>
@@ -247,11 +274,24 @@ export default function Arquivo() {
     );
   }
 
+  if (!canViewArquivo) {
+    return (
+      <PageContainer>
+        <PageTitle icon={Archive} title="Arquivo" />
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">
+          <Lock className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
+          <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Acesso Restrito</h3>
+          <p className="text-sm text-graphite-400 dark:text-graphite-500">Apenas Administradores, GS, BA-CE e BA-LR podem visualizar o arquivo.</p>
+        </div>
+      </PageContainer>
+    );
+  }
+
   return (
     <PageContainer>
       <PageTitle icon={getTipoIcon(tipo)} title={getTipoLabel(tipo)} />
 
-      {isAdmin && !tipo && (
+      {canManageArquivo && !tipo && (
         <div className="mb-3 flex flex-wrap gap-2">
           <Link to="/relatorios/trocas" className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
             <RefreshCw className="h-4 w-4" /> Ir para Trocas

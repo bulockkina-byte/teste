@@ -12,7 +12,7 @@ import { listarFeriasGozo, listarItensEscala } from '../../services/feriasServic
 import { listarVigencias, type VigenciaSubstituicao } from '../../services/vigenciaSubstituicaoService';
 import type { Bombeiro, Cargo } from '../../types/bombeiro';
 import type { FeriasGozo } from '../../types/ferias';
-import { useAuth } from '../../context/AuthContext';
+import { useContextoOperacional } from '../../hooks/useContextoOperacional';
 import { useGlobalAlert, type GlobalAlertVariant } from '../../context/GlobalAlertContext';
 import { validarCursoParaFuncao } from '../../utils/validacaoCursos';
 import { toPng } from 'html-to-image';
@@ -445,10 +445,10 @@ function nextFrame(): Promise<void> {
 }
 
 export function EscalaMensal() {
-  const { user, effectiveRole } = useAuth();
+  const { canManageGlobal, canManageEquipe, equipeEfetiva } = useContextoOperacional();
   const { showAlert } = useGlobalAlert();
-  const isGlobal = effectiveRole === 'desenvolvedor' || effectiveRole === 'admin' || effectiveRole === 'gerente';
-  const canDeleteEscala = effectiveRole === 'desenvolvedor' || effectiveRole === 'admin';
+  const isGlobal = canManageGlobal;
+  const canCreate = canManageGlobal || !!equipeEfetiva;
 
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
   const [completas, setCompletas] = useState<EscalaMensalCompleta[]>([]);
@@ -517,11 +517,7 @@ export function EscalaMensal() {
     }
   }
 
-  const userEquipe = useMemo(() => {
-    if (!user?.pessoa?.nomeGuerra) return null;
-    const b = bombeiros.find(bb => bb.nomeGuerra === user.pessoa!.nomeGuerra);
-    return b?.equipe || null;
-  }, [user, bombeiros]);
+  const userEquipe = equipeEfetiva;
 
   const equipesDisponiveis = useMemo(() => {
     if (isGlobal) return ['Alfa', 'Bravo', 'Charlie', 'Delta'];
@@ -550,11 +546,10 @@ export function EscalaMensal() {
   }, [equipe, mes, ano, mode, bombeiros.length, editingId, autoPreencherSetup]);
 
   useEffect(() => {
-    const filtradas = isGlobal ? completas : completas.filter(c => c.config.equipe === userEquipe);
-    if (filtradas.length > 0 && !selecionada) {
-      setSelecionada(filtradas[0].config.id);
+    if (completas.length > 0 && !selecionada) {
+      setSelecionada(completas[0].config.id);
     }
-  }, [completas, isGlobal, userEquipe, selecionada]);
+  }, [completas, selecionada]);
 
   const completaAtual = useMemo(() => {
     if (!selecionada) return null;
@@ -686,12 +681,11 @@ export function EscalaMensal() {
 
   const completasFiltradas = useMemo(() => {
     let lista = completas;
-    if (!isGlobal && userEquipe) lista = lista.filter(c => c.config.equipe === userEquipe);
     if (filterListEquipe) lista = lista.filter(c => c.config.equipe === filterListEquipe);
     if (filterListMes) lista = lista.filter(c => c.config.mes === Number(filterListMes));
     if (filterListAno) lista = lista.filter(c => c.config.ano === Number(filterListAno));
     return lista;
-  }, [completas, isGlobal, userEquipe, filterListEquipe, filterListMes, filterListAno]);
+  }, [completas, filterListEquipe, filterListMes, filterListAno]);
 
   function notificar(texto: string) {
     setMsg(texto);
@@ -706,6 +700,10 @@ export function EscalaMensal() {
     if (!equipe) {
       mostrarAlerta('Equipe obrigatória', 'Selecione uma equipe antes de gerar ou salvar a escala mensal.', 'warning');
       notificar('Selecione uma equipe antes de gerar.');
+      return null;
+    }
+    if (!canManageEquipe(equipe)) {
+      mostrarAlerta('Acesso negado', 'Você só pode salvar escalas mensais da sua equipe efetiva.', 'warning');
       return null;
     }
     const [all, gozos, vigs] = await Promise.all([
@@ -782,6 +780,10 @@ export function EscalaMensal() {
     mostrarAlerta('Salvando alterações', 'As alterações da escala mensal estão sendo aplicadas.', 'info');
     try {
       const original = completas.find(c => c.config.id === editingId);
+      if (original && !canManageEquipe(original.config.equipe)) {
+        mostrarAlerta('Acesso negado', 'Você só pode editar escalas mensais da sua equipe efetiva.', 'warning');
+        return;
+      }
       const completa = await montarCompletaParaSalvar(editingId, original?.config.createdAt);
       if (!completa) return;
       await salvarCompleta(completa);
@@ -798,6 +800,10 @@ export function EscalaMensal() {
 
   async function handleSalvarEscalaAtual() {
     if (!completaAtual || salvando) return;
+    if (!canManageEquipe(completaAtual.config.equipe)) {
+      mostrarAlerta('Acesso negado', 'Você só pode salvar escalas mensais da sua equipe efetiva.', 'warning');
+      return;
+    }
     setSalvando(true);
     mostrarAlerta('Salvando escala', 'A escala mensal atual está sendo salva.', 'info');
     try {
@@ -867,6 +873,11 @@ export function EscalaMensal() {
 
   async function handleDelete() {
     if (!deleteTarget) return;
+    if (!canManageEquipe(deleteTarget.config.equipe)) {
+      setDeleteTarget(null);
+      mostrarAlerta('Acesso negado', 'Você só pode excluir escalas mensais da sua equipe efetiva.', 'warning');
+      return;
+    }
     try {
       const deletedId = deleteTarget.config.id;
       const deletedLabel = `${MESES[deleteTarget.config.mes - 1]} ${deleteTarget.config.ano} · ${deleteTarget.config.equipe}`;
@@ -885,6 +896,10 @@ export function EscalaMensal() {
 
   async function handleEdit() {
     if (!completaAtual) return;
+    if (!canManageEquipe(completaAtual.config.equipe)) {
+      mostrarAlerta('Acesso negado', 'Você só pode editar escalas mensais da sua equipe efetiva.', 'warning');
+      return;
+    }
     try {
       const bombeirosBase = bombeiros.length ? bombeiros : await listarAtivos();
       if (!bombeiros.length) setBombeiros(bombeirosBase);
@@ -1107,14 +1122,16 @@ export function EscalaMensal() {
       {mode === 'list' && (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">Escala Mensal</h2>
-          <button title="Criar uma nova escala mensal" onClick={() => {
-            setEquipe(''); setMes(new Date().getMonth() + 1); setAno(new Date().getFullYear());
-            setParidade('impar'); setPessoas(SLOTS.map(() => null)); setFaxinaManual({}); setResponsabilidadesManual({}); setRadioManual(criarRadioManualVazio()); setMode('setup');
-            setEditingId(null); setAutoPreencherSetup(true);
-          }}
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20">
-            <Calendar className="h-4 w-4" /> Nova Escala Mensal
-          </button>
+          {canCreate && (
+            <button title="Criar uma nova escala mensal" onClick={() => {
+              setEquipe(isGlobal ? '' : equipeEfetiva || ''); setMes(new Date().getMonth() + 1); setAno(new Date().getFullYear());
+              setParidade('impar'); setPessoas(SLOTS.map(() => null)); setFaxinaManual({}); setResponsabilidadesManual({}); setRadioManual(criarRadioManualVazio()); setMode('setup');
+              setEditingId(null); setAutoPreencherSetup(true);
+            }}
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20">
+              <Calendar className="h-4 w-4" /> Nova Escala Mensal
+            </button>
+          )}
         </div>
       )}
       {mode !== 'list' && (
@@ -1129,14 +1146,18 @@ export function EscalaMensal() {
           <div className="flex flex-wrap items-center gap-2">
             {mode === 'view' && completaAtual && (
               <>
-                <button title="Editar os dados desta escala mensal" onClick={handleEdit}
-                  className="flex items-center gap-1 rounded-xl border border-graphite-300/60 bg-white/80 px-3 py-1.5 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">
-                  <Pencil className="h-4 w-4" /> Editar
-                </button>
-                <button title="Salvar novamente esta escala mensal" onClick={handleSalvarEscalaAtual} disabled={salvando}
-                  className="flex items-center gap-1 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700 transition-all hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
-                  <Save className="h-4 w-4" /> {salvando ? 'Salvando...' : 'Salvar Escala'}
-                </button>
+                {canManageEquipe(completaAtual.config.equipe) && (
+                  <>
+                    <button title="Editar os dados desta escala mensal" onClick={handleEdit}
+                      className="flex items-center gap-1 rounded-xl border border-graphite-300/60 bg-white/80 px-3 py-1.5 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">
+                      <Pencil className="h-4 w-4" /> Editar
+                    </button>
+                    <button title="Salvar novamente esta escala mensal" onClick={handleSalvarEscalaAtual} disabled={salvando}
+                      className="flex items-center gap-1 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700 transition-all hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
+                      <Save className="h-4 w-4" /> {salvando ? 'Salvando...' : 'Salvar Escala'}
+                    </button>
+                  </>
+                )}
                 <div className="relative">
                   <button title="Abrir opções de impressão e PNG" onClick={() => setPrintMenuOpen(prev => !prev)}
                     className="flex items-center gap-1 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-3 py-1.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20">
@@ -1592,16 +1613,14 @@ export function EscalaMensal() {
       {/* List mode */}
       {mode === 'list' && (
         <>
-          {isGlobal && (
-            <div className="flex items-center gap-2">
-              <select value={filterListEquipe} onChange={e => setFilterListEquipe(e.target.value)}
-                className="rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2 text-sm dark:border-border-dark dark:bg-surface-card dark:text-graphite-100">
-                <option value="">Todas as equipes</option>
-                {['Alfa','Bravo','Charlie','Delta'].map(eq => <option key={eq} value={eq}>{eq}</option>)}
-              </select>
-              <span className="text-xs text-graphite-400">{completasFiltradas.length} escala(s)</span>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            <select value={filterListEquipe} onChange={e => setFilterListEquipe(e.target.value)}
+              className="rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2 text-sm dark:border-border-dark dark:bg-surface-card dark:text-graphite-100">
+              <option value="">Todas as equipes</option>
+              {['Alfa','Bravo','Charlie','Delta'].map(eq => <option key={eq} value={eq}>{eq}</option>)}
+            </select>
+            <span className="text-xs text-graphite-400">{completasFiltradas.length} escala(s)</span>
+          </div>
           {completasFiltradas.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300/60 bg-white/50 p-12 text-center dark:border-border-dark dark:bg-surface-card">
               <Calendar className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
@@ -1625,7 +1644,7 @@ export function EscalaMensal() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {canDeleteEscala && (
+                    {canManageEquipe(c.config.equipe) && (
                       <button
                         type="button"
                         title="Excluir esta escala mensal"

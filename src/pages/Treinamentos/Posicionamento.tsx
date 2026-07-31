@@ -6,7 +6,7 @@ import {
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { SearchSelect } from '../../components/ui/SearchSelect';
-import { useAuth } from '../../context/AuthContext';
+import { useContextoOperacional } from '../../hooks/useContextoOperacional';
 import { listarAtivos } from '../../services/bombeiroService';
 import { listarAPOCs } from '../../services/apocService';
 import {
@@ -27,7 +27,8 @@ function formatDate(d: string) {
 }
 
 export default function Posicionamento() {
-  const { user } = useAuth();
+  const { user, canManageGlobal, canManageEquipe, equipeEfetiva } = useContextoOperacional();
+  const canCreate = canManageGlobal || !!equipeEfetiva;
   const [exercicios, setExercicios] = useState<ExercicioPosicionamento[]>([]);
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
   const [apocs, setApocs] = useState<{ id: string; nomeGuerra: string; nomeCompleto: string }[]>([]);
@@ -75,6 +76,11 @@ export default function Posicionamento() {
   const [formVisibilidade, setFormVisibilidade] = useState('');
   const [formFeedbackCoe, setFormFeedbackCoe] = useState('');
 
+  const equipesFormulario = useMemo(() => {
+    if (canManageGlobal) return [...EQUIPES];
+    return equipeEfetiva ? [equipeEfetiva] : [];
+  }, [canManageGlobal, equipeEfetiva]);
+
   useEffect(() => {
     Promise.all([
       listarAtivos(),
@@ -116,7 +122,7 @@ export default function Posicionamento() {
   }), [exercicios]);
 
   function resetForm() {
-    setFormEquipe('');
+    setFormEquipe(canManageGlobal ? '' : equipeEfetiva || '');
     setFormNumero(0);
     setFormAno('');
     setFormData('');
@@ -153,6 +159,10 @@ export default function Posicionamento() {
   }
 
   async function handleNovo() {
+    if (!canCreate) {
+      alert('Você precisa ter uma equipe efetiva para criar treinamentos.');
+      return;
+    }
     resetForm();
     setEditando(null);
     const anoAtual = new Date().getFullYear().toString();
@@ -165,6 +175,10 @@ export default function Posicionamento() {
   }
 
   function handleEditar(e: ExercicioPosicionamento) {
+    if (!canManageEquipe(e.equipe)) {
+      alert('Você só pode editar treinamentos da sua equipe efetiva.');
+      return;
+    }
     setEditando(e);
     setFormEquipe(e.equipe);
     setFormNumero(e.numero);
@@ -204,11 +218,20 @@ export default function Posicionamento() {
   }
 
   async function handleSalvar() {
-    if (!formEquipe || !formData) return;
+    const equipeAlvo = canManageGlobal ? formEquipe : equipeEfetiva || '';
+    if (!equipeAlvo || !formData) return;
+    if (editando && !canManageEquipe(editando.equipe)) {
+      alert('Você só pode editar treinamentos da sua equipe efetiva.');
+      return;
+    }
+    if (!canManageEquipe(equipeAlvo)) {
+      alert('Você só pode salvar treinamentos da sua equipe efetiva.');
+      return;
+    }
     setSaving(true);
     try {
       const data: Omit<ExercicioPosicionamento, 'id' | 'createdAt' | 'updatedAt'> = {
-        equipe: formEquipe, numero: formNumero, ano: formAno,
+        equipe: equipeAlvo, numero: formNumero, ano: formAno,
         data: formData, hora: formHora, local: formLocal,
         faisca2BaMc: formFaisca2BaMc, faisca2BaCe: formFaisca2BaCe, faisca2Ba2: formFaisca2Ba2,
         faisca2Tempo: formFaisca2Tempo,
@@ -241,6 +264,12 @@ export default function Posicionamento() {
   }
 
   async function handleExcluir(id: string) {
+    const exercicio = exercicios.find(ex => ex.id === id);
+    if (exercicio && !canManageEquipe(exercicio.equipe)) {
+      alert('Você só pode excluir treinamentos da sua equipe efetiva.');
+      setDeleteConfirm(null);
+      return;
+    }
     await excluirExercicio(id);
     await carregar();
     setDeleteConfirm(null);
@@ -284,10 +313,12 @@ export default function Posicionamento() {
               </div>
             ))}
           </div>
-          <button onClick={handleNovo}
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
-            <Plus className="h-4 w-4" /> Novo Exercício
-          </button>
+          {canCreate && (
+            <button onClick={handleNovo}
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
+              <Plus className="h-4 w-4" /> Novo Exercício
+            </button>
+          )}
         </div>
 
         {/* Filtros */}
@@ -333,16 +364,18 @@ export default function Posicionamento() {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <button onClick={() => handleEditar(ex)}
-                    className="rounded-xl p-1.5 text-graphite-400 hover:bg-graphite-100 dark:hover:bg-surface-hover">
-                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                  </button>
-                  <button onClick={() => setDeleteConfirm(ex.id)}
-                    className="rounded-xl p-1.5 text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
+                {canManageEquipe(ex.equipe) && (
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button onClick={() => handleEditar(ex)}
+                      className="rounded-xl p-1.5 text-graphite-400 hover:bg-graphite-100 dark:hover:bg-surface-hover">
+                      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    </button>
+                    <button onClick={() => setDeleteConfirm(ex.id)}
+                      className="rounded-xl p-1.5 text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -368,9 +401,9 @@ export default function Posicionamento() {
               <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
                 <div>
                   <label className={labelCls}>Equipe</label>
-                  <select value={formEquipe} onChange={e => setFormEquipe(e.target.value)} className={inputCls}>
+                  <select value={formEquipe} onChange={e => setFormEquipe(e.target.value)} disabled={!canManageGlobal} className={inputCls}>
                     <option value="">Selecione</option>
-                    {EQUIPES.map(eq => <option key={eq} value={eq}>{eq}</option>)}
+                    {equipesFormulario.map(eq => <option key={eq} value={eq}>{eq}</option>)}
                   </select>
                 </div>
                 <div>
