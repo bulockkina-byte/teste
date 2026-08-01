@@ -32,6 +32,7 @@ import {
   CalendarDays,
   ArrowLeftRight,
   Archive,
+  Package,
 } from 'lucide-react';
 import type { MenuItem } from '../types/navigation';
 
@@ -73,10 +74,16 @@ export const menuItems: MenuItem[] = [
         description: 'Cadastro e manutenção de equipamentos operacionais.',
       },
       {
-        label: 'Agentes Extintores',
+        label: 'Extintores',
         icon: Flame,
         path: '/cadastro/extintores',
-        description: 'Controle de agentes extintores e recargas.',
+        description: 'Cadastro e manutencao de extintores.',
+      },
+      {
+        label: 'Agentes Extintores',
+        icon: Package,
+        path: '/cadastro/agentes-extintores',
+        description: 'Controle de estoque de LGE, PQS, nitrogenio e demais agentes.',
       },
       {
         label: 'Hidrantes',
@@ -227,10 +234,16 @@ export const menuItems: MenuItem[] = [
     icon: BookOpen,
     children: [
       {
-        label: 'PTR-BA',
+        label: 'PTR-BA por Instrução',
         icon: FileText,
         path: '/registros-diarios/ptr-ba',
         description: 'Plano de Trabalho de Ronda - Bombeiro de Aeródromo.',
+      },
+      {
+        label: 'PTR-BA Completo',
+        icon: ClipboardList,
+        path: '/registros-diarios/ptr-ba-completo',
+        description: 'Relatório completo de registro PTR-BA com efetivo, evidências e PDF.',
       },
       {
         label: 'LRO/Ocorrências',

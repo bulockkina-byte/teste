@@ -13,13 +13,18 @@ import { listarDocumentos, listarPreenchimentos, criarPreenchimento } from '../.
 import { listarViaturas } from '../../services/viaturaService';
 import { listarPTRBs } from '../../services/ptrbService';
 import { listarAPOCs } from '../../services/apocService';
-import { salvarDraft, listarDrafts, atualizarStatus, excluirDraft, type LRODraft, type LRODraftStatus } from '../../services/lroDraftService';
+import { listarConferencias } from '../../services/conferenciaService';
+import { listarOcorrencias } from '../../services/ocorrenciaService';
+import { listarReas } from '../../services/reaService';
+import { salvarDraft, listarDrafts, excluirDraft, type LRODraft, type LRODraftStatus } from '../../services/lroDraftService';
 import { gerarPDF } from '../../services/lroGenerator';
-import { criarDocumento as criarDocumentoAutentique } from '../../services/autentiqueService';
 import type { AutentiqueSigner } from '../../services/autentiqueService';
 import type { Bombeiro } from '../../types/bombeiro';
+import type { Conferencia } from '../../types/conferencia';
 import type { FeriasGozo } from '../../types/ferias';
+import type { Ocorrencia } from '../../types/ocorrencia';
 import type { PTRB } from '../../types/ptrb';
+import type { ReaRegistro } from '../../types/rea';
 import { dataSaidaPlantao, horarioPlantaoPorEquipe } from '../../utils/equipes';
 
 function SearchSelect({ options, value, onChange, placeholder, label }: {
@@ -128,6 +133,9 @@ export function GerarLRO() {
   const [todasSubstituicoes, setTodasSubstituicoes] = useState<any[]>([]);
   const [viaturas, setViaturas] = useState<any[]>([]);
   const [ptrbs, setPtrbs] = useState<PTRB[]>([]);
+  const [conferencias, setConferencias] = useState<Conferencia[]>([]);
+  const [ocorrenciasOperacionais, setOcorrenciasOperacionais] = useState<Ocorrencia[]>([]);
+  const [reas, setReas] = useState<ReaRegistro[]>([]);
   const [drafts, setDrafts] = useState<LRODraft[]>([]);
   const [apocs, setApocs] = useState<any[]>([]);
   const [draftId, setDraftId] = useState<string | null>(null);
@@ -239,15 +247,6 @@ export function GerarLRO() {
     return () => clearInterval(interval);
   }, [drafts]);
 
-  // Deferred data loading (only when needed)
-  const [ptrbsLoaded, setPtrbsLoaded] = useState(false);
-  const carregarPtrbs = useCallback(async () => {
-    if (ptrbsLoaded) return;
-    const p = await listarPTRBs().catch(() => []);
-    setPtrbs(p);
-    setPtrbsLoaded(true);
-  }, [ptrbsLoaded]);
-
   const [vigencias, setVigencias] = useState<any[]>([]);
   const [vigenciasLoaded, setVigenciasLoaded] = useState(false);
   const carregarVigencias = useCallback(async () => {
@@ -260,15 +259,23 @@ export function GerarLRO() {
   useEffect(() => {
     async function load() {
       try {
-        const [b, f, docs, a] = await Promise.all([
+        const [b, f, docs, a, ptrbRegistros, conferenciaRegistros, ocorrenciaRegistros, reaRegistros] = await Promise.all([
           listarAtivos(),
           listarFeriasGozo(),
           listarDocumentos(),
           listarAPOCs(),
+          listarPTRBs().catch(() => []),
+          listarConferencias().catch(() => []),
+          listarOcorrencias().catch(() => []),
+          listarReas().catch(() => []),
         ]);
         setApocs(a);
         setBombeiros(b);
         setFeriasGozo(f);
+        setPtrbs(ptrbRegistros);
+        setConferencias(conferenciaRegistros);
+        setOcorrenciasOperacionais(ocorrenciaRegistros);
+        setReas(reaRegistros);
 
         // Load CCI viaturas only (lighter query)
         const cci = await listarViaturas({ tipo: 'CCI' });
@@ -386,17 +393,20 @@ export function GerarLRO() {
 
   // Auto-pull instructions from PTR-BA when team/date changes
   useEffect(() => {
-    const ptrbsFiltrados = ptrbs.filter(p =>
-      p.equipe === equipe && p.data && p.data.startsWith(dataInicio)
-    );
-    if (ptrbsFiltrados.length > 0) {
-      const linhas = ptrbsFiltrados.map(p => {
-        const assunto = (p.assuntoMinistrado || '').trim();
-        return assunto;
-      });
-      setInstrucoes(linhas.join('\n\n'));
-      setInstrucoesHorarios(ptrbsFiltrados.map(p => p.horaInicio || ''));
+    const ptrbsFiltrados = ptrbs
+      .filter(p => p.equipe === equipe && p.data && p.data.startsWith(dataInicio))
+      .sort((a, b) => (a.horaInicio || '').localeCompare(b.horaInicio || ''));
+    if (ptrbsFiltrados.length === 0) {
+      setInstrucoes('');
+      setInstrucoesHorarios([]);
+      return;
     }
+    const linhas = ptrbsFiltrados.map(p => {
+      const assunto = (p.assuntoMinistrado || '').trim();
+      return assunto;
+    });
+    setInstrucoes(linhas.join('\n\n'));
+    setInstrucoesHorarios(ptrbsFiltrados.map(p => p.horaInicio || ''));
   }, [equipe, dataInicio, ptrbs]);
 
   useEffect(() => {
@@ -409,6 +419,151 @@ export function GerarLRO() {
     fim: horarioBase.horarioTermino,
     tipo: horarioBase.tipo,
   };
+
+  function dataISO(value?: string): string {
+    const match = String(value || '').match(/\d{4}-\d{2}-\d{2}/);
+    return match?.[0] || '';
+  }
+
+  function horaCurta(value?: string): string {
+    const match = String(value || '').match(/\d{2}:\d{2}/);
+    return match?.[0] || '';
+  }
+
+  function formatarDataLinha(value?: string): string {
+    const data = dataISO(value);
+    if (!data) return '';
+    const [ano, mes, dia] = data.split('-');
+    return `${dia}/${mes}/${ano}`;
+  }
+
+  function textoInline(value?: string): string {
+    return String(value || '').replace(/\s+/g, ' ').trim();
+  }
+
+  function linhaLRO(data: string, hora: string, equipeLinha: string, tipo: string, descricao: string): string {
+    const descricaoLimpa = textoInline(descricao);
+    if (!descricaoLimpa) return '';
+    return [formatarDataLinha(data), horaCurta(hora), equipeLinha.trim(), textoInline(tipo), descricaoLimpa]
+      .filter(Boolean)
+      .join(' - ');
+  }
+
+  function registroNoPlantao(dataRegistro: string, horaRegistro: string, equipeRegistro: string, dataTurno?: string): boolean {
+    if (equipeRegistro !== equipe) return false;
+    const turnoInformado = dataISO(dataTurno);
+    if (turnoInformado) return turnoInformado === dataInicio;
+
+    const data = dataISO(dataRegistro);
+    const hora = horaCurta(horaRegistro);
+    if (!data) return false;
+
+    if (horarioBase.turno === 'Noturno') {
+      if (data === dataInicio && (!hora || hora >= horarioPlantao.inicio)) return true;
+      if (data === dataFim && (!hora || hora < horarioPlantao.fim)) return true;
+      return false;
+    }
+
+    if (data !== dataInicio) return false;
+    if (!hora) return true;
+    return hora >= horarioPlantao.inicio && hora < horarioPlantao.fim;
+  }
+
+  const solicitacoesAutomaticas = useMemo(() => {
+    return conferencias
+      .filter(registro =>
+        String(registro.tipo || '').toLowerCase().startsWith('solicita') &&
+        registroNoPlantao(registro.dataConferencia, horaCurta(registro.dataConferencia), registro.equipe, registro.dataProximaInspecao)
+      )
+      .sort((a, b) => `${dataISO(a.dataConferencia)} ${horaCurta(a.dataConferencia)}`.localeCompare(`${dataISO(b.dataConferencia)} ${horaCurta(b.dataConferencia)}`))
+      .map(registro => linhaLRO(
+        dataISO(registro.dataConferencia),
+        horaCurta(registro.dataConferencia),
+        registro.equipe,
+        registro.itemNome || 'Solicitação',
+        registro.observacoes,
+      ))
+      .filter(Boolean)
+      .join('\n');
+  }, [conferencias, equipe, dataInicio, dataFim, horarioBase.turno, horarioPlantao.inicio, horarioPlantao.fim]);
+
+  const inspecoesAutomaticas = useMemo(() => {
+    return conferencias
+      .filter(registro =>
+        String(registro.tipo || '').toLowerCase().startsWith('inspe') &&
+        registroNoPlantao(registro.dataConferencia, horaCurta(registro.dataConferencia), registro.equipe, registro.dataProximaInspecao)
+      )
+      .sort((a, b) => `${dataISO(a.dataConferencia)} ${horaCurta(a.dataConferencia)}`.localeCompare(`${dataISO(b.dataConferencia)} ${horaCurta(b.dataConferencia)}`))
+      .map(registro => linhaLRO(
+        dataISO(registro.dataConferencia),
+        horaCurta(registro.dataConferencia),
+        registro.equipe,
+        registro.itemNome || 'Inspeção Operacional',
+        registro.observacoes,
+      ))
+      .filter(Boolean)
+      .join('\n');
+  }, [conferencias, equipe, dataInicio, dataFim, horarioBase.turno, horarioPlantao.inicio, horarioPlantao.fim]);
+
+  const ocorrenciasAutomaticas = useMemo(() => {
+    return ocorrenciasOperacionais
+      .filter(registro =>
+        !registro.numero?.trim() &&
+        registroNoPlantao(registro.data, registro.hora, registro.equipe, registro.local)
+      )
+      .sort((a, b) => `${dataISO(a.data)} ${horaCurta(a.hora)}`.localeCompare(`${dataISO(b.data)} ${horaCurta(b.hora)}`))
+      .map(registro => linhaLRO(
+        registro.data,
+        registro.hora,
+        registro.equipe,
+        registro.titulo || registro.categoria || 'Ocorrência',
+        registro.descricao,
+      ))
+      .filter(Boolean)
+      .join('\n');
+  }, [ocorrenciasOperacionais, equipe, dataInicio, dataFim, horarioBase.turno, horarioPlantao.inicio, horarioPlantao.fim]);
+
+  const bonaAutomaticas = useMemo(() => {
+    return ocorrenciasOperacionais
+      .filter(registro =>
+        registro.tipoDocumento === 'BONA' &&
+        registro.numero?.trim().startsWith('BONA') &&
+        registroNoPlantao(registro.data, registro.hora, registro.equipe)
+      )
+      .sort((a, b) => `${dataISO(a.data)} ${horaCurta(a.hora)}`.localeCompare(`${dataISO(b.data)} ${horaCurta(b.hora)}`))
+      .map(registro => linhaLRO(registro.data, registro.hora, '', '', registro.descricao))
+      .filter(Boolean)
+      .join('\n');
+  }, [ocorrenciasOperacionais, equipe, dataInicio, dataFim, horarioBase.turno, horarioPlantao.inicio, horarioPlantao.fim]);
+
+  const reaAutomaticas = useMemo(() => {
+    return reas
+      .filter(registro => registroNoPlantao(registro.dataAcidente, registro.horaAcidente, registro.equipe))
+      .sort((a, b) => `${dataISO(a.dataAcidente)} ${horaCurta(a.horaAcidente)}`.localeCompare(`${dataISO(b.dataAcidente)} ${horaCurta(b.horaAcidente)}`))
+      .map(registro => linhaLRO(registro.dataAcidente, registro.horaAcidente, '', '', registro.dados?.descricaoEmergencia || ''))
+      .filter(Boolean)
+      .join('\n');
+  }, [reas, equipe, dataInicio, dataFim, horarioBase.turno, horarioPlantao.inicio, horarioPlantao.fim]);
+
+  useEffect(() => {
+    setSolicitacoesCCR(solicitacoesAutomaticas);
+  }, [solicitacoesAutomaticas]);
+
+  useEffect(() => {
+    setInspecoes(inspecoesAutomaticas);
+  }, [inspecoesAutomaticas]);
+
+  useEffect(() => {
+    setOutrasOcorrencias(ocorrenciasAutomaticas);
+  }, [ocorrenciasAutomaticas]);
+
+  useEffect(() => {
+    setOcorrenciasNA(bonaAutomaticas);
+  }, [bonaAutomaticas]);
+
+  useEffect(() => {
+    setEmergenciaXI(reaAutomaticas);
+  }, [reaAutomaticas]);
 
   const membrosEquipe = useMemo(() => {
     return bombeiros.filter(b => b.equipe === equipe && !b.dataDesligamento);

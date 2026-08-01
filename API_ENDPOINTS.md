@@ -1,11 +1,11 @@
 # API Endpoints — SESCINC Manager
 
-> **Data:** 2026-07-24  
-> **Total de serviços:** 38 ficheiros em `src/services/`
-> **Comunicação com Supabase:** 30 ficheiros
-> **Total de funções:** ~177
+> **Data:** 2026-07-31
+> **Total de serviços:** 43 ficheiros em `src/services/`
+> **Comunicação com Supabase:** 33 ficheiros
+> **Total de funções:** ~196
 > **Serviços externos:** 1 (Autentique GraphQL)  
-> **Cálculo puro:** 5 (escalaMensalGenerator, lroGenerator, pdfService, htmlPdfService, reaPdfService)  
+> **Cálculo puro:** 7 (escalaMensalGenerator, lroGenerator, pdfService, htmlPdfService, reaPdfService, ptrbaCompletoPdfService, tpeprPdfService)
 > **Dead code (localStorage):** 10 ficheiros RTK store + notificacaoService (parcial)
 
 ---
@@ -21,6 +21,8 @@
 | 5 | escalaService | `escalas_diarias` | 6 | ✅ |
 | 6 | escalaMensalService | `escalas_mensais_config`, `escalas_mensais_geradas` | 7 | ✅ |
 | 7 | ptrbService | `ptrb_registros` | 6 | ✅ |
+| 7.1 | ptrbaCompletoService | `ptrba_completo_registros` | 5 | ✅ |
+| 7.2 | ptrbaCompletoPdfService | — | 2 | ✅ |
 | 8 | lroService | `registros_lro` | 6 | ✅ |
 | 9 | lroDraftService | `lro_drafts` | 5 | ⚠️ 2 sem err check |
 | 10 | ocorrenciaService | `ocorrencias_operacionais` | 4 | ⚠️ 1 sem err check |
@@ -30,6 +32,7 @@
 | 13 | apocService | `apocs` | 7 | ✅ |
 | 14 | viaturaService | `viaturas` | 4 | ✅ |
 | 15 | extintorService | `extintores` | 4 | ✅ |
+| 15.1 | agenteExtintorService | `agentes_extintores` | 4 | ✅ |
 | 16 | hidranteService | `hidrantes` | 4 | ✅ |
 | 17 | conferenciaService | `conferencias` | 2 | ✅ |
 | 18 | certificacaoService | `certificacoes_nr` | 4 | ⚠️ 1 sem err check |
@@ -44,6 +47,8 @@
 | 27 | exercicioPosicionamentoService | `exercicios_posicionamento` | 6 | ✅ |
 | 28 | tempoRespostaService | `treinamentos_tempo_resposta` | 6 | ✅ |
 | 29 | tafService | `treinamentos_taf` | 6 | ✅ |
+| 30 | tpeprService | `treinamentos_tpepr` | 6 | ✅ |
+| 30.1 | tpeprPdfService | — | 2 | ✅ |
 | 25 | autentiqueService | — (API externa) | 9 | ✅ |
 | 26 | notificacaoService | — (computed + localStorage) | 4 | ⚠️ cache local |
 | — | store/api/* (10 ficheiros) | — | ~50 | ❌ DEAD CODE (fakeBaseQuery localStorage) |
@@ -730,6 +735,49 @@ GET com filtro `ativa=true`. ✅ OK
 
 ---
 
+# 7.1. PTR-BA Completo — `ptrbaCompletoService.ts`
+
+**Tabela:** `ptrba_completo_registros`
+**Ficheiro:** `src/services/ptrbaCompletoService.ts`
+**Tipo:** `src/types/ptrbaCompleto.ts` — `PTRBACompleto`
+
+---
+
+### listarPTRBACompletos
+
+**Método HTTP:** GET
+**REST equivalência:** `GET /rest/v1/ptrba_completo_registros?select=*&order=data.desc&order=created_at.desc` com filtros opcionais `equipe`, `ano`, `dataGte`, `dataLte`, `createdBy`
+**Query Params:** `equipe?: string`, `ano?: string`, `dataGte?: string`, `dataLte?: string`, `createdBy?: string`
+**Request Body:** —
+**Response:** `PTRBACompleto[]`
+**Estado:** ✅ OK
+
+**Payload Response:**
+```json
+[{
+  "id": "uuid",
+  "createdBy": "string",
+  "createdAt": "string (ISO datetime)",
+  "updatedAt": "string (ISO datetime)",
+  "data": "string (ISO date)",
+  "equipe": "Alfa | Bravo | Charlie | Delta",
+  "identificacaoAeroporto": "string",
+  "observacoes": "string",
+  "chefeEquipe": "string",
+  "participantes": [{ "funcao": "string", "nomeCompleto": "string", "situacao": "P | A | EO | OC | INSTR. 1 | INSTR. 2 | INSTR. 1-2" }],
+  "evidencias": [{ "horaInicio": "string", "horaTermino": "string", "assunto": "string", "imagem": "string (base64/url)", "descricao": "string" }]
+}]
+```
+
+### obterPTRBACompleto / criarPTRBACompleto / atualizarPTRBACompleto / excluirPTRBACompleto
+
+**Método:** GET / POST / PATCH / DELETE
+**REST equivalência:** `.../ptrba_completo_registros`
+**Estado:** ✅ OK
+**Regras:** a tela permite visualização geral, mas criação/edição/exclusão apenas para a equipe efetiva do usuário, ou globalmente para Administradores/GS. O download usa `ptrbaCompletoPdfService.ts` e gera PDF client-side com o layout do modelo PTR-BA completo.
+
+---
+
 # 8. LRO — `lroService.ts`
 
 **Tabela:** `registros_lro`  
@@ -852,6 +900,7 @@ GET com filtro `ativa=true`. ✅ OK
 ```
 
 **Nota de compatibilidade:** registros antigos com `tipo_documento = "RAE"` são normalizados para `REA` no service.
+**Uso no LRO:** BONA com `numero` iniciado por `BONA` alimenta IX. Ocorrências Não Aeronáuticas com `data - hora - descrição`. Registros criados em LRO/Ocorrências usam `numero` vazio, `titulo` como tipo, `local` como data do turno e alimentam XII. Outras Ocorrências com `data - hora - equipe - tipo - descrição`.
 
 ---
 
@@ -1212,6 +1261,41 @@ GET com joins: busca `document` + `document_fields` + `document_signers` em para
 
 ---
 
+# 15.1. Agentes Extintores — `agenteExtintorService.ts`
+
+**Tabela:** `agentes_extintores`
+**Ficheiro:** `src/services/agenteExtintorService.ts`
+**Tipo:** `src/types/agenteExtintor.ts` — `AgenteExtintor`
+
+---
+
+### listarAgentesExtintores / criarAgenteExtintor / atualizarAgenteExtintor / excluirAgenteExtintor
+
+✅ OK
+
+**Regras UI:** todos podem visualizar a listagem. Criar/editar/excluir fica restrito a Administradores/GS ou `BA-CE`/`BA-LR` exercendo função na equipa `Alfa`.
+
+**Payload `AgenteExtintor`:**
+```json
+{
+  "id": "uuid",
+  "nome": "string",
+  "tipo": "LGE | PQS | Nitrogenio | CO2 | Outro",
+  "quantidade": 0,
+  "unidade": "L | kg | cilindro | unidade",
+  "lote": "string",
+  "validade": "string (ISO date)",
+  "localizacao": "string",
+  "status": "Disponivel | Baixo estoque | Vencido | Em manutencao | Fora de uso",
+  "observacoes": "string",
+  "createdBy": "string",
+  "createdAt": "string",
+  "updatedAt": "string"
+}
+```
+
+---
+
 # 16. Hidrantes — `hidranteService.ts`
 
 **Tabela:** `hidrantes`  
@@ -1272,6 +1356,8 @@ GET com joins: busca `document` + `document_fields` + `document_signers` em para
   "dataProximaInspecao": "string (ISO date)"
 }
 ```
+
+**Uso no LRO:** em registros de `Solicitação` e `Inspeção Operacional`, `itemNome` guarda o tipo informado no formulário e `dataProximaInspecao` guarda a data do turno. O gerador de LRO usa esses campos para preencher, respectivamente, XIII. Solicitações e X. Inspeções no formato `data - hora - equipe - tipo - descrição`.
 
 ---
 
@@ -2027,6 +2113,47 @@ Todos em `src/store/api/*.ts`. Usam `fakeBaseQuery()` com localStorage. **Nunca 
 
 ---
 
+# 30. TP/EPR — `tpeprService.ts`
+
+**Tabela:** `treinamentos_tpepr`
+**Ficheiro:** `src/services/tpeprService.ts`
+**Tipo:** `src/types/tpepr.ts` — `TreinamentoTPEPR`
+**Migration:** `supabase/migrations/045_treinamentos_tpepr.sql`
+
+**Funções:** `listarTPEPRs`, `obterTPEPR`, `obterProximoNumeroTPEPR`, `criarTPEPR`, `atualizarTPEPR`, `excluirTPEPR` — todas ✅ OK
+
+**Payload Response:**
+```json
+[{
+  "id": "uuid",
+  "createdBy": "string",
+  "createdAt": "string (ISO datetime)",
+  "updatedAt": "string (ISO datetime)",
+  "equipe": "Alfa | Bravo | Charlie | Delta",
+  "numero": "number",
+  "ano": "string",
+  "data": "string (ISO date)",
+  "hora": "string",
+  "turno": "Diurno | Noturno | string",
+  "observacoes": "string",
+  "chefeEquipe": "string",
+  "participantes": [{
+    "pessoaId": "string",
+    "nomeCompleto": "string",
+    "nomeGuerra": "string",
+    "funcao": "BA-CE | BA-LR | BA-MC | BA-2",
+    "primeiraTomada": "string (MM:SS)",
+    "segundaTomada": "string (MM:SS)",
+    "terceiraTomada": "string (MM:SS)",
+    "quartaTomada": "string (MM:SS)"
+  }]
+}]
+```
+
+**Regras:** participantes são normalizados e exibidos em ordem hierárquica `BA-CE → BA-LR → BA-MC → BA-2`. A quarta tomada é calculada pelo frontend antes de salvar: `(3ª tomada - 2ª tomada) + 20%`.
+
+---
+
 # Anexo C — Funções sem Supabase (Cálculo Puro / Externo)
 
 | Ficheiro | Descrição |
@@ -2036,5 +2163,7 @@ Todos em `src/store/api/*.ts`. Usam `fakeBaseQuery()` com localStorage. **Nunca 
 | `pdfService.ts` | Manipulação de PDF com pdf-lib (ler campos, preencher, templates) |
 | `htmlPdfService.ts` | HTML → PDF com html-to-image + jspdf |
 | `reaPdfService.ts` | Preenchimento do PDF-template REA com pdf-lib |
+| `ptrbaCompletoPdfService.ts` | Geração client-side do PDF PTR-BA completo com jspdf |
+| `tpeprPdfService.ts` | Geração client-side do PDF TP/EPR em A4 paisagem com área de assinaturas em branco |
 | `autentiqueService.ts` | API externa Autentique (GraphQL) — sem Supabase |
 | `menuData.ts` | Configuração estática do menu de navegação |

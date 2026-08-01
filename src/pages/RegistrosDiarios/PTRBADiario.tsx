@@ -491,7 +491,7 @@ function PTRBAForm({
         <button type="submit"
           className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
           <Save className="h-4 w-4" />
-          {ptrb ? 'Salvar Alterações' : 'Criar PTR-BA'}
+          {ptrb ? 'Salvar Alterações' : 'Criar PTR-BA por Instrução'}
         </button>
       </div>
     </form>
@@ -518,7 +518,7 @@ function PTRBCard({ ptrb, onView, onEdit, onDelete, onClone, canEdit }: {
           </div>
           <div>
             <p className="text-sm font-semibold text-graphite-900 dark:text-graphite-100">
-              PTR-BA - {ptrb.equipe} - {formatDate(ptrb.data)}
+              PTR-BA por Instrução - {ptrb.equipe} - {formatDate(ptrb.data)}
             </p>
             <p className="text-xs text-graphite-500 dark:text-graphite-400">
               {ptrb.turno} · {ptrb.horaInicio} às {ptrb.horaTermino} ({ptrb.duracao}h)
@@ -617,7 +617,7 @@ function ViewMode({ ptrb, onBack }: { ptrb: PTRB; onBack: () => void }) {
     <div>
       <div className="mb-6 flex items-center justify-between print-hidden">
         <h3 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">
-          PTR-BA - {ptrb.equipe} - {formatDate(ptrb.data)}
+          PTR-BA por Instrução - {ptrb.equipe} - {formatDate(ptrb.data)}
         </h3>
         <div className="flex items-center gap-2">
           <button onClick={() => window.print()}
@@ -876,7 +876,7 @@ export function PTRBADiario() {
   if (mode === 'form') {
     return (
       <PageContainer>
-        <PageTitle icon={FileText} title={`PTR-BA - ${editando?.id ? 'Editar' : editando && !editando.id ? 'Clonar' : 'Novo'} Registro`} />
+        <PageTitle icon={FileText} title={`PTR-BA por Instrução - ${editando?.id ? 'Editar' : editando && !editando.id ? 'Clonar' : 'Novo'} Registro`} />
         <PTRBAForm
           ptrb={editando || undefined}
           onSave={handleSave}
@@ -905,7 +905,7 @@ export function PTRBADiario() {
   if (loading) {
     return (
       <PageContainer>
-        <PageTitle icon={FileText} title="PTR-BA - Registro Diário" />
+        <PageTitle icon={FileText} title="PTR-BA por Instrução" />
         <div className="flex items-center justify-center py-20">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-aviation-500 border-t-transparent" />
         </div>
@@ -915,7 +915,7 @@ export function PTRBADiario() {
 
   return (
     <PageContainer>
-      <PageTitle icon={FileText} title="PTR-BA - Registro Diário" />
+      <PageTitle icon={FileText} title="PTR-BA por Instrução" />
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <select value={filtroAno} onChange={e => setFiltroAno(e.target.value)} className={inputClass}>
@@ -937,7 +937,7 @@ export function PTRBADiario() {
         {canCreate && (
           <button onClick={() => { setEditando(null); setMode('form'); }}
             className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
-            <Plus className="h-4 w-4" /> Novo PTR-BA
+            <Plus className="h-4 w-4" /> Novo PTR-BA por Instrução
           </button>
         )}
       </div>
@@ -946,7 +946,7 @@ export function PTRBADiario() {
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300/60 bg-white/50 p-12 text-center backdrop-blur-sm dark:border-border-dark dark:bg-surface-card">
           <FileText className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
           <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhum registro encontrado</h3>
-          <p className="text-sm text-graphite-400">{canCreate ? 'Clique em "Novo PTR-BA" para criar o primeiro.' : 'Nenhum registro disponível.'}</p>
+          <p className="text-sm text-graphite-400">{canCreate ? 'Clique em "Novo PTR-BA por Instrução" para criar o primeiro.' : 'Nenhum registro disponível.'}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -968,7 +968,7 @@ export function PTRBADiario() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="w-full max-w-sm rounded-2xl bg-white/95 p-6 shadow-xl shadow-black/5 backdrop-blur-sm dark:bg-surface-elevated/95 dark:shadow-black/20">
             <h3 className="mb-2 text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar exclusão</h3>
-            <p className="mb-6 text-sm text-graphite-500 dark:text-graphite-400">Tem certeza que deseja excluir este PTR-BA?</p>
+            <p className="mb-6 text-sm text-graphite-500 dark:text-graphite-400">Tem certeza que deseja excluir este PTR-BA por Instrução?</p>
             <div className="flex justify-end gap-3">
               <button onClick={() => setConfirmDelete(null)}
                 className="rounded-xl border border-graphite-300/60 bg-white/80 px-4 py-2 text-sm font-medium text-graphite-700 shadow-sm backdrop-blur-sm transition-all duration-200 hover:bg-graphite-50 hover:border-graphite-300 dark:border-border-dark dark:bg-surface-card/80 dark:text-graphite-200 dark:hover:bg-surface-hover/50">

@@ -139,7 +139,8 @@ Podes combinar múltiplas skills carregando-as em sequência. A ordem importa:
 | `/cadastro/apoc` | APOCs | Pessoal do Centro de Operações Aeroportuárias (MOTIVA) |
 | `/cadastro/viaturas` | Viaturas | Cadastro de veículos operacionais |
 | `/cadastro/equipamentos` | Equipamentos | Inventário de equipamentos |
-| `/cadastro/extintores` | Agentes Extintores | Agentes extintores e recargas |
+| `/cadastro/extintores` | Extintores | Cadastro e manutenção de extintores |
+| `/cadastro/agentes-extintores` | Agentes Extintores | Estoque de LGE, PQS, nitrogênio e demais agentes extintores |
 | `/cadastro/hidrantes` | Hidrantes | Pontos de água e hidrantes |
 | `/cadastro/documentos` | Gerenciar Documentos | Templates de documentos para preenchimento e assinatura |
 | `/cadastro/ferias` | Férias | Controlo de férias, escala anual e substituições do efetivo; também aparece como item próprio na sidebar |
@@ -156,7 +157,8 @@ Podes combinar múltiplas skills carregando-as em sequência. A ordem importa:
 ### Registos Diários
 | Rota | Tela | Descrição |
 |------|------|-----------|
-| `/registros-diarios/ptr-ba` | PTR-BA Diário | Plano de Trabalho de Ronda - Bombeiro de Aeródromo |
+| `/registros-diarios/ptr-ba` | PTR-BA por Instrução | Registro de PTR-BA por assunto ministrado |
+| `/registros-diarios/ptr-ba-completo` | PTR-BA Completo | Relatório completo de registro PTR-BA com efetivo, evidências e download em PDF |
 | `/registros-diarios/lro-ocorrencias` | LRO/Ocorrências | Registo de ocorrências do turno |
 | `/registros-diarios/bona-rea` | BONA/REA | Registos de ocorrências operacionais — BONA e REA |
 | `/registros-diarios/inspecoes` | Inspeções | Registos de inspeções operacionais |
@@ -263,6 +265,7 @@ Podes combinar múltiplas skills carregando-as em sequência. A ordem importa:
 │   │   ├── Equipamentos/
 │   │   ├── Escalas/
 │   │   ├── Estatisticas/
+│   │   ├── Extintores/
 │   │   ├── Ferias/
 │   │   ├── Funcionarios/
 │   │   ├── GerarLRO/
@@ -278,10 +281,10 @@ Podes combinar múltiplas skills carregando-as em sequência. A ordem importa:
 │   │   ├── Usuarios/
 │   │   └── Viaturas/
 │   ├── routes/             # Configuração do React Router
-│   ├── services/           # 38 ficheiros de serviço (comunicação com Supabase e geração local)
+│   ├── services/           # 41 ficheiros de serviço (comunicação com Supabase e geração local)
 │   ├── store/              # Redux store (vazio — apenas hosting RTK Query dead code)
 │   │   └── api/            # 10 ficheiros RTK Query com fakeBaseQuery (DEAD CODE)
-│   ├── types/              # Interfaces TypeScript (24 ficheiros)
+│   ├── types/              # Interfaces TypeScript (26 ficheiros)
 │   └── utils/              # Utilitários (equipes, permissoes, regrasOperacionais, validação de cursos, etc.)
 ├── AGENTS.md               # Este ficheiro — guia do agente
 ├── API_ENDPOINTS.md         # Fonte da verdade para endpoints Supabase
@@ -458,9 +461,9 @@ Referência: **21/07/2026** = Alfa + Bravo
 | Área | Regra |
 |------|-------|
 | Cadastro completo | Administradores do sistema (`admin`/`desenvolvedor`) e bombeiros exercendo `GS` |
-| Cadastro visível aos demais | Equipamentos, Agentes Extintores, Hidrantes e Viaturas |
+| Cadastro visível aos demais | Equipamentos, Extintores, Agentes Extintores, Hidrantes e Viaturas |
 | Equipamentos e Viaturas | Criar/editar/excluir: Admin/GS ou `BA-CE`/`BA-LR` exercendo função na equipa `Bravo` |
-| Agentes Extintores e Hidrantes | Criar/editar/excluir: Admin/GS ou `BA-CE`/`BA-LR` exercendo função na equipa `Alfa` |
+| Extintores, Agentes Extintores e Hidrantes | Criar/editar/excluir: Admin/GS ou `BA-CE`/`BA-LR` exercendo função na equipa `Alfa` |
 | Dados pessoais auxiliares | Listas de bombeiros/APOCs para vínculos ficam restritas a Admin/GS |
 | Arquivo | Visualizar: Admin/GS/`BA-CE`/`BA-LR`; editar/excluir/restaurar: apenas Admin/GS |
 | Funcionários > Todos | Todos visualizam a listagem; modal de detalhes e colunas pessoais: apenas Admin/GS |

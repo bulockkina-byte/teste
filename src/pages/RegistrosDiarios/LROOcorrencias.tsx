@@ -6,23 +6,24 @@ import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { useContextoOperacional } from '../../hooks/useContextoOperacional';
 import { listarOcorrencias, criarOcorrencia, atualizarOcorrencia, excluirOcorrencia } from '../../services/ocorrenciaService';
-import { CATEGORIAS_OCORRENCIA, STATUS_OCORRENCIA, EQUIPES } from '../../types/ocorrencia';
+import { STATUS_OCORRENCIA, EQUIPES } from '../../types/ocorrencia';
 import type { Ocorrencia } from '../../types/ocorrencia';
 
 
 
 function emptyOcorrencia(): Omit<Ocorrencia, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'> {
+  const hoje = new Date().toISOString().split('T')[0];
   return {
     tipoDocumento: 'BONA',
     numero: '',
-    data: new Date().toISOString().split('T')[0],
-    hora: '',
+    data: hoje,
+    hora: new Date().toTimeString().split(':').slice(0, 2).join(':'),
     equipe: '',
     turno: '',
     categoria: 'Outros',
     titulo: '',
     descricao: '',
-    local: '',
+    local: hoje,
     envolvidos: '',
     acoesTomadas: '',
     status: 'Aberta',
@@ -49,7 +50,7 @@ function OcorrenciaForm({
     tipoDocumento: ocorrencia.tipoDocumento, numero: ocorrencia.numero,
     data: ocorrencia.data, hora: ocorrencia.hora, equipe: ocorrencia.equipe,
     turno: ocorrencia.turno, categoria: ocorrencia.categoria, titulo: ocorrencia.titulo,
-    descricao: ocorrencia.descricao, local: ocorrencia.local, envolvidos: ocorrencia.envolvidos,
+    descricao: ocorrencia.descricao, local: ocorrencia.local || ocorrencia.data, envolvidos: ocorrencia.envolvidos,
     acoesTomadas: ocorrencia.acoesTomadas, status: ocorrencia.status, fotos: ocorrencia.fotos,
   } : { ...emptyOcorrencia(), equipe: userEquipe });
 
@@ -57,12 +58,8 @@ function OcorrenciaForm({
   const select = input;
   const label = 'block mb-1.5 text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400';
 
-  function handleImage(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setForm(f => ({ ...f, fotos: [...f.fotos, reader.result as string] }));
-    reader.readAsDataURL(file);
+  function handleDataChange(value: string) {
+    setForm(f => ({ ...f, data: value, local: f.local === f.data ? value : f.local }));
   }
 
   return (
@@ -74,10 +71,14 @@ function OcorrenciaForm({
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <div>
               <label className={label}>Data *</label>
-              <input type="date" value={form.data} onChange={e => setForm(f => ({ ...f, data: e.target.value }))} className={input} />
+              <input type="date" value={form.data} onChange={e => handleDataChange(e.target.value)} className={input} />
+            </div>
+            <div>
+              <label className={label}>Data do Turno *</label>
+              <input type="date" value={form.local} onChange={e => setForm(f => ({ ...f, local: e.target.value }))} className={input} />
             </div>
             <div>
               <label className={label}>Hora *</label>
@@ -91,67 +92,19 @@ function OcorrenciaForm({
               </select>
             </div>
             <div>
-              <label className={label}>Turno</label>
-              <select value={form.turno} onChange={e => setForm(f => ({ ...f, turno: e.target.value }))} className={select}>
-                <option value="">Selecione</option>
-                <option value="Diurno">Diurno</option>
-                <option value="Noturno">Noturno</option>
-              </select>
+              <label className={label}>Tipo *</label>
+              <input value={form.titulo} onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))} className={input} placeholder="Tipo da ocorrência" />
             </div>
-            <div>
-              <label className={label}>Categoria *</label>
-              <select value={form.categoria} onChange={e => setForm(f => ({ ...f, categoria: e.target.value as Ocorrencia['categoria'] }))} className={select}>
-                {CATEGORIAS_OCORRENCIA.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className={label}>Status</label>
-              <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value as Ocorrencia['status'] }))} className={select}>
-                {STATUS_OCORRENCIA.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-            <div className="sm:col-span-2">
-              <label className={label}>Título *</label>
-              <input value={form.titulo} onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))} className={input} placeholder="Resumo da ocorrência" />
-            </div>
-            <div className="sm:col-span-2">
-              <label className={label}>Local</label>
-              <input value={form.local} onChange={e => setForm(f => ({ ...f, local: e.target.value }))} className={input} />
-            </div>
-            <div className="sm:col-span-2">
+            <div className="sm:col-span-2 lg:col-span-5">
               <label className={label}>Descrição</label>
-              <textarea value={form.descricao} onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))} rows={3} className={input + ' resize-none'} />
-            </div>
-            <div className="sm:col-span-2">
-              <label className={label}>Envolvidos</label>
-              <input value={form.envolvidos} onChange={e => setForm(f => ({ ...f, envolvidos: e.target.value }))} className={input} />
-            </div>
-            <div className="sm:col-span-2">
-              <label className={label}>Ações Tomadas</label>
-              <textarea value={form.acoesTomadas} onChange={e => setForm(f => ({ ...f, acoesTomadas: e.target.value }))} rows={3} className={input + ' resize-none'} />
-            </div>
-            <div className="sm:col-span-2">
-              <label className={label}>Fotos</label>
-              <div className="flex flex-wrap gap-2">
-                {form.fotos.map((foto, i) => (
-                  <div key={i} className="relative h-16 w-16">
-                    <img src={foto} className="h-full w-full rounded-lg object-cover" />
-                    <button onClick={() => setForm(f => ({ ...f, fotos: f.fotos.filter((_, j) => j !== i) }))}
-                      className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">✕</button>
-                  </div>
-                ))}
-                <label className="flex h-16 w-16 cursor-pointer items-center justify-center rounded-xl border-2 border-dashed border-graphite-300/60 text-graphite-400 transition-colors hover:border-aviation-400 hover:text-aviation-500">
-                  <Plus className="h-5 w-5" />
-                  <input type="file" accept="image/*" className="hidden" onChange={handleImage} />
-                </label>
-              </div>
+              <textarea value={form.descricao} onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))} rows={5} className={input + ' resize-y'} />
             </div>
           </div>
         </div>
 
         <div className="flex justify-end gap-3 border-t border-graphite-200/60 px-6 py-4 dark:border-border-dark">
           <button onClick={onCancel} className="rounded-xl border border-graphite-300/60 bg-white/80 px-5 py-2.5 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card/80 dark:text-graphite-200">Cancelar</button>
-          <button onClick={() => onSave(form)} disabled={!form.titulo || !form.data || !form.equipe}
+          <button onClick={() => onSave(form)} disabled={!form.data || !form.local || !form.hora || !form.equipe || !form.titulo.trim() || !form.descricao.trim()}
             className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl hover:from-aviation-500 hover:to-aviation-600 disabled:opacity-50 disabled:cursor-not-allowed">
             <Save className="h-4 w-4" /> Salvar
           </button>
@@ -177,7 +130,7 @@ function OcorrenciaView({ ocorrencia, onBack }: { ocorrencia: Ocorrencia; onBack
     <div className="rounded-2xl border border-graphite-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm dark:border-border-dark dark:bg-surface-card/80">
       <div className="mb-4 flex items-start justify-between">
         <div>
-          <h3 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">{ocorrencia.titulo}</h3>
+          <h3 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">{ocorrencia.titulo || 'Ocorrência'}</h3>
           <p className="mt-1 text-sm text-graphite-500 dark:text-graphite-400">{ocorrencia.data} {ocorrencia.hora && `às ${ocorrencia.hora}`}</p>
         </div>
         <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusColor[ocorrencia.status] || ''}`}>{ocorrencia.status}</span>
@@ -185,30 +138,12 @@ function OcorrenciaView({ ocorrencia, onBack }: { ocorrencia: Ocorrencia; onBack
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div><p className={label}>Equipe</p><p className={value}>{ocorrencia.equipe}</p></div>
-        <div><p className={label}>Turno</p><p className={value}>{ocorrencia.turno || '—'}</p></div>
-        <div><p className={label}>Categoria</p><p className={value}>{ocorrencia.categoria}</p></div>
-        <div><p className={label}>Local</p><p className={value}>{ocorrencia.local || '—'}</p></div>
+        <div><p className={label}>Data do Turno</p><p className={value}>{ocorrencia.local || '—'}</p></div>
+        <div><p className={label}>Tipo</p><p className={value}>{ocorrencia.titulo || '—'}</p></div>
       </div>
 
       {ocorrencia.descricao && (
         <div className="mt-4"><p className={label}>Descrição</p><p className={value + ' mt-1 whitespace-pre-wrap'}>{ocorrencia.descricao}</p></div>
-      )}
-      {ocorrencia.envolvidos && (
-        <div className="mt-3"><p className={label}>Envolvidos</p><p className={value + ' mt-1'}>{ocorrencia.envolvidos}</p></div>
-      )}
-      {ocorrencia.acoesTomadas && (
-        <div className="mt-3"><p className={label}>Ações Tomadas</p><p className={value + ' mt-1 whitespace-pre-wrap'}>{ocorrencia.acoesTomadas}</p></div>
-      )}
-
-      {ocorrencia.fotos.length > 0 && (
-        <div className="mt-4">
-          <p className={label}>Fotos</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {ocorrencia.fotos.map((f, i) => (
-              <img key={i} src={f} className="h-20 w-20 rounded-xl object-cover" />
-            ))}
-          </div>
-        </div>
       )}
 
       <div className="mt-6 flex justify-end">
@@ -239,15 +174,15 @@ function OcorrenciaCard({
         className="flex w-full items-center justify-between px-5 py-4 text-left">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-3">
-            <h4 className="truncate text-sm font-bold text-graphite-900 dark:text-graphite-100">{o.titulo}</h4>
+            <h4 className="truncate text-sm font-bold text-graphite-900 dark:text-graphite-100">{o.titulo || 'Ocorrência'}</h4>
             <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-medium ${statusColor[o.status] || ''}`}>{o.status}</span>
-            <span className="shrink-0 rounded-full bg-aviation-50 px-2.5 py-0.5 text-[10px] font-medium text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-300">{o.categoria}</span>
+            <span className="shrink-0 rounded-full bg-aviation-50 px-2.5 py-0.5 text-[10px] font-medium text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-300">{o.titulo || o.categoria}</span>
           </div>
           <div className="mt-1 flex items-center gap-3 text-xs text-graphite-500 dark:text-graphite-400">
             <span>{o.data}</span>
             {o.hora && <span>às {o.hora}</span>}
             <span>Equipe {o.equipe}</span>
-            {o.local && <span>· {o.local}</span>}
+            {o.local && <span>· Turno {o.local}</span>}
           </div>
         </div>
         {expanded ? <ChevronUp className="ml-2 h-4 w-4 shrink-0 text-graphite-400" /> : <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-graphite-400" />}
@@ -256,13 +191,6 @@ function OcorrenciaCard({
       {expanded && (
         <div className="border-t border-graphite-200/60 px-5 py-4 dark:border-border-dark">
           {o.descricao && <p className="mb-2 text-sm text-graphite-700 dark:text-graphite-300 whitespace-pre-wrap">{o.descricao}</p>}
-          {o.envolvidos && <p className="mb-1 text-xs text-graphite-500 dark:text-graphite-400"><strong>Envolvidos:</strong> {o.envolvidos}</p>}
-          {o.acoesTomadas && <p className="mb-2 text-xs text-graphite-500 dark:text-graphite-400 whitespace-pre-wrap"><strong>Ações:</strong> {o.acoesTomadas}</p>}
-          {o.fotos.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-2">
-              {o.fotos.map((f, i) => <img key={i} src={f} className="h-14 w-14 rounded-lg object-cover" />)}
-            </div>
-          )}
           <div className="mt-4 flex items-center gap-2">
             <button onClick={onView} className="flex items-center gap-1 rounded-lg bg-aviation-50 px-3 py-1.5 text-xs font-medium text-aviation-700 transition-colors hover:bg-aviation-100 dark:bg-aviation-900/30 dark:text-aviation-300 dark:hover:bg-aviation-900/50">
               <Eye className="h-3.5 w-3.5" /> Ver

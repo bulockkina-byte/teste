@@ -7,7 +7,7 @@ const CARGOS_RESPONSAVEIS_EQUIPE: readonly Cargo[] = ['BA-CE', 'BA-LR'];
 const CARGOS_VISUALIZAM_ARQUIVO: readonly Cargo[] = ['BA-CE', 'BA-LR'];
 const CARGOS_VISUALIZAM_CERTIFICACOES: readonly Cargo[] = ['BA-CE', 'BA-LR'];
 
-export type CadastroModuloRestrito = 'equipamentos' | 'viaturas' | 'extintores' | 'hidrantes';
+export type CadastroModuloRestrito = 'equipamentos' | 'viaturas' | 'extintores' | 'agentesExtintores' | 'hidrantes';
 
 export type AuthUserPermissao = {
   role?: string;

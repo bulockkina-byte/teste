@@ -19,8 +19,10 @@ export function Solicitacoes() {
 
   const [modo, setModo] = useState<'lista' | 'form'>('lista');
   const [data, setData] = useState(new Date().toISOString().split('T')[0]);
+  const [dataTurno, setDataTurno] = useState(new Date().toISOString().split('T')[0]);
   const [hora, setHora] = useState(new Date().toTimeString().split(':').slice(0, 2).join(':'));
   const [equipe, setEquipe] = useState<Equipe | ''>('');
+  const [tipoSolicitacao, setTipoSolicitacao] = useState('');
   const [descricao, setDescricao] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -40,7 +42,7 @@ export function Solicitacoes() {
   }, [canManageGlobal, equipeEfetiva]);
 
   async function carregar() {
-    const [c] = await Promise.all([listarConferencias()]);
+    const c = await listarConferencias();
     setRegistros(c.filter(r => r.tipo === 'Solicitação'));
   }
 
@@ -64,7 +66,7 @@ export function Solicitacoes() {
 
   async function handleSalvar(e: React.FormEvent) {
     e.preventDefault();
-    if (!user || !equipe || !descricao.trim()) return;
+    if (!user || !data || !dataTurno || !hora || !equipe || !tipoSolicitacao.trim() || !descricao.trim()) return;
     const equipeAlvo = canManageGlobal ? equipe : equipeEfetiva;
     if (!canManageEquipe(equipeAlvo)) {
       alert('Você só pode registrar solicitações para sua equipe efetiva.');
@@ -77,7 +79,7 @@ export function Solicitacoes() {
       await criarConferencia({
         tipo: 'Solicitação',
         itemId: '',
-        itemNome: '',
+        itemNome: tipoSolicitacao.trim(),
         itemNumero: '',
         itemLocalizacao: '',
         dataConferencia: dataHora,
@@ -88,9 +90,10 @@ export function Solicitacoes() {
         itens: [],
         resultadoFinal: 'Aprovado',
         observacoes: descricao.trim(),
-        dataProximaInspecao: '',
+        dataProximaInspecao: dataTurno,
         createdBy: user.username || '',
       });
+      setTipoSolicitacao('');
       setDescricao('');
       setModo('lista');
       carregar();
@@ -124,12 +127,22 @@ export function Solicitacoes() {
           </div>
 
           <div className="rounded-2xl border border-graphite-200/60 bg-white/80 p-8 shadow-sm dark:border-border-dark dark:bg-surface-card">
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-3 mb-6">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5 mb-6">
               <div>
                 <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-graphite-500">
                   <CalendarDays className="h-3.5 w-3.5" /> Data
                 </label>
-                <input type="date" value={data} onChange={e => setData(e.target.value)} className={inputClass} required />
+                <input type="date" value={data} onChange={e => {
+                  const value = e.target.value;
+                  setDataTurno(prev => prev === data ? value : prev);
+                  setData(value);
+                }} className={inputClass} required />
+              </div>
+              <div>
+                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-graphite-500">
+                  <CalendarDays className="h-3.5 w-3.5" /> Data do Turno
+                </label>
+                <input type="date" value={dataTurno} onChange={e => setDataTurno(e.target.value)} className={inputClass} required />
               </div>
               <div>
                 <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-graphite-500">
@@ -145,6 +158,12 @@ export function Solicitacoes() {
                   <option value="">Selecione a equipe</option>
                   {EQUIPES_SOLICITACAO.filter(eq => canManageGlobal || eq === equipeEfetiva).map(eq => <option key={eq} value={eq}>{eq}</option>)}
                 </select>
+              </div>
+              <div>
+                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-graphite-500">
+                  <FileText className="h-3.5 w-3.5" /> Tipo
+                </label>
+                <input value={tipoSolicitacao} onChange={e => setTipoSolicitacao(e.target.value)} className={inputClass} placeholder="Tipo da solicitação" required />
               </div>
             </div>
 
@@ -164,7 +183,7 @@ export function Solicitacoes() {
               className="rounded-xl border border-graphite-300/60 bg-white/80 px-5 py-2.5 text-sm font-medium text-graphite-700 transition-colors hover:bg-graphite-50 dark:border-border-dark dark:bg-surface-card/80 dark:text-graphite-200">
               Cancelar
             </button>
-            <button type="submit" disabled={saving || !equipe || !descricao.trim()}
+            <button type="submit" disabled={saving || !data || !dataTurno || !hora || !equipe || !tipoSolicitacao.trim() || !descricao.trim()}
               className="rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-6 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none">
               {saving ? 'Salvando...' : 'Registrar Solicitação'}
             </button>
@@ -225,10 +244,11 @@ export function Solicitacoes() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-bold text-graphite-900 dark:text-graphite-100">
-                        Solicitação — Equipe {r.equipe}
+                        {r.itemNome || 'Solicitação'} — Equipe {r.equipe}
                       </p>
                       <p className="text-xs text-graphite-500">
                         {r.dataConferencia ? new Date(r.dataConferencia).toLocaleDateString('pt-BR') + ' às ' + new Date(r.dataConferencia).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '-'}
+                        {r.dataProximaInspecao && <> {' · '}Turno {new Date(r.dataProximaInspecao + 'T12:00:00').toLocaleDateString('pt-BR')}</>}
                         {' · '}<span className="font-medium text-graphite-700 dark:text-graphite-300">{r.createdBy || '-'}</span>
                       </p>
                     </div>

@@ -230,7 +230,7 @@ function OcorrenciaForm({
               <input value={form.local} onChange={e => setForm(f => ({ ...f, local: e.target.value }))} className={input} />
             </div>
             <div className="sm:col-span-2">
-              <label className={label}>Descrição</label>
+              <label className={label}>Descrição sucinta da ocorrência</label>
               <textarea value={form.descricao} onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))} rows={3} className={input + ' resize-none'} />
             </div>
             <div className="sm:col-span-2">
@@ -509,7 +509,7 @@ export function Ocorrencias() {
   useEffect(() => { carregar(); }, []);
 
   const filtradas = useMemo(() => {
-    let list = ocorrencias;
+    let list = ocorrencias.filter(o => !!o.numero?.trim());
     if (filtroEquipe) {
       list = list.filter(o => o.equipe === filtroEquipe);
     }
