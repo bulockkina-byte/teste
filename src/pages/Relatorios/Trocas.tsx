@@ -14,6 +14,7 @@ import {
   criarPreenchimento, listarPreenchimentos,
   atualizarPreenchimento, excluirPreenchimento, getPdfBlob,
 } from '../../services/documentoService';
+import { criarVigencia, desativarVigencias } from '../../services/vigenciaSubstituicaoService';
 import { preencherPdf } from '../../services/pdfService';
 import { DOCUMENT_TEMPLATES, findTemplate } from '../../data/documentTemplates';
 import type { TemplateFieldDef } from '../../data/documentTemplates';
@@ -555,6 +556,56 @@ export function Trocas() {
     return result;
   }
 
+  function bombeiroPorNome(nome: string): Bombeiro | undefined {
+    if (!nome) return undefined;
+    return bombeirosList.find(b => b.nomeCompleto === nome || b.nomeGuerra === nome);
+  }
+
+  async function criarVigenciasTroca(fillId: string, dados: Record<string, string>) {
+    const sol = bombeiroPorNome(dados.nome_solicitante || '');
+    const solic = bombeiroPorNome(dados.nome_solicitado || '');
+    const dataSwap = dados.data_solicitada || '';
+    if (!sol || !solic || !dataSwap) return;
+
+    await desativarVigencias(fillId);
+    await criarVigencia({
+      substitutoId: solic.id,
+      substitutoNome: solic.nomeCompleto,
+      cargoOriginalSubstituto: solic.cargo,
+      cargoExercido: sol.cargo,
+      funcionarioOriginalId: sol.id,
+      funcionarioOriginalNome: sol.nomeCompleto,
+      cargoOriginalFuncionario: sol.cargo,
+      equipe: sol.equipe,
+      dataInicio: dataSwap,
+      dataFim: dataSwap,
+      nivelCascata: 1,
+      motivo: 'substituicao',
+      feriasId: fillId,
+      ativa: true,
+    });
+
+    // Substituto de outra equipe → marca vaga aberta na equipe de origem
+    if (solic.equipe && solic.equipe !== sol.equipe) {
+      await criarVigencia({
+        substitutoId: solic.id,
+        substitutoNome: solic.nomeCompleto,
+        cargoOriginalSubstituto: solic.cargo,
+        cargoExercido: solic.cargo,
+        funcionarioOriginalId: solic.id,
+        funcionarioOriginalNome: solic.nomeCompleto,
+        cargoOriginalFuncionario: solic.cargo,
+        equipe: solic.equipe,
+        dataInicio: dataSwap,
+        dataFim: dataSwap,
+        nivelCascata: 1,
+        motivo: 'substituicao',
+        feriasId: fillId,
+        ativa: true,
+      });
+    }
+  }
+
   async function handleConfirmGerarPdf() {
     setShowConfirmPdf(false);
     if (!canManageFormData(formData)) {
@@ -605,19 +656,24 @@ export function Trocas() {
 
       const pdfBlob = await preencherPdf(pdfBytes, dadosStr, fieldPositionsFromDoc(doc));
 
+      let savedFill: DocumentFill | null = null;
       if (editingFillId) {
-        await atualizarPreenchimento(editingFillId, {
+        savedFill = await atualizarPreenchimento(editingFillId, {
           filled_data: formDataToSave,
           status: 'signed',
           autentique_document_id: null,
           autentique_link: null,
         });
       } else {
-        await criarPreenchimento({
+        savedFill = await criarPreenchimento({
           document_id: doc.id, filled_by: user?.username || null,
           filled_data: formDataToSave, status: 'signed',
           autentique_document_id: null, autentique_link: null,
         });
+      }
+
+      if (savedFill?.id) {
+        await criarVigenciasTroca(savedFill.id, formDataToSave);
       }
 
       const url = URL.createObjectURL(pdfBlob);
@@ -758,6 +814,7 @@ export function Trocas() {
     }
     try {
       await atualizarPreenchimento(fill.id, { status: 'archived' as any });
+      await desativarVigencias(fill.id).catch(() => undefined);
       setFills(prev => prev.filter(f => f.id !== fill.id));
       setArchiveConfirmFill(null);
       setShowNotifPopup({ msg: 'Documento arquivado com sucesso!', type: 'success' });
@@ -787,6 +844,7 @@ export function Trocas() {
     }
     try {
       await excluirPreenchimento(deleteTargetId);
+      await desativarVigencias(deleteTargetId).catch(() => undefined);
       setFills(prev => prev.filter(f => f.id !== deleteTargetId));
     } catch {
       setShowNotifPopup({ msg: 'Erro ao excluir. Contate o administrador.', type: 'error' });

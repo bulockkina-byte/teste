@@ -587,8 +587,15 @@ function EscalaDiariaForm({
       // ── 2. Pool para preencher slots que ficaram vazios ──
       const pool: { bombeiro: any; cargo: string }[] = [];
       const ocupados = new Set<string>();
+      const substituidosNoDia = new Set<string>();
+      for (const v of vigs) {
+        if (!v.ativa || !v.substitutoId || v.substitutoId === v.funcionarioOriginalId) continue;
+        if (!dataNoPeriodo(form.dataPlantao, v.dataInicio, v.dataFim)) continue;
+        const original = all.find((bb: any) => bb.id === v.funcionarioOriginalId);
+        if ((original?.equipe || v.equipe) === form.equipe) substituidosNoDia.add(v.funcionarioOriginalId);
+      }
       for (const m of all.filter((b: any) => b.equipe === form.equipe)) {
-        if (usados.has(m.id)) continue;
+        if (usados.has(m.id) || substituidosNoDia.has(m.id)) continue;
         if (!isEmGozo(m.id)) {
           pool.push({ bombeiro: m, cargo: m.cargo });
           continue;
@@ -610,17 +617,9 @@ function EscalaDiariaForm({
       }
 
       // ── 3. Aplicar trocas temporárias ──
-      const trocasAtivas = [
-        ...substituicoes.filter(s =>
-          s.status === 'Aprovada' && form.dataPlantao >= s.dataInicio && form.dataPlantao <= s.dataFim
-        ),
-        ...trocaFills
-          .filter(fl => (fl.filled_data as any)?.data_solicitada === form.dataPlantao)
-          .map(fl => ({
-            funcionarioNome: (fl.filled_data as any)?.nome_solicitante || '',
-            substitutoNome: (fl.filled_data as any)?.nome_solicitado || '',
-          })),
-      ];
+      const trocasAtivas = substituicoes.filter(s =>
+        s.status === 'Aprovada' && form.dataPlantao >= s.dataInicio && form.dataPlantao <= s.dataFim
+      );
       // Aplicar swaps nos nomes dos slots
       for (const t of trocasAtivas) {
         const slotsAtuais = [slotChefe, slotCrsBaMc, slotCrsBaLr, slotCrsBaRe1, slotCrsBaRe2,
