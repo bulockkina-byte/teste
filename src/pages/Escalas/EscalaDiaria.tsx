@@ -542,8 +542,24 @@ function EscalaDiariaForm({
         });
       }
 
-      // Encontrar substituto de uma pessoa (vigência → gozo → item)
+      // Encontrar substituto de uma pessoa (troca → vigência → gozo → item)
       function encontrarSubstituto(bId: string): { id: string; nome: string } | null {
+        const pessoa = all.find((bb: any) => bb.id === bId);
+        if (pessoa) {
+          const pNome = pessoa.nomeCompleto?.toLowerCase();
+          const pGuerra = pessoa.nomeGuerra?.toLowerCase();
+          const troca = trocaFills.find((fl: any) => {
+            const fd = fl?.filled_data || {};
+            if (fd?.data_solicitada !== form.dataPlantao) return false;
+            const solNome = String(fd?.nome_solicitante || '').toLowerCase();
+            return solNome === pNome || solNome === pGuerra;
+          });
+          if (troca) {
+            const fd = troca.filled_data || {};
+            const solic = all.find((bb: any) => bb.nomeCompleto === fd.nome_solicitado || bb.nomeGuerra === fd.nome_solicitado);
+            if (solic) return { id: solic.id, nome: solic.nomeCompleto };
+          }
+        }
         const v = vigs.find((vx: any) =>
           vx.funcionarioOriginalId === bId &&
           vx.ativa &&
@@ -596,9 +612,9 @@ function EscalaDiariaForm({
         for (const [idx, setter] of mapeamento) {
           const p = pessoas[idx];
           if (!p || !p.nomeGuerra) continue;
-          // Verificar se está de férias nesta data
+          // Verificar se a pessoa tem substituto no dia (férias, troca ou vigência)
           const b = all.find((bb: any) => bb.nomeGuerra === p.nomeGuerra);
-          if (b && isEmGozo(b.id)) {
+          if (b) {
             const subInfo = encontrarSubstituto(b.id);
             if (subInfo) {
               const sub = all.find((bb: any) => bb.id === subInfo.id);
@@ -608,11 +624,11 @@ function EscalaDiariaForm({
                 continue;
               }
             }
-          }
-          // Não está de férias ou sem substituto → mantém o original
-          if (b && !usados.has(b.id)) {
-            setter(p.nomeGuerra);
-            usados.add(b.id);
+            // Não tem substituto disponível → mantém o original
+            if (!usados.has(b.id)) {
+              setter(p.nomeGuerra);
+              usados.add(b.id);
+            }
           }
         }
       }
