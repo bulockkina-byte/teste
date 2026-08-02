@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   FileText, Plus, Trash2, Save, Eye, Pencil, Copy, Printer,
-  ChevronDown, ChevronUp, Image,
+  ChevronDown, ChevronUp, Image, Lock,
 } from 'lucide-react';
 import { SearchSelect, type AtivoItem } from '../../components/ui/SearchSelect';
 import { PageContainer } from '../../components/layout/PageContainer';
@@ -22,6 +22,7 @@ import type { APOC } from '../../types/apoc';
 import type { PTRB, PTRBParticipante } from '../../types/ptrb';
 import { EQUIPES, SITUACOES, ASSUNTOS } from '../../types/ptrb';
 import { horarioPlantaoPorEquipe } from '../../utils/equipes';
+import { isAdministradorSistema } from '../../utils/permissoes';
 
 const EQUIPES_FILTRO = EQUIPES.filter(eq => eq !== 'Ferista');
 
@@ -728,6 +729,7 @@ function ViewMode({ ptrb, onBack }: { ptrb: PTRB; onBack: () => void }) {
 export function PTRBADiario() {
   const { user, canManageGlobal, canManageEquipe, equipeEfetiva } = useContextoOperacional();
   const username = user?.username || '';
+  const isAdminOnly = isAdministradorSistema(user);
   const canCreate = canManageGlobal || !!equipeEfetiva;
   const [ptrbs, setPtrbs] = useState<PTRB[]>([]);
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
@@ -793,6 +795,10 @@ export function PTRBADiario() {
   }
 
   useEffect(() => {
+    if (!isAdminOnly) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     async function init() {
       setLoading(true);
@@ -802,7 +808,7 @@ export function PTRBADiario() {
     }
     init();
     return () => { cancelled = true; };
-  }, [username]);
+  }, [username, isAdminOnly]);
 
   async function handleSave(data: Omit<PTRB, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) {
     try {
@@ -871,6 +877,18 @@ export function PTRBADiario() {
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Erro ao excluir PTR-BA');
     }
+  }
+
+  if (!isAdminOnly) {
+    return (
+      <PageContainer>
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">
+          <Lock className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
+          <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Acesso restrito</h3>
+          <p className="text-sm text-graphite-400 dark:text-graphite-500">Esta tela está disponível apenas para administradores e desenvolvedores do sistema.</p>
+        </div>
+      </PageContainer>
+    );
   }
 
   if (mode === 'form') {

@@ -238,6 +238,7 @@ export const menuItems: MenuItem[] = [
         icon: FileText,
         path: '/registros-diarios/ptr-ba',
         description: 'Plano de Trabalho de Ronda - Bombeiro de Aeródromo.',
+        adminOnly: true,
       },
       {
         label: 'PTR-BA Completo',
