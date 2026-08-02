@@ -360,12 +360,13 @@ function normalizarNome(nome: string | undefined): string {
 }
 
 function adicionarSlot(
-  slots: Array<{ nome: string; label: string }>,
+  slots: Array<{ nome: string; label: string; isentoDuplicado?: boolean }>,
   nome: string | undefined,
   label: string,
+  isentoDuplicado = false,
 ): void {
   const normalizado = normalizarNome(nome);
-  if (normalizado) slots.push({ nome: normalizado, label });
+  if (normalizado) slots.push({ nome: normalizado, label, isentoDuplicado });
 }
 
 function horariosSobrepostos(a: RadioSlot, b: RadioSlot): boolean {
@@ -410,9 +411,13 @@ export function validarEscalaDiaria(params: {
   adicionarSlot(slots, escala.guarnicoes?.crs?.baLr, 'CRS BA-LR');
   adicionarSlot(slots, escala.guarnicoes?.crs?.baRe1, 'CRS BA-RE 1');
   adicionarSlot(slots, escala.guarnicoes?.crs?.baRe2, 'CRS BA-RE 2');
+  adicionarSlot(slots, escala.bds?.nomeGuerra, 'BDS', true);
+  adicionarSlot(slots, escala.ptr1?.nomeGuerra, 'PTR 1', true);
+  adicionarSlot(slots, escala.ptr2?.nomeGuerra, 'PTR 2', true);
 
   const seen = new Map<string, string>();
   for (const slot of slots) {
+    if (slot.isentoDuplicado) continue;
     const anterior = seen.get(slot.nome);
     if (anterior) {
       errors.push(`A mesma pessoa nao pode ocupar ${anterior} e ${slot.label} na mesma escala diaria.`);
