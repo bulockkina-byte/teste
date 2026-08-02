@@ -112,14 +112,20 @@ function montarEfetivoDiario(params: {
   bombeiros: Bombeiro[];
   feriasGozo: FeriasGozo[];
   vigencias: VigenciaSubstituicao[];
+  trocaFills: any[];
   equipe: string;
   dataPlantao: string;
 }): EfetivoDiarioEntry[] {
-  const { bombeiros, feriasGozo, vigencias, equipe, dataPlantao } = params;
+  const { bombeiros, feriasGozo, vigencias, trocaFills, equipe, dataPlantao } = params;
   if (!equipe || !dataPlantao) return [];
 
   const ativos = bombeiros.filter(b => !b.dataDesligamento);
   const porId = new Map(ativos.map(b => [b.id, b]));
+  const porNome = new Map<string, Bombeiro>();
+  ativos.forEach(b => {
+    if (b.nomeCompleto) porNome.set(b.nomeCompleto.toLowerCase(), b);
+    if (b.nomeGuerra) porNome.set(b.nomeGuerra.toLowerCase(), b);
+  });
   const equipeDaVaga = (v: VigenciaSubstituicao): string => {
     const original = porId.get(v.funcionarioOriginalId);
     return original?.equipe || v.equipe;
@@ -138,6 +144,27 @@ function montarEfetivoDiario(params: {
   for (const v of vigenciasReais) {
     realPorOriginal.set(v.funcionarioOriginalId, v);
     realPorSubstituto.set(v.substitutoId, v);
+  }
+
+  // Trocas de serviço aprovadas (documento) — no dia data_solicitada o solicitado substitui o solicitante
+  const trocasNoDia = (trocaFills || []).filter(fl => {
+    const fd = fl?.filled_data || {};
+    return fd?.data_solicitada === dataPlantao && fd?.nome_solicitante && fd?.nome_solicitado;
+  });
+  const trocaExcluidos = new Set<string>();
+  const trocaIncluidos: { bombeiro: Bombeiro; cargo: string; substituindo: EfetivoDiarioEntry['substituindo'] }[] = [];
+  for (const fl of trocasNoDia) {
+    const fd = fl.filled_data || {};
+    const sol = porNome.get(String(fd.nome_solicitante || '').toLowerCase());
+    const solic = porNome.get(String(fd.nome_solicitado || '').toLowerCase());
+    if (!sol || !solic || sol.equipe !== equipe) continue;
+    trocaExcluidos.add(sol.id);
+    trocaExcluidos.add(solic.id);
+    trocaIncluidos.push({
+      bombeiro: solic,
+      cargo: sol.cargo,
+      substituindo: { id: sol.id, nome: sol.nomeCompleto, cargo: sol.cargo },
+    });
   }
 
   const gozosNoDia = feriasGozo.filter(g =>
@@ -191,7 +218,7 @@ function montarEfetivoDiario(params: {
       });
       continue;
     }
-    if (emGozo.has(membro.id) || realPorOriginal.has(membro.id) || fallbackPorOriginal.has(membro.id) || vagasAbertas.has(membro.id)) {
+    if (emGozo.has(membro.id) || realPorOriginal.has(membro.id) || fallbackPorOriginal.has(membro.id) || vagasAbertas.has(membro.id) || trocaExcluidos.has(membro.id)) {
       continue;
     }
     adicionar(membro, membro.cargo);
@@ -205,6 +232,10 @@ function montarEfetivoDiario(params: {
       nome: v.funcionarioOriginalNome,
       cargo: v.cargoOriginalFuncionario,
     });
+  }
+
+  for (const t of trocaIncluidos) {
+    adicionar(t.bombeiro, t.cargo, t.substituindo);
   }
 
   for (const fallback of fallbackPorSubstituto.values()) {
@@ -414,9 +445,10 @@ function EscalaDiariaForm({
     bombeiros: allBombeiros,
     feriasGozo,
     vigencias,
+    trocaFills,
     equipe: form.equipe,
     dataPlantao: form.dataPlantao,
-  }), [allBombeiros, feriasGozo, vigencias, form.equipe, form.dataPlantao]);
+  }), [allBombeiros, feriasGozo, vigencias, trocaFills, form.equipe, form.dataPlantao]);
 
   const efetivoOptions = useMemo(
     () => montarOpcoesEfetivoDiario(efetivoDiario, form.equipe),
@@ -437,6 +469,7 @@ function EscalaDiariaForm({
       bombeiros: allBombeiros,
       feriasGozo,
       vigencias,
+      trocaFills,
       equipe,
       dataPlantao: form.dataPlantao,
     }).map(entry => ({ nomeGuerra: entry.bombeiro.nomeGuerra, cargo: entry.cargoExercido }));
@@ -594,8 +627,21 @@ function EscalaDiariaForm({
         const original = all.find((bb: any) => bb.id === v.funcionarioOriginalId);
         if ((original?.equipe || v.equipe) === form.equipe) substituidosNoDia.add(v.funcionarioOriginalId);
       }
+      const trocaExcluidosNoDia = new Set<string>();
+      const trocaIncluidosNoDia: { bombeiro: any; cargo: string }[] = [];
+      for (const fl of trocaFills) {
+        const fd = fl?.filled_data || {};
+        if (fd?.data_solicitada !== form.dataPlantao) continue;
+        if (!fd?.nome_solicitante || !fd?.nome_solicitado) continue;
+        const sol = all.find((bb: any) => bb.nomeCompleto === fd.nome_solicitante || bb.nomeGuerra === fd.nome_solicitante);
+        const solic = all.find((bb: any) => bb.nomeCompleto === fd.nome_solicitado || bb.nomeGuerra === fd.nome_solicitado);
+        if (!sol || !solic || sol.equipe !== form.equipe) continue;
+        trocaExcluidosNoDia.add(sol.id);
+        trocaExcluidosNoDia.add(solic.id);
+        trocaIncluidosNoDia.push({ bombeiro: solic, cargo: sol.cargo });
+      }
       for (const m of all.filter((b: any) => b.equipe === form.equipe)) {
-        if (usados.has(m.id) || substituidosNoDia.has(m.id)) continue;
+        if (usados.has(m.id) || substituidosNoDia.has(m.id) || trocaExcluidosNoDia.has(m.id)) continue;
         if (!isEmGozo(m.id)) {
           pool.push({ bombeiro: m, cargo: m.cargo });
           continue;
@@ -613,6 +659,12 @@ function EscalaDiariaForm({
         if (v.ativa && v.equipe === form.equipe && dataNoPeriodo(form.dataPlantao, v.dataInicio, v.dataFim) && !ocupados.has(v.substitutoId) && !usados.has(v.substitutoId)) {
           const sub = all.find((bb: any) => bb.id === v.substitutoId);
           if (sub) { pool.push({ bombeiro: sub, cargo: v.cargoExercido || sub.cargo }); ocupados.add(sub.id); }
+        }
+      }
+      for (const t of trocaIncluidosNoDia) {
+        if (!ocupados.has(t.bombeiro.id) && !usados.has(t.bombeiro.id)) {
+          pool.push({ bombeiro: t.bombeiro, cargo: t.cargo });
+          ocupados.add(t.bombeiro.id);
         }
       }
 

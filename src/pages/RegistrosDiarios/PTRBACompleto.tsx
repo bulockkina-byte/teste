@@ -24,6 +24,7 @@ import {
   listarPTRBACompletos,
 } from '../../services/ptrbaCompletoService';
 import { listarVigencias } from '../../services/vigenciaSubstituicaoService';
+import { listarDocumentos, listarPreenchimentos } from '../../services/documentoService';
 import type { APOC } from '../../types/apoc';
 import type { Bombeiro, Equipe } from '../../types/bombeiro';
 import { ASSUNTOS } from '../../types/ptrb';
@@ -124,6 +125,7 @@ function PTRBACompletoForm({
   bombeiros,
   apocs,
   vigencias,
+  trocaFills,
   canManageGlobal,
   equipeEfetiva,
 }: {
@@ -133,6 +135,7 @@ function PTRBACompletoForm({
   bombeiros: Bombeiro[];
   apocs: APOC[];
   vigencias: any[];
+  trocaFills: any[];
   canManageGlobal: boolean;
   equipeEfetiva: string | null;
 }) {
@@ -162,9 +165,38 @@ function PTRBACompletoForm({
       (!form.data || (v.dataInicio <= form.data && v.dataFim >= form.data))
     );
     const substituidos = new Set(vigenciasDoDia.map(v => v.funcionarioOriginalId).filter(Boolean));
+
+    // Trocas de serviço aprovadas (documento) — no dia data_solicitada o solicitado substitui o solicitante
+    const porNome = new Map<string, Bombeiro>();
+    bombeiros.forEach(b => {
+      if (b.nomeCompleto) porNome.set(b.nomeCompleto.toLowerCase(), b);
+      if (b.nomeGuerra) porNome.set(b.nomeGuerra.toLowerCase(), b);
+    });
+    const trocasNoDia = (trocaFills || []).filter(fl => {
+      const fd = fl?.filled_data || {};
+      return fd?.data_solicitada === form.data && fd?.nome_solicitante && fd?.nome_solicitado;
+    });
+    const trocaExcluidos = new Set<string>();
+    const trocaIncluidos: AtivoItem[] = [];
+    trocasNoDia.forEach(fl => {
+      const fd = fl.filled_data || {};
+      const sol = porNome.get(String(fd.nome_solicitante || '').toLowerCase());
+      const solic = porNome.get(String(fd.nome_solicitado || '').toLowerCase());
+      if (!sol || !solic || sol.equipe !== form.equipe) return;
+      trocaExcluidos.add(sol.id);
+      trocaExcluidos.add(solic.id);
+      trocaIncluidos.push({
+        id: solic.id,
+        nomeGuerra: solic.nomeGuerra,
+        nomeCompleto: solic.nomeCompleto,
+        cargo: sol.cargo,
+        equipe: form.equipe,
+      });
+    });
+
     const idsIncluidos = new Set<string>();
     const bombeirosList = bombeiros
-      .filter(b => b.equipe === form.equipe && !b.dataDesligamento && !substituidos.has(b.id))
+      .filter(b => b.equipe === form.equipe && !b.dataDesligamento && !substituidos.has(b.id) && !trocaExcluidos.has(b.id))
       .map(b => ({
         id: b.id,
         nomeGuerra: b.nomeGuerra,
@@ -187,6 +219,8 @@ function PTRBACompletoForm({
       });
       return acc;
     }, []);
+    const trocaFinal = trocaIncluidos.filter(t => !idsIncluidos.has(t.id));
+    trocaFinal.forEach(t => idsIncluidos.add(t.id));
     const apocsList = apocs.map(a => ({
       id: a.id,
       nomeGuerra: a.nomeGuerra,
@@ -194,8 +228,8 @@ function PTRBACompletoForm({
       cargo: 'APOC',
       equipe: a.equipe,
     }));
-    return [...bombeirosList, ...substitutos, ...apocsList];
-  }, [bombeiros, apocs, vigencias, form.equipe, form.data]);
+    return [...bombeirosList, ...substitutos, ...trocaFinal, ...apocsList];
+  }, [bombeiros, apocs, vigencias, trocaFills, form.equipe, form.data]);
 
   useEffect(() => {
     if (registro) return;
@@ -604,6 +638,7 @@ export function PTRBACompletoPage() {
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
   const [apocs, setApocs] = useState<APOC[]>([]);
   const [vigencias, setVigencias] = useState<any[]>([]);
+  const [trocaFills, setTrocaFills] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<'list' | 'form' | 'view'>('list');
   const [editando, setEditando] = useState<PTRBACompleto | null>(null);
@@ -646,6 +681,14 @@ export function PTRBACompletoPage() {
         setBombeiros(b);
         setApocs(a);
         setVigencias(v);
+        try {
+          const docs = await listarDocumentos();
+          const trocaDoc = (docs as any[]).find((d: any) => d.name?.includes('TROCA') || d.source_module === 'trocas');
+          if (trocaDoc) {
+            const trocas = await listarPreenchimentos({ documentId: trocaDoc.id, status: 'signed' });
+            if (!cancelado) setTrocaFills(trocas);
+          }
+        } catch { /* trocas são opcionais */ }
       } catch (err) {
         alert(err instanceof Error ? err.message : 'Erro ao carregar PTR-BA completo.');
       } finally {
@@ -725,6 +768,7 @@ export function PTRBACompletoPage() {
           bombeiros={bombeiros}
           apocs={apocs}
           vigencias={vigencias}
+          trocaFills={trocaFills}
           canManageGlobal={canManageGlobal}
           equipeEfetiva={equipeEfetiva}
         />
