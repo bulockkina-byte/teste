@@ -146,10 +146,12 @@ function montarEfetivoDiario(params: {
     realPorSubstituto.set(v.substitutoId, v);
   }
 
-  // Trocas de serviço aprovadas (documento) — no dia data_solicitada o solicitado substitui o solicitante
+  // Trocas de serviço aprovadas (documento):
+  // - data_solicitada: dia de folga do solicitante → solicitado substitui o solicitante
+  // - data_folga_solicitado: dia de folga do solicitado → solicitante substitui o solicitado
   const trocasNoDia = (trocaFills || []).filter(fl => {
     const fd = fl?.filled_data || {};
-    return fd?.data_solicitada === dataPlantao && fd?.nome_solicitante && fd?.nome_solicitado;
+    return (fd?.data_solicitada === dataPlantao || fd?.data_folga_solicitado === dataPlantao) && fd?.nome_solicitante && fd?.nome_solicitado;
   });
   const trocaExcluidos = new Set<string>();
   const trocaIncluidos: { bombeiro: Bombeiro; cargo: string; substituindo: EfetivoDiarioEntry['substituindo'] }[] = [];
@@ -157,14 +159,26 @@ function montarEfetivoDiario(params: {
     const fd = fl.filled_data || {};
     const sol = porNome.get(String(fd.nome_solicitante || '').toLowerCase());
     const solic = porNome.get(String(fd.nome_solicitado || '').toLowerCase());
-    if (!sol || !solic || sol.equipe !== equipe) continue;
-    trocaExcluidos.add(sol.id);
-    trocaExcluidos.add(solic.id);
-    trocaIncluidos.push({
-      bombeiro: solic,
-      cargo: sol.cargo,
-      substituindo: { id: sol.id, nome: sol.nomeCompleto, cargo: sol.cargo },
-    });
+    if (!sol || !solic) continue;
+    const solDia = fd?.data_solicitada === dataPlantao;
+    const solicDia = fd?.data_folga_solicitado === dataPlantao;
+    if (solDia && sol.equipe === equipe) {
+      trocaExcluidos.add(sol.id);
+      trocaExcluidos.add(solic.id);
+      trocaIncluidos.push({
+        bombeiro: solic,
+        cargo: sol.cargo,
+        substituindo: { id: sol.id, nome: sol.nomeCompleto, cargo: sol.cargo },
+      });
+    } else if (solicDia && solic.equipe === equipe) {
+      trocaExcluidos.add(sol.id);
+      trocaExcluidos.add(solic.id);
+      trocaIncluidos.push({
+        bombeiro: sol,
+        cargo: solic.cargo,
+        substituindo: { id: solic.id, nome: solic.nomeCompleto, cargo: solic.cargo },
+      });
+    }
   }
 
   const gozosNoDia = feriasGozo.filter(g =>
@@ -378,15 +392,30 @@ function EscalaDiariaForm({
     }));
 
     const trocasDocumento = trocaFills
-      .filter(fl => (fl.filled_data as any)?.data_solicitada === data)
-      .map(fl => {
+      .filter(fl => {
+        const fd = (fl.filled_data as any) || {};
+        return (fd.data_solicitada === data || fd.data_folga_solicitado === data) && fd.nome_solicitante && fd.nome_solicitado;
+      })
+      .flatMap(fl => {
         const fd = (fl.filled_data as Record<string, string>) || {};
-        return {
-          funcaoSaindo: fd.funcao_solicitante || '',
-          nomeSaindo: fd.nome_solicitante || '',
-          funcaoEntrando: fd.funcao_solicitado || '',
-          nomeEntrando: fd.nome_solicitado || '',
-        };
+        const items: { funcaoSaindo: string; nomeSaindo: string; funcaoEntrando: string; nomeEntrando: string }[] = [];
+        if (fd.data_solicitada === data) {
+          items.push({
+            funcaoSaindo: fd.funcao_solicitante || '',
+            nomeSaindo: fd.nome_solicitante || '',
+            funcaoEntrando: fd.funcao_solicitado || '',
+            nomeEntrando: fd.nome_solicitado || '',
+          });
+        }
+        if (fd.data_folga_solicitado === data) {
+          items.push({
+            funcaoSaindo: fd.funcao_solicitado || '',
+            nomeSaindo: fd.nome_solicitado || '',
+            funcaoEntrando: fd.funcao_solicitante || '',
+            nomeEntrando: fd.nome_solicitante || '',
+          });
+        }
+        return items;
       });
 
     const novas = [...trocasSubstituicao, ...trocasDocumento].filter(t => t.nomeSaindo && t.nomeEntrando);
@@ -550,14 +579,18 @@ function EscalaDiariaForm({
           const pGuerra = pessoa.nomeGuerra?.toLowerCase();
           const troca = trocaFills.find((fl: any) => {
             const fd = fl?.filled_data || {};
-            if (fd?.data_solicitada !== form.dataPlantao) return false;
             const solNome = String(fd?.nome_solicitante || '').toLowerCase();
-            return solNome === pNome || solNome === pGuerra;
+            const solicNome = String(fd?.nome_solicitado || '').toLowerCase();
+            if (fd?.data_solicitada === form.dataPlantao && (solNome === pNome || solNome === pGuerra)) return true;
+            if (fd?.data_folga_solicitado === form.dataPlantao && (solicNome === pNome || solicNome === pGuerra)) return true;
+            return false;
           });
           if (troca) {
             const fd = troca.filled_data || {};
-            const solic = all.find((bb: any) => bb.nomeCompleto === fd.nome_solicitado || bb.nomeGuerra === fd.nome_solicitado);
-            if (solic) return { id: solic.id, nome: solic.nomeCompleto };
+            const isSol = String(fd?.nome_solicitante || '').toLowerCase() === pNome || String(fd?.nome_solicitante || '').toLowerCase() === pGuerra;
+            const quem = isSol ? fd?.nome_solicitado : fd?.nome_solicitante;
+            const sub = all.find((bb: any) => bb.nomeCompleto === quem || bb.nomeGuerra === quem);
+            if (sub) return { id: sub.id, nome: sub.nomeCompleto };
           }
         }
         const v = vigs.find((vx: any) =>
@@ -647,14 +680,21 @@ function EscalaDiariaForm({
       const trocaIncluidosNoDia: { bombeiro: any; cargo: string }[] = [];
       for (const fl of trocaFills) {
         const fd = fl?.filled_data || {};
-        if (fd?.data_solicitada !== form.dataPlantao) continue;
-        if (!fd?.nome_solicitante || !fd?.nome_solicitado) continue;
+        const solDia = fd?.data_solicitada === form.dataPlantao;
+        const solicDia = fd?.data_folga_solicitado === form.dataPlantao;
+        if ((!solDia && !solicDia) || !fd?.nome_solicitante || !fd?.nome_solicitado) continue;
         const sol = all.find((bb: any) => bb.nomeCompleto === fd.nome_solicitante || bb.nomeGuerra === fd.nome_solicitante);
         const solic = all.find((bb: any) => bb.nomeCompleto === fd.nome_solicitado || bb.nomeGuerra === fd.nome_solicitado);
-        if (!sol || !solic || sol.equipe !== form.equipe) continue;
-        trocaExcluidosNoDia.add(sol.id);
-        trocaExcluidosNoDia.add(solic.id);
-        trocaIncluidosNoDia.push({ bombeiro: solic, cargo: sol.cargo });
+        if (!sol || !solic) continue;
+        if (solDia && sol.equipe === form.equipe) {
+          trocaExcluidosNoDia.add(sol.id);
+          trocaExcluidosNoDia.add(solic.id);
+          trocaIncluidosNoDia.push({ bombeiro: solic, cargo: sol.cargo });
+        } else if (solicDia && solic.equipe === form.equipe) {
+          trocaExcluidosNoDia.add(sol.id);
+          trocaExcluidosNoDia.add(solic.id);
+          trocaIncluidosNoDia.push({ bombeiro: sol, cargo: solic.cargo });
+        }
       }
       for (const m of all.filter((b: any) => b.equipe === form.equipe)) {
         if (usados.has(m.id) || substituidosNoDia.has(m.id) || trocaExcluidosNoDia.has(m.id)) continue;

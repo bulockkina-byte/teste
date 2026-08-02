@@ -201,7 +201,7 @@ export function Trocas() {
     Object.values(pessoaFills).forEach(arr => arr.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()));
     Object.values(pessoaFills).forEach(arr => {
       arr.forEach((f, i) => {
-        if (i >= MAX_TROCAS_PER_MONTH - 1) ids.add(f.id);
+        if (i >= MAX_TROCAS_PER_MONTH) ids.add(f.id);
       });
     });
     return ids;
@@ -221,7 +221,7 @@ export function Trocas() {
     Object.values(pessoaFills).forEach(arr => arr.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()));
     Object.values(pessoaFills).forEach(arr => {
       arr.forEach((f, i) => {
-        if (i >= MAX_TROCAS_PER_MONTH - 1) ids.add(f.id);
+        if (i >= MAX_TROCAS_PER_MONTH) ids.add(f.id);
       });
     });
     return ids;
@@ -1688,8 +1688,8 @@ export function Trocas() {
                       </div>
                       <div className="rounded-lg border border-graphite-100 bg-graphite-50/50 p-3 dark:border-graphite-600 dark:bg-graphite-700/30">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-graphite-400 dark:text-graphite-500">Datas</span>
-                        {data.data_folga_solicitado && <p className="mt-1 text-graphite-900 dark:text-graphite-100">Folga do Solicitante: {new Date(data.data_folga_solicitado + 'T12:00:00').toLocaleDateString('pt-BR')}</p>}
-                        {data.data_solicitada && <p className="text-graphite-900 dark:text-graphite-100">Plantão do Solicitado: {new Date(data.data_solicitada + 'T12:00:00').toLocaleDateString('pt-BR')}</p>}
+                        {data.data_solicitada && <p className="mt-1 text-graphite-900 dark:text-graphite-100">Folga do Solicitante: {new Date(data.data_solicitada + 'T12:00:00').toLocaleDateString('pt-BR')}</p>}
+                        {data.data_folga_solicitado && <p className="text-graphite-900 dark:text-graphite-100">Folga do Solicitado: {new Date(data.data_folga_solicitado + 'T12:00:00').toLocaleDateString('pt-BR')}</p>}
                         <p className="mt-1 text-xs text-graphite-500">Documento criado por {data.criado_por || fill.filled_by || 'Desconhecido'} em {new Date(fill.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</p>
                       </div>
                       <div className="rounded-lg border border-graphite-100 bg-graphite-50/50 p-3 dark:border-graphite-600 dark:bg-graphite-700/30">

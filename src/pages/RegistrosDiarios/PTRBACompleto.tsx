@@ -166,7 +166,9 @@ function PTRBACompletoForm({
     );
     const substituidos = new Set(vigenciasDoDia.map(v => v.funcionarioOriginalId).filter(Boolean));
 
-    // Trocas de serviço aprovadas (documento) — no dia data_solicitada o solicitado substitui o solicitante
+    // Trocas de serviço aprovadas (documento):
+    // - data_solicitada: folga do solicitante → solicitado substitui o solicitante
+    // - data_folga_solicitado: folga do solicitado → solicitante substitui o solicitado
     const porNome = new Map<string, Bombeiro>();
     bombeiros.forEach(b => {
       if (b.nomeCompleto) porNome.set(b.nomeCompleto.toLowerCase(), b);
@@ -174,7 +176,7 @@ function PTRBACompletoForm({
     });
     const trocasNoDia = (trocaFills || []).filter(fl => {
       const fd = fl?.filled_data || {};
-      return fd?.data_solicitada === form.data && fd?.nome_solicitante && fd?.nome_solicitado;
+      return (fd?.data_solicitada === form.data || fd?.data_folga_solicitado === form.data) && fd?.nome_solicitante && fd?.nome_solicitado;
     });
     const trocaExcluidos = new Set<string>();
     const trocaIncluidos: AtivoItem[] = [];
@@ -182,16 +184,30 @@ function PTRBACompletoForm({
       const fd = fl.filled_data || {};
       const sol = porNome.get(String(fd.nome_solicitante || '').toLowerCase());
       const solic = porNome.get(String(fd.nome_solicitado || '').toLowerCase());
-      if (!sol || !solic || sol.equipe !== form.equipe) return;
-      trocaExcluidos.add(sol.id);
-      trocaExcluidos.add(solic.id);
-      trocaIncluidos.push({
-        id: solic.id,
-        nomeGuerra: solic.nomeGuerra,
-        nomeCompleto: solic.nomeCompleto,
-        cargo: sol.cargo,
-        equipe: form.equipe,
-      });
+      if (!sol || !solic) return;
+      const solDia = fd?.data_solicitada === form.data;
+      const solicDia = fd?.data_folga_solicitado === form.data;
+      if (solDia && sol.equipe === form.equipe) {
+        trocaExcluidos.add(sol.id);
+        trocaExcluidos.add(solic.id);
+        trocaIncluidos.push({
+          id: solic.id,
+          nomeGuerra: solic.nomeGuerra,
+          nomeCompleto: solic.nomeCompleto,
+          cargo: sol.cargo,
+          equipe: form.equipe,
+        });
+      } else if (solicDia && solic.equipe === form.equipe) {
+        trocaExcluidos.add(sol.id);
+        trocaExcluidos.add(solic.id);
+        trocaIncluidos.push({
+          id: sol.id,
+          nomeGuerra: sol.nomeGuerra,
+          nomeCompleto: sol.nomeCompleto,
+          cargo: solic.cargo,
+          equipe: form.equipe,
+        });
+      }
     });
 
     const idsIncluidos = new Set<string>();

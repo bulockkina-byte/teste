@@ -356,19 +356,22 @@ export function GerarLRO() {
     if (!dataInicio) return;
     const nomesEquipe = bombeiros.filter((b: any) => b.equipe === equipe).map((b: any) => b.nomeGuerra.toLowerCase());
     const resultados: SubstituicaoDetectada[] = [];
-    // De trocaFills (documento Troca de Serviço) — filtra pela data solicitada
+    // De trocaFills (documento Troca de Serviço) — filtra pela data solicitada / folga do solicitado
     trocaFills.forEach((fl: any) => {
       const fd = fl.filled_data || {};
-      const dataSwap = fd.data_solicitada || (fl.created_at ? fl.created_at.split('T')[0] : '');
-      if (dataSwap !== dataInicio) return;
       const nomeSol = fd.nome_solicitante || '';
       const nomeSolic = fd.nome_solicitado || '';
       if (!nomeSol && !nomeSolic) return;
-      const solNome = nomeSol.toLowerCase();
-      const solicNome = nomeSolic.toLowerCase();
+      const naDataSolicitada = fd.data_solicitada === dataInicio;
+      const naDataFolga = fd.data_folga_solicitado === dataInicio;
+      if (!naDataSolicitada && !naDataFolga) return;
+      const substituido = naDataSolicitada ? nomeSol : nomeSolic;
+      const substituto = naDataSolicitada ? nomeSolic : nomeSol;
+      const solNome = substituido.toLowerCase();
+      const solicNome = substituto.toLowerCase();
       const pertenceEquipe = nomesEquipe.some(n => solNome.includes(n)) || nomesEquipe.some(n => solicNome.includes(n));
       if (pertenceEquipe) {
-        resultados.push({ id: fl.id, tipo: 'troca' as const, substituido: nomeSol, substituto: nomeSolic, dataSolicitada: fd.data_solicitada || '', dataFolga: fd.data_folga_solicitado || '', confirmada: null });
+        resultados.push({ id: fl.id, tipo: 'troca' as const, substituido, substituto, dataSolicitada: fd.data_solicitada || '', dataFolga: fd.data_folga_solicitado || '', confirmada: null });
       }
     });
     // De todasSubstituicoes (substituições temporárias aprovadas) — filtra pela data
@@ -589,18 +592,21 @@ export function GerarLRO() {
   const substituicoesMap = useMemo(() => {
     if (!dataInicio) return {};
     const map: Record<string, { substitutoNome: string; substitutoId: string; tipo: 'troca' | 'substituicao' }> = {};
-    // De trocaFills (documento Troca de Serviço) — filtra pela data solicitada (plantão)
+    // De trocaFills (documento Troca de Serviço) — filtra pela data solicitada / folga do solicitado
     trocaFills.forEach((fl: any) => {
       const fd = fl.filled_data || {};
-      const dataSwap = fd.data_solicitada || (fl.created_at ? fl.created_at.split('T')[0] : '');
-      if (dataSwap !== dataInicio) return;
       const nomeSol = fd.nome_solicitante || '';
       const nomeSolic = fd.nome_solicitado || '';
       const pessoaSol = bombeiros.find((b: any) => b.nomeCompleto === nomeSol || b.nomeGuerra === nomeSol);
       const pessoaSolic = bombeiros.find((b: any) => b.nomeCompleto === nomeSolic || b.nomeGuerra === nomeSolic);
-      if (pessoaSol && pessoaSolic) {
+      if (!pessoaSol || !pessoaSolic) return;
+      if (fd.data_solicitada === dataInicio) {
         map[pessoaSol.id] = { substitutoNome: nomeSolic, substitutoId: pessoaSolic.id, tipo: 'troca' };
         map[pessoaSolic.id] = { substitutoNome: nomeSol, substitutoId: pessoaSol.id, tipo: 'troca' };
+      }
+      if (fd.data_folga_solicitado === dataInicio) {
+        map[pessoaSolic.id] = { substitutoNome: nomeSol, substitutoId: pessoaSol.id, tipo: 'troca' };
+        map[pessoaSol.id] = { substitutoNome: nomeSolic, substitutoId: pessoaSolic.id, tipo: 'troca' };
       }
     });
     // De todasSubstituicoes (substituições temporárias) — filtra pela data de início
