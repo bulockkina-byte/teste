@@ -56,12 +56,13 @@ const EVIDENCIA_VAZIA: PTRBACompletoEvidencia = {
 type CampoCompartilhadoEvidencia = Exclude<keyof PTRBACompletoEvidencia, 'imagem'>;
 
 const AEROPORTO_KEY = 'sescinc-aeroporto';
+const AEROPORTO_DEFAULT = 'SBNF - Aeroporto Internacional de Navegantes';
 
 function getUltimoAeroporto(): string {
   try {
-    return localStorage.getItem(AEROPORTO_KEY) || '';
+    return localStorage.getItem(AEROPORTO_KEY) || AEROPORTO_DEFAULT;
   } catch {
-    return '';
+    return AEROPORTO_DEFAULT;
   }
 }
 
