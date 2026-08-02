@@ -55,6 +55,24 @@ const EVIDENCIA_VAZIA: PTRBACompletoEvidencia = {
 };
 type CampoCompartilhadoEvidencia = Exclude<keyof PTRBACompletoEvidencia, 'imagem'>;
 
+const AEROPORTO_KEY = 'sescinc-aeroporto';
+
+function getUltimoAeroporto(): string {
+  try {
+    return localStorage.getItem(AEROPORTO_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+function salvarUltimoAeroporto(valor: string) {
+  try {
+    if (valor) localStorage.setItem(AEROPORTO_KEY, valor);
+  } catch {
+    /* ignore */
+  }
+}
+
 function formatDate(value: string): string {
   if (!value) return '-';
   return new Date(`${value}T12:00:00`).toLocaleDateString('pt-BR');
@@ -82,7 +100,7 @@ function montarInicial(equipePadrao?: string | null): Omit<PTRBACompleto, 'id' |
   return {
     data: new Date().toISOString().split('T')[0],
     equipe,
-    identificacaoAeroporto: '',
+    identificacaoAeroporto: getUltimoAeroporto(),
     observacoes: '',
     chefeEquipe: '',
     participantes: criarParticipantesPTRBACompletoVazios(),
@@ -319,6 +337,7 @@ function PTRBACompletoForm({
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
+    salvarUltimoAeroporto(form.identificacaoAeroporto);
     onSave({
       ...form,
       participantes: normalizarParticipantesPTRBACompleto(form.participantes),
