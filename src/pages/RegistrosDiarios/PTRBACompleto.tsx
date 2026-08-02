@@ -434,7 +434,7 @@ function PTRBACompletoForm({
             return (
               <div key={base} className="rounded-xl border border-graphite-200/60 bg-graphite-50/50 p-4 dark:border-border-dark dark:bg-surface-card/50">
                 <p className="mb-3 text-sm font-bold text-graphite-700 dark:text-graphite-200">Instrução {instrucao}</p>
-                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <div className="grid grid-cols-2 gap-4">
                   <div className="rounded-xl border border-graphite-200/60 bg-white/70 p-3 dark:border-border-dark dark:bg-surface-card/60">
                     <p className="mb-2 text-xs font-semibold text-graphite-500 dark:text-graphite-400">Evidência {idxDados + 1}</p>
                     <div className="grid grid-cols-2 gap-3">
