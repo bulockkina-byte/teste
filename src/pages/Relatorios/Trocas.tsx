@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   RefreshCw, Plus, ArrowLeft, FileText, Loader2,
   Save, ChevronDown, ChevronUp, Filter,
-  AlertTriangle, AlertCircle, Edit, Trash2, Eye, CheckCircle, Send, X, ArrowRight, Archive, Lock,
+  AlertTriangle, AlertCircle, Edit, Trash2, Eye, CheckCircle, X, ArrowRight, Archive, Lock,
 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { PageContainer } from '../../components/layout/PageContainer';
@@ -24,11 +24,6 @@ import { listarAPOCs } from '../../services/apocService';
 import type { Bombeiro } from '../../types/bombeiro';
 import { CARGO_OPTIONS, EQUIPE_OPTIONS } from '../../types/bombeiro';
 import type { APOC } from '../../types/apoc';
-import {
-  criarDocumento as criarDocumentoAutentique,
-} from '../../services/autentiqueService';
-import type { AutentiqueSigner } from '../../services/autentiqueService';
-
 type SubView = 'list' | 'form';
 type ViewMode = 'list' | 'report';
 
@@ -560,18 +555,10 @@ export function Trocas() {
     return result;
   }
 
-  function getEmailByNome(nome: string): string | null {
-    const all = getAllFuncionarios();
-    const match = all.find(f => f.label === nome);
-    if (!match) return null;
-    if (match._type === 'bombeiro') return match._raw.email;
-    return match._raw.email;
-  }
-
   async function handleConfirmGerarPdf() {
     setShowConfirmPdf(false);
     if (!canManageFormData(formData)) {
-      setShowNotifPopup({ msg: 'Você só pode enviar trocas vinculadas à sua equipe efetiva.', type: 'error' });
+      setShowNotifPopup({ msg: 'Você só pode aprovar trocas vinculadas à sua equipe efetiva.', type: 'error' });
       return;
     }
     if (editingFillId) {
@@ -585,7 +572,17 @@ export function Trocas() {
     try {
       const doc = await ensureDocumentExists();
       if (!doc) return;
-      const formDataToSave = prepareFormDataWithAuth(formData);
+
+      // Aprovação automática: marca como DEFERIDO e registra quem autorizou
+      const autorNome = user?.pessoa?.nomeGuerra || user?.name || '';
+      const autorCargo = user?.pessoa?.funcao || '';
+      const dadosAprovados: Record<string, string> = {
+        ...formData,
+        deferido_indeferido: 'DEFERIDO',
+        autorizado_por: autorCargo ? `${autorCargo} ${autorNome}` : autorNome,
+        data_autorizacao: new Date().toISOString().split('T')[0],
+      };
+      const formDataToSave = prepareFormDataWithAuth(dadosAprovados);
 
       const pdfKey = doc.template_pdf_url;
       if (!pdfKey) { setShowNotifPopup({ msg: 'PDF template nao vinculado. Contate o administrador.', type: 'error' }); return; }
@@ -593,7 +590,7 @@ export function Trocas() {
       if (!blob) { setShowNotifPopup({ msg: 'PDF template nao encontrado.', type: 'error' }); return; }
       const pdfBytes = await blob.arrayBuffer();
       const dadosStr: Record<string, string> = {};
-      for (const [k, v] of Object.entries(formData)) dadosStr[k] = String(v || '');
+      for (const [k, v] of Object.entries(dadosAprovados)) dadosStr[k] = String(v || '');
 
       if (formData.troca_emergencial === 'SIM') {
         dadosStr.check_troca_sim = 'V';
@@ -602,78 +599,37 @@ export function Trocas() {
         dadosStr.check_troca_sim = '';
         dadosStr.check_troca_nao = 'V';
       }
-      if (formData.deferido_indeferido === 'DEFERIDO') {
-        dadosStr.check_deferido = 'V';
-        dadosStr.check_indeferido = '';
-      } else if (formData.deferido_indeferido === 'INDEFERIDO') {
-        dadosStr.check_deferido = '';
-        dadosStr.check_indeferido = 'V';
-      }
+      // Aprovada diretamente → assinala DEFERIDO no documento
+      dadosStr.check_deferido = 'V';
+      dadosStr.check_indeferido = '';
 
       const pdfBlob = await preencherPdf(pdfBytes, dadosStr, fieldPositionsFromDoc(doc));
-      const nomeArquivo = `Troca_Servico_${formData.nome_solicitante || 'sem_nome'}_${new Date().toISOString().split('T')[0]}`;
-
-      let autentiqueDocId: string | null = null;
-      let autentiqueLink: string | null = null;
-
-      try {
-        const emailSol = getEmailByNome(formData.nome_solicitante || '');
-        const emailSolic = getEmailByNome(formData.nome_solicitado || '');
-
-        const signers: AutentiqueSigner[] = [];
-        if (emailSol) {
-          signers.push({ email: emailSol, action: 'SIGN' });
-        } else {
-          signers.push({ name: formData.nome_solicitante || 'Solicitante', action: 'SIGN' });
-        }
-        if (emailSolic) {
-          signers.push({ email: emailSolic, action: 'SIGN' });
-        } else {
-          signers.push({ name: formData.nome_solicitado || 'Solicitado', action: 'SIGN' });
-        }
-
-        const result = await criarDocumentoAutentique(pdfBlob, nomeArquivo, signers, undefined, true);
-        autentiqueDocId = result.id;
-        autentiqueLink = result.signatures[0]?.link?.short_link || null;
-      } catch (err) {
-        const errMsg = err instanceof Error ? err.message : 'Erro desconhecido';
-        if (editingFillId) {
-          await atualizarPreenchimento(editingFillId, { filled_data: formDataToSave, status: 'draft' });
-        } else {
-          await criarPreenchimento({
-            document_id: doc.id, filled_by: user?.username || null,
-            filled_data: formDataToSave, status: 'draft',
-            autentique_document_id: null, autentique_link: null,
-          });
-        }
-        setShowNotifPopup({ msg: `Erro ao enviar para Autentique: ${errMsg}`, type: 'error' });
-        setSaving(false);
-        return;
-      }
 
       if (editingFillId) {
         await atualizarPreenchimento(editingFillId, {
           filled_data: formDataToSave,
-          status: 'pending',
-          autentique_document_id: autentiqueDocId,
-          autentique_link: autentiqueLink,
+          status: 'signed',
+          autentique_document_id: null,
+          autentique_link: null,
         });
       } else {
         await criarPreenchimento({
           document_id: doc.id, filled_by: user?.username || null,
-          filled_data: formDataToSave, status: 'pending',
-          autentique_document_id: autentiqueDocId,
-          autentique_link: autentiqueLink,
+          filled_data: formDataToSave, status: 'signed',
+          autentique_document_id: null, autentique_link: null,
         });
       }
+
+      const url = URL.createObjectURL(pdfBlob);
+      window.open(url, '_blank');
 
       const docFills = await listarPreenchimentos(doc.id);
       setFills(docFills);
       setEditingFillId(null);
       setSubView('list');
-      setShowNotifPopup({ msg: 'Documento enviado para assinatura no Autentique com sucesso!', type: 'success' });
+      setShowNotifPopup({ msg: 'Troca aprovada e documento gerado com sucesso!', type: 'success' });
     } catch {
-      setShowNotifPopup({ msg: 'Erro ao enviar para Autentique. Contate o administrador.', type: 'error' });
+      setShowNotifPopup({ msg: 'Erro ao aprovar a troca e gerar o documento. Contate o administrador.', type: 'error' });
     } finally {
       setSaving(false);
     }
@@ -721,7 +677,7 @@ export function Trocas() {
   function handleGerarPdf() {
     if (!validateForm()) return;
     if (!canManageFormData(formData)) {
-      setShowNotifPopup({ msg: 'Você só pode enviar trocas vinculadas à sua equipe efetiva.', type: 'error' });
+      setShowNotifPopup({ msg: 'Você só pode aprovar trocas vinculadas à sua equipe efetiva.', type: 'error' });
       return;
     }
     if (precisaAutorizacaoGerente(formData.nome_solicitante || '', formData.nome_solicitado || '')) {
@@ -1018,7 +974,7 @@ export function Trocas() {
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />} Visualizar
             </button>
             <button onClick={handleGerarPdf} disabled={saving} className="flex items-center gap-2 rounded-lg bg-aviation-600 px-4 py-2 text-sm font-medium text-white hover:bg-aviation-700 disabled:opacity-50">
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Enviar
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />} Aprovar
             </button>
             <button onClick={handleSaveDraft} disabled={saving} className="flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600 disabled:opacity-50">
               <Save className="h-4 w-4" /> Salvar Rascunho
@@ -1085,7 +1041,7 @@ export function Trocas() {
 
           {signatureFields.length > 0 && (
             <div className="rounded-xl border border-graphite-400 bg-graphite-50 p-4 shadow dark:border-graphite-500 dark:bg-graphite-800">
-              <h4 className="mb-3 text-sm font-semibold text-graphite-700 dark:text-graphite-200">Assinaturas (posicionamento para Autentique)</h4>
+              <h4 className="mb-3 text-sm font-semibold text-graphite-700 dark:text-graphite-200">Assinaturas</h4>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
                 {signatureFields.map(f => (
                   <div key={f.field_name} className="flex items-center justify-center gap-1 rounded-lg border-2 border-dashed border-purple-300 bg-purple-100 px-2 py-2 text-center dark:border-purple-600 dark:bg-purple-900/40">
@@ -1104,13 +1060,13 @@ export function Trocas() {
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40">
                   <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                 </div>
-                <h3 className="text-lg font-semibold text-graphite-900 dark:text-graphite-100">Confirmar Geracao do PDF</h3>
+                <h3 className="text-lg font-semibold text-graphite-900 dark:text-graphite-100">Confirmar Aprovação da Troca</h3>
               </div>
               <p className="mb-2 text-sm text-graphite-600 dark:text-graphite-300">
-                Você tem certeza que quer enviar para o <strong>Autentique</strong> para assinatura?
+                Você tem certeza que deseja <strong>aprovar</strong> esta troca e gerar o documento?
               </p>
               <p className="mb-4 text-sm font-semibold text-red-600 dark:text-red-400">
-                A troca não poderá ser excluída.
+                A troca aprovada alimentará automaticamente a escala diária, o LRO e o PTR-BA do dia.
               </p>
               <p className="mb-6 text-sm font-medium text-graphite-700 dark:text-graphite-200">
                 Os dados estão todos corretos?
@@ -1120,7 +1076,7 @@ export function Trocas() {
                   Cancelar
                 </button>
                 <button onClick={handleConfirmGerarPdf} disabled={saving} className="flex items-center gap-2 rounded-lg bg-aviation-600 px-4 py-2 text-sm font-medium text-white hover:bg-aviation-700 disabled:opacity-50">
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Sim, Enviar para Autentique
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />} Aprovar e Gerar Documento
                 </button>
               </div>
             </div>
@@ -1199,7 +1155,7 @@ export function Trocas() {
                 <h3 className="text-lg font-semibold text-graphite-900 dark:text-graphite-100">Pré-visualização</h3>
               </div>
               <p className="mb-6 text-sm text-graphite-600 dark:text-graphite-300">
-                Esta pré-visualização mostra como o documento será enviado para o Autentique.
+                Esta pré-visualização mostra como o documento aprovado será gerado.
               </p>
               <div className="flex justify-end">
                 <button onClick={handleConfirmPreview} disabled={saving} className="flex items-center gap-2 rounded-lg bg-aviation-600 px-4 py-2 text-sm font-medium text-white hover:bg-aviation-700 disabled:opacity-50">
@@ -1462,7 +1418,7 @@ export function Trocas() {
                 <div className="border-b border-graphite-200 px-5 py-4 dark:border-border-dark">
                   <h3 className="text-sm font-bold text-graphite-900 dark:text-graphite-100">
                     Trocas de {MONTH_NAMES[filterMonth]} de {filterYear}
-                    <span className="ml-2 text-xs font-normal text-graphite-400">({naoAssinados.length} pendentes · {assinados.length} assinadas)</span>
+                    <span className="ml-2 text-xs font-normal text-graphite-400">({naoAssinados.length} pendentes · {assinados.length} aprovadas)</span>
                   </h3>
                 </div>
                 )}
@@ -1494,12 +1450,12 @@ export function Trocas() {
                                 fill.status === 'draft' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300' :
                                 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                               }`}>
-                                {fill.status === 'signed' ? 'Assinado' : fill.status === 'pending' ? 'Aguardando' : fill.status === 'draft' ? 'Rascunho' : 'Cancelado'}
+                                {fill.status === 'signed' ? 'Aprovada' : fill.status === 'pending' ? 'Aguardando' : fill.status === 'draft' ? 'Rascunho' : 'Cancelado'}
                               </span>
                               <a href={fill.autentique_link || '#'} target={fill.autentique_link ? '_blank' : '_self'} rel="noopener noreferrer"
                                 onClick={!fill.autentique_link ? (e => e.preventDefault()) : undefined}
                                 className="rounded-lg p-1 text-graphite-400 hover:bg-aviation-50 hover:text-aviation-600 dark:hover:bg-aviation-900/20"
-                                title={fill.autentique_link ? "Ver no Autentique" : "Sem link"}>
+                                title={fill.autentique_link ? "Ver documento" : "Sem documento"}>
                                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                               </a>
                               </div>
@@ -1515,7 +1471,7 @@ export function Trocas() {
                 <div className="rounded-2xl border border-green-200 bg-green-50/50 overflow-hidden dark:border-green-800/30 dark:bg-green-900/10">
                   <div className="border-b border-green-200 px-5 py-4 dark:border-green-800/30">
                     <h3 className="flex items-center gap-2 text-sm font-bold text-green-800 dark:text-green-300">
-                      <CheckCircle className="h-4 w-4" /> Trocas Assinadas via Autentique ({assinados.length})
+                      <CheckCircle className="h-4 w-4" /> Trocas Aprovadas ({assinados.length})
                     </h3>
                   </div>
                   <div className="overflow-x-auto">
@@ -1540,7 +1496,7 @@ export function Trocas() {
                               <td className="px-4 py-3 text-xs text-green-600 dark:text-green-400">{da.data_folga_solicitado ? new Date(da.data_folga_solicitado + 'T12:00:00').toLocaleDateString('pt-BR') : '-'}</td>
                               <td className="px-4 py-3 text-center">
                                 <span className="inline-flex items-center gap-1 rounded-full bg-green-200 px-2 py-0.5 text-[10px] font-bold text-green-800 dark:bg-green-800/40 dark:text-green-300">
-                                  <CheckCircle className="h-3 w-3" /> Assinado
+                                  <CheckCircle className="h-3 w-3" /> Aprovada
                                 </span>
                               </td>
                             </tr>
@@ -1580,7 +1536,7 @@ export function Trocas() {
             let dotLabel = 'Rascunho';
             if (fill.status === 'signed') {
               dotColor = 'bg-green-500 dark:bg-green-400';
-              dotLabel = 'Assinado';
+              dotLabel = 'Aprovada';
             } else if (fill.status === 'pending') {
               dotColor = 'bg-blue-500 dark:bg-blue-400';
               dotLabel = 'Aguardando';
@@ -1642,7 +1598,7 @@ export function Trocas() {
                       fill.status === 'cancelled' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
                       'bg-graphite-100 text-graphite-600 dark:bg-graphite-700 dark:text-graphite-300'
                     }`}>
-                      {fill.status === 'draft' ? 'Rascunho' : fill.status === 'signed' ? 'Assinado' : fill.status === 'pending' ? 'Aguardando' : fill.status === 'cancelled' ? 'Cancelado' : fill.status}
+                      {fill.status === 'draft' ? 'Rascunho' : fill.status === 'signed' ? 'Aprovada' : fill.status === 'pending' ? 'Aguardando' : fill.status === 'cancelled' ? 'Cancelado' : fill.status}
                     </span>
                     {fill.status === 'draft' && draftCountdowns[fill.id] != null && (
                       <span className="text-[10px] text-yellow-600 dark:text-yellow-400" title="Tempo ate exclusao automatica">
@@ -1746,7 +1702,7 @@ export function Trocas() {
                             'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
                           }`}>
                             {fill.status === 'signed' && <CheckCircle className="h-3.5 w-3.5" />}
-                            {fill.status === 'draft' ? 'Rascunho' : fill.status === 'signed' ? 'Assinado' : fill.status === 'pending' ? 'Aguardando' : 'Cancelado'}
+                            {fill.status === 'draft' ? 'Rascunho' : fill.status === 'signed' ? 'Aprovada' : fill.status === 'pending' ? 'Aguardando' : 'Cancelado'}
                           </span>
                           {data.troca_emergencial === 'SIM' && (
                             <button onClick={() => setShowJustificativaPopup(fill.id)} className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-400">

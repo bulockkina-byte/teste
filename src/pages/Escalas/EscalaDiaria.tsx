@@ -11,6 +11,7 @@ import { listarEscalas, criarEscala, atualizarEscala, excluirEscala } from '../.
 import { listarAtivos } from '../../services/bombeiroService';
 import { equipesNoDia, horarioPlantaoPorEquipe } from '../../utils/equipes';
 import { listarSubstituicoesTemporarias } from '../../services/substituicaoTemporariaService';
+import { listarDocumentos, listarPreenchimentos } from '../../services/documentoService';
 import { listarVigencias } from '../../services/vigenciaSubstituicaoService';
 import type { VigenciaSubstituicao } from '../../services/vigenciaSubstituicaoService';
 import { listarFeriasGozo, listarEscalas as listarEscalasFerias, listarItensEscala } from '../../services/feriasService';
@@ -22,6 +23,7 @@ import type { Bombeiro, Cargo } from '../../types/bombeiro';
 import type { FeriasGozo } from '../../types/ferias';
 import type { SubstituicaoTemporaria } from '../../types/substituicaoTemporaria';
 import { validarCursoParaFuncao } from '../../utils/validacaoCursos';
+import { RegraNegocioError } from '../../utils/regrasOperacionais';
 
 const EQUIPES = ['Alfa', 'Bravo', 'Charlie', 'Delta'] as const;
 
@@ -298,6 +300,7 @@ function EscalaDiariaForm({
   const [feriasGozo, setFeriasGozo] = useState<FeriasGozo[]>([]);
   const [vigencias, setVigencias] = useState<VigenciaSubstituicao[]>([]);
   const [substituicoes, setSubstituicoes] = useState<SubstituicaoTemporaria[]>([]);
+  const [trocaFills, setTrocaFills] = useState<any[]>([]);
   const [autoFilling, setAutoFilling] = useState(false);
 
   useEffect(() => {
@@ -319,28 +322,52 @@ function EscalaDiariaForm({
   }, []);
 
   useEffect(() => {
+    listarDocumentos()
+      .then(async (docs: any[]) => {
+        const trocaDoc = docs.find((d: any) => d.name?.includes('TROCA') || d.source_module === 'trocas');
+        if (!trocaDoc) return;
+        const fills = await listarPreenchimentos({ documentId: trocaDoc.id, status: 'signed' });
+        setTrocaFills(fills);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     if (!form.dataPlantao) return;
     const data = form.dataPlantao;
     const aprovadas = substituicoes.filter(s =>
       s.status === 'Aprovada' && data >= s.dataInicio && data <= s.dataFim
     );
 
-    const trocasTemp = aprovadas.map(s => ({
+    const trocasSubstituicao = aprovadas.map(s => ({
       funcaoSaindo: s.funcionarioCargo || '',
       nomeSaindo: s.funcionarioNome,
       funcaoEntrando: s.substitutoCargo || '',
       nomeEntrando: s.substitutoNome,
     }));
 
-    if (trocasTemp.length === 0) return;
+    const trocasDocumento = trocaFills
+      .filter(fl => (fl.filled_data as any)?.data_solicitada === data)
+      .map(fl => {
+        const fd = (fl.filled_data as Record<string, string>) || {};
+        return {
+          funcaoSaindo: fd.funcao_solicitante || '',
+          nomeSaindo: fd.nome_solicitante || '',
+          funcaoEntrando: fd.funcao_solicitado || '',
+          nomeEntrando: fd.nome_solicitado || '',
+        };
+      });
+
+    const novas = [...trocasSubstituicao, ...trocasDocumento].filter(t => t.nomeSaindo && t.nomeEntrando);
+    if (novas.length === 0) return;
 
     setForm(f => {
-      const combinadas = [...f.trocas, ...trocasTemp.filter(n =>
+      const combinadas = [...f.trocas, ...novas.filter(n =>
         !f.trocas.some(t => t.nomeSaindo === n.nomeSaindo && t.nomeEntrando === n.nomeEntrando)
       )];
       return { ...f, trocas: combinadas };
     });
-  }, [form.dataPlantao, substituicoes]);
+  }, [form.dataPlantao, substituicoes, trocaFills]);
 
   useEffect(() => {
     if (escala) {
@@ -583,9 +610,17 @@ function EscalaDiariaForm({
       }
 
       // ── 3. Aplicar trocas temporárias ──
-      const trocasAtivas = substituicoes.filter(s =>
-        s.status === 'Aprovada' && form.dataPlantao >= s.dataInicio && form.dataPlantao <= s.dataFim
-      );
+      const trocasAtivas = [
+        ...substituicoes.filter(s =>
+          s.status === 'Aprovada' && form.dataPlantao >= s.dataInicio && form.dataPlantao <= s.dataFim
+        ),
+        ...trocaFills
+          .filter(fl => (fl.filled_data as any)?.data_solicitada === form.dataPlantao)
+          .map(fl => ({
+            funcionarioNome: (fl.filled_data as any)?.nome_solicitante || '',
+            substitutoNome: (fl.filled_data as any)?.nome_solicitado || '',
+          })),
+      ];
       // Aplicar swaps nos nomes dos slots
       for (const t of trocasAtivas) {
         const slotsAtuais = [slotChefe, slotCrsBaMc, slotCrsBaLr, slotCrsBaRe1, slotCrsBaRe2,
@@ -1198,20 +1233,28 @@ export function EscalaDiariaView() {
       alert('Você só pode editar escalas da sua equipe efetiva.');
       return;
     }
-    const payload = { ...data, equipe: equipeAlvo as string };
-    let saved: EscalaDiaria | null;
-    if (editando && editando.id) {
-      saved = await atualizarEscala(editando.id, payload);
-    } else {
-      saved = await criarEscala({ ...payload, createdBy: username });
-    }
-    setEditando(null);
-    carregar();
-    if (saved) {
-      setVisualizando(saved);
-      setMode('view');
-    } else {
-      setMode('list');
+    try {
+      const payload = { ...data, equipe: equipeAlvo as string };
+      let saved: EscalaDiaria | null;
+      if (editando && editando.id) {
+        saved = await atualizarEscala(editando.id, payload);
+      } else {
+        saved = await criarEscala({ ...payload, createdBy: username });
+      }
+      setEditando(null);
+      await carregar();
+      if (saved) {
+        setVisualizando(saved);
+        setMode('view');
+      } else {
+        setMode('list');
+      }
+    } catch (err) {
+      if (err instanceof RegraNegocioError) {
+        alert(err.errors.join('\n'));
+      } else {
+        alert(err instanceof Error ? err.message : 'Erro ao salvar a escala diária. Contate o administrador.');
+      }
     }
   }
 
