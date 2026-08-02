@@ -214,13 +214,17 @@ function drawEvidencias(doc: jsPDF, evidencias: PTRBACompletoEvidencia[]) {
   drawCell(doc, M, titleY, 196, 5, 'ASSUNTOS MINISTRADOS E EVIDÊNCIAS', { bold: true, size: 8, align: 'center' });
   const xLeft = M;
   const xRight = M + 98;
-  const startY = titleY + 5;
   const cellW = 98;
-  const cellH = 36;
-  for (let i = 0; i < 6; i += 1) {
-    const row = Math.floor(i / 2);
-    const col = i % 2;
-    drawEvidenceCell(doc, evidencias[i], col === 0 ? xLeft : xRight, startY + row * cellH, cellW, cellH);
+  const labelH = 4;
+  const cellH = 34;
+  // 3 instruções, cada uma com 2 evidências juntas
+  for (let n = 0; n < 3; n += 1) {
+    const labelY = titleY + 5 + n * (labelH + cellH);
+    drawCell(doc, M, labelY, 196, labelH, `INSTRUÇÃO ${n + 1}`, { bold: true, size: 7, align: 'center', fill: [230, 230, 230] });
+    const y = labelY + labelH;
+    const i = n * 2;
+    drawEvidenceCell(doc, evidencias[i], xLeft, y, cellW, cellH);
+    drawEvidenceCell(doc, evidencias[i + 1], xRight, y, cellW, cellH);
   }
 }
 
