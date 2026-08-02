@@ -256,7 +256,7 @@ function PTRBACompletoForm({
     const membros = opcoesParticipantes.filter(p => p.equipe === form.equipe && p.cargo !== 'APOC');
     const preenchidos = criarParticipantesPTRBACompletoVazios().map(slot => {
       const pessoa = membros.find(b => b.cargo === slot.funcao && !usados.has(b.id));
-      if (!pessoa) return slot;
+      if (!pessoa) return { funcao: '', nomeCompleto: '', situacao: '' };
       usados.add(pessoa.id);
       return {
         ...slot,
@@ -395,6 +395,7 @@ function PTRBACompletoForm({
               <div>
                 <label className={label}>Situação</label>
                 <select value={participante.situacao} onChange={e => updateParticipante(index, 'situacao', e.target.value)} className={input}>
+                  <option value="">Selecione</option>
                   {PTRBA_COMPLETO_SITUACOES.map(situacao => <option key={situacao} value={situacao}>{situacao}</option>)}
                 </select>
               </div>
@@ -595,7 +596,7 @@ function ViewMode({ registro, onBack, onDownload, downloading }: {
                 </tr>
               </thead>
               <tbody>
-                {registro.participantes.map((p, index) => (
+                {registro.participantes.filter(p => p.nomeCompleto).map((p, index) => (
                   <tr key={index} className="border-b border-graphite-100 dark:border-border-dark">
                     <td className="px-3 py-2 dark:text-graphite-100">{index + 1}</td>
                     <td className="px-3 py-2 dark:text-graphite-100">{p.funcao || '-'}</td>

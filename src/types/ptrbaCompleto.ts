@@ -120,7 +120,7 @@ export function normalizarParticipantesPTRBACompleto(
   return base.map((item, index) => ({
     ...item,
     ...lista[index],
-    situacao: lista[index]?.situacao || item.situacao,
+    situacao: lista[index]?.situacao ?? item.situacao,
   }));
 }
 

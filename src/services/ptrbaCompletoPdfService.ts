@@ -130,9 +130,10 @@ function drawParticipantes(doc: jsPDF, participantes: PTRBACompletoParticipante[
   const headers = ['ORD', 'Função', 'NOME COMPLETO', "Situação dos\nBA's", 'ASSINATURA DO BA'];
   headers.forEach((header, i) => drawCell(doc, xs[i], y0, widths[i], 7, header, { bold: true, size: 7, align: 'center' }));
 
-  for (let i = 0; i < 15; i += 1) {
+  const preenchidos = participantes.filter(p => p.nomeCompleto);
+  for (let i = 0; i < preenchidos.length; i += 1) {
     const y = y0 + 7 + i * rowH;
-    const p = participantes[i] || { funcao: '', nomeCompleto: '', situacao: '' };
+    const p = preenchidos[i] || { funcao: '', nomeCompleto: '', situacao: '' };
     drawCell(doc, xs[0], y, widths[0], rowH, String(i + 1), { size: 7, align: 'center' });
     drawCell(doc, xs[1], y, widths[1], rowH, p.funcao || '', { size: 7, align: 'center' });
     drawCell(doc, xs[2], y, widths[2], rowH);
