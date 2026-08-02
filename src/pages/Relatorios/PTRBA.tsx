@@ -7,6 +7,7 @@ import { listarBombeiros } from '../../services/bombeiroService';
 import { listarPTRBACompletos } from '../../services/ptrbaCompletoService';
 import type { PTRB } from '../../types/ptrb';
 import { EQUIPES, ASSUNTOS } from '../../types/ptrb';
+import { PTRBA_COMPLETO_EVIDENCIA_PARES } from '../../types/ptrbaCompleto';
 import type { PTRBACompleto } from '../../types/ptrbaCompleto';
 import { useContextoOperacional } from '../../hooks/useContextoOperacional';
 
@@ -90,11 +91,10 @@ function expandParticipants(ptrbs: PTRB[]): ExpandedPTRB[] {
   return result;
 }
 
-// Converte um registro PTR-BA Completo em registros de instrução (uma por evidência)
+// Converte um registro PTR-BA Completo em registros de instrução (uma por assunto/par de evidências)
 function converterCompletoParaPTRBs(c: PTRBACompleto): PTRB[] {
   const participantes = (c.participantes || []).filter(p => p.nomeCompleto && p.nomeCompleto.trim());
   if (participantes.length === 0) return [];
-  const evidencias = (c.evidencias || []).filter(ev => ev.assunto && ev.assunto.trim());
   const base = {
     createdBy: c.createdBy,
     createdAt: c.createdAt,
@@ -109,19 +109,29 @@ function converterCompletoParaPTRBs(c: PTRBACompleto): PTRB[] {
     informacoesComplementares: '',
     fotos: [],
   };
-  if (evidencias.length === 0) {
+  const evidencias = c.evidencias || [];
+  const resultado: PTRB[] = [];
+  // Cada assunto tem 2 evidências (pares [0,1], [2,3], [4,5]) → uma instrução por par
+  for (const [i, j] of PTRBA_COMPLETO_EVIDENCIA_PARES) {
+    const a = evidencias[i];
+    const b = evidencias[j];
+    const ev = a?.assunto ? a : b;
+    if (!ev || !ev.assunto || !ev.assunto.trim()) continue;
+    resultado.push({
+      ...base,
+      id: `completo-${c.id}-${i}`,
+      horaInicio: ev.horaInicio || '',
+      horaTermino: ev.horaTermino || '',
+      duracao: '',
+      horas: calcHoras(ev.horaInicio || '', ev.horaTermino || ''),
+      assuntoMinistrado: ev.assunto,
+      descricao: ev.descricao || '',
+    });
+  }
+  if (resultado.length === 0) {
     return [{ ...base, id: `completo-${c.id}`, horaInicio: '', horaTermino: '', duracao: '', horas: 0, assuntoMinistrado: 'PTR-BA Completo' }];
   }
-  return evidencias.map((ev, i) => ({
-    ...base,
-    id: `completo-${c.id}-${i}`,
-    horaInicio: ev.horaInicio || '',
-    horaTermino: ev.horaTermino || '',
-    duracao: '',
-    horas: calcHoras(ev.horaInicio || '', ev.horaTermino || ''),
-    assuntoMinistrado: ev.assunto,
-    descricao: ev.descricao || '',
-  }));
+  return resultado;
 }
 
 type SortKey = 'label' | 'assunto' | 'horas' | 'qtd';

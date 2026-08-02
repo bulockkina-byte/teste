@@ -8,7 +8,6 @@ import {
   Plus,
   Save,
   Trash2,
-  X,
 } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
@@ -334,6 +333,26 @@ function PTRBACompletoForm({
   const card = 'rounded-2xl border border-graphite-200/60 bg-white/80 p-6 shadow-sm backdrop-blur-sm dark:border-border-dark dark:bg-surface-card/80';
   const cardTitle = 'mb-5 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-aviation-600 dark:text-aviation-400';
 
+  function imagemField(idx: number, titulo: string) {
+    const ev = form.evidencias[idx];
+    return (
+      <div className="mt-3">
+        <label className={label}>{titulo}</label>
+        <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-graphite-300/70 bg-white/70 p-4 text-center text-sm text-graphite-500 transition-colors hover:border-aviation-400 hover:text-aviation-600 dark:border-border-dark dark:bg-surface-card dark:text-graphite-400">
+          {ev?.imagem ? (
+            <img src={ev.imagem} alt={titulo} className="max-h-52 w-full rounded-lg object-contain" />
+          ) : (
+            <>
+              <Image className="mb-2 h-8 w-8 text-graphite-300" />
+              Selecionar imagem
+            </>
+          )}
+          <input type="file" accept="image/*" onChange={event => handleImagem(idx, event)} className="hidden" />
+        </label>
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className={card}>
@@ -406,65 +425,49 @@ function PTRBACompletoForm({
 
       <div className={card}>
         <h2 className={cardTitle}><Image className="h-4 w-4" /> Assuntos Ministrados e Evidencias</h2>
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {form.evidencias.map((evidencia, index) => (
-            <div key={index} className="rounded-xl border border-graphite-200/60 bg-graphite-50/50 p-4 dark:border-border-dark dark:bg-surface-card/50">
-              <div className="mb-3 flex items-center justify-between">
-                <p className="text-sm font-bold text-graphite-700 dark:text-graphite-200">
-                  {index % 2 === 0 ? `Instrução ${Math.floor(index / 2) + 1} - Evidência ${index + 1}` : `Foto Evidência ${index + 1}`}
-                </p>
-                {evidencia.imagem && (
-                  <button
-                    type="button"
-                    onClick={() => updateEvidencia(index, 'imagem', '')}
-                    className="rounded-lg p-1.5 text-alert-red hover:bg-red-50 dark:hover:bg-red-900/20"
-                    title="Remover imagem"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-              {index % 2 === 0 && (
-                <>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className={label}>Hora Inicio</label>
-                      <input type="time" value={evidencia.horaInicio} onChange={e => updateEvidenciaPar(index, 'horaInicio', e.target.value)} className={input} />
+        <div className="space-y-4">
+          {[0, 2, 4].map(base => {
+            const idxDados = base;
+            const idxFoto = base + 1;
+            const dados = form.evidencias[idxDados] || EVIDENCIA_VAZIA;
+            const instrucao = Math.floor(base / 2) + 1;
+            return (
+              <div key={base} className="rounded-xl border border-graphite-200/60 bg-graphite-50/50 p-4 dark:border-border-dark dark:bg-surface-card/50">
+                <p className="mb-3 text-sm font-bold text-graphite-700 dark:text-graphite-200">Instrução {instrucao}</p>
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                  <div className="rounded-xl border border-graphite-200/60 bg-white/70 p-3 dark:border-border-dark dark:bg-surface-card/60">
+                    <p className="mb-2 text-xs font-semibold text-graphite-500 dark:text-graphite-400">Evidência {idxDados + 1}</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className={label}>Hora Inicio</label>
+                        <input type="time" value={dados.horaInicio} onChange={e => updateEvidenciaPar(idxDados, 'horaInicio', e.target.value)} className={input} />
+                      </div>
+                      <div>
+                        <label className={label}>Hora Termino</label>
+                        <input type="time" value={dados.horaTermino} onChange={e => updateEvidenciaPar(idxDados, 'horaTermino', e.target.value)} className={input} />
+                      </div>
                     </div>
-                    <div>
-                      <label className={label}>Hora Termino</label>
-                      <input type="time" value={evidencia.horaTermino} onChange={e => updateEvidenciaPar(index, 'horaTermino', e.target.value)} className={input} />
+                    <div className="mt-3">
+                      <label className={label}>Assunto</label>
+                      <select value={dados.assunto} onChange={e => updateEvidenciaPar(idxDados, 'assunto', e.target.value)} className={input}>
+                        <option value="">Selecione</option>
+                        {ASSUNTOS.map(assunto => <option key={assunto} value={assunto}>{assunto}</option>)}
+                      </select>
+                    </div>
+                    {imagemField(idxDados, `Imagem da Evidência ${idxDados + 1}`)}
+                    <div className="mt-3">
+                      <label className={label}>Descrição Complementar</label>
+                      <textarea value={dados.descricao} onChange={e => updateEvidenciaPar(idxDados, 'descricao', e.target.value)} rows={2} className={input} />
                     </div>
                   </div>
-                  <div className="mt-3">
-                    <label className={label}>Assunto</label>
-                    <select value={evidencia.assunto} onChange={e => updateEvidenciaPar(index, 'assunto', e.target.value)} className={input}>
-                      <option value="">Selecione</option>
-                      {ASSUNTOS.map(assunto => <option key={assunto} value={assunto}>{assunto}</option>)}
-                    </select>
+                  <div className="rounded-xl border border-graphite-200/60 bg-white/70 p-3 dark:border-border-dark dark:bg-surface-card/60">
+                    <p className="mb-2 text-xs font-semibold text-graphite-500 dark:text-graphite-400">Evidência {idxFoto + 1} (foto)</p>
+                    {imagemField(idxFoto, `Foto da Evidência ${idxFoto + 1}`)}
                   </div>
-                </>
-              )}
-              <div className="mt-3">
-                <label className={label}>Imagem da Evidencia</label>
-                <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-graphite-300/70 bg-white/70 p-4 text-center text-sm text-graphite-500 transition-colors hover:border-aviation-400 hover:text-aviation-600 dark:border-border-dark dark:bg-surface-card dark:text-graphite-400">
-                  {evidencia.imagem ? (
-                    <img src={evidencia.imagem} alt={`Evidencia ${index + 1}`} className="max-h-52 w-full rounded-lg object-contain" />
-                  ) : (
-                    <>
-                      <Image className="mb-2 h-8 w-8 text-graphite-300" />
-                      Selecionar imagem
-                    </>
-                  )}
-                  <input type="file" accept="image/*" onChange={event => handleImagem(index, event)} className="hidden" />
-                </label>
+                </div>
               </div>
-              <div className={index % 2 === 0 ? 'mt-3' : 'hidden'}>
-                <label className={label}>Descrição Complementar</label>
-                <textarea value={evidencia.descricao} onChange={e => updateEvidenciaPar(index, 'descricao', e.target.value)} rows={2} className={input} />
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
