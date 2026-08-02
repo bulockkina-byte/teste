@@ -361,7 +361,7 @@ export function Trocas() {
     setFormData(prev => ({ ...prev, [fieldName]: value }));
   }
 
-  const HIDDEN_AUTENTIQUE_FIELDS = ['data_autentique_1', 'data_autentique_2', 'data_autentique_3', 'check_troca_sim', 'check_troca_nao', 'check_deferido', 'check_indeferido'];
+  const HIDDEN_AUTENTIQUE_FIELDS = ['data_autentique_1', 'data_autentique_2', 'data_autentique_3', 'check_troca_sim', 'check_troca_nao', 'check_deferido', 'check_indeferido', 'deferido_indeferido'];
 
   function getAllFuncionarios() {
     return [
@@ -590,7 +590,10 @@ export function Trocas() {
       if (!blob) { setShowNotifPopup({ msg: 'PDF template nao encontrado.', type: 'error' }); return; }
       const pdfBytes = await blob.arrayBuffer();
       const dadosStr: Record<string, string> = {};
-      for (const [k, v] of Object.entries(dadosAprovados)) dadosStr[k] = String(v || '');
+      for (const [k, v] of Object.entries(dadosAprovados)) {
+        if (k === 'deferido_indeferido' || k === 'check_deferido' || k === 'check_indeferido') continue;
+        dadosStr[k] = String(v || '');
+      }
 
       if (formData.troca_emergencial === 'SIM') {
         dadosStr.check_troca_sim = 'V';
@@ -599,9 +602,6 @@ export function Trocas() {
         dadosStr.check_troca_sim = '';
         dadosStr.check_troca_nao = 'V';
       }
-      // Aprovada diretamente → assinala DEFERIDO no documento
-      dadosStr.check_deferido = 'V';
-      dadosStr.check_indeferido = '';
 
       const pdfBlob = await preencherPdf(pdfBytes, dadosStr, fieldPositionsFromDoc(doc));
 
@@ -657,11 +657,12 @@ export function Trocas() {
       if (!blob) { setShowNotifPopup({ msg: 'PDF template nao encontrado.', type: 'error' }); return; }
       const pdfBytes = await blob.arrayBuffer();
       const dadosStr: Record<string, string> = {};
-      for (const [k, v] of Object.entries(formData)) dadosStr[k] = String(v || '');
+      for (const [k, v] of Object.entries(formData)) {
+        if (k === 'deferido_indeferido' || k === 'check_deferido' || k === 'check_indeferido') continue;
+        dadosStr[k] = String(v || '');
+      }
       if (formData.troca_emergencial === 'SIM') { dadosStr.check_troca_sim = 'V'; dadosStr.check_troca_nao = ''; }
       else if (formData.troca_emergencial === 'NAO') { dadosStr.check_troca_sim = ''; dadosStr.check_troca_nao = 'V'; }
-      if (formData.deferido_indeferido === 'DEFERIDO') { dadosStr.check_deferido = 'V'; dadosStr.check_indeferido = ''; }
-      else if (formData.deferido_indeferido === 'INDEFERIDO') { dadosStr.check_deferido = ''; dadosStr.check_indeferido = 'V'; }
       const pdfBlob = await preencherPdf(pdfBytes, dadosStr, fieldPositionsFromDoc(doc));
       const url = URL.createObjectURL(pdfBlob);
       setPreviewPdfUrl(url);
@@ -695,11 +696,12 @@ export function Trocas() {
       const pdfBytes = await blob.arrayBuffer();
       const dadosStr: Record<string, string> = {};
       const data = fill.filled_data as Record<string, string>;
-      for (const [k, v] of Object.entries(data)) dadosStr[k] = String(v || '');
+      for (const [k, v] of Object.entries(data)) {
+        if (k === 'deferido_indeferido' || k === 'check_deferido' || k === 'check_indeferido') continue;
+        dadosStr[k] = String(v || '');
+      }
       if (data.troca_emergencial === 'SIM') { dadosStr.check_troca_sim = 'V'; dadosStr.check_troca_nao = ''; }
       else if (data.troca_emergencial === 'NAO') { dadosStr.check_troca_sim = ''; dadosStr.check_troca_nao = 'V'; }
-      if (data.deferido_indeferido === 'DEFERIDO') { dadosStr.check_deferido = 'V'; dadosStr.check_indeferido = ''; }
-      else if (data.deferido_indeferido === 'INDEFERIDO') { dadosStr.check_deferido = ''; dadosStr.check_indeferido = 'V'; }
       const pdfBlob = await preencherPdf(pdfBytes, dadosStr, fieldPositionsFromDoc(templateDoc));
       const url = URL.createObjectURL(pdfBlob);
       window.open(url, '_blank');
@@ -959,7 +961,6 @@ export function Trocas() {
     const fDataFolga = getF('data_folga_solicitado');
     const fTrocaEmerg = getF('troca_emergencial');
     const fJustEmerg = getF('justificativa_emergencial');
-    const fDeferido = getF('deferido_indeferido');
     const fMotivo = getF('motivo_troca');
 
     return (
@@ -1024,7 +1025,6 @@ export function Trocas() {
               {fDataSol && <div><Label field={fDataSol} />{renderField(fDataSol)}</div>}
               {fDataFolga && <div><Label field={fDataFolga} />{renderField(fDataFolga)}</div>}
               {fTrocaEmerg && <div><Label field={fTrocaEmerg} />{renderField(fTrocaEmerg)}</div>}
-              {fDeferido && <div><Label field={fDeferido} />{renderField(fDeferido)}</div>}
             </div>
             {fMotivo && (
               <div className="mt-3 grid grid-cols-1 gap-3">
