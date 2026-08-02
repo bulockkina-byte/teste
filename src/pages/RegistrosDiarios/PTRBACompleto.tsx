@@ -434,36 +434,30 @@ function PTRBACompletoForm({
             return (
               <div key={base} className="rounded-xl border border-graphite-200/60 bg-graphite-50/50 p-4 dark:border-border-dark dark:bg-surface-card/50">
                 <p className="mb-3 text-sm font-bold text-graphite-700 dark:text-graphite-200">Instrução {instrucao}</p>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="rounded-xl border border-graphite-200/60 bg-white/70 p-3 dark:border-border-dark dark:bg-surface-card/60">
-                    <p className="mb-2 text-xs font-semibold text-graphite-500 dark:text-graphite-400">Evidência {idxDados + 1}</p>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className={label}>Hora Inicio</label>
-                        <input type="time" value={dados.horaInicio} onChange={e => updateEvidenciaPar(idxDados, 'horaInicio', e.target.value)} className={input} />
-                      </div>
-                      <div>
-                        <label className={label}>Hora Termino</label>
-                        <input type="time" value={dados.horaTermino} onChange={e => updateEvidenciaPar(idxDados, 'horaTermino', e.target.value)} className={input} />
-                      </div>
-                    </div>
-                    <div className="mt-3">
-                      <label className={label}>Assunto</label>
-                      <select value={dados.assunto} onChange={e => updateEvidenciaPar(idxDados, 'assunto', e.target.value)} className={input}>
-                        <option value="">Selecione</option>
-                        {ASSUNTOS.map(assunto => <option key={assunto} value={assunto}>{assunto}</option>)}
-                      </select>
-                    </div>
-                    {imagemField(idxDados, `Imagem da Evidência ${idxDados + 1}`)}
-                    <div className="mt-3">
-                      <label className={label}>Descrição Complementar</label>
-                      <textarea value={dados.descricao} onChange={e => updateEvidenciaPar(idxDados, 'descricao', e.target.value)} rows={2} className={input} />
-                    </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={label}>Hora Inicio</label>
+                    <input type="time" value={dados.horaInicio} onChange={e => updateEvidenciaPar(idxDados, 'horaInicio', e.target.value)} className={input} />
                   </div>
-                  <div className="rounded-xl border border-graphite-200/60 bg-white/70 p-3 dark:border-border-dark dark:bg-surface-card/60">
-                    <p className="mb-2 text-xs font-semibold text-graphite-500 dark:text-graphite-400">Evidência {idxFoto + 1} (foto)</p>
-                    {imagemField(idxFoto, `Foto da Evidência ${idxFoto + 1}`)}
+                  <div>
+                    <label className={label}>Hora Termino</label>
+                    <input type="time" value={dados.horaTermino} onChange={e => updateEvidenciaPar(idxDados, 'horaTermino', e.target.value)} className={input} />
                   </div>
+                </div>
+                <div className="mt-3">
+                  <label className={label}>Assunto</label>
+                  <select value={dados.assunto} onChange={e => updateEvidenciaPar(idxDados, 'assunto', e.target.value)} className={input}>
+                    <option value="">Selecione</option>
+                    {ASSUNTOS.map(assunto => <option key={assunto} value={assunto}>{assunto}</option>)}
+                  </select>
+                </div>
+                <div className="mt-3">
+                  <label className={label}>Descrição Complementar</label>
+                  <textarea value={dados.descricao} onChange={e => updateEvidenciaPar(idxDados, 'descricao', e.target.value)} rows={2} className={input} />
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-4">
+                  {imagemField(idxDados, `Evidência ${idxDados + 1}`)}
+                  {imagemField(idxFoto, `Evidência ${idxFoto + 1}`)}
                 </div>
               </div>
             );
