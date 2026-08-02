@@ -45,6 +45,9 @@ export async function preencherPdf(
       let value = dados[pos.field_name];
       if (!value || value.trim() === '') continue;
       if (pos.is_signature) continue;
+      // Campos checkbox/select não devem ser desenhados como texto:
+      // a marcação visual fica nos campos correspondentes (check_*).
+      if (pos.field_type === 'checkbox') continue;
 
       if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
         const [y, m, d] = value.split('-');
