@@ -12,7 +12,7 @@ function fmt(d: string) {
 }
 
 export function BONA() {
-  const { canManageGlobal, loadingContexto } = useContextoOperacional();
+  const { canVisualizarRelatorios, loadingContexto } = useContextoOperacional();
   const [ocorrencias, setOcorrencias] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [filterCat, setFilterCat] = useState('');
@@ -21,12 +21,12 @@ export function BONA() {
 
   useEffect(() => {
     if (loadingContexto) return;
-    if (!canManageGlobal) {
+    if (!canVisualizarRelatorios) {
       setLoading(false);
       return;
     }
     listarOcorrencias().then(setOcorrencias).catch(() => {}).finally(() => setLoading(false));
-  }, [canManageGlobal, loadingContexto]);
+  }, [canVisualizarRelatorios, loadingContexto]);
 
   const filtered = useMemo(() => {
     let lista = ocorrencias;
@@ -44,7 +44,7 @@ export function BONA() {
 
   if (loading || loadingContexto) return <PageContainer><div className="flex justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-4 border-aviation-500 border-t-transparent" /></div></PageContainer>;
 
-  if (!canManageGlobal) {
+  if (!canVisualizarRelatorios) {
     return (
       <PageContainer>
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">

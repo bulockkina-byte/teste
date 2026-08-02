@@ -10,4 +10,5 @@ export interface MenuItem {
   adminOrGsOnly?: boolean;
   arquivoOnly?: boolean;
   certificacoesOnly?: boolean;
+  relatoriosOnly?: boolean;
 }

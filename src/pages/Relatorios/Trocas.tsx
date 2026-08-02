@@ -103,7 +103,7 @@ function formatCpf(v: string): string {
 }
 
 export function Trocas() {
-  const { user, canManageGlobal, canManageEquipe, equipeEfetiva, loadingContexto } = useContextoOperacional();
+  const { user, canManageGlobal, canManageEquipe, equipeEfetiva, canVisualizarRelatorios, loadingContexto } = useContextoOperacional();
   const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [subView, setSubView] = useState<SubView>('list');
@@ -237,12 +237,12 @@ export function Trocas() {
 
   useEffect(() => {
     if (isRelatorioRoute && loadingContexto) return;
-    if (isRelatorioRoute && !canManageGlobal) {
+    if (isRelatorioRoute && !canVisualizarRelatorios) {
       setLoading(false);
       return;
     }
     init();
-  }, [isRelatorioRoute, canManageGlobal, loadingContexto]);
+  }, [isRelatorioRoute, canVisualizarRelatorios, loadingContexto]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -935,7 +935,7 @@ export function Trocas() {
     return <PageContainer><div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-aviation-500" /></div></PageContainer>;
   }
 
-  if (isRelatorioRoute && !canManageGlobal) {
+  if (isRelatorioRoute && !canVisualizarRelatorios) {
     return (
       <PageContainer>
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">

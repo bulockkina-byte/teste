@@ -29,7 +29,7 @@ const labelCls = 'mb-1.5 block text-xs font-semibold uppercase tracking-wider te
 function fmt(d: string) { if (!d) return '-'; return new Date(d + 'T12:00:00').toLocaleDateString('pt-BR'); }
 
 export function TAF() {
-  const { user, canManageGlobal, canManageEquipe, equipeEfetiva, loadingContexto } = useContextoOperacional();
+  const { user, canManageGlobal, canManageEquipe, equipeEfetiva, canVisualizarRelatorios, loadingContexto } = useContextoOperacional();
   const location = useLocation();
   const isRelatorioRoute = location.pathname.startsWith('/relatorios');
   const canCreate = canManageGlobal || !!equipeEfetiva;
@@ -63,10 +63,10 @@ export function TAF() {
 
   useEffect(() => {
     if (isRelatorioRoute && loadingContexto) return;
-    if (isRelatorioRoute && !canManageGlobal) return;
+    if (isRelatorioRoute && !canVisualizarRelatorios) return;
     listarAtivos().then(setBombeiros);
     carregar();
-  }, [isRelatorioRoute, canManageGlobal, loadingContexto]);
+  }, [isRelatorioRoute, canVisualizarRelatorios, loadingContexto]);
 
   useEffect(() => { carregar(); }, [filtroAno]);
 
@@ -254,7 +254,7 @@ export function TAF() {
     return <PageContainer><div className="flex justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-4 border-aviation-500 border-t-transparent" /></div></PageContainer>;
   }
 
-  if (isRelatorioRoute && !canManageGlobal) {
+  if (isRelatorioRoute && !canVisualizarRelatorios) {
     return (
       <PageContainer>
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">

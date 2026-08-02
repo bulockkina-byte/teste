@@ -22,7 +22,7 @@ interface ReportCard {
 }
 
 export function Relatorios() {
-  const { canManageGlobal, loadingContexto } = useContextoOperacional();
+  const { canVisualizarRelatorios, loadingContexto } = useContextoOperacional();
   const navigate = useNavigate();
   const [ocorrenciasCount, setOcorrenciasCount] = useState(0);
   const [ptrbCount, setPtrbCount] = useState(0);
@@ -30,12 +30,12 @@ export function Relatorios() {
   const [efetivoCount, setEfetivoCount] = useState(0);
 
   useEffect(() => {
-    if (loadingContexto || !canManageGlobal) return;
+    if (loadingContexto || !canVisualizarRelatorios) return;
     listarOcorrencias().then(o => setOcorrenciasCount(o.length)).catch(() => {});
     listarPTRBs().then(p => setPtrbCount(p.length)).catch(() => {});
     listarLROs().then(l => setLroCount(l.length)).catch(() => {});
     listarBombeiros().then(b => setEfetivoCount(b.length)).catch(() => {});
-  }, [canManageGlobal, loadingContexto]);
+  }, [canVisualizarRelatorios, loadingContexto]);
 
   const cards: ReportCard[] = [
     {
@@ -92,7 +92,7 @@ export function Relatorios() {
     return <PageContainer><div className="flex justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-4 border-aviation-500 border-t-transparent" /></div></PageContainer>;
   }
 
-  if (!canManageGlobal) {
+  if (!canVisualizarRelatorios) {
     return (
       <PageContainer>
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">

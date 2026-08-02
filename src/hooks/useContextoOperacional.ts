@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   canAcessarDadosPessoais,
   canGerenciarEquipe,
+  canVisualizarRelatorios as canVisualizarRelatoriosPerm,
   isAdministradorSistema,
   podeVerDadosPessoaisBase,
   resolverContextoOperacional,
@@ -44,6 +45,7 @@ export function useContextoOperacional() {
 
   const canManageGlobal = useMemo(() => canAcessarDadosPessoais(contexto), [contexto]);
   const canManageEquipe = useCallback((equipe?: string | null) => canGerenciarEquipe(contexto, equipe), [contexto]);
+  const canVisualizarRelatorios = useMemo(() => canVisualizarRelatoriosPerm(contexto), [contexto]);
 
   return {
     user,
@@ -51,6 +53,7 @@ export function useContextoOperacional() {
     loadingContexto,
     canManageGlobal,
     canManageEquipe,
+    canVisualizarRelatorios,
     equipeEfetiva: contexto.equipe,
   };
 }

@@ -90,7 +90,7 @@ function TempoInput({
 }
 
 export function TPEPR() {
-  const { user, canManageGlobal, canManageEquipe, equipeEfetiva, loadingContexto } = useContextoOperacional();
+  const { user, canManageGlobal, canManageEquipe, equipeEfetiva, canVisualizarRelatorios, loadingContexto } = useContextoOperacional();
   const location = useLocation();
   const isRelatorioRoute = location.pathname.startsWith('/relatorios');
   const canCreate = canManageGlobal || !!equipeEfetiva;
@@ -126,7 +126,7 @@ export function TPEPR() {
 
   useEffect(() => {
     if (isRelatorioRoute && loadingContexto) return;
-    if (isRelatorioRoute && !canManageGlobal) return;
+    if (isRelatorioRoute && !canVisualizarRelatorios) return;
 
     let active = true;
     async function carregarDados() {
@@ -146,7 +146,7 @@ export function TPEPR() {
 
     carregarDados();
     return () => { active = false; };
-  }, [isRelatorioRoute, canManageGlobal, loadingContexto, filtroAno]);
+  }, [isRelatorioRoute, canVisualizarRelatorios, loadingContexto, filtroAno]);
 
   async function carregar() {
     try {
@@ -493,7 +493,7 @@ export function TPEPR() {
     return <PageContainer><div className="flex justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-4 border-aviation-500 border-t-transparent" /></div></PageContainer>;
   }
 
-  if (isRelatorioRoute && !canManageGlobal) {
+  if (isRelatorioRoute && !canVisualizarRelatorios) {
     return (
       <PageContainer>
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">

@@ -251,7 +251,7 @@ function imprimirHTMLEfetivo(titulo: string, allAssuntos: string[], equipes: { e
 }
 
 export function PTRBA() {
-  const { canManageGlobal, loadingContexto } = useContextoOperacional();
+  const { canVisualizarRelatorios, loadingContexto } = useContextoOperacional();
   const [ptrbs, setPtrbs] = useState<PTRB[]>([]);
   const [bombeiros, setBombeiros] = useState<Map<string, { nomeGuerra: string; cargo: string; equipe: string }>>(new Map());
   const [loading, setLoading] = useState(true);
@@ -276,7 +276,7 @@ export function PTRBA() {
   const ANOS = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
 
   function carregarDados() {
-    if (!canManageGlobal) {
+    if (!canVisualizarRelatorios) {
       setLoading(false);
       return;
     }
@@ -295,14 +295,14 @@ export function PTRBA() {
   useEffect(() => {
     if (loadingContexto) return;
     carregarDados();
-  }, [canManageGlobal, loadingContexto]);
+  }, [canVisualizarRelatorios, loadingContexto]);
 
   useEffect(() => {
-    if (loadingContexto || !canManageGlobal) return;
+    if (loadingContexto || !canVisualizarRelatorios) return;
     const onFocus = () => carregarDados();
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
-  }, [canManageGlobal, loadingContexto]);
+  }, [canVisualizarRelatorios, loadingContexto]);
 
   function applyPeriodFilter(lista: PTRB[]): PTRB[] {
     if (filterMode === 'mes-ano') {
@@ -859,7 +859,7 @@ export function PTRBA() {
     );
   }
 
-  if (!canManageGlobal) {
+  if (!canVisualizarRelatorios) {
     return (
       <PageContainer>
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">

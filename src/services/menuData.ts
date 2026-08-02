@@ -353,7 +353,7 @@ export const menuItems: MenuItem[] = [
   {
     label: 'Relatórios',
     icon: FileBarChart,
-    adminOrGsOnly: true,
+    relatoriosOnly: true,
     children: [
       {
         label: 'LRO',

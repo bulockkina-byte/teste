@@ -178,11 +178,17 @@ export function canCriarNaEquipe(
 }
 
 export function podeVerRelatoriosBase(user: AuthUserPermissao): boolean {
-  return podeVerDadosPessoaisBase(user);
+  if (podeVerDadosPessoaisBase(user)) return true;
+  return (
+    user?.pessoa?.personType === 'bombeiro' &&
+    user.pessoa.funcao === 'BA-LR' &&
+    user.pessoa.equipe === 'Delta'
+  );
 }
 
 export function canVisualizarRelatorios(contexto: ContextoOperacionalPermissao): boolean {
-  return canAcessarDadosPessoais(contexto);
+  if (canAcessarDadosPessoais(contexto)) return true;
+  return contexto.cargo === 'BA-LR' && contexto.equipe === 'Delta';
 }
 
 export function canGerenciarArquivo(contexto: ContextoOperacionalPermissao): boolean {

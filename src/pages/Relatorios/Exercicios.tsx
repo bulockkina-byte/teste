@@ -23,7 +23,7 @@ function fmt(d: string) {
 }
 
 export function Exercicios() {
-  const { canManageGlobal, loadingContexto } = useContextoOperacional();
+  const { canVisualizarRelatorios, loadingContexto } = useContextoOperacional();
   const navigate = useNavigate();
   const [treinos, setTreinos] = useState<Treinamento[]>([]);
   const [search, setSearch] = useState('');
@@ -31,8 +31,8 @@ export function Exercicios() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!loadingContexto && canManageGlobal) setTreinos(carregar());
-  }, [canManageGlobal, loadingContexto]);
+    if (!loadingContexto && canVisualizarRelatorios) setTreinos(carregar());
+  }, [canVisualizarRelatorios, loadingContexto]);
 
   const filtered = useMemo(() => {
     let lista = treinos;
@@ -53,7 +53,7 @@ export function Exercicios() {
     return <PageContainer><div className="flex justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-4 border-aviation-500 border-t-transparent" /></div></PageContainer>;
   }
 
-  if (!canManageGlobal) {
+  if (!canVisualizarRelatorios) {
     return (
       <PageContainer>
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">

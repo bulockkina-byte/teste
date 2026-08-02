@@ -12,7 +12,7 @@ function fmt(d: string) {
 }
 
 export function LRO() {
-  const { canManageGlobal, loadingContexto } = useContextoOperacional();
+  const { canVisualizarRelatorios, loadingContexto } = useContextoOperacional();
   const [lros, setLros] = useState<LRO[]>([]);
   const [search, setSearch] = useState('');
   const [filterEquipe, setFilterEquipe] = useState('');
@@ -21,12 +21,12 @@ export function LRO() {
 
   useEffect(() => {
     if (loadingContexto) return;
-    if (!canManageGlobal) {
+    if (!canVisualizarRelatorios) {
       setLoading(false);
       return;
     }
     listarLROs().then(l => { setLros(l); setLoading(false); }).catch(() => setLoading(false));
-  }, [canManageGlobal, loadingContexto]);
+  }, [canVisualizarRelatorios, loadingContexto]);
 
   const filtered = useMemo(() => {
     let lista = lros;
@@ -50,7 +50,7 @@ export function LRO() {
 
   if (loading || loadingContexto) return <PageContainer><div className="flex justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-4 border-aviation-500 border-t-transparent" /></div></PageContainer>;
 
-  if (!canManageGlobal) {
+  if (!canVisualizarRelatorios) {
     return (
       <PageContainer>
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">
