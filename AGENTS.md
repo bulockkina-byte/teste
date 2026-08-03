@@ -164,7 +164,7 @@ Podes combinar múltiplas skills carregando-as em sequência. A ordem importa:
 | `/registros-diarios/inspecoes` | Inspeções | Registos de inspeções operacionais |
 | `/registros-diarios/solicitacoes` | Solicitações | Registos de solicitações operacionais |
 | `/registros-diarios/inspecoes/check` | Check | Checklist de verificação de inspeção |
-| `/registros-diarios/gerar-lro` | Gerar LRO | Gerar Livro de Registo Operacional e enviar para assinatura |
+| `/registros-diarios/gerar-lro` | Gerar LRO | Gerar Livro de Registo Operacional; o admin marca como finalizado ou arquiva |
 | `/registros-diarios/preview-lro` | Preview LRO | Pré-visualizar LRO antes de finalizar |
 
 ### Viaturas CCI

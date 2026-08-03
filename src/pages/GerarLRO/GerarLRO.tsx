@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Save, Send, Eye, AlertTriangle, ArrowLeft, ArrowRight, Trash2, Search, Check, X } from 'lucide-react';
+import { FileText, Save, Eye, AlertTriangle, ArrowLeft, ArrowRight, Trash2, Search, Check, X, Archive, RefreshCw } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { AlertModal } from '../../components/ui/AlertModal';
@@ -9,23 +9,27 @@ import { listarAtivos } from '../../services/bombeiroService';
 import { listarFeriasGozo } from '../../services/feriasService';
 import { listarSubstituicoesTemporarias } from '../../services/substituicaoTemporariaService';
 import { listarVigencias } from '../../services/vigenciaSubstituicaoService';
-import { listarDocumentos, listarPreenchimentos, criarPreenchimento } from '../../services/documentoService';
+import { listarDocumentos, listarPreenchimentos, criarPreenchimento, atualizarPreenchimento, criarDocumento } from '../../services/documentoService';
 import { listarViaturas } from '../../services/viaturaService';
 import { listarPTRBs } from '../../services/ptrbService';
+import { listarPTRBACompletos } from '../../services/ptrbaCompletoService';
+import { listarCompletas as listarCompletasEscala, listarConfigs as listarConfigsEscala } from '../../services/escalaMensalService';
+import type { EscalaMensalCompleta, EscalaMensalConfig } from '../../types/escalaMensal';
 import { listarAPOCs } from '../../services/apocService';
 import { listarConferencias } from '../../services/conferenciaService';
 import { listarOcorrencias } from '../../services/ocorrenciaService';
 import { listarReas } from '../../services/reaService';
-import { salvarDraft, listarDrafts, excluirDraft, type LRODraft, type LRODraftStatus } from '../../services/lroDraftService';
+import { salvarDraft, listarDrafts, excluirDraft, atualizarStatus, type LRODraft, type LRODraftStatus } from '../../services/lroDraftService';
 import { gerarPDF } from '../../services/lroGenerator';
-import type { AutentiqueSigner } from '../../services/autentiqueService';
 import type { Bombeiro } from '../../types/bombeiro';
 import type { Conferencia } from '../../types/conferencia';
 import type { FeriasGozo } from '../../types/ferias';
 import type { Ocorrencia } from '../../types/ocorrencia';
 import type { PTRB } from '../../types/ptrb';
+import type { PTRBACompleto } from '../../types/ptrbaCompleto';
 import type { ReaRegistro } from '../../types/rea';
 import { dataSaidaPlantao, horarioPlantaoPorEquipe } from '../../utils/equipes';
+import { validarCursoParaFuncao } from '../../utils/validacaoCursos';
 
 function SearchSelect({ options, value, onChange, placeholder, label }: {
   options: { value: string; label: string }[];
@@ -76,8 +80,7 @@ function SearchSelect({ options, value, onChange, placeholder, label }: {
   );
 }
 
-type EquipeOpcao = 'Alfa' | 'Bravo' | 'Charlie' | 'Delta';
-type Step = 'equipe' | 'trocas' | 'preencher' | 'revisar';
+type EquipeOpcao = 'Alfa' | 'Bravo' | 'Charlie' | 'Delta';type Step = 'equipe' | 'trocas' | 'preencher' | 'revisar';
 type FrotaLinhaDados = {
   viaturaId: string;
   prefixo: string;
@@ -111,13 +114,17 @@ const STATUS_CORES: Record<LRODraftStatus, string> = {
   aguardando: 'text-amber-600 bg-amber-50 dark:text-amber-400 dark:bg-amber-900/20',
   assinado: 'text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-900/20',
   cancelado: 'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-900/20',
+  finalizado: 'text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-900/30',
+  arquivado: 'text-graphite-600 bg-graphite-100 dark:text-graphite-300 dark:bg-graphite-800',
 };
 
 const STATUS_LABELS: Record<LRODraftStatus, string> = {
   rascunho: 'Rascunho',
-  aguardando: 'Aguardando Assinatura',
+  aguardando: 'Aguardando',
   assinado: 'Assinado',
   cancelado: 'Cancelado',
+  finalizado: 'Finalizado',
+  arquivado: 'Arquivado',
 };
 
 export function GerarLRO() {
@@ -133,6 +140,9 @@ export function GerarLRO() {
   const [todasSubstituicoes, setTodasSubstituicoes] = useState<any[]>([]);
   const [viaturas, setViaturas] = useState<any[]>([]);
   const [ptrbs, setPtrbs] = useState<PTRB[]>([]);
+  const [ptrbaCompletos, setPtrbaCompletos] = useState<PTRBACompleto[]>([]);
+  const [escalasCompletas, setEscalasCompletas] = useState<EscalaMensalCompleta[]>([]);
+  const [escalasConfigs, setEscalasConfigs] = useState<EscalaMensalConfig[]>([]);
   const [conferencias, setConferencias] = useState<Conferencia[]>([]);
   const [ocorrenciasOperacionais, setOcorrenciasOperacionais] = useState<Ocorrencia[]>([]);
   const [reas, setReas] = useState<ReaRegistro[]>([]);
@@ -148,11 +158,12 @@ export function GerarLRO() {
     { id: 'default-cci-319', prefixo: 'CCI 319', tipo: 'CCI' },
     { id: 'default-cci-320', prefixo: 'CCI 320', tipo: 'CCI' },
     { id: 'default-cci-333', prefixo: 'CCI 333', tipo: 'CCI' },
+    { id: 'default-crs', prefixo: 'CRS', tipo: 'CRS' },
   ];
-  const FROTA_ROWS = 3;
+  const FROTA_ROWS = 4;
 
   // -- Wizard state --
-  const [equipe, setEquipe] = useState<EquipeOpcao>('Alfa');
+  const [equipe, setEquipe] = useState<EquipeOpcao | ''>('');
   const [dataInicio, setDataInicio] = useState(new Date().toISOString().split('T')[0]);
   const [dataFim, setDataFim] = useState('');
   const [trocaDocId, setTrocaDocId] = useState<string | null>(null);
@@ -259,29 +270,36 @@ export function GerarLRO() {
   useEffect(() => {
     async function load() {
       try {
-        const [b, f, docs, a, ptrbRegistros, conferenciaRegistros, ocorrenciaRegistros, reaRegistros] = await Promise.all([
+        const [b, f, docs, a, ptrbRegistros, ptrbaCompletoRegistros, conferenciaRegistros, ocorrenciaRegistros, reaRegistros, escalasCompletasRegistros, escalasConfigsRegistros] = await Promise.all([
           listarAtivos(),
           listarFeriasGozo(),
           listarDocumentos(),
           listarAPOCs(),
           listarPTRBs().catch(() => []),
+          listarPTRBACompletos().catch(() => []),
           listarConferencias().catch(() => []),
           listarOcorrencias().catch(() => []),
           listarReas().catch(() => []),
+          listarCompletasEscala().catch(() => []),
+          listarConfigsEscala().catch(() => []),
         ]);
         setApocs(a);
         setBombeiros(b);
         setFeriasGozo(f);
         setPtrbs(ptrbRegistros);
+        setPtrbaCompletos(ptrbaCompletoRegistros);
+        setEscalasCompletas(escalasCompletasRegistros);
+        setEscalasConfigs(escalasConfigsRegistros);
         setConferencias(conferenciaRegistros);
         setOcorrenciasOperacionais(ocorrenciaRegistros);
         setReas(reaRegistros);
 
-        // Load CCI viaturas only (lighter query)
-        const cci = await listarViaturas({ tipo: 'CCI' });
-        setViaturas(cci);
+        // Load CCI + CRS viaturas
+        const [cci, crs] = await Promise.all([listarViaturas({ tipo: 'CCI' }).catch(() => []), listarViaturas({ tipo: 'CRS' }).catch(() => [])]);
+        const todasViaturas = [...cci, ...crs];
+        setViaturas(todasViaturas);
         const frotaInit: Record<string, any> = {};
-        cci.forEach((veiculo: any) => { frotaInit[veiculo.id || veiculo.prefixo] = { kmIni: '', kmFim: '', combIni: '', combFim: '', situacao: '' }; });
+        todasViaturas.forEach((veiculo: any) => { frotaInit[veiculo.id || veiculo.prefixo] = { kmIni: '', kmFim: '', combIni: '', combFim: '', situacao: '' }; });
         setFrotaDados(frotaInit);
 
         // Load substitutes + troca documents (needed for substitution detection)
@@ -371,7 +389,8 @@ export function GerarLRO() {
       const solicNome = substituto.toLowerCase();
       const pertenceEquipe = nomesEquipe.some(n => solNome.includes(n)) || nomesEquipe.some(n => solicNome.includes(n));
       if (pertenceEquipe) {
-        resultados.push({ id: fl.id, tipo: 'troca' as const, substituido, substituto, dataSolicitada: fd.data_solicitada || '', dataFolga: fd.data_folga_solicitado || '', confirmada: null });
+        const jaConfirmada = fd.lro_confirmada === dataInicio;
+        resultados.push({ id: fl.id, tipo: 'troca' as const, substituido, substituto, dataSolicitada: fd.data_solicitada || '', dataFolga: fd.data_folga_solicitado || '', confirmada: jaConfirmada ? true : null });
       }
     });
     // De todasSubstituicoes (substituições temporárias aprovadas) — filtra pela data
@@ -394,23 +413,45 @@ export function GerarLRO() {
 
   const equipeInversa: Record<string, string> = { Alfa: 'Charlie', Charlie: 'Alfa', Bravo: 'Delta', Delta: 'Bravo' };
 
-  // Auto-pull instructions from PTR-BA when team/date changes
+  // Auto-pull instructions from PTR-BA (por instrução ou completo) when team/date changes
   useEffect(() => {
     const ptrbsFiltrados = ptrbs
       .filter(p => p.equipe === equipe && p.data && p.data.startsWith(dataInicio))
       .sort((a, b) => (a.horaInicio || '').localeCompare(b.horaInicio || ''));
+    const linhas: string[] = [];
+    const horarios: string[] = [];
+    const dedup = new Set<string>();
     if (ptrbsFiltrados.length === 0) {
-      setInstrucoes('');
-      setInstrucoesHorarios([]);
-      return;
+      const completosFiltrados = ptrbaCompletos
+        .filter(p => String(p.equipe) === equipe && p.data && p.data.startsWith(dataInicio))
+        .sort((a, b) => (a.evidencias[0]?.horaInicio || '').localeCompare(b.evidencias[0]?.horaInicio || ''));
+      completosFiltrados.forEach(p => {
+        p.evidencias.forEach(ev => {
+          const assunto = (ev.assunto || '').trim();
+          const horario = ev.horaInicio || '';
+          if (!assunto) return;
+          const chave = `${assunto}|${horario}`;
+          if (dedup.has(chave)) return;
+          dedup.add(chave);
+          linhas.push(assunto);
+          horarios.push(horario);
+        });
+      });
+    } else {
+      ptrbsFiltrados.forEach(p => {
+        const assunto = (p.assuntoMinistrado || '').trim();
+        const horario = p.horaInicio || '';
+        if (!assunto) return;
+        const chave = `${assunto}|${horario}`;
+        if (dedup.has(chave)) return;
+        dedup.add(chave);
+        linhas.push(assunto);
+        horarios.push(horario);
+      });
     }
-    const linhas = ptrbsFiltrados.map(p => {
-      const assunto = (p.assuntoMinistrado || '').trim();
-      return assunto;
-    });
     setInstrucoes(linhas.join('\n\n'));
-    setInstrucoesHorarios(ptrbsFiltrados.map(p => p.horaInicio || ''));
-  }, [equipe, dataInicio, ptrbs]);
+    setInstrucoesHorarios(horarios);
+  }, [equipe, dataInicio, ptrbs, ptrbaCompletos]);
 
   useEffect(() => {
     setDataFim(dataSaidaPlantao(equipe, dataInicio));
@@ -433,13 +474,6 @@ export function GerarLRO() {
     return match?.[0] || '';
   }
 
-  function formatarDataLinha(value?: string): string {
-    const data = dataISO(value);
-    if (!data) return '';
-    const [ano, mes, dia] = data.split('-');
-    return `${dia}/${mes}/${ano}`;
-  }
-
   function textoInline(value?: string): string {
     return String(value || '').replace(/\s+/g, ' ').trim();
   }
@@ -447,9 +481,15 @@ export function GerarLRO() {
   function linhaLRO(data: string, hora: string, equipeLinha: string, tipo: string, descricao: string): string {
     const descricaoLimpa = textoInline(descricao);
     if (!descricaoLimpa) return '';
-    return [formatarDataLinha(data), horaCurta(hora), equipeLinha.trim(), textoInline(tipo), descricaoLimpa]
-      .filter(Boolean)
-      .join(' - ');
+    const cabecalho = [horaCurta(hora), textoInline(tipo)].filter(Boolean).join(' - ');
+    return cabecalho ? `${cabecalho}\n${descricaoLimpa}` : descricaoLimpa;
+  }
+
+  function linhaLXII(hora: string, tipo: string, descricao: string): string {
+    const descricaoLimpa = String(descricao || '').replace(/\s+$/g, '').trim();
+    if (!descricaoLimpa) return '';
+    const cabecalho = [horaCurta(hora), textoInline(tipo)].filter(Boolean).join(' - ');
+    return cabecalho ? `${cabecalho}\n${descricaoLimpa}` : descricaoLimpa;
   }
 
   function registroNoPlantao(dataRegistro: string, horaRegistro: string, equipeRegistro: string, dataTurno?: string): boolean {
@@ -515,10 +555,8 @@ export function GerarLRO() {
         registroNoPlantao(registro.data, registro.hora, registro.equipe, registro.local)
       )
       .sort((a, b) => `${dataISO(a.data)} ${horaCurta(a.hora)}`.localeCompare(`${dataISO(b.data)} ${horaCurta(b.hora)}`))
-      .map(registro => linhaLRO(
-        registro.data,
+      .map(registro => linhaLXII(
         registro.hora,
-        registro.equipe,
         registro.titulo || registro.categoria || 'Ocorrência',
         registro.descricao,
       ))
@@ -576,12 +614,6 @@ export function GerarLRO() {
     return feriasGozo.filter(f => f.equipe === equipe && f.status === 'Em Gozo');
   }, [feriasGozo, equipe]);
 
-  function getEmailByNome(nome: string): string {
-    if (!nome) return '';
-    const b = bombeiros.find(p => p.nomeGuerra === nome || p.nomeCompleto.startsWith(nome) || p.nomeCompleto.includes(nome));
-    return b?.email || '';
-  }
-
   function getNomeGuerra(nome: string): string {
     if (!nome) return '';
     const b = bombeiros.find(p => p.nomeCompleto === nome || p.nomeGuerra === nome);
@@ -592,7 +624,7 @@ export function GerarLRO() {
   const substituicoesMap = useMemo(() => {
     if (!dataInicio) return {};
     const map: Record<string, { substitutoNome: string; substitutoId: string; tipo: 'troca' | 'substituicao' }> = {};
-    // De trocaFills (documento Troca de Serviço) — filtra pela data solicitada / folga do solicitado
+    // De trocaFills (documento Troca de Serviço) — filtra pela data solicitada / folga do solicitado (data exata)
     trocaFills.forEach((fl: any) => {
       const fd = fl.filled_data || {};
       const nomeSol = fd.nome_solicitante || '';
@@ -609,7 +641,7 @@ export function GerarLRO() {
         map[pessoaSol.id] = { substitutoNome: nomeSolic, substitutoId: pessoaSolic.id, tipo: 'troca' };
       }
     });
-    // De todasSubstituicoes (substituições temporárias) — filtra pela data de início
+    // De todasSubstituicoes (substituições temporárias) — filtra pela data de início (data exata)
     todasSubstituicoes.forEach((s: any) => {
       const dataSubst = s.dataInicio || s.data_inicio || '';
       if (dataSubst !== dataInicio) return;
@@ -669,19 +701,73 @@ export function GerarLRO() {
     }));
   }, [vigencias]);
 
-  // Auto-determina o Chefe de Equipe efetivo (designado, substituto de troca, ou substituto de férias)
+  // Auto-preenche o Chefe de Equipe, BA-OC e a equipagem (CCI 2, CCI 3, CRS) a partir da escala mensal do dia,
+  // aplicando trocas/substituições no lugar das pessoas substituídas
   useEffect(() => {
-    if (!dataInicio || !equipe || chefeEquipe) return;
-    const designado = bombeiros.find((b: any) => b.cargo === 'BA-CE' && b.equipe === equipe);
-    if (!designado) return;
-    const sub = substituicoesMap[designado.id];
-    if (sub) {
-      const substituto = bombeiros.find((b: any) => (b.nomeGuerra === sub.substitutoNome || b.nomeCompleto === sub.substitutoNome) && b.cargo === 'BA-CE');
-      if (substituto) setChefeEquipe(substituto.nomeGuerra);
-    } else if (disponiveis.some(b => b.id === designado.id)) {
-      setChefeEquipe(designado.nomeGuerra);
+    if (!dataInicio || !equipe) return;
+    const mes = parseInt(dataInicio.substring(5, 7), 10);
+    const ano = parseInt(dataInicio.substring(0, 4), 10);
+    const configEscala = escalasConfigs.find(c => c.equipe === equipe && c.mes === mes && c.ano === ano);
+    const completa = escalasCompletas.find(c => c.config?.equipe === equipe && c.config?.mes === mes && c.config?.ano === ano);
+    const parada = completa?.paradas.find(p => p.data === dataInicio) || completa?.paradas[0];
+    const pessoas = configEscala?.pessoas || completa?.config?.pessoas || [];
+
+    const resolvePessoa = (id: string | undefined, nomeGuerra: string | undefined): string => {
+      if (!nomeGuerra) return '';
+      const b = bombeiros.find((x: any) => x.id === id || x.nomeGuerra === nomeGuerra || x.nomeCompleto?.includes(nomeGuerra));
+      if (!b) return nomeGuerra || '';
+      const sub = substituicoesMap[b.id];
+      if (sub) {
+        const substituto = bombeiros.find((x: any) => x.nomeGuerra === sub.substitutoNome || x.nomeCompleto === sub.substitutoNome);
+        return substituto?.nomeGuerra || sub.substitutoNome;
+      }
+      return b.nomeGuerra || '';
+    };
+
+    // 1.1 Chefe de Equipe — da escala (pessoas[0]), com fallback para o BA-CE designado, aplicando troca/substituição
+    if (!chefeEquipe) {
+      if (pessoas[0]?.nomeGuerra) {
+        setChefeEquipe(resolvePessoa(pessoas[0].id, pessoas[0].nomeGuerra));
+      } else {
+        const designado = bombeiros.find((b: any) => b.cargo === 'BA-CE' && b.equipe === equipe);
+        if (designado) setChefeEquipe(resolvePessoa(designado.id, designado.nomeGuerra));
+      }
     }
-  }, [dataInicio, equipe, substituicoesMap, disponiveis, bombeiros, chefeEquipe]);
+
+    // 1.2 Comunicação BA-OC — comunicante do plantão (rádio fixo da parada do dia)
+    if (!comunicacao && parada?.radio) {
+      const comunicante = parada.radio.find(r => r.fixo)?.pessoaNomeGuerra || parada.radio[0]?.pessoaNomeGuerra || '';
+      if (comunicante && comunicante !== '-') {
+        const nomeReal = resolvePessoa(undefined, comunicante);
+        if (nomeReal) setComunicacao(nomeReal);
+      }
+    }
+
+    // 1.3 Equipagem dos CCI — pessoas da escala (CCI F2, CCI F3, CRS), aplicando trocas
+    const jaPreenchida = Object.values(equipagemCCI).some(Boolean) || Object.values(equipagemCCIRT).some(Boolean) || Object.values(equipagemCRS).some(Boolean);
+    if (jaPreenchida || !pessoas.length) return;
+
+    const slotPorFuncao: Record<string, Record<string, string>> = {
+      cciF2: { BaCe: 'BA-CE_0', BaMc: 'BA-MC_1', Ba2: 'BA-2_2' },
+      cciF3: { BaMc: 'BA-MC_0', 'Ba2-1': 'BA-2_1', 'Ba2-2': 'BA-2_2' },
+      crs: { BaLr: 'BA-LR_0', BaMc: 'BA-MC_1', 'Ba2-1': 'BA-RE_2', 'Ba2-2': 'BA-RE_3' },
+    };
+    const novoCCI: Record<string, string> = {};
+    const novoCCIRT: Record<string, string> = {};
+    const novoCRS: Record<string, string> = {};
+    const alvo: Record<string, Record<string, string>> = { cciF2: novoCCI, cciF3: novoCCIRT, crs: novoCRS };
+
+    pessoas.forEach(p => {
+      const slotKey = slotPorFuncao[p.veiculo]?.[p.funcaoNoVeiculo];
+      if (!slotKey) return;
+      const nomeFinal = resolvePessoa(p.id, p.nomeGuerra);
+      if (nomeFinal) alvo[p.veiculo][slotKey] = nomeFinal;
+    });
+
+    setEquipagemCCI(novoCCI);
+    setEquipagemCCIRT(novoCCIRT);
+    setEquipagemCRS(novoCRS);
+  }, [dataInicio, equipe, escalasConfigs, escalasCompletas, substituicoesMap, bombeiros, chefeEquipe, comunicacao, equipagemCCI, equipagemCCIRT, equipagemCRS]);
 
   async function handleSalvarRascunho() {
     if (bloquearEquipeAtual('salvar')) return;
@@ -697,7 +783,7 @@ export function GerarLRO() {
           const d = frotaDados[`row_${i}`] || EMPTY_FROTA_LINHA;
           const frotaLista = viaturas.length > 0 ? viaturas : DEFAULT_VIATURAS;
           const sel = frotaLista.find((vv: any) => vv.id === d.viaturaId);
-          return { viatura: sel?.prefixo || sel?.nome || '—', prefixo: d.prefixo || '', kmIni: d.kmIni || '', kmFim: d.kmFim || '', combIni: d.combIni || '', combFim: d.combFim || '', situacao: d.situacao || '' };
+          return { viatura: sel?.prefixo || sel?.nome || (i === FROTA_ROWS - 1 ? '' : '—'), prefixo: d.prefixo || '', kmIni: d.kmIni || '', kmFim: d.kmFim || '', combIni: d.combIni || '', combFim: d.combFim || '', situacao: d.situacao || '' };
         }),
         centralFaisca, radioComunicacao,
         tpTemAlteracao, tpTexto,
@@ -709,7 +795,7 @@ export function GerarLRO() {
         ocorrenciasXII: Array.isArray(outrasOcorrencias) ? outrasOcorrencias : (typeof outrasOcorrencias === 'string' ? outrasOcorrencias.split('\n').filter(Boolean) : []),
         solicitacoes: solicitacoesCCR.split('\n').filter(Boolean),
         substituicao: [
-          ...substituicoesDetectadas.filter(s => s.tipo === 'troca' && s.confirmada === true).map(s => {
+          ...substituicoesDetectadas.filter(s => s.tipo === 'troca' && s.confirmada !== false).map(s => {
             const p1 = bombeiros.find((b: any) => s.substituido.includes(b.nomeCompleto) || s.substituido.includes(b.nomeGuerra));
             const p2 = bombeiros.find((b: any) => s.substituto.includes(b.nomeCompleto) || s.substituto.includes(b.nomeGuerra));
             return { funcao1: p1?.cargo || 'BA-2', nome1: p1?.nomeCompleto || s.substituido, funcao2: p2?.cargo || 'BA-2', nome2: p2?.nomeCompleto || s.substituto };
@@ -728,7 +814,7 @@ export function GerarLRO() {
         gerenteAssinatura: bombeiros.find((b: any) => b.cargo === 'GS')?.nomeCompleto || bombeiros.find((b: any) => b.cargo === 'GS')?.nomeGuerra || '',
         coordenadorAssinatura: apocs.find((a: any) => a.funcao === 'SUPERVISOR')?.nomeCompleto || '',
         _trocasManuais: trocasManuais,
-        _substituicoesDetectadas: substituicoesDetectadas.filter(s => s.tipo === 'troca' && s.confirmada === true),
+        _substituicoesDetectadas: substituicoesDetectadas.filter(s => s.tipo === 'troca' && s.confirmada !== false),
         substituicoesAtivas,
       };
       const saved = await salvarDraft(dados, equipe, dataInicio, username, draftId || undefined);
@@ -757,7 +843,7 @@ export function GerarLRO() {
           const d = frotaDados[`row_${i}`] || EMPTY_FROTA_LINHA;
           const frotaLista = viaturas.length > 0 ? viaturas : DEFAULT_VIATURAS;
           const sel = frotaLista.find((vv: any) => vv.id === d.viaturaId);
-          return { viatura: sel?.prefixo || sel?.nome || '—', prefixo: d.prefixo || '', kmIni: d.kmIni || '', kmFim: d.kmFim || '', combIni: d.combIni || '', combFim: d.combFim || '', situacao: d.situacao || '' };
+          return { viatura: sel?.prefixo || sel?.nome || (i === FROTA_ROWS - 1 ? '' : '—'), prefixo: d.prefixo || '', kmIni: d.kmIni || '', kmFim: d.kmFim || '', combIni: d.combIni || '', combFim: d.combFim || '', situacao: d.situacao || '' };
         }),
         instrucoes: Array.isArray(instrucoes) ? instrucoes : (typeof instrucoes === 'string' ? instrucoes.split('\n').filter(Boolean) : []),
         instrucoesHorarios: Array.isArray(instrucoesHorarios) ? instrucoesHorarios : (typeof instrucoesHorarios === 'string' ? instrucoesHorarios.split('\n').filter(Boolean) : []),
@@ -768,7 +854,7 @@ export function GerarLRO() {
         ocorrenciasXII: Array.isArray(outrasOcorrencias) ? outrasOcorrencias : (typeof outrasOcorrencias === 'string' ? outrasOcorrencias.split('\n').filter(Boolean) : []),
         solicitacoes: solicitacoesCCR.split('\n').filter(Boolean),
         substituicao: [
-          ...substituicoesDetectadas.filter(s => s.tipo === 'troca' && s.confirmada === true).map(s => {
+          ...substituicoesDetectadas.filter(s => s.tipo === 'troca' && s.confirmada !== false).map(s => {
             const p1 = bombeiros.find((b: any) => s.substituido.includes(b.nomeCompleto) || s.substituido.includes(b.nomeGuerra));
             const p2 = bombeiros.find((b: any) => s.substituto.includes(b.nomeCompleto) || s.substituto.includes(b.nomeGuerra));
             return { funcao1: p1?.cargo || 'BA-2', nome1: p1?.nomeCompleto || s.substituido, funcao2: p2?.cargo || 'BA-2', nome2: p2?.nomeCompleto || s.substituto };
@@ -838,7 +924,7 @@ export function GerarLRO() {
       ocorrenciasXII: Array.isArray(outrasOcorrencias) ? outrasOcorrencias : (typeof outrasOcorrencias === 'string' ? outrasOcorrencias.split('\n').filter(Boolean) : []),
       solicitacoes: solicitacoesCCR.split('\n').filter(Boolean),
       substituicao: [
-        ...substituicoesDetectadas.filter(s => s.tipo === 'troca' && s.confirmada === true).map(s => {
+        ...substituicoesDetectadas.filter(s => s.tipo === 'troca' && s.confirmada !== false).map(s => {
           const p1 = bombeiros.find((b: any) => s.substituido.includes(b.nomeCompleto) || s.substituido.includes(b.nomeGuerra));
           const p2 = bombeiros.find((b: any) => s.substituto.includes(b.nomeCompleto) || s.substituto.includes(b.nomeGuerra));
             return { funcao1: p1?.cargo || 'BA-2', nome1: p1?.nomeCompleto || s.substituido, funcao2: p2?.cargo || 'BA-2', nome2: p2?.nomeCompleto || s.substituto };
@@ -863,65 +949,81 @@ export function GerarLRO() {
     navigate('/registros-diarios/preview-lro', { state: dados });
   }
 
-  function handleEnviarAutentique() {
+  async function handleFinalizarLRO() {
     setShowConfirm(false);
-    if (bloquearEquipeAtual('enviar')) return;
-    const gerenteEncontrado = bombeiros.find((b: any) => b.cargo === 'GS');
-    const dados = {
-      equipeNome: equipe, dataInicio, dataFim, chefeEquipe, comunicacao,
-      frota: Array.from({ length: FROTA_ROWS }).map((_, i) => {
-        const d = frotaDados[`row_${i}`] || EMPTY_FROTA_LINHA;
-        const frotaLista = viaturas.length > 0 ? viaturas : DEFAULT_VIATURAS;
-        const sel = frotaLista.find((vv: any) => vv.id === d.viaturaId);
-        return { viatura: sel?.prefixo || sel?.nome || '—', prefixo: d.prefixo || '', kmIni: d.kmIni || '', kmFim: d.kmFim || '', combIni: d.combIni || '', combFim: d.combFim || '', situacao: d.situacao || '' };
-      }),
-      instrucoes: Array.isArray(instrucoes) ? instrucoes : (typeof instrucoes === 'string' ? instrucoes.split('\n').filter(Boolean) : []),
-      instrucoesHorarios: Array.isArray(instrucoesHorarios) ? instrucoesHorarios : (typeof instrucoesHorarios === 'string' ? instrucoesHorarios.split('\n').filter(Boolean) : []),
-      centralFaisca: centralFaisca || 'SEM ALTERAÇÕES',
-      radioComunicacao: radioComunicacao || 'SEM ALTERAÇÕES',
-      tpTexto, extTexto, equipTexto, edifTexto,
-      emergenciaXI,
-      ocorrenciasXII: Array.isArray(outrasOcorrencias) ? outrasOcorrencias : (typeof outrasOcorrencias === 'string' ? outrasOcorrencias.split('\n').filter(Boolean) : []),
-      solicitacoes: solicitacoesCCR.split('\n').filter(Boolean),
-      substituicao: [
-        ...substituicoesDetectadas.filter(s => s.tipo === 'troca' && s.confirmada === true).map(s => {
-          const p1 = bombeiros.find((b: any) => s.substituido.includes(b.nomeCompleto) || s.substituido.includes(b.nomeGuerra));
-          const p2 = bombeiros.find((b: any) => s.substituto.includes(b.nomeCompleto) || s.substituto.includes(b.nomeGuerra));
-          return { funcao1: p1?.cargo || 'BA-2', nome1: p1?.nomeCompleto || s.substituido, funcao2: p2?.cargo || 'BA-2', nome2: p2?.nomeCompleto || s.substituto };
+    if (bloquearEquipeAtual('finalizar')) return;
+    setSaving(true);
+    try {
+      const dados = {
+        equipeNome: equipe, dataInicio, dataFim, chefeEquipe, comunicacao,
+        frota: Array.from({ length: FROTA_ROWS }).map((_, i) => {
+          const d = frotaDados[`row_${i}`] || EMPTY_FROTA_LINHA;
+          const frotaLista = viaturas.length > 0 ? viaturas : DEFAULT_VIATURAS;
+          const sel = frotaLista.find((vv: any) => vv.id === d.viaturaId);
+          return { viatura: sel?.prefixo || sel?.nome || (i === FROTA_ROWS - 1 ? '' : '—'), prefixo: d.prefixo || '', kmIni: d.kmIni || '', kmFim: d.kmFim || '', combIni: d.combIni || '', combFim: d.combFim || '', situacao: d.situacao || '' };
         }),
-        ...trocasManuais.filter(tm => tm.solicitante && tm.solicitado).map(tm => {
-          const p1 = bombeiros.find((b: any) => b.nomeGuerra === tm.solicitante || b.nomeCompleto === tm.solicitante);
-          const p2 = bombeiros.find((b: any) => b.nomeGuerra === tm.solicitado || b.nomeCompleto === tm.solicitado);
-          return { funcao1: p1?.cargo || 'BA-2', nome1: p1?.nomeCompleto || tm.solicitante, funcao2: p2?.cargo || 'BA-2', nome2: p2?.nomeCompleto || tm.solicitado };
-        }),
-      ],
-      cci2: Object.entries(equipagemCCI).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
-      cci3: Object.entries(equipagemCCIRT).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
-      crs: Object.entries(equipagemCRS).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
-      dataAssinatura: new Date().toLocaleDateString('pt-BR'),
-      chefeAssinatura: bombeiros.find((b: any) => b.nomeGuerra === chefeEquipe || b.nomeCompleto === chefeEquipe)?.nomeCompleto || chefeEquipe,
-      gerenteAssinatura: gerenteEncontrado?.nomeCompleto || gerenteEncontrado?.nomeGuerra || '',
-      coordenadorAssinatura: apocs.find((a: any) => a.funcao === 'SUPERVISOR')?.nomeCompleto || '',
-      substituicoesAtivas,
-    };
-
-    const emailChefe = getEmailByNome(chefeEquipe);
-    const signers: AutentiqueSigner[] = [];
-    if (emailChefe) {
-      signers.push({ email: emailChefe, action: 'SIGN', positions: [{ x: '5%', y: '86%', z: 0, element: 'SIGNATURE' }] });
-    } else {
-      signers.push({ name: 'Chefe de Equipe', action: 'SIGN', positions: [{ x: '5%', y: '86%', z: 0, element: 'SIGNATURE' }] });
+        instrucoes: Array.isArray(instrucoes) ? instrucoes : (typeof instrucoes === 'string' ? instrucoes.split('\n').filter(Boolean) : []),
+        instrucoesHorarios: Array.isArray(instrucoesHorarios) ? instrucoesHorarios : (typeof instrucoesHorarios === 'string' ? instrucoesHorarios.split('\n').filter(Boolean) : []),
+        centralFaisca: centralFaisca || 'SEM ALTERAÇÕES',
+        radioComunicacao: radioComunicacao || 'SEM ALTERAÇÕES',
+        tpTemAlteracao, tpTexto,
+        extTemAlteracao, extTexto,
+        equipTemAlteracao, equipTexto,
+        edifTemAlteracao, edifTexto,
+        ocorrenciasNA, inspecoes,
+        emergenciaXI,
+        ocorrenciasXII: Array.isArray(outrasOcorrencias) ? outrasOcorrencias : (typeof outrasOcorrencias === 'string' ? outrasOcorrencias.split('\n').filter(Boolean) : []),
+        solicitacoes: solicitacoesCCR.split('\n').filter(Boolean),
+        substituicao: [
+          ...substituicoesDetectadas.filter(s => s.tipo === 'troca' && s.confirmada !== false).map(s => {
+            const p1 = bombeiros.find((b: any) => s.substituido.includes(b.nomeCompleto) || s.substituido.includes(b.nomeGuerra));
+            const p2 = bombeiros.find((b: any) => s.substituto.includes(b.nomeCompleto) || s.substituto.includes(b.nomeGuerra));
+            return { funcao1: p1?.cargo || 'BA-2', nome1: p1?.nomeCompleto || s.substituido, funcao2: p2?.cargo || 'BA-2', nome2: p2?.nomeCompleto || s.substituto };
+          }),
+          ...trocasManuais.filter(tm => tm.solicitante && tm.solicitado).map(tm => {
+            const p1 = bombeiros.find((b: any) => b.nomeGuerra === tm.solicitante || b.nomeCompleto === tm.solicitante);
+            const p2 = bombeiros.find((b: any) => b.nomeGuerra === tm.solicitado || b.nomeCompleto === tm.solicitado);
+            return { funcao1: p1?.cargo || 'BA-2', nome1: p1?.nomeCompleto || tm.solicitante, funcao2: p2?.cargo || 'BA-2', nome2: p2?.nomeCompleto || tm.solicitado };
+          }),
+        ],
+        cci2: Object.entries(equipagemCCI).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
+        cci3: Object.entries(equipagemCCIRT).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
+        crs: Object.entries(equipagemCRS).filter(([, v]) => v).map(([k, v]) => ({ funcao: k.split('_')[0], nome: v })),
+        dataAssinatura: new Date().toLocaleDateString('pt-BR'),
+        chefeAssinatura: bombeiros.find((b: any) => b.nomeGuerra === chefeEquipe || b.nomeCompleto === chefeEquipe)?.nomeCompleto || chefeEquipe,
+        gerenteAssinatura: bombeiros.find((b: any) => b.cargo === 'GS')?.nomeCompleto || bombeiros.find((b: any) => b.cargo === 'GS')?.nomeGuerra || '',
+        coordenadorAssinatura: apocs.find((a: any) => a.funcao === 'SUPERVISOR')?.nomeCompleto || '',
+        cidade: 'NAVEGANTES',
+        uf: 'SC',
+        _trocasManuais: trocasManuais,
+        _substituicoesDetectadas: substituicoesDetectadas.filter(s => s.tipo === 'troca' && s.confirmada !== false),
+        substituicoesAtivas,
+      };
+      const saved = await salvarDraft(dados, equipe, dataInicio, username, draftId || undefined);
+      setDraftId(saved.id);
+      await atualizarStatus(saved.id, 'aguardando');
+      const updated = await listarDrafts('').catch(() => []);
+      setDrafts(updated);
+      navigate('/registros-diarios/preview-lro', { state: { ...dados, draftId: saved.id } });
+    } catch (err) {
+      console.error('Erro ao finalizar LRO:', err);
+      setErroValidacao(`Erro ao finalizar LRO: ${err instanceof Error ? err.message : 'Erro desconhecido'}`);
     }
-    const gerente = bombeiros.find(b => b.cargo === 'GS');
-    if (gerente?.email) {
-      signers.push({ email: gerente.email, action: 'SIGN', positions: [{ x: '37%', y: '86%', z: 0, element: 'SIGNATURE' }] });
-    } else {
-      signers.push({ name: 'Gerente SESCINC', action: 'SIGN', positions: [{ x: '37%', y: '86%', z: 0, element: 'SIGNATURE' }] });
-    }
-    signers.push({ name: 'Coordenador', action: 'SIGN', positions: [{ x: '66%', y: '86%', z: 0, element: 'SIGNATURE' }] });
+    setSaving(false);
+  }
 
-    navigate('/registros-diarios/preview-lro', {
-      state: { ...dados, modoAutentique: true, signers, draftId },
+  async function arquivarDraftComoDocumento(draft: LRODraft) {
+    const dados = (draft.dados as Record<string, any>) || {};
+    const docs = await listarDocumentos().catch(() => []);
+    let doc = docs.find((x: any) => x.source_module === 'lro');
+    if (!doc) {
+      doc = await criarDocumento({ name: 'LIVRO ATA DE CHEFE DE EQUIPE', description: 'LRO gerado pelo wizard', category: 'lro', template_pdf_url: '', active: true, source_module: 'lro' });
+    }
+    await criarPreenchimento({
+      document_id: doc.id,
+      filled_by: username,
+      filled_data: { ...dados, equipeNome: dados.equipeNome || draft.equipe, dataInicio: dados.dataInicio || draft.data_plantao },
+      status: 'archived',
     });
   }
 
@@ -945,7 +1047,16 @@ export function GerarLRO() {
 
   function handleConfirmTrocaCorreta() {
     if (trocaConfirmadaIdx !== null) {
+      const alvo = substituicoesDetectadas[trocaConfirmadaIdx];
       setSubstituicoesDetectadas(prev => prev.map((s, i) => i === trocaConfirmadaIdx ? { ...s, confirmada: true } : s));
+      // Persiste a confirmação no preenchimento do documento de troca para não pedir de novo em novos LROs da mesma data
+      if (alvo?.id && dataInicio) {
+        const fill = trocaFills.find((fl: any) => fl.id === alvo.id);
+        if (fill) {
+          const fd = fill.filled_data || {};
+          atualizarPreenchimento(fill.id, { filled_data: { ...fd, lro_confirmada: dataInicio } }).catch(() => {});
+        }
+      }
     }
     setShowConfirmCorreta(false);
     setTrocaConfirmadaIdx(null);
@@ -984,7 +1095,7 @@ export function GerarLRO() {
                   className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-amber-500/20 transition-all hover:from-amber-400 hover:to-amber-500 hover:shadow-xl hover:shadow-amber-500/30 active:scale-[0.98]">
                   <FileText className="h-4 w-4" /> Clonar LRO
                 </button>
-                <button onClick={() => { setDraftId(null); setEquipe((canManageGlobal ? 'Alfa' : equipeEfetiva || 'Alfa') as EquipeOpcao); setStep('equipe'); setView('wizard'); }}
+                <button onClick={() => { setDraftId(null); setEquipe(''); setStep('equipe'); setView('wizard'); }}
                   className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
                   <FileText className="h-4 w-4" /> Novo LRO
                 </button>
@@ -1021,7 +1132,7 @@ export function GerarLRO() {
         ) : (
           <div className="space-y-3">
             {filtradas.map(d => {
-              const dotColor = d.status === 'assinado' ? 'bg-green-500' : d.status === 'aguardando' ? 'bg-blue-500' : d.status === 'cancelado' ? 'bg-red-500' : 'bg-yellow-500';
+              const dotColor = d.status === 'assinado' ? 'bg-green-500' : d.status === 'aguardando' ? 'bg-blue-500' : d.status === 'cancelado' ? 'bg-red-500' : d.status === 'finalizado' ? 'bg-green-500' : d.status === 'arquivado' ? 'bg-graphite-400' : 'bg-yellow-500';
               const dd = d.dados as Record<string, any> || {};
               return (
               <div key={d.id} className="rounded-xl border border-graphite-200 bg-white transition-all hover:shadow-md dark:border-border-dark dark:bg-surface-card">
@@ -1092,7 +1203,7 @@ export function GerarLRO() {
                         setSolicitacoesCCR(Array.isArray(dd.solicitacoes) ? dd.solicitacoes.join('\n') : (dd.solicitacoes || ''));
                         if (dd._trocasManuais) setTrocasManuais(dd._trocasManuais);
                         if (dd._substituicoesDetectadas) {
-                          const manuais = (dd._substituicoesDetectadas as any[]).filter((s: any) => s.tipo === 'troca' && s.confirmada === true);
+                          const manuais = (dd._substituicoesDetectadas as any[]).filter((s: any) => s.tipo === 'troca' && s.confirmada !== false);
                           if (manuais.length > 0) setSubstituicoesDetectadas(manuais);
                         }
                         setView('wizard');
@@ -1101,6 +1212,33 @@ export function GerarLRO() {
                         Continuar
                       </button>
                     ) : null}
+                    {canManageGlobal && d.status === 'aguardando' && (
+                      <button onClick={async () => {
+                        await atualizarStatus(d.id, 'finalizado');
+                        setDrafts(prev => prev.map(x => x.id === d.id ? { ...x, status: 'finalizado' } : x));
+                      }} title="Marcar como finalizado"
+                        className="rounded-lg bg-green-50 px-3 py-1.5 text-xs font-medium text-green-700 transition-all hover:bg-green-100 dark:bg-green-900/20 dark:text-green-300">
+                        <Check className="h-3.5 w-3.5 inline-block mr-1" /> Finalizar
+                      </button>
+                    )}
+                    {canManageGlobal && d.status !== 'arquivado' && d.status !== 'rascunho' && (
+                      <button onClick={async () => {
+                        await arquivarDraftComoDocumento(d);
+                        setDrafts(prev => prev.map(x => x.id === d.id ? { ...x, status: 'arquivado' } : x));
+                      }} title="Arquivar"
+                        className="rounded-lg bg-graphite-100 px-3 py-1.5 text-xs font-medium text-graphite-700 transition-all hover:bg-graphite-200 dark:bg-surface-hover dark:text-graphite-300">
+                        <Archive className="h-3.5 w-3.5 inline-block mr-1" /> Arquivar
+                      </button>
+                    )}
+                    {canManageGlobal && d.status === 'arquivado' && (
+                      <button onClick={async () => {
+                        await atualizarStatus(d.id, 'finalizado');
+                        setDrafts(prev => prev.map(x => x.id === d.id ? { ...x, status: 'finalizado' } : x));
+                      }} title="Desarquivar"
+                        className="rounded-lg bg-graphite-100 px-3 py-1.5 text-xs font-medium text-graphite-700 transition-all hover:bg-graphite-200 dark:bg-surface-hover dark:text-graphite-300">
+                        <RefreshCw className="h-3.5 w-3.5 inline-block mr-1" /> Desarquivar
+                      </button>
+                    )}
                     {canManageDraft(d) && (d.status === 'rascunho' || canManageGlobal) && (
                       <button onClick={() => {
                         if (!canManageDraft(d)) return;
@@ -1240,6 +1378,7 @@ export function GerarLRO() {
               <div>
                 <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Equipe *</label>
                 <select value={equipe} onChange={e => setEquipe(e.target.value as EquipeOpcao)} disabled={!canManageGlobal} className={inputClass}>
+                  <option value="">Selecione a equipe</option>
                   {equipesFormulario.map(eq => <option key={eq} value={eq}>{eq}</option>)}
                 </select>
               </div>
@@ -1250,7 +1389,7 @@ export function GerarLRO() {
               <div>
                 <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Data Fim</label>
                 <input type="date" value={dataFim} disabled className={inputClass + ' cursor-not-allowed opacity-60'} />
-                <p className="mt-1 text-[11px] text-aviation-500">Plantão {horarioPlantao.tipo} — {horarioPlantao.inicio} às {horarioPlantao.fim}{equipe === 'Bravo' || equipe === 'Delta' ? ' — data fim gerada automaticamente' : ''}</p>
+                <p className="mt-1 text-[11px] text-aviation-500 dark:text-aviation-400">Plantão {horarioPlantao.tipo} — {horarioPlantao.inicio} às {horarioPlantao.fim}{equipe === 'Bravo' || equipe === 'Delta' ? ' — data fim gerada automaticamente' : ''}</p>
               </div>
             </div>
           </div>
@@ -1307,6 +1446,7 @@ export function GerarLRO() {
           <div className="flex justify-end">
             <button onClick={() => {
               if (!dataInicio) { setErroValidacao('Selecione a data de início do plantão.'); return; }
+              if (!equipe) { setErroValidacao('Selecione a equipe.'); return; }
               if (bloquearEquipeAtual('preencher')) return;
               setErroValidacao('');
               setStep('trocas');
@@ -1638,32 +1778,49 @@ export function GerarLRO() {
           <div className="rounded-2xl border border-graphite-200 bg-white p-6 dark:border-border-dark dark:bg-surface-card">
             <h3 className="mb-4 font-bold text-graphite-900 dark:text-graphite-100">I. Equipe de Serviço</h3>
             <div className="grid gap-4 md:grid-cols-2">
-              <SearchSelect
-                label="1.1 Chefe de Equipe *"
-                value={chefeEquipe}
-                onChange={setChefeEquipe}
-                options={(() => {
-                  const designado = bombeiros.find((b: any) => b.cargo === 'BA-CE' && b.equipe === equipe);
-                  if (!designado) return [];
-                  const sub = substituicoesMap[designado.id];
-                  // Se tem substituição (troca ou férias), mostra o substituto se for BA-CE
-                  if (sub) {
-                    const substituto = bombeiros.find((b: any) => (b.nomeGuerra === sub.substitutoNome || b.nomeCompleto === sub.substitutoNome) && b.cargo === 'BA-CE');
-                    if (substituto) return [{ value: substituto.nomeGuerra, label: `${substituto.nomeGuerra} - ${substituto.nomeCompleto} (${substituto.cargo})` }];
-                  }
-                  // Sem substituição: mostra o designado se estiver disponível (não de férias)
-                  if (disponiveis.some(b => b.id === designado.id)) {
-                    return [{ value: designado.nomeGuerra, label: `${designado.nomeGuerra} - ${designado.nomeCompleto} (${designado.cargo})` }];
-                  }
-                  return [];
+              <div>
+                <SearchSelect
+                  label="1.1 Chefe de Equipe *"
+                  value={chefeEquipe}
+                  onChange={setChefeEquipe}
+                  options={(() => {
+                    const designado = bombeiros.find((b: any) => b.cargo === 'BA-CE' && b.equipe === equipe);
+                    if (!designado) return [];
+                    const sub = substituicoesMap[designado.id];
+                    // Se tem substituição (troca ou férias), mostra o substituto se for BA-CE
+                    if (sub) {
+                      const substituto = bombeiros.find((b: any) => (b.nomeGuerra === sub.substitutoNome || b.nomeCompleto === sub.substitutoNome) && b.cargo === 'BA-CE');
+                      if (substituto) return [{ value: substituto.nomeGuerra, label: `${substituto.nomeGuerra} - ${substituto.nomeCompleto} (${substituto.cargo})` }];
+                    }
+                    // Sem substituição: mostra o designado se estiver disponível (não de férias)
+                    if (disponiveis.some(b => b.id === designado.id)) {
+                      return [{ value: designado.nomeGuerra, label: `${designado.nomeGuerra} - ${designado.nomeCompleto} (${designado.cargo})` }];
+                    }
+                    return [];
+                  })()}
+                  placeholder="Chefe de equipe"
+                />
+                {(() => {
+                  if (!chefeEquipe) return null;
+                  const chefeB = bombeiros.find((b: any) => b.nomeGuerra === chefeEquipe || b.nomeCompleto === chefeEquipe);
+                  const aviso = chefeB ? validarCursoParaFuncao(chefeB, 'BA-CE') : null;
+                  if (!aviso) return null;
+                  return (
+                    <div className={`mt-1.5 flex items-start gap-2 rounded-lg px-2.5 py-2 text-[11px] leading-tight ${aviso.nivel === 'bloqueado' ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400' : 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400'}`}>
+                      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      <span>{aviso.mensagem}</span>
+                    </div>
+                  );
                 })()}
-                placeholder="Chefe de equipe"
-              />
+              </div>
               <SearchSelect
                 label="1.2 Comunicação BA-OC *"
                 value={comunicacao}
                 onChange={setComunicacao}
-                options={disponiveis.map(b => ({ value: b.nomeGuerra, label: `${b.nomeGuerra} - ${b.nomeCompleto} (${b.cargo})` }))}
+                options={[
+                  ...disponiveis.map(b => ({ value: b.nomeGuerra, label: `${b.nomeGuerra} - ${b.nomeCompleto} (${b.cargo})` })),
+                  ...apocs.map((a: any) => ({ value: a.nomeGuerra, label: `${a.nomeGuerra} - ${a.nomeCompleto} (APOC)` })),
+                ]}
                 placeholder="Buscar operador de comunicação..."
               />
             </div>
@@ -1674,9 +1831,9 @@ export function GerarLRO() {
             <h3 className="mb-4 font-bold text-graphite-900 dark:text-graphite-100">1.3 Equipagem dos CCI - EM LINHA, CCI - RT e CRS</h3>
             <div className="grid gap-4 md:grid-cols-3">
               {[
-                { label: 'CCI 2', slots: ['BA-CE', 'BA-MC', 'BA-2'], state: equipagemCCI, setState: setEquipagemCCI },
-                { label: 'CCI 3', slots: ['BA-MC', 'BA-2', 'BA-2'], state: equipagemCCIRT, setState: setEquipagemCCIRT },
-                { label: 'CRS', slots: ['BA-LR', 'BA-MC', 'BA-RE', 'BA-RE'], state: equipagemCRS, setState: setEquipagemCRS },
+                { label: 'CCI 2', slots: ['BA-CE', 'BA-MC', 'BA-2'], veiculo: 'cci' as const, state: equipagemCCI, setState: setEquipagemCCI },
+                { label: 'CCI 3', slots: ['BA-MC', 'BA-2', 'BA-2'], veiculo: 'cci' as const, state: equipagemCCIRT, setState: setEquipagemCCIRT },
+                { label: 'CRS', slots: ['BA-LR', 'BA-MC', 'BA-RE', 'BA-RE'], veiculo: 'crs' as const, state: equipagemCRS, setState: setEquipagemCRS },
               ].map(section => (
                 <div key={section.label}>
                   <label className="mb-2 block text-sm font-bold text-graphite-800 dark:text-graphite-200">{section.label}</label>
@@ -1693,17 +1850,28 @@ export function GerarLRO() {
                       const opts = disponiveis
                         .filter(b => b.cargo === cargoFiltro && (!selectedInOtherSlots.has(b.nomeGuerra) || selected === b.nomeGuerra))
                         .map(b => ({ value: b.nomeGuerra, label: `${b.nomeGuerra} - ${b.nomeCompleto}` }));
+                      const selB = bombeiros.find((b: any) => b.nomeGuerra === selected);
+                      const cargoValidacao = ['BA-CE', 'BA-LR', 'BA-MC'].includes(cargo) ? cargo as 'BA-CE' | 'BA-LR' | 'BA-MC' : null;
+                      const aviso = selB && cargoValidacao ? validarCursoParaFuncao(selB, cargoValidacao, cargoValidacao === 'BA-MC' ? section.veiculo : undefined) : null;
                       return (
-                        <div key={key} className="flex items-center gap-2">
-                          <span className="w-14 shrink-0 text-[10px] font-bold uppercase text-graphite-500 dark:text-graphite-400">{cargo}</span>
-                          <select
-                            value={selected}
-                            onChange={e => section.setState(prev => ({ ...prev, [key]: e.target.value }))}
-                            className="flex-1 rounded-lg border border-graphite-200 px-2 py-1.5 text-xs dark:border-border-dark dark:bg-surface-card"
-                          >
-                            <option value="">Selecionar...</option>
-                            {opts.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                          </select>
+                        <div key={key}>
+                          <div className="flex items-center gap-2">
+                            <span className="w-14 shrink-0 text-[10px] font-bold uppercase text-graphite-500 dark:text-graphite-400">{cargo}</span>
+                            <select
+                              value={selected}
+                              onChange={e => section.setState(prev => ({ ...prev, [key]: e.target.value }))}
+                              className="flex-1 rounded-lg border border-graphite-200 px-2 py-1.5 text-xs dark:border-border-dark dark:bg-surface-card"
+                            >
+                              <option value="">Selecionar...</option>
+                              {opts.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                            </select>
+                          </div>
+                          {aviso && (
+                            <div className={`ml-16 mt-1 flex items-start gap-1.5 rounded-lg px-2 py-1.5 text-[10px] leading-tight ${aviso.nivel === 'bloqueado' ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400' : 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400'}`}>
+                              <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+                              <span>{aviso.mensagem}</span>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -1718,15 +1886,15 @@ export function GerarLRO() {
             <h3 className="mb-4 font-bold text-graphite-900 dark:text-graphite-100">1.3 Substituições de BA</h3>
             <div className="flex items-center gap-6 mb-4">
               <label className="flex items-center gap-2 text-sm text-graphite-700 dark:text-graphite-300">
-                <input type="checkbox" checked={substituicoesDetectadas.some(s => s.tipo === 'troca' && s.confirmada === true) || trocasManuais.length > 0} readOnly className="h-4 w-4 rounded border-graphite-300 text-aviation-600" />
+                <input type="checkbox" checked={substituicoesDetectadas.some(s => s.tipo === 'troca' && s.confirmada !== false) || trocasManuais.length > 0} readOnly className="h-4 w-4 rounded border-graphite-300 text-aviation-600" />
                 ABAIXO
               </label>
               <label className="flex items-center gap-2 text-sm text-graphite-700 dark:text-graphite-300">
-                <input type="checkbox" checked={!substituicoesDetectadas.some(s => s.tipo === 'troca' && s.confirmada === true) && trocasManuais.length === 0} readOnly className="h-4 w-4 rounded border-graphite-300 text-aviation-600" />
+                <input type="checkbox" checked={!substituicoesDetectadas.some(s => s.tipo === 'troca' && s.confirmada !== false) && trocasManuais.length === 0} readOnly className="h-4 w-4 rounded border-graphite-300 text-aviation-600" />
                 NÃO HOUVE
               </label>
             </div>
-            {substituicoesDetectadas.filter(s => s.tipo === 'troca' && s.confirmada === true).map(sub => {
+            {substituicoesDetectadas.filter(s => s.tipo === 'troca' && s.confirmada !== false).map(sub => {
               const findB = (nome: string) => {
                 const n = (nome || '').toLowerCase().trim();
                 return bombeiros.find((x: any) => n.includes(x.nomeGuerra.toLowerCase().trim()) || n.includes(x.nomeCompleto.toLowerCase().trim().split(' ')[0]));
@@ -1792,14 +1960,15 @@ export function GerarLRO() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-graphite-900 dark:text-graphite-100">II. Instruções</h3>
               <button onClick={async () => {
-                const p = await listarPTRBs();
+                const [p, pc] = await Promise.all([listarPTRBs(), listarPTRBACompletos()]);
                 setPtrbs(p);
+                setPtrbaCompletos(pc);
               }} className="flex items-center gap-1 rounded-lg border border-graphite-300 bg-white px-3 py-1.5 text-xs font-medium text-graphite-600 transition-all hover:bg-graphite-50 dark:border-border-dark dark:bg-surface-card dark:text-graphite-300">
                 🔄 Recarregar
               </button>
             </div>
             <textarea value={instrucoes} readOnly placeholder={"14. PCINC - Verificar conformidade dos extintores e hidrantes\n\n15. EQUIPAMENTOS DE PROTEÇÃO - Manter EPIs atualizados"} rows={4} className={inputClass + ' resize-y cursor-not-allowed opacity-80'} />
-            {ptrbs.filter(p => p.equipe === equipe && p.data?.startsWith(dataInicio)).length > 0 && (
+            {(ptrbs.filter(p => p.equipe === equipe && p.data?.startsWith(dataInicio)).length > 0 || ptrbaCompletos.filter(p => String(p.equipe) === equipe && p.data?.startsWith(dataInicio)).length > 0) && (
               <p className="mt-2 text-[11px] text-green-600">✓ Instruções carregadas automaticamente do PTR-BA deste plantão.</p>
             )}
           </div>
@@ -1847,7 +2016,7 @@ export function GerarLRO() {
                             ))}
                           </select>
                         </td>
-                        <td className="p-2 font-semibold text-graphite-700 dark:text-graphite-300 text-xs">{d.prefixo || '—'}</td>
+                        <td className="p-2 font-semibold text-graphite-700 dark:text-graphite-300 text-xs">{d.prefixo}</td>
                         <td className="p-2"><input value={d.kmIni || ''} onChange={e => updateRow({ kmIni: e.target.value })} className="w-20 rounded border border-graphite-200 px-2 py-1 text-xs dark:border-border-dark dark:bg-surface-card" /></td>
                         <td className="p-2"><input value={d.kmFim || ''} onChange={e => updateRow({ kmFim: e.target.value })} className="w-20 rounded border border-graphite-200 px-2 py-1 text-xs dark:border-border-dark dark:bg-surface-card" /></td>
                         <td className="p-2"><input value={d.combIni || ''} onChange={e => updateRow({ combIni: e.target.value })} className="w-20 rounded border border-graphite-200 px-2 py-1 text-xs dark:border-border-dark dark:bg-surface-card" /></td>
@@ -1873,8 +2042,14 @@ export function GerarLRO() {
           <div className="rounded-2xl border border-graphite-200 bg-white p-6 dark:border-border-dark dark:bg-surface-card">
             <h3 className="mb-2 font-bold text-graphite-900 dark:text-graphite-100">IV. Central Faísca</h3>
             <div className="space-y-2">
-              <input type="text" value={centralFaisca} onChange={e => setCentralFaisca(e.target.value)} placeholder="3.1 CENTRAL FAÍSCA" className={inputClass} />
-              <input type="text" value={radioComunicacao} onChange={e => setRadioComunicacao(e.target.value)} placeholder="3.2 RÁDIOS, HOTLINE" className={inputClass} />
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">3.1 CENTRAL FAÍSCA</label>
+                <input type="text" value={centralFaisca} onChange={e => setCentralFaisca(e.target.value)} placeholder="SEM ALTERAÇÕES" className={inputClass} />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">3.2 RÁDIOS, HOTLINE</label>
+                <input type="text" value={radioComunicacao} onChange={e => setRadioComunicacao(e.target.value)} placeholder="SEM ALTERAÇÕES" className={inputClass} />
+              </div>
             </div>
           </div>
 
@@ -1970,7 +2145,7 @@ export function GerarLRO() {
               <p><span className="font-semibold">Plantão:</span> {dataInicio} a {dataFim}</p>
               <p><span className="font-semibold">Chefe de Equipe:</span> {chefeEquipe || '-'}</p>
               <p><span className="font-semibold">Comunicação:</span> {comunicacao || '-'}</p>
-              <p><span className="font-semibold">Trocas:</span> {substituicoesDetectadas.filter(s => s.tipo === 'troca' && s.confirmada === true).length} confirmada(s) + {trocasManuais.length} emergencial(is)</p>
+              <p><span className="font-semibold">Trocas:</span> {substituicoesDetectadas.filter(s => s.tipo === 'troca' && s.confirmada !== false).length} confirmada(s) + {trocasManuais.length} emergencial(is)</p>
               {instrucoes && (Array.isArray(instrucoes) ? instrucoes.length : instrucoes.split('\n').filter(Boolean).length) > 0 && <p><span className="font-semibold">Instruções:</span> {Array.isArray(instrucoes) ? instrucoes.length : instrucoes.split('\n').filter(Boolean).length} registro(s)</p>}
               {emergenciaXI && <p><span className="font-semibold">Emergência Aeronáutica:</span> Sim</p>}
             </div>
@@ -1981,8 +2156,8 @@ export function GerarLRO() {
               <ArrowLeft className="h-4 w-4" /> Voltar
             </button>
             <div className="flex gap-3">
-              <button onClick={() => setShowConfirm(true)} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-green-600 to-green-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-green-500/20 transition-all hover:from-green-500 hover:to-green-600 active:scale-[0.98]">
-                <Send className="h-4 w-4" /> Enviar para Assinatura
+              <button onClick={() => setShowConfirm(true)} disabled={saving} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-green-600 to-green-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-green-500/20 transition-all hover:from-green-500 hover:to-green-600 active:scale-[0.98] disabled:opacity-50">
+                <Check className="h-4 w-4" /> {saving ? 'Finalizando...' : 'Finalizar LRO'}
               </button>
             </div>
           </div>
@@ -2043,17 +2218,17 @@ export function GerarLRO() {
 
       <AlertModal
         open={showConfirm}
-        title="Confirmar envio"
+        title="Finalizar LRO"
         message={(
           <>
-            Após enviar para assinatura, <strong>não será mais possível alterar</strong> o LRO. O documento será encaminhado para os 3 signatários via Autentique.
+            Ao finalizar, o LRO ficará <strong>aguardando</strong> e <strong>não será mais possível alterar</strong> os dados. O administrador poderá marcar como finalizado ou arquivar depois.
           </>
         )}
         variant="success"
-        confirmLabel="Confirmar e enviar"
-        loadingLabel="Preparando..."
+        confirmLabel="Sim, finalizar"
+        loadingLabel="Finalizando..."
         onClose={() => setShowConfirm(false)}
-        onConfirm={handleEnviarAutentique}
+        onConfirm={handleFinalizarLRO}
       />
     </PageContainer>
   );

@@ -1,31 +1,15 @@
 import jsPDF from 'jspdf';
 import { toPng } from 'html-to-image';
-import { criarDocumento, type AutentiqueSigner } from './autentiqueService';
 
 function cb(checked: boolean) {
   const fill = checked ? '✓' : '';
-  return `<span style="display:inline-flex; align-items:center; justify-content:center; width:9px; height:9px; border:1px solid #000; font-size:8px; line-height:1; position:relative; top:1px; font-weight:bold; color:#000;">${fill}</span>`;
-}
-
-function cbUp(checked: boolean) {
-  const fill = checked ? '✓' : '';
-  return `<span style="display:inline-flex; align-items:center; justify-content:center; width:9px; height:9px; border:1px solid #000; font-size:8px; line-height:1; position:relative; top:-2px; font-weight:bold; color:#000;">${fill}</span>`;
-}
-
-function cbSub(checked: boolean) {
-  const fill = checked ? '✓' : '';
-  return `<span style="display:inline-flex; align-items:center; justify-content:center; width:9px; height:9px; border:1px solid #000; font-size:8px; line-height:1; position:relative; top:-3px; font-weight:bold; color:#000;">${fill}</span>`;
-}
-
-function cbSubUp(checked: boolean) {
-  const fill = checked ? '✓' : '';
-  return `<span style="display:inline-flex; align-items:center; justify-content:center; width:9px; height:9px; border:1px solid #000; font-size:8px; line-height:1; position:relative; top:1px; font-weight:bold; color:#000;">${fill}</span>`;
+  return `<span style="display:inline-flex; align-items:center; justify-content:center; width:9px; height:9px; border:1px solid #000; font-size:8px; line-height:1; vertical-align:middle; position:relative; top:0; font-weight:bold; color:#000;">${fill}</span>`;
 }
 
 function secaoCheckbox(titulo: string, temAlteracao: boolean, texto: string): string {
   return `<table class="mb" style="border:1px solid #000; border-collapse:separate; border-spacing:0;">
     <tr><td colspan="6" style="border:none; border-bottom:1px solid #000; font-weight:bold; font-size:11px; background:#d4d4d4; text-align:center; padding:2px 3px;">${titulo}</td></tr>
-    <tr><td style="border:none; padding:2px 40px; font-size:11px;">${cb(temAlteracao)} ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${cbUp(!temAlteracao)} SEM ALTERAÇÕES</td></tr>
+    <tr><td style="border:none; padding:2px 40px; font-size:11px;">${cb(temAlteracao)} ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${cb(!temAlteracao)} SEM ALTERAÇÕES</td></tr>
     <tr><td style="border:none; border-top:1px solid #000; padding:6px 8px; font-size:11px;">${texto || 'SEM ALTERAÇÕES'}</td></tr>
   </table>`;
 }
@@ -96,13 +80,14 @@ export function montarHTML(dados: Record<string, unknown>, showMarkers = false, 
     ? `<tr><td colspan="7" style="border-left:1px solid #000; border-right:1px solid #000; padding:4px 5px; font-size:10px; vertical-align:top; min-height:40px;"><div style="height:1em;"></div>${instrucoes.map((item, i) => `<div style="display:flex; justify-content:space-between; font-size:10px; padding-right:90px;"><span>${item}</span><span style="white-space:nowrap;">${instrucoesHorarios[i] || ''}</span></div>${i < instrucoes.length - 1 ? '<div style=\"height:1em;\"></div>' : ''}`).join('')}<div style="height:1em;"></div></td></tr>`
     : `<tr><td colspan="7" style="border-left:1px solid #000; border-right:1px solid #000; padding:4px 5px; font-size:10px; vertical-align:top; min-height:40px;"><div style="height:1em;"></div></td></tr>`;
 
-  const PREFIXOS_FIXOS = ['F2 X6', 'F3 X6', 'FRT X6'];
+  const PREFIXOS_FIXOS = ['F2 X6', 'F3 X6', 'FRT X6', ''];
   const frotaLinhas = frota.length > 0 ? frota.map((f, i) => `
-    <tr style="border-top:1px solid #000; border-bottom:1px solid #000;"><td class="b" style="border:none; border-left:1px solid #000; font-size:11px; padding-right:16px; white-space:nowrap; width:50px;">${f.viatura || '—'}</td><td style="border:none; font-size:11px; padding-left:0; white-space:nowrap; width:40px;">${PREFIXOS_FIXOS[i] || ''}</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 8px; white-space:nowrap;">KM INICIAL</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 16px; white-space:nowrap;">${f.kmIni || ''}</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 8px; white-space:nowrap;">KM FINAL</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 16px; white-space:nowrap;">${f.kmFim || ''}</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 5px; width:100%;">${f.situacao || ''}</td></tr>
+    <tr style="border-top:1px solid #000; border-bottom:1px solid #000;"><td class="b" style="border:none; border-left:1px solid #000; font-size:11px; padding-right:16px; white-space:nowrap; width:50px;">${f.viatura || (i === frota.length - 1 ? '' : '—')}</td><td style="border:none; font-size:11px; padding-left:0; white-space:nowrap; width:40px;">${PREFIXOS_FIXOS[i] || ''}</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 8px; white-space:nowrap;">KM INICIAL</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 16px; white-space:nowrap;">${f.kmIni || ''}</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 8px; white-space:nowrap;">KM FINAL</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 16px; white-space:nowrap;">${f.kmFim || ''}</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 5px; width:100%;">${f.situacao || ''}</td></tr>
   `).join('') : `
     <tr style="border-top:1px solid #000; border-bottom:1px solid #000;"><td class="b" style="border:none; border-left:1px solid #000; font-size:11px; padding-right:16px; white-space:nowrap; width:50px;">CCI 319</td><td style="border:none; font-size:11px; padding-left:0; white-space:nowrap; width:40px;">F2 X6</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 8px; white-space:nowrap;">KM INICIAL</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 16px; white-space:nowrap;"></td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 8px; white-space:nowrap;">KM FINAL</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 16px; white-space:nowrap;"></td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 5px; width:100%;"></td></tr>
     <tr style="border-top:1px solid #000; border-bottom:1px solid #000;"><td class="b" style="border:none; border-left:1px solid #000; font-size:11px; padding-right:16px; white-space:nowrap; width:50px;">CCI 320</td><td style="border:none; font-size:11px; padding-left:0; white-space:nowrap; width:40px;">F3 X6</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 8px; white-space:nowrap;">KM INICIAL</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 16px; white-space:nowrap;"></td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 8px; white-space:nowrap;">KM FINAL</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 16px; white-space:nowrap;"></td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 5px; width:100%;"></td></tr>
     <tr style="border-top:1px solid #000; border-bottom:1px solid #000;"><td class="b" style="border:none; border-left:1px solid #000; font-size:11px; padding-right:16px; white-space:nowrap; width:50px;">CCI 333</td><td style="border:none; font-size:11px; padding-left:0; white-space:nowrap; width:40px;">FRT X6</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:4px 8px; white-space:nowrap;">KM INICIAL</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:4px 16px; white-space:nowrap;"></td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:4px 8px; white-space:nowrap;">KM FINAL</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:4px 16px; white-space:nowrap;"></td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:4px 5px; width:100%;"></td></tr>
+    <tr style="border-top:1px solid #000; border-bottom:1px solid #000;"><td class="b" style="border:none; border-left:1px solid #000; font-size:11px; padding-right:16px; white-space:nowrap; width:50px;">CRS</td><td style="border:none; font-size:11px; padding-left:0; white-space:nowrap; width:40px;"></td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 8px; white-space:nowrap;">KM INICIAL</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 16px; white-space:nowrap;"></td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 8px; white-space:nowrap;">KM FINAL</td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 16px; white-space:nowrap;"></td><td style="border-left:none; border-right:1px solid #000; font-size:11px; padding:2px 5px; width:100%;"></td></tr>
   `;
 
   const subHTML = temSubstituicao
@@ -205,7 +190,7 @@ ${substituicoesAtivas.map(s => `
     <tr><td class="b" style="font-size:11px; width:1%; white-space:nowrap; border-bottom:none; border-right:none;">CCI 2</td><td colspan="6" style="font-size:11px; border-bottom:none; border-left:none;">${cci2HTML}</td></tr>
     <tr><td class="b" style="font-size:11px; white-space:nowrap; border-top:none; border-bottom:none; border-right:none;">CCI 3</td><td colspan="6" style="font-size:11px; border-top:none; border-bottom:none; border-left:none;">${cci3HTML}</td></tr>
     <tr><td class="b" style="font-size:11px; white-space:nowrap; border-top:none; border-right:none;">CRS</td><td colspan="6" style="font-size:11px; border-top:none; border-left:none;">${crsHTML}</td></tr>
-    <tr><td class="b" colspan="7" style="font-size:11px;">1.3. Substituições de BA: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${cbSub(temSubstituicao)} ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${cbSubUp(!temSubstituicao)} NÃO HOUVE</td></tr>
+    <tr><td class="b" colspan="7" style="font-size:11px;">1.3. Substituições de BA: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${cb(temSubstituicao)} ABAIXO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${cb(!temSubstituicao)} NÃO HOUVE</td></tr>
     ${subHTML}
     ${substituicoesAtivasHTML}
     <tr><td style="border-top:1px solid #000; border-bottom:1px solid #000; padding:2px 3px; font-weight:bold; font-size:11px; background:#d4d4d4; text-align:center;" colspan="7">II. INSTRUÇÕES</td></tr>
@@ -376,15 +361,4 @@ export async function gerarPDF(dados: Record<string, unknown>): Promise<Blob> {
   } finally {
     document.body.removeChild(iframe);
   }
-}
-
-export async function gerarEEnviarAutentique(
-  dados: Record<string, unknown>,
-  signatarios: AutentiqueSigner[],
-  nomeDocumento: string,
-): Promise<{ id: string; link: string }> {
-  const blob = await gerarPDF(dados);
-  const result = await criarDocumento(blob, nomeDocumento, signatarios);
-  const link = result.signatures?.[0]?.link?.short_link || '';
-  return { id: result.id, link };
 }

@@ -67,6 +67,7 @@ export async function criarDocumento(data: Omit<Document, 'id' | 'created_at' | 
       category: data.category,
       template_pdf_url: data.template_pdf_url,
       active: data.active,
+      source_module: data.source_module,
     })
     .select()
     .single();

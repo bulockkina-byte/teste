@@ -16,7 +16,7 @@ function handleSupabaseError(err: unknown): never {
   throw new Error(msg);
 }
 
-export type LRODraftStatus = 'rascunho' | 'aguardando' | 'assinado' | 'cancelado';
+export type LRODraftStatus = 'rascunho' | 'aguardando' | 'assinado' | 'cancelado' | 'finalizado' | 'arquivado';
 
 export interface LRODraft {
   id: string;
