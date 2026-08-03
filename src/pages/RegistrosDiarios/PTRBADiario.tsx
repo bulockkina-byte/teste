@@ -621,7 +621,12 @@ function ViewMode({ ptrb, onBack }: { ptrb: PTRB; onBack: () => void }) {
           PTR-BA por Instrução - {ptrb.equipe} - {formatDate(ptrb.data)}
         </h3>
         <div className="flex items-center gap-2">
-          <button onClick={() => window.print()}
+          <button onClick={() => {
+            if (ptrb.data) {
+              document.title = `${ptrb.data.split('-').reverse().join('-')} NVT PTRBA ${String(ptrb.equipe).toLocaleUpperCase('pt-BR')}`;
+            }
+            window.print();
+          }}
             className="flex items-center gap-1 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-3 py-1.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98]">
             <Printer className="h-4 w-4" /> Imprimir
           </button>

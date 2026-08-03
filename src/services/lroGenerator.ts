@@ -122,11 +122,12 @@ ${substituicoesAtivas.map(s => `
   const frotaCombinada = frota.map(f => `${f.combIni || '—'}→${f.combFim || '—'}`).join(', ') || '';
 
   return `<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><title>LIVRO ATA DE CHEFE DE EQUIPE</title>
+<html><head><meta charset="UTF-8"><title>${dataInicio ? dataInicio.split('-').reverse().join('-') : ''} NVT LRO ${equipeNome}</title>
 <style>
+  *, *::before, *::after { box-sizing: border-box; }
   @page { size: A4; margin: 15mm 10mm; }
-  body { background: #ddd; display: flex; justify-content: center; padding: 10px; font-family: Arial, sans-serif; font-size: 7.5px; line-height: 1.2; color: #000; }
-  .page { background: #fff; width: 210mm; min-height: 297mm; padding: 4mm 6mm; box-shadow: 0 4px 12px rgba(0,0,0,0.2); margin-bottom: 10px; }
+  body { margin: 0; background: #ddd; font-family: Arial, sans-serif; font-size: 7.5px; line-height: 1.2; color: #000; }
+  .page { background: #fff; width: 210mm; min-height: 297mm; padding: 4mm 6mm; box-shadow: 0 4px 12px rgba(0,0,0,0.2); margin: 0 auto 10px; }
   @media print {
     @page { size: A4; margin: 15mm 10mm; }
     body { background: #fff; padding: 0; margin: 0; }

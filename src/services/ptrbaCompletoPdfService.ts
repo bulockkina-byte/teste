@@ -22,14 +22,6 @@ function upper(value: string): string {
   return (value || '').toLocaleUpperCase('pt-BR');
 }
 
-function safeFilePart(value: string): string {
-  return (value || 'ptr-ba')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^\w-]+/g, '_')
-    .replace(/^_+|_+$/g, '');
-}
-
 function drawCell(doc: jsPDF, x: number, y: number, w: number, h: number, text = '', opts?: {
   bold?: boolean;
   size?: number;
@@ -258,6 +250,7 @@ export async function gerarPTRBACompletoPdf(registro: PTRBACompleto): Promise<Bl
 
 export async function baixarPTRBACompletoPdf(registro: PTRBACompleto): Promise<void> {
   const blob = await gerarPTRBACompletoPdf(registro);
-  const nome = `PTR-BA_Completo_${safeFilePart(String(registro.equipe))}_${registro.data || 'sem_data'}.pdf`;
+  const dataArquivo = registro.data ? registro.data.split('-').reverse().join('-') : 'sem_data';
+  const nome = `${dataArquivo} NVT PTRBA ${String(registro.equipe).toLocaleUpperCase('pt-BR')}.pdf`;
   downloadPdf(blob, nome);
 }

@@ -170,7 +170,7 @@ Podes combinar múltiplas skills carregando-as em sequência. A ordem importa:
 ### Viaturas CCI
 | Rota | Tela | Descrição |
 |------|------|-----------|
-| `/viaturas` | Viaturas CCI | Monitorização de viaturas do Centro de Controlo Integrado |
+| `/viaturas` | Viaturas CCI | Monitorização de viaturas do Centro de Controlo Integrado; lista todos os carros cadastrados e histórico de panes por viatura |
 
 ### Documentos
 | Rota | Tela | Descrição |

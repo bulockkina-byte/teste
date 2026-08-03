@@ -56,3 +56,23 @@ export interface Viatura {
   createdAt: string;
   updatedAt: string;
 }
+
+export type StatusPane = 'Aberta' | 'Resolvida';
+
+export const STATUS_PANE_OPTIONS: { value: StatusPane; label: string; color: string }[] = [
+  { value: 'Aberta', label: 'Aberta', color: 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400' },
+  { value: 'Resolvida', label: 'Resolvida', color: 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400' },
+];
+
+export interface ViaturaPane {
+  id: string;
+  viaturaId: string;
+  descricao: string;
+  dataRegistro: string;
+  registradoPor: string;
+  status: StatusPane;
+  resolvidaEm?: string;
+  resolvidaPor?: string;
+  createdAt: string;
+  updatedAt: string;
+}

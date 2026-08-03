@@ -54,7 +54,7 @@ function OcorrenciaForm({
     acoesTomadas: ocorrencia.acoesTomadas, status: ocorrencia.status, fotos: ocorrencia.fotos,
   } : { ...emptyOcorrencia(), equipe: userEquipe });
 
-  const input = 'w-full rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:scheme-dark';
+  const input = 'w-full rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:hover:border-graphite-500 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated dark:focus:ring-aviation-400/10 dark:placeholder:text-graphite-500 dark:scheme-dark';
   const select = input;
   const label = 'block mb-1.5 text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400';
 
@@ -63,15 +63,15 @@ function OcorrenciaForm({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 pt-8 sm:pt-16">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4 pt-8 sm:pt-16">
       <div className="flex max-h-[85vh] w-full max-w-3xl flex-col rounded-2xl bg-white/95 shadow-2xl shadow-black/10 backdrop-blur-sm dark:bg-surface-elevated/95">
         <div className="flex items-center justify-between border-b border-graphite-200/60 px-6 py-4 dark:border-border-dark">
           <h2 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">{ocorrencia ? 'Editar Ocorrência' : 'Nova Ocorrência'}</h2>
-          <button onClick={onCancel} className="rounded-lg p-1.5 text-graphite-400 hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-surface-hover">✕</button>
+          <button onClick={onCancel} className="rounded-lg p-1.5 text-graphite-400 transition-colors hover:bg-graphite-100 hover:text-graphite-600 dark:text-graphite-500 dark:hover:bg-surface-hover dark:hover:text-graphite-300">✕</button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <label className={label}>Data *</label>
               <input type="date" value={form.data} onChange={e => handleDataChange(e.target.value)} className={input} />
@@ -91,11 +91,11 @@ function OcorrenciaForm({
                 {EQUIPES.filter(eq => canManageGlobal || eq === userEquipe).map(eq => <option key={eq} value={eq}>{eq}</option>)}
               </select>
             </div>
-            <div className="sm:col-span-2 lg:col-span-5">
+            <div className="sm:col-span-2 lg:col-span-4">
               <label className={label}>Tipo *</label>
               <input value={form.titulo} onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))} className={input} placeholder="Tipo da ocorrência" />
             </div>
-            <div className="sm:col-span-2 lg:col-span-5">
+            <div className="sm:col-span-2 lg:col-span-4">
               <label className={label}>Descrição</label>
               <textarea value={form.descricao} onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))} rows={5} className={input + ' resize-y'} />
             </div>
@@ -103,7 +103,7 @@ function OcorrenciaForm({
         </div>
 
         <div className="flex justify-end gap-3 border-t border-graphite-200/60 px-6 py-4 dark:border-border-dark">
-          <button onClick={onCancel} className="rounded-xl border border-graphite-300/60 bg-white/80 px-5 py-2.5 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card/80 dark:text-graphite-200">Cancelar</button>
+          <button onClick={onCancel} className="rounded-xl border border-graphite-300/60 bg-white/80 px-5 py-2.5 text-sm font-medium text-graphite-700 transition-colors hover:bg-graphite-50 dark:border-border-dark dark:bg-surface-card/80 dark:text-graphite-200 dark:hover:bg-surface-hover">Cancelar</button>
           <button onClick={() => onSave(form)} disabled={!form.data || !form.local || !form.hora || !form.equipe || !form.titulo.trim() || !form.descricao.trim()}
             className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl hover:from-aviation-500 hover:to-aviation-600 disabled:opacity-50 disabled:cursor-not-allowed">
             <Save className="h-4 w-4" /> Salvar
@@ -232,7 +232,7 @@ export function LROOcorrencias() {
   const [filtroStatus, setFiltroStatus] = useState('');
   const MESES = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   const ANOS = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
-  const inputClass = 'rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated dark:scheme-dark';
+  const inputClass = 'rounded-xl border border-graphite-300/70 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:hover:border-graphite-500 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated dark:focus:ring-aviation-400/10 dark:scheme-dark';
 
   async function carregar() { setOcorrencias(await listarOcorrencias()); }
   useEffect(() => { carregar(); }, []);

@@ -9,7 +9,7 @@ import { EQUIPE_OPTIONS } from '../../types/bombeiro';
 
 const EQUIPES_INSPECAO = EQUIPE_OPTIONS.filter(eq => eq !== 'Ferista' && eq !== 'Embaixador');
 
-const inputClass = 'rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated';
+const inputClass = 'rounded-xl border border-graphite-300/60 bg-white/70 px-3 py-2.5 text-sm backdrop-blur-sm transition-all duration-200 hover:border-graphite-300/70 focus:border-aviation-500/50 focus:bg-white focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:hover:border-graphite-500 dark:focus:border-aviation-400/50 dark:focus:bg-surface-elevated dark:focus:ring-aviation-400/10 dark:placeholder:text-graphite-500 dark:scheme-dark';
 
 const MESES = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 const ANOS = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
@@ -135,9 +135,9 @@ export function Inspecoes() {
           </div>
 
           <div className="rounded-2xl border border-graphite-200/60 bg-white/80 p-8 shadow-sm dark:border-border-dark dark:bg-surface-card">
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5 mb-6">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-6">
               <div>
-                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-graphite-500">
+                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-graphite-500 dark:text-graphite-400">
                   <CalendarDays className="h-3.5 w-3.5" /> Data
                 </label>
                 <input type="date" value={data} onChange={e => {
@@ -147,19 +147,19 @@ export function Inspecoes() {
                 }} className={INPUT_CLASS} required />
               </div>
               <div>
-                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-graphite-500">
+                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-graphite-500 dark:text-graphite-400">
                   <CalendarDays className="h-3.5 w-3.5" /> Data do Turno
                 </label>
                 <input type="date" value={dataTurno} onChange={e => setDataTurno(e.target.value)} className={INPUT_CLASS} required />
               </div>
               <div>
-                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-graphite-500">
+                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-graphite-500 dark:text-graphite-400">
                   <Clock className="h-3.5 w-3.5" /> Hora
                 </label>
                 <input type="time" value={hora} onChange={e => setHora(e.target.value)} className={INPUT_CLASS} required />
               </div>
               <div>
-                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-graphite-500">
+                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-graphite-500 dark:text-graphite-400">
                   <Users className="h-3.5 w-3.5" /> Equipe
                 </label>
                 <select value={equipe} onChange={e => setEquipe(e.target.value as Equipe)} className={INPUT_CLASS} disabled={!canManageGlobal} required>
@@ -167,12 +167,13 @@ export function Inspecoes() {
                   {EQUIPES_INSPECAO.filter(eq => canManageGlobal || eq === equipeEfetiva).map(eq => <option key={eq} value={eq}>{eq}</option>)}
                 </select>
               </div>
-              <div>
-                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-graphite-500">
-                  <FileText className="h-3.5 w-3.5" /> Tipo
-                </label>
-                <input value={tipoInspecao} onChange={e => setTipoInspecao(e.target.value)} className={INPUT_CLASS} placeholder="Tipo da inspeção" required />
-              </div>
+            </div>
+
+            <div className="mb-6">
+              <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-graphite-500 dark:text-graphite-400">
+                <FileText className="h-3.5 w-3.5" /> Tipo
+              </label>
+              <input value={tipoInspecao} onChange={e => setTipoInspecao(e.target.value)} className={INPUT_CLASS} placeholder="Tipo da inspeção" required />
             </div>
 
             <div>
