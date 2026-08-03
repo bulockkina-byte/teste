@@ -783,7 +783,7 @@ export function GerarLRO() {
           const d = frotaDados[`row_${i}`] || EMPTY_FROTA_LINHA;
           const frotaLista = viaturas.length > 0 ? viaturas : DEFAULT_VIATURAS;
           const sel = frotaLista.find((vv: any) => vv.id === d.viaturaId);
-          return { viatura: sel?.prefixo || sel?.nome || (i === FROTA_ROWS - 1 ? '' : '—'), prefixo: d.prefixo || '', kmIni: d.kmIni || '', kmFim: d.kmFim || '', combIni: d.combIni || '', combFim: d.combFim || '', situacao: d.situacao || '' };
+          return { viatura: sel?.prefixo || sel?.nome || (i === FROTA_ROWS - 1 ? '' : '—'), viaturaId: d.viaturaId || '', prefixo: d.prefixo || '', kmIni: d.kmIni || '', kmFim: d.kmFim || '', combIni: d.combIni || '', combFim: d.combFim || '', situacao: d.situacao || '' };
         }),
         centralFaisca, radioComunicacao,
         tpTemAlteracao, tpTexto,
@@ -843,7 +843,7 @@ export function GerarLRO() {
           const d = frotaDados[`row_${i}`] || EMPTY_FROTA_LINHA;
           const frotaLista = viaturas.length > 0 ? viaturas : DEFAULT_VIATURAS;
           const sel = frotaLista.find((vv: any) => vv.id === d.viaturaId);
-          return { viatura: sel?.prefixo || sel?.nome || (i === FROTA_ROWS - 1 ? '' : '—'), prefixo: d.prefixo || '', kmIni: d.kmIni || '', kmFim: d.kmFim || '', combIni: d.combIni || '', combFim: d.combFim || '', situacao: d.situacao || '' };
+          return { viatura: sel?.prefixo || sel?.nome || (i === FROTA_ROWS - 1 ? '' : '—'), viaturaId: d.viaturaId || '', prefixo: d.prefixo || '', kmIni: d.kmIni || '', kmFim: d.kmFim || '', combIni: d.combIni || '', combFim: d.combFim || '', situacao: d.situacao || '' };
         }),
         instrucoes: Array.isArray(instrucoes) ? instrucoes : (typeof instrucoes === 'string' ? instrucoes.split('\n').filter(Boolean) : []),
         instrucoesHorarios: Array.isArray(instrucoesHorarios) ? instrucoesHorarios : (typeof instrucoesHorarios === 'string' ? instrucoesHorarios.split('\n').filter(Boolean) : []),
@@ -909,7 +909,7 @@ export function GerarLRO() {
         const d = frotaDados[`row_${i}`] || EMPTY_FROTA_LINHA;
         const frotaLista = viaturas.length > 0 ? viaturas : DEFAULT_VIATURAS;
         const sel = frotaLista.find((vv: any) => vv.id === d.viaturaId);
-        return { viatura: sel?.prefixo || sel?.nome || '—', prefixo: d.prefixo || '', kmIni: d.kmIni || '', kmFim: d.kmFim || '', combIni: d.combIni || '', combFim: d.combFim || '', situacao: d.situacao || '' };
+        return { viatura: sel?.prefixo || sel?.nome || '—', viaturaId: d.viaturaId || '', prefixo: d.prefixo || '', kmIni: d.kmIni || '', kmFim: d.kmFim || '', combIni: d.combIni || '', combFim: d.combFim || '', situacao: d.situacao || '' };
       }),
       instrucoes: Array.isArray(instrucoes) ? instrucoes : (typeof instrucoes === 'string' ? instrucoes.split('\n').filter(Boolean) : []),
       instrucoesHorarios: Array.isArray(instrucoesHorarios) ? instrucoesHorarios : (typeof instrucoesHorarios === 'string' ? instrucoesHorarios.split('\n').filter(Boolean) : []),
@@ -960,7 +960,7 @@ export function GerarLRO() {
           const d = frotaDados[`row_${i}`] || EMPTY_FROTA_LINHA;
           const frotaLista = viaturas.length > 0 ? viaturas : DEFAULT_VIATURAS;
           const sel = frotaLista.find((vv: any) => vv.id === d.viaturaId);
-          return { viatura: sel?.prefixo || sel?.nome || (i === FROTA_ROWS - 1 ? '' : '—'), prefixo: d.prefixo || '', kmIni: d.kmIni || '', kmFim: d.kmFim || '', combIni: d.combIni || '', combFim: d.combFim || '', situacao: d.situacao || '' };
+          return { viatura: sel?.prefixo || sel?.nome || (i === FROTA_ROWS - 1 ? '' : '—'), viaturaId: d.viaturaId || '', prefixo: d.prefixo || '', kmIni: d.kmIni || '', kmFim: d.kmFim || '', combIni: d.combIni || '', combFim: d.combFim || '', situacao: d.situacao || '' };
         }),
         instrucoes: Array.isArray(instrucoes) ? instrucoes : (typeof instrucoes === 'string' ? instrucoes.split('\n').filter(Boolean) : []),
         instrucoesHorarios: Array.isArray(instrucoesHorarios) ? instrucoesHorarios : (typeof instrucoesHorarios === 'string' ? instrucoesHorarios.split('\n').filter(Boolean) : []),
@@ -1182,7 +1182,11 @@ export function GerarLRO() {
                         if (dd.frota) {
                           const fDados: Record<string, any> = {};
                           (dd.frota as any[]).forEach((f: any, i: number) => {
-                            fDados[`row_${i}`] = { viaturaId: '', prefixo: f.prefixo || '', kmIni: f.kmIni || '', kmFim: f.kmFim || '', combIni: f.combIni || '', combFim: f.combFim || '', situacao: f.situacao || '' };
+                            const frotaLista = viaturas.length > 0 ? viaturas : DEFAULT_VIATURAS;
+                            const match = f.viaturaId
+                              ? frotaLista.find((vv: any) => vv.id === f.viaturaId)
+                              : frotaLista.find((vv: any) => (vv.prefixo || vv.nome) === f.viatura);
+                            fDados[`row_${i}`] = { viaturaId: match?.id || f.viaturaId || '', prefixo: f.prefixo || '', kmIni: f.kmIni || '', kmFim: f.kmFim || '', combIni: f.combIni || '', combFim: f.combFim || '', situacao: f.situacao || '' };
                           });
                           setFrotaDados(fDados);
                         }
