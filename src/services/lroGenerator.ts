@@ -21,6 +21,34 @@ function motivoSubstituicaoLabel(motivo: string | undefined): string {
   return 'Cascata';
 }
 
+export function dividirEmLancamentos(texto: string): string[] {
+  const linhas = texto.split('\n');
+  const temLinhaVazia = linhas.some(l => l.trim() === '');
+  if (!temLinhaVazia) return linhas.filter(l => l.trim() !== '');
+  const blocos: string[] = [];
+  let atual: string[] = [];
+  for (const linha of linhas) {
+    if (!linha.trim()) {
+      if (atual.length > 0) {
+        blocos.push(atual.join('\n'));
+        atual = [];
+      }
+    } else {
+      atual.push(linha);
+    }
+  }
+  if (atual.length > 0) blocos.push(atual.join('\n'));
+  return blocos;
+}
+
+function linhasLancamento(blocos: string[]): string {
+  return blocos.map((bloco, i) => {
+    const conteudo = bloco.replace(/\n/g, '<br />');
+    const espaco = i > 0 ? '<tr><td style="border:none; padding:2px 8px; font-size:11px;">&nbsp;</td></tr>' : '';
+    return `${espaco}<tr><td style="border:none; padding:2px 8px; font-size:11px;">${conteudo}</td></tr>`;
+  }).join('');
+}
+
 export function montarHTML(dados: Record<string, unknown>, showMarkers = false, isPdf = false): string {
   const e = (k: string, fallback = '') => String(dados[k] ?? fallback);
 
@@ -104,11 +132,11 @@ ${substituicoesAtivas.map(s => `
     : '';
 
   const ocorrenciasHTML = ocorrenciasXII.length > 0
-    ? ocorrenciasXII.map(o => `<tr><td style="border:none; padding:2px 8px; font-size:11px;">${o}</td></tr>`).join('')
+    ? linhasLancamento(ocorrenciasXII)
     : '<tr><td style="border:none; padding:10px 4px; font-size:11px;"></td></tr>';
 
   const solicitacoesHTML = solicitacoes.length > 0
-    ? solicitacoes.map(s => `<tr><td style="border:none; padding:2px 8px; font-size:11px;">${s}</td></tr>`).join('')
+    ? linhasLancamento(solicitacoes)
     : '<tr><td style="border:none; height:16px;"></td></tr>';
 
   const ocorrenciasNAHTML = ocorrenciasNA
@@ -116,7 +144,7 @@ ${substituicoesAtivas.map(s => `
     : '<tr><td style="border:none; height:14px;"></td></tr>';
 
   const inspecoesHTML = inspecoes
-    ? inspecoes.split('\n').filter(Boolean).map(o => `<tr><td style="border:none; padding:2px 8px; font-size:11px;">${o}</td></tr>`).join('')
+    ? linhasLancamento(dividirEmLancamentos(inspecoes))
     : '<tr><td style="border:none; height:14px;"></td></tr>';
 
   const frotaCombinada = frota.map(f => `${f.combIni || '—'}→${f.combFim || '—'}`).join(', ') || '';

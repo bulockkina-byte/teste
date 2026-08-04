@@ -20,7 +20,7 @@ import { listarConferencias } from '../../services/conferenciaService';
 import { listarOcorrencias } from '../../services/ocorrenciaService';
 import { listarReas } from '../../services/reaService';
 import { salvarDraft, listarDrafts, excluirDraft, atualizarStatus, type LRODraft, type LRODraftStatus } from '../../services/lroDraftService';
-import { gerarPDF } from '../../services/lroGenerator';
+import { gerarPDF, dividirEmLancamentos } from '../../services/lroGenerator';
 import type { Bombeiro } from '../../types/bombeiro';
 import type { Conferencia } from '../../types/conferencia';
 import type { FeriasGozo } from '../../types/ferias';
@@ -494,10 +494,28 @@ export function GerarLRO() {
   }
 
   function linhaLXII(hora: string, tipo: string, descricao: string): string {
-    const descricaoLimpa = String(descricao || '').replace(/\s+$/g, '').trim();
+    const descricaoLimpa = textoInline(descricao);
     if (!descricaoLimpa) return '';
     const cabecalho = [horaCurta(hora), textoInline(tipo)].filter(Boolean).join(' - ');
     return cabecalho ? `${cabecalho}\n${descricaoLimpa}` : descricaoLimpa;
+  }
+
+  function lancamentosParaTexto(valor: unknown): string {
+    if (!Array.isArray(valor)) return String(valor || '');
+    const items = (valor as string[]).filter(Boolean);
+    if (items.length === 0) return '';
+    if (items.some(x => x.includes('\n'))) return items.join('\n\n');
+    const blocos: string[] = [];
+    let atual: string[] = [];
+    for (const linha of items) {
+      if (/^\d{1,2}:\d{2}\s*-/.test(linha) && atual.length > 0) {
+        blocos.push(atual.join('\n'));
+        atual = [];
+      }
+      atual.push(linha);
+    }
+    if (atual.length > 0) blocos.push(atual.join('\n'));
+    return blocos.join('\n\n');
   }
 
   function registroNoPlantao(dataRegistro: string, horaRegistro: string, equipeRegistro: string, dataTurno?: string): boolean {
@@ -535,7 +553,7 @@ export function GerarLRO() {
         registro.observacoes,
       ))
       .filter(Boolean)
-      .join('\n');
+      .join('\n\n');
   }, [conferencias, equipe, dataInicio, dataFim, horarioBase.turno, horarioPlantao.inicio, horarioPlantao.fim]);
 
   const inspecoesAutomaticas = useMemo(() => {
@@ -553,7 +571,7 @@ export function GerarLRO() {
         registro.observacoes,
       ))
       .filter(Boolean)
-      .join('\n');
+      .join('\n\n');
   }, [conferencias, equipe, dataInicio, dataFim, horarioBase.turno, horarioPlantao.inicio, horarioPlantao.fim]);
 
   const ocorrenciasAutomaticas = useMemo(() => {
@@ -569,7 +587,7 @@ export function GerarLRO() {
         registro.descricao,
       ))
       .filter(Boolean)
-      .join('\n');
+      .join('\n\n');
   }, [ocorrenciasOperacionais, equipe, dataInicio, dataFim, horarioBase.turno, horarioPlantao.inicio, horarioPlantao.fim]);
 
   const bonaAutomaticas = useMemo(() => {
@@ -800,8 +818,8 @@ export function GerarLRO() {
         edifTemAlteracao, edifTexto,
         ocorrenciasNA, inspecoes,
         emergenciaXI,
-        ocorrenciasXII: Array.isArray(outrasOcorrencias) ? outrasOcorrencias : (typeof outrasOcorrencias === 'string' ? outrasOcorrencias.split('\n').filter(Boolean) : []),
-        solicitacoes: solicitacoesCCR.split('\n').filter(Boolean),
+        ocorrenciasXII: Array.isArray(outrasOcorrencias) ? outrasOcorrencias : dividirEmLancamentos(outrasOcorrencias || ''),
+        solicitacoes: dividirEmLancamentos(solicitacoesCCR),
         substituicao: [
           ...substituicoesDetectadas.filter(s => s.tipo === 'troca' && s.confirmada !== false).map(s => {
             const p1 = bombeiros.find((b: any) => s.substituido.includes(b.nomeCompleto) || s.substituido.includes(b.nomeGuerra));
@@ -859,8 +877,8 @@ export function GerarLRO() {
         radioComunicacao: radioComunicacao || 'SEM ALTERAÇÕES',
         tpTexto, extTexto, equipTexto, edifTexto,
         emergenciaXI,
-        ocorrenciasXII: Array.isArray(outrasOcorrencias) ? outrasOcorrencias : (typeof outrasOcorrencias === 'string' ? outrasOcorrencias.split('\n').filter(Boolean) : []),
-        solicitacoes: solicitacoesCCR.split('\n').filter(Boolean),
+        ocorrenciasXII: Array.isArray(outrasOcorrencias) ? outrasOcorrencias : dividirEmLancamentos(outrasOcorrencias || ''),
+        solicitacoes: dividirEmLancamentos(solicitacoesCCR),
         substituicao: [
           ...substituicoesDetectadas.filter(s => s.tipo === 'troca' && s.confirmada !== false).map(s => {
             const p1 = bombeiros.find((b: any) => s.substituido.includes(b.nomeCompleto) || s.substituido.includes(b.nomeGuerra));
@@ -929,8 +947,8 @@ export function GerarLRO() {
       edifTemAlteracao, edifTexto,
       ocorrenciasNA, inspecoes,
       emergenciaXI,
-      ocorrenciasXII: Array.isArray(outrasOcorrencias) ? outrasOcorrencias : (typeof outrasOcorrencias === 'string' ? outrasOcorrencias.split('\n').filter(Boolean) : []),
-      solicitacoes: solicitacoesCCR.split('\n').filter(Boolean),
+      ocorrenciasXII: Array.isArray(outrasOcorrencias) ? outrasOcorrencias : dividirEmLancamentos(outrasOcorrencias || ''),
+      solicitacoes: dividirEmLancamentos(solicitacoesCCR),
       substituicao: [
         ...substituicoesDetectadas.filter(s => s.tipo === 'troca' && s.confirmada !== false).map(s => {
           const p1 = bombeiros.find((b: any) => s.substituido.includes(b.nomeCompleto) || s.substituido.includes(b.nomeGuerra));
@@ -980,8 +998,8 @@ export function GerarLRO() {
         edifTemAlteracao, edifTexto,
         ocorrenciasNA, inspecoes,
         emergenciaXI,
-        ocorrenciasXII: Array.isArray(outrasOcorrencias) ? outrasOcorrencias : (typeof outrasOcorrencias === 'string' ? outrasOcorrencias.split('\n').filter(Boolean) : []),
-        solicitacoes: solicitacoesCCR.split('\n').filter(Boolean),
+        ocorrenciasXII: Array.isArray(outrasOcorrencias) ? outrasOcorrencias : dividirEmLancamentos(outrasOcorrencias || ''),
+        solicitacoes: dividirEmLancamentos(solicitacoesCCR),
         substituicao: [
           ...substituicoesDetectadas.filter(s => s.tipo === 'troca' && s.confirmada !== false).map(s => {
             const p1 = bombeiros.find((b: any) => s.substituido.includes(b.nomeCompleto) || s.substituido.includes(b.nomeGuerra));
@@ -1211,8 +1229,8 @@ export function GerarLRO() {
                         setOcorrenciasNA(dd.ocorrenciasNA || '');
                         setInspecoes(dd.inspecoes || '');
                         setEmergenciaXI(dd.emergenciaXI || '');
-                        setOutrasOcorrencias(Array.isArray(dd.ocorrenciasXII) ? dd.ocorrenciasXII.join('\n') : (dd.ocorrenciasXII || ''));
-                        setSolicitacoesCCR(Array.isArray(dd.solicitacoes) ? dd.solicitacoes.join('\n') : (dd.solicitacoes || ''));
+                        setOutrasOcorrencias(lancamentosParaTexto(dd.ocorrenciasXII));
+                        setSolicitacoesCCR(lancamentosParaTexto(dd.solicitacoes));
                         if (dd._trocasManuais) setTrocasManuais(dd._trocasManuais);
                         if (dd._substituicoesDetectadas) {
                           const manuais = (dd._substituicoesDetectadas as any[]).filter((s: any) => s.tipo === 'troca' && s.confirmada !== false);
