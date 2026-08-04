@@ -13,6 +13,7 @@ import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { SearchSelect, type AtivoItem } from '../../components/ui/SearchSelect';
 import { useContextoOperacional } from '../../hooks/useContextoOperacional';
+import { canCriarRegistrosDiarios, canGerenciarRegistroDiario } from '../../utils/permissoes';
 import { listarAPOCs } from '../../services/apocService';
 import { listarBombeiros } from '../../services/bombeiroService';
 import { baixarPTRBACompletoPdf } from '../../services/ptrbaCompletoPdfService';
@@ -145,6 +146,7 @@ function PTRBACompletoForm({
   vigencias,
   trocaFills,
   canManageGlobal,
+  canEscolherEquipe,
   equipeEfetiva,
 }: {
   registro?: PTRBACompleto;
@@ -155,6 +157,7 @@ function PTRBACompletoForm({
   vigencias: any[];
   trocaFills: any[];
   canManageGlobal: boolean;
+  canEscolherEquipe: boolean;
   equipeEfetiva: string | null;
 }) {
   const [form, setForm] = useState(() => montarInicial(canManageGlobal ? null : equipeEfetiva));
@@ -286,7 +289,7 @@ function PTRBACompletoForm({
   }, [registro, form.equipe, form.data, opcoesParticipantes]);
 
   function updateEquipe(equipe: string) {
-    if (!canManageGlobal) return;
+    if (!canEscolherEquipe) return;
     setForm(f => ({ ...f, equipe }));
   }
 
@@ -384,9 +387,9 @@ function PTRBACompletoForm({
           </div>
           <div>
             <label className={label}>Equipe</label>
-            <select value={form.equipe} onChange={e => updateEquipe(e.target.value)} className={input} disabled={!canManageGlobal}>
+            <select value={form.equipe} onChange={e => updateEquipe(e.target.value)} className={input} disabled={!canEscolherEquipe}>
               {PTRBA_COMPLETO_EQUIPES
-                .filter(eq => canManageGlobal || eq === equipeEfetiva)
+                .filter(eq => canEscolherEquipe || eq === equipeEfetiva)
                 .map(eq => <option key={eq} value={eq}>{eq}</option>)}
             </select>
           </div>
@@ -664,10 +667,11 @@ function ViewMode({ registro, onBack, onDownload, downloading }: {
 }
 
 export function PTRBACompletoPage() {
-  const { user, canManageGlobal, canManageEquipe, equipeEfetiva } = useContextoOperacional();
+  const { user, contexto, canManageGlobal, equipeEfetiva } = useContextoOperacional();
   const username = user?.username || '';
-  const equipePodeCriar = !!equipeEfetiva && PTRBA_COMPLETO_EQUIPES.includes(equipeEfetiva as Equipe);
-  const canCreate = canManageGlobal || equipePodeCriar;
+  const podeCriar = canCriarRegistrosDiarios(contexto);
+  const canCreate = podeCriar;
+  const canEscolherEquipe = podeCriar;
   const [registros, setRegistros] = useState<PTRBACompleto[]>([]);
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
   const [apocs, setApocs] = useState<APOC[]>([]);
@@ -735,15 +739,15 @@ export function PTRBACompletoPage() {
 
   async function handleSave(input: Omit<PTRBACompletoInput, 'createdBy'>) {
     try {
-      const equipeAlvo = canManageGlobal ? input.equipe : equipeEfetiva || input.equipe;
-      if (!canManageEquipe(String(equipeAlvo))) {
-        alert('Você só pode salvar PTR-BA completo da sua equipe efetiva.');
+      if (!canCriarRegistrosDiarios(contexto)) {
+        alert('Você não tem permissão para salvar PTR-BA completo.');
         return;
       }
-      if (editando?.id && !canManageEquipe(String(editando.equipe))) {
-        alert('Você só pode editar PTR-BA completo da sua equipe efetiva.');
+      if (editando?.id && !canGerenciarRegistroDiario(contexto, editando, username, bombeiros)) {
+        alert('Você só pode editar PTR-BA completo que você criou (ou que seu chefe de equipe criou, no caso de BA-LR).');
         return;
       }
+      const equipeAlvo = canEscolherEquipe ? input.equipe : equipeEfetiva || input.equipe;
       const payload = { ...input, equipe: equipeAlvo as Equipe };
       let salvo: PTRBACompleto | null;
       if (editando?.id) {
@@ -767,8 +771,8 @@ export function PTRBACompletoPage() {
   async function handleDelete(id: string) {
     try {
       const alvo = registros.find(registro => registro.id === id);
-      if (!alvo || !canManageEquipe(String(alvo.equipe))) {
-        alert('Você só pode excluir PTR-BA completo da sua equipe efetiva.');
+      if (!alvo || !canGerenciarRegistroDiario(contexto, alvo, username, bombeiros)) {
+        alert('Você só pode excluir PTR-BA completo que você criou (ou que seu chefe de equipe criou, no caso de BA-LR).');
         setConfirmDelete(null);
         return;
       }
@@ -804,6 +808,7 @@ export function PTRBACompletoPage() {
           vigencias={vigencias}
           trocaFills={trocaFills}
           canManageGlobal={canManageGlobal}
+          canEscolherEquipe={canEscolherEquipe}
           equipeEfetiva={equipeEfetiva}
         />
       </PageContainer>
@@ -873,7 +878,7 @@ export function PTRBACompletoPage() {
             <PTRBACompletoCard
               key={registro.id}
               registro={registro}
-              canEdit={canManageEquipe(String(registro.equipe))}
+              canEdit={canGerenciarRegistroDiario(contexto, registro, username, bombeiros)}
               downloading={downloadingId === registro.id}
               onView={() => { setVisualizando(registro); setMode('view'); }}
               onEdit={() => { setEditando(registro); setMode('form'); }}

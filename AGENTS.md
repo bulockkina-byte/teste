@@ -470,7 +470,7 @@ Referência: **21/07/2026** = Alfa + Bravo
 | EPIs | Todos visualizam e operam estoque/pagamento/devolução; excluir EPI/estoque: apenas Admin/GS |
 | Certificações | Admin/GS visualizam e editam tudo; `BA-CE`/`BA-LR` visualizam somente a equipe efetiva; demais cargos sem acesso |
 | Férias | Botões de cadastro manual, bombeiros e aprovações: apenas Admin/GS; escalas e cards ficam globais para Admin/GS e por equipe efetiva para os demais; Quadro de Efetivos é visível a todos |
-| Registos Diários | Todos visualizam todas as equipes; criar/editar/excluir/salvar/enviar: apenas a equipe efetiva do usuário, exceto Admin/GS que gerem todas |
+| Registos Diários (PTR-BA Completo, PTR-BA por Instrução, Gerar LRO) | Todos visualizam todas as equipes; criar/editar/excluir em qualquer equipe: apenas Admin/dev e `BA-CE`/`BA-LR` (trocas de plantão); `BA-CE`/`BA-LR` só alteram/excluem o que criaram (e o `BA-LR` também o que o `BA-CE` da equipe criou); GS apenas visualiza; finalizar/arquivar LRO: apenas Admin/dev |
 | Viaturas CCI | Todos visualizam |
 | Documentos > Trocas | Todos visualizam; editar/excluir/arquivar/enviar: apenas quando a troca envolve a equipe efetiva, exceto Admin/GS |
 | Documentos > Checklists | Todos visualizam e imprimem; criar/editar/excluir: apenas Admin/GS |

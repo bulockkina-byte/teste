@@ -164,7 +164,7 @@ function drawEvidenceImage(doc: jsPDF, dataUrl: string, x: number, y: number, w:
   try {
     const props = doc.getImageProperties(dataUrl);
     const ratio = Math.min(w / props.width, h / props.height);
-    const imgW = props.width * ratio;
+    const imgW = Math.min(props.width * ratio * 1.15, w);
     const imgH = props.height * ratio;
     const imgX = x + (w - imgW) / 2;
     const imgY = y + (h - imgH) / 2;

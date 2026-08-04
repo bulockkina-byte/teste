@@ -213,3 +213,57 @@ export function equipeEscopoCertificacoes(contexto: ContextoOperacionalPermissao
   if (canGerenciarCertificacoes(contexto)) return null;
   return canVisualizarCertificacoes(contexto) ? contexto.equipe : null;
 }
+
+/**
+ * Registos Diários (PTR-BA, LRO, Ocorrências)
+ * - admin/dev: criam/gerem qualquer equipe
+ * - GS: apenas visualiza (não cria/altera)
+ * - BA-CE/BA-LR: podem criar em qualquer equipe (trocas de plantão), mas só alteram
+ *   os registos que eles próprios criaram; o BA-LR também pode alterar os registos
+ *   criados pelo BA-CE (chefe) da equipe do registo
+ * - demais cargos: apenas visualizam
+ */
+
+export function canCriarRegistrosDiarios(contexto: ContextoOperacionalPermissao): boolean {
+  if (contexto.isAdministradorSistema) return true;
+  if (contexto.cargo === 'GS') return false;
+  return contexto.cargo === 'BA-CE' || contexto.cargo === 'BA-LR';
+}
+
+function nomeIgual(username: string | null | undefined, criadoPor: string | null | undefined): boolean {
+  const a = String(username || '').trim().toLowerCase();
+  const b = String(criadoPor || '').trim().toLowerCase();
+  return !!a && !!b && a === b;
+}
+
+function chefesDaEquipe(
+  bombeiros: { nomeGuerra?: string; nomeCompleto?: string; email?: string; cargo?: string; equipe?: string }[],
+  equipe?: string | null,
+): { nomeGuerra?: string; nomeCompleto?: string; email?: string }[] {
+  return (bombeiros || []).filter(b =>
+    b.cargo === 'BA-CE' && (!equipe || b.equipe === equipe)
+  );
+}
+
+export function canGerenciarRegistroDiario(
+  contexto: ContextoOperacionalPermissao,
+  registro: { createdBy?: string | null; equipe?: string | null },
+  username: string | null | undefined,
+  bombeiros?: { nomeGuerra?: string; nomeCompleto?: string; email?: string; cargo?: string; equipe?: string }[],
+): boolean {
+  if (contexto.isAdministradorSistema) return true;
+  if (contexto.cargo === 'GS') return false;
+  if (contexto.cargo !== 'BA-CE' && contexto.cargo !== 'BA-LR') return false;
+
+  if (nomeIgual(username, registro.createdBy)) return true;
+
+  if (contexto.cargo === 'BA-LR') {
+    return chefesDaEquipe(bombeiros, registro.equipe).some(c =>
+      nomeIgual(c.nomeGuerra, registro.createdBy) ||
+      nomeIgual(c.nomeCompleto, registro.createdBy) ||
+      nomeIgual(c.email, registro.createdBy)
+    );
+  }
+
+  return false;
+}

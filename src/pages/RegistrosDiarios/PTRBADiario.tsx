@@ -22,7 +22,7 @@ import type { APOC } from '../../types/apoc';
 import type { PTRB, PTRBParticipante } from '../../types/ptrb';
 import { EQUIPES, SITUACOES, ASSUNTOS } from '../../types/ptrb';
 import { horarioPlantaoPorEquipe } from '../../utils/equipes';
-import { isAdministradorSistema } from '../../utils/permissoes';
+import { canCriarRegistrosDiarios, canGerenciarRegistroDiario } from '../../utils/permissoes';
 
 const EQUIPES_FILTRO = EQUIPES.filter(eq => eq !== 'Ferista');
 
@@ -103,7 +103,7 @@ function PTRBAForm({
   trocaFills,
   vigencias,
   apocs,
-  canManageGlobal,
+  canEscolherEquipe,
   equipeEfetiva,
 }: {
   ptrb?: PTRB;
@@ -115,10 +115,10 @@ function PTRBAForm({
   trocaFills: any[];
   vigencias: any[];
   apocs: APOC[];
-  canManageGlobal: boolean;
+  canEscolherEquipe: boolean;
   equipeEfetiva: string | null;
 }) {
-  const [form, setForm] = useState(() => montarPTRBInicial(canManageGlobal ? null : equipeEfetiva));
+  const [form, setForm] = useState(() => montarPTRBInicial(canEscolherEquipe ? null : equipeEfetiva));
 
   useEffect(() => {
     if (ptrb) {
@@ -138,13 +138,13 @@ function PTRBAForm({
         informacoesComplementares: ptrb.informacoesComplementares,
         fotos: ptrb.fotos.length ? ptrb.fotos : ['', '', ''],
       });
-    } else if (!canManageGlobal && equipeEfetiva) {
+    } else if (!canEscolherEquipe && equipeEfetiva) {
       setForm(montarPTRBInicial(equipeEfetiva));
     }
-  }, [ptrb, canManageGlobal, equipeEfetiva]);
+  }, [ptrb, canEscolherEquipe, equipeEfetiva]);
 
   function updateEquipe(equipe: string) {
-    if (!canManageGlobal) return;
+    if (!canEscolherEquipe) return;
     const horario = horarioPlantaoPorEquipe(equipe);
     const duracao = calcDuracao(horario.horarioInicio, horario.horarioTermino);
     setForm(f => ({
@@ -379,8 +379,8 @@ function PTRBAForm({
           </div>
           <div>
             <label className={label}>Equipe</label>
-            <select value={form.equipe} onChange={e => updateEquipe(e.target.value)} className={input} disabled={!canManageGlobal}>
-              {EQUIPES_FILTRO.filter(eq => canManageGlobal || eq === equipeEfetiva).map(eq => <option key={eq} value={eq}>{eq}</option>)}
+            <select value={form.equipe} onChange={e => updateEquipe(e.target.value)} className={input} disabled={!canEscolherEquipe}>
+              {EQUIPES_FILTRO.filter(eq => canEscolherEquipe || eq === equipeEfetiva).map(eq => <option key={eq} value={eq}>{eq}</option>)}
             </select>
           </div>
           <div>
@@ -732,10 +732,11 @@ function ViewMode({ ptrb, onBack }: { ptrb: PTRB; onBack: () => void }) {
 
 // ─── MAIN ────────────────────────────────────────────────
 export function PTRBADiario() {
-  const { user, canManageGlobal, canManageEquipe, equipeEfetiva } = useContextoOperacional();
+  const { user, contexto, equipeEfetiva } = useContextoOperacional();
   const username = user?.username || '';
-  const isAdminOnly = isAdministradorSistema(user);
-  const canCreate = canManageGlobal || !!equipeEfetiva;
+  const podeCriar = canCriarRegistrosDiarios(contexto);
+  const canCreate = podeCriar;
+  const canEscolherEquipe = podeCriar;
   const [ptrbs, setPtrbs] = useState<PTRB[]>([]);
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
   const [feriasGozo, setFeriasGozo] = useState<FeriasGozo[]>([]);
@@ -800,7 +801,7 @@ export function PTRBADiario() {
   }
 
   useEffect(() => {
-    if (!isAdminOnly) {
+    if (!podeCriar) {
       setLoading(false);
       return;
     }
@@ -813,19 +814,19 @@ export function PTRBADiario() {
     }
     init();
     return () => { cancelled = true; };
-  }, [username, isAdminOnly]);
+  }, [username, podeCriar]);
 
   async function handleSave(data: Omit<PTRB, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) {
     try {
-      const equipeAlvo = canManageGlobal ? data.equipe : equipeEfetiva || data.equipe;
-      if (!canManageEquipe(equipeAlvo)) {
-        alert('Você só pode salvar PTR-BA da sua equipe efetiva.');
+      if (!canCriarRegistrosDiarios(contexto)) {
+        alert('Você não tem permissão para salvar PTR-BA por Instrução.');
         return;
       }
-      if (editando?.id && !canManageEquipe(editando.equipe)) {
-        alert('Você só pode editar PTR-BA da sua equipe efetiva.');
+      if (editando?.id && !canGerenciarRegistroDiario(contexto, editando, username, bombeiros)) {
+        alert('Você só pode editar PTR-BA que você criou (ou que seu chefe de equipe criou, no caso de BA-LR).');
         return;
       }
+      const equipeAlvo = canEscolherEquipe ? data.equipe : equipeEfetiva || data.equipe;
       const payload = { ...data, equipe: equipeAlvo as Equipe };
       let saved: PTRB | null;
       if (editando && editando.id) {
@@ -847,8 +848,8 @@ export function PTRBADiario() {
   }
 
   function handleClone(e: PTRB) {
-    if (!canManageEquipe(e.equipe)) {
-      alert('Você só pode clonar PTR-BA da sua equipe efetiva.');
+    if (!canGerenciarRegistroDiario(contexto, e, username, bombeiros)) {
+      alert('Você só pode clonar PTR-BA que você criou (ou que seu chefe de equipe criou, no caso de BA-LR).');
       return;
     }
     setEditando({
@@ -871,8 +872,8 @@ export function PTRBADiario() {
   async function handleDelete(id: string) {
     try {
       const alvo = ptrbs.find(e => e.id === id);
-      if (!alvo || !canManageEquipe(alvo.equipe)) {
-        alert('Você só pode excluir PTR-BA da sua equipe efetiva.');
+      if (!alvo || !canGerenciarRegistroDiario(contexto, alvo, username, bombeiros)) {
+        alert('Você só pode excluir PTR-BA que você criou (ou que seu chefe de equipe criou, no caso de BA-LR).');
         setConfirmDelete(null);
         return;
       }
@@ -884,13 +885,13 @@ export function PTRBADiario() {
     }
   }
 
-  if (!isAdminOnly) {
+  if (!podeCriar) {
     return (
       <PageContainer>
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white p-12 text-center dark:border-border-dark dark:bg-surface-card">
           <Lock className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
           <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Acesso restrito</h3>
-          <p className="text-sm text-graphite-400 dark:text-graphite-500">Esta tela está disponível apenas para administradores e desenvolvedores do sistema.</p>
+          <p className="text-sm text-graphite-400 dark:text-graphite-500">Esta tela está disponível apenas para administradores, desenvolvedores e chefes de equipe (BA-CE/BA-LR) do sistema.</p>
         </div>
       </PageContainer>
     );
@@ -910,7 +911,7 @@ export function PTRBADiario() {
           trocaFills={trocaFills}
           vigencias={vigencias}
           apocs={apocs}
-          canManageGlobal={canManageGlobal}
+          canEscolherEquipe={canEscolherEquipe}
           equipeEfetiva={equipeEfetiva}
         />
       </PageContainer>
@@ -977,7 +978,7 @@ export function PTRBADiario() {
             <PTRBCard
               key={e.id}
               ptrb={e}
-              canEdit={canManageEquipe(e.equipe)}
+              canEdit={canGerenciarRegistroDiario(contexto, e, username, bombeiros)}
               onView={() => { setVisualizando(e); setMode('view'); }}
               onEdit={() => { setEditando(e); setMode('form'); }}
               onClone={() => handleClone(e)}

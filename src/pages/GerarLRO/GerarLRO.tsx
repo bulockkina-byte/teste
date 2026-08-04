@@ -29,6 +29,7 @@ import type { PTRB } from '../../types/ptrb';
 import type { PTRBACompleto } from '../../types/ptrbaCompleto';
 import type { ReaRegistro } from '../../types/rea';
 import { dataSaidaPlantao, horarioPlantaoPorEquipe } from '../../utils/equipes';
+import { canCriarRegistrosDiarios, canGerenciarRegistroDiario } from '../../utils/permissoes';
 import { validarCursoParaFuncao } from '../../utils/validacaoCursos';
 
 function SearchSelect({ options, value, onChange, placeholder, label }: {
@@ -128,10 +129,12 @@ const STATUS_LABELS: Record<LRODraftStatus, string> = {
 };
 
 export function GerarLRO() {
-  const { user, canManageGlobal, canManageEquipe, equipeEfetiva } = useContextoOperacional();
+  const { user, contexto, equipeEfetiva } = useContextoOperacional();
   const navigate = useNavigate();
   const username = user?.username || '';
-  const canCreate = canManageGlobal || !!equipeEfetiva;
+  const podeCriar = canCriarRegistrosDiarios(contexto);
+  const canCreate = podeCriar;
+  const canEscolherEquipe = podeCriar;
 
   const [step, setStep] = useState<Step>('equipe');
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
@@ -202,9 +205,9 @@ export function GerarLRO() {
   const MESES = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   const ANOS = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
   const equipesFormulario = useMemo(() => {
-    if (canManageGlobal) return ['Alfa', 'Bravo', 'Charlie', 'Delta'] as EquipeOpcao[];
+    if (canEscolherEquipe) return ['Alfa', 'Bravo', 'Charlie', 'Delta'] as EquipeOpcao[];
     return equipeEfetiva ? [equipeEfetiva as EquipeOpcao] : [];
-  }, [canManageGlobal, equipeEfetiva]);
+  }, [canEscolherEquipe, equipeEfetiva]);
   const inputClass = 'w-full rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm text-graphite-900 transition-all hover:border-graphite-400 focus:border-aviation-500 focus:ring-2 focus:ring-aviation-500/10 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100 dark:focus:border-aviation-400 dark:focus:ring-aviation-400/10';
   const [view, setView] = useState<'lista' | 'wizard'>('lista');
   const [showConfirm, setShowConfirm] = useState(false);
@@ -222,20 +225,25 @@ export function GerarLRO() {
 
   function canManageDraft(draft: LRODraft): boolean {
     const dados = draft.dados as Record<string, unknown>;
-    return canManageEquipe(draft.equipe || (dados?.equipeNome as string | undefined) || '');
+    return canGerenciarRegistroDiario(
+      contexto,
+      { createdBy: draft.created_by, equipe: draft.equipe || (dados?.equipeNome as string | undefined) || '' },
+      username,
+      bombeiros,
+    );
   }
 
   function bloquearEquipeAtual(acao: string): boolean {
-    if (canManageEquipe(equipe)) return false;
-    setErroValidacao(`Você só pode ${acao} LRO da sua equipe efetiva.`);
+    if (canCriarRegistrosDiarios(contexto)) return false;
+    setErroValidacao(`Você não tem permissão para ${acao} LRO.`);
     return true;
   }
 
   useEffect(() => {
-    if (!canManageGlobal && equipeEfetiva && equipe !== equipeEfetiva) {
+    if (!canEscolherEquipe && equipeEfetiva && equipe !== equipeEfetiva) {
       setEquipe(equipeEfetiva as EquipeOpcao);
     }
-  }, [canManageGlobal, equipeEfetiva, equipe]);
+  }, [canEscolherEquipe, equipeEfetiva, equipe]);
 
   useEffect(() => {
     const tick = () => {
@@ -1216,7 +1224,7 @@ export function GerarLRO() {
                         Continuar
                       </button>
                     ) : null}
-                    {canManageGlobal && d.status === 'aguardando' && (
+                    {contexto.isAdministradorSistema && d.status === 'aguardando' && (
                       <button onClick={async () => {
                         await atualizarStatus(d.id, 'finalizado');
                         setDrafts(prev => prev.map(x => x.id === d.id ? { ...x, status: 'finalizado' } : x));
@@ -1225,7 +1233,7 @@ export function GerarLRO() {
                         <Check className="h-3.5 w-3.5 inline-block mr-1" /> Finalizar
                       </button>
                     )}
-                    {canManageGlobal && d.status !== 'arquivado' && d.status !== 'rascunho' && (
+                    {contexto.isAdministradorSistema && d.status !== 'arquivado' && d.status !== 'rascunho' && (
                       <button onClick={async () => {
                         await arquivarDraftComoDocumento(d);
                         setDrafts(prev => prev.map(x => x.id === d.id ? { ...x, status: 'arquivado' } : x));
@@ -1234,7 +1242,7 @@ export function GerarLRO() {
                         <Archive className="h-3.5 w-3.5 inline-block mr-1" /> Arquivar
                       </button>
                     )}
-                    {canManageGlobal && d.status === 'arquivado' && (
+                    {contexto.isAdministradorSistema && d.status === 'arquivado' && (
                       <button onClick={async () => {
                         await atualizarStatus(d.id, 'finalizado');
                         setDrafts(prev => prev.map(x => x.id === d.id ? { ...x, status: 'finalizado' } : x));
@@ -1243,7 +1251,7 @@ export function GerarLRO() {
                         <RefreshCw className="h-3.5 w-3.5 inline-block mr-1" /> Desarquivar
                       </button>
                     )}
-                    {canManageDraft(d) && (d.status === 'rascunho' || canManageGlobal) && (
+                    {canManageDraft(d) && (d.status === 'rascunho' || contexto.isAdministradorSistema) && (
                       <button onClick={() => {
                         if (!canManageDraft(d)) return;
                         excluirDraft(d.id).then(() => setDrafts(prev => prev.filter(x => x.id !== d.id)));
@@ -1282,7 +1290,7 @@ export function GerarLRO() {
                 )}
                 <div>
                   <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Nova equipe</label>
-                  <select id="cloneEquipe" defaultValue={canManageGlobal ? (cloneOrigem.equipe || equipesFormulario[0] || '') : (equipeEfetiva || '')} disabled={!canManageGlobal} className="w-full rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm dark:border-border-dark dark:bg-surface-card disabled:opacity-60">
+                  <select id="cloneEquipe" defaultValue={canEscolherEquipe ? (cloneOrigem.equipe || equipesFormulario[0] || '') : (equipeEfetiva || '')} disabled={!canEscolherEquipe} className="w-full rounded-xl border border-graphite-300 bg-white px-3 py-2.5 text-sm dark:border-border-dark dark:bg-surface-card disabled:opacity-60">
                     {equipesFormulario.map(e => <option key={e} value={e}>{e}</option>)}
                   </select>
                 </div>
@@ -1300,41 +1308,70 @@ export function GerarLRO() {
                   if (!selCloneId) return;
                   const origem = selCloneId === cloneOrigem.id ? cloneOrigem : drafts.find(d => d.id === selCloneId);
                   if (!origem) return;
-                  const selEquipe = canManageGlobal
+                  const selEquipe = canEscolherEquipe
                     ? ((document.getElementById('cloneEquipe') as HTMLSelectElement)?.value || origem.equipe)
                     : (equipeEfetiva || '');
-                  if (!canManageEquipe(selEquipe)) {
-                    alert('Você só pode clonar LRO para sua equipe efetiva.');
+                  if (!canCriarRegistrosDiarios(contexto)) {
+                    alert('Você não tem permissão para clonar LRO.');
                     return;
                   }
                   const selData = (document.getElementById('cloneData') as HTMLInputElement)?.value || new Date().toISOString().split('T')[0];
-                  const frota = origem.dados?.frota as Array<Record<string, string>> | undefined;
+                  const dd = (origem.dados || {}) as Record<string, any>;
+
+                  // Frota (III): copia com reset dos campos finais
+                  const frota = dd.frota as Array<Record<string, string>> | undefined;
                   const frotaClone = frota?.map(f => ({
                     ...f,
                     combIni: f.combFim || '',
                     kmIni: f.kmFim || '',
                     kmFim: '', combFim: '', situacao: '',
                   })) || [];
-                  const novosDados = {
-                    ...origem.dados,
-                    equipeNome: selEquipe,
-                    dataInicio: selData,
-                    dataFim: selData,
-                    frota: frotaClone,
-                    substituicao: [],
-                    emergenciaXI: '',
-                    ocorrenciasXII: [],
-                    solicitacoes: [],
-                  };
-                  const saved = await salvarDraft(novosDados, selEquipe, selData, username);
-                  const d = await listarDrafts('').catch(() => []);
-                  setDrafts(d);
-                  setDraftId(saved.id);
+                  const fDados: Record<string, any> = {};
+                  frotaClone.forEach((f: any, i: number) => {
+                    const frotaLista = viaturas.length > 0 ? viaturas : DEFAULT_VIATURAS;
+                    const match = f.viaturaId
+                      ? frotaLista.find((vv: any) => vv.id === f.viaturaId)
+                      : frotaLista.find((vv: any) => (vv.prefixo || vv.nome) === f.viatura);
+                    fDados[`row_${i}`] = { viaturaId: match?.id || f.viaturaId || '', prefixo: f.prefixo || '', kmIni: f.kmIni || '', kmFim: f.kmFim || '', combIni: f.combIni || '', combFim: f.combFim || '', situacao: f.situacao || '' };
+                  });
+
+                  // IV. Central Faísca
+                  setCentralFaisca(dd.centralFaisca || 'SEM ALTERAÇÕES');
+                  setRadioComunicacao(dd.radioComunicacao || 'SEM ALTERAÇÕES');
+
+                  // V. TP/EPR, VI. Agentes Extintores, VII. Equipamentos, VIII. Edificações
+                  setTpTemAlteracao(!!dd.tpTemAlteracao);
+                  setTpTexto(dd.tpTexto || '');
+                  setExtTemAlteracao(!!dd.extTemAlteracao);
+                  setExtTexto(dd.extTexto || '');
+                  setEquipTemAlteracao(!!dd.equipTemAlteracao);
+                  setEquipTexto(dd.equipTexto || '');
+                  setEdifTemAlteracao(!!dd.edifTemAlteracao);
+                  setEdifTexto(dd.edifTexto || '');
+
+                  // Reset dos campos puxados automaticamente (nova data/equipe)
+                  setChefeEquipe('');
+                  setComunicacao('');
+                  setEquipagemCCI({});
+                  setEquipagemCCIRT({});
+                  setEquipagemCRS({});
+                  setInstrucoes('');
+                  setInstrucoesHorarios('');
+                  setTrocasManuais([]);
+                  setSubstituicoesDetectadas([]);
+                  setOcorrenciasNA('');
+                  setInspecoes('');
+                  setEmergenciaXI('');
+                  setOutrasOcorrencias('');
+                  setSolicitacoesCCR('');
+
+                  setFrotaDados(fDados);
+                  setDraftId(null);
                   setEquipe(selEquipe as EquipeOpcao);
                   setDataInicio(selData);
                   setDataFim(dataSaidaPlantao(selEquipe, selData));
                   setView('wizard');
-                  setStep('preencher');
+                  setStep('equipe');
                   setCloneOrigem(null);
                 }} className="rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white">Clonar</button>
               </div>
@@ -1381,7 +1418,7 @@ export function GerarLRO() {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               <div>
                 <label className="mb-1 block text-sm font-medium text-graphite-700 dark:text-graphite-300">Equipe *</label>
-                <select value={equipe} onChange={e => setEquipe(e.target.value as EquipeOpcao)} disabled={!canManageGlobal} className={inputClass}>
+                <select value={equipe} onChange={e => setEquipe(e.target.value as EquipeOpcao)} disabled={!canEscolherEquipe} className={inputClass}>
                   <option value="">Selecione a equipe</option>
                   {equipesFormulario.map(eq => <option key={eq} value={eq}>{eq}</option>)}
                 </select>
