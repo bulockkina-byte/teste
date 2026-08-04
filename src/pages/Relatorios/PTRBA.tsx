@@ -331,6 +331,7 @@ export function PTRBA() {
   const [printGeral, setPrintGeral] = useState(true);
   const [printIndividual, setPrintIndividual] = useState(true);
   const [printLegenda, setPrintLegenda] = useState(true);
+  const [secaoAtiva, setSecaoAtiva] = useState<'geral' | 'individual'>('geral');
 
   const ANOS = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
 
@@ -998,10 +999,16 @@ ${opts.legenda ? `<div class="legenda">
         <FilterBar />
 
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm font-medium text-graphite-700 dark:text-graphite-200">
-            {horasStr(horasAtividades.totalGeral)}
-            <span className="ml-1 text-xs font-normal text-graphite-500">de atividade · {filtered.length} registro(s) · {statsFiltered.pessoas} militar(es)</span>
-          </p>
+          <div className="flex overflow-hidden rounded-xl border border-graphite-300/60 bg-white/70 text-xs font-medium dark:border-border-dark dark:bg-surface-card">
+            <button onClick={() => setSecaoAtiva('geral')}
+              className={`flex items-center gap-1.5 px-3 py-2 transition-colors ${secaoAtiva === 'geral' ? 'bg-aviation-600 text-white' : 'text-graphite-600 hover:bg-graphite-100 dark:text-graphite-300 dark:hover:bg-surface-hover'}`}>
+              <Users className="h-3.5 w-3.5" /> Visão Geral
+            </button>
+            <button onClick={() => setSecaoAtiva('individual')}
+              className={`flex items-center gap-1.5 px-3 py-2 transition-colors ${secaoAtiva === 'individual' ? 'bg-aviation-600 text-white' : 'text-graphite-600 hover:bg-graphite-100 dark:text-graphite-300 dark:hover:bg-surface-hover'}`}>
+              <User className="h-3.5 w-3.5" /> Visão Individual
+            </button>
+          </div>
           <div className="flex flex-wrap gap-2">
             <PrintButton onClick={imprimirRelatorioCompleto} primary>Imprimir Relatório</PrintButton>
             <PrintButton onClick={() => setShowPrintModal(true)} icon={SlidersHorizontal}>
@@ -1018,6 +1025,12 @@ ${opts.legenda ? `<div class="legenda">
           </div>
         ) : (
           <>
+            <p className="mb-6 text-sm font-medium text-graphite-700 dark:text-graphite-200">
+              {horasStr(horasAtividades.totalGeral)}
+              <span className="ml-1 text-xs font-normal text-graphite-500">de atividade · {filtered.length} registro(s) · {statsFiltered.pessoas} militar(es)</span>
+            </p>
+            {secaoAtiva === 'geral' ? (
+              <>
             {/* 1 — Visão Geral */}
             <section className="mb-12">
               <SectionHeader icon={Users} title="Visão Geral" subtitle="Pessoas com atividade no período e suas horas por assunto" />
@@ -1064,7 +1077,9 @@ ${opts.legenda ? `<div class="legenda">
                 ))}
               </div>
             </section>
-
+              </>
+            ) : (
+              <>
             {/* 2 — Visão Individual */}
             <section>
               <SectionHeader icon={User} title="Visão Individual" subtitle="Atividades de cada militar no período" />
@@ -1123,6 +1138,8 @@ ${opts.legenda ? `<div class="legenda">
                 ))}
               </div>
             </section>
+              </>
+            )}
           </>
         )}
 
