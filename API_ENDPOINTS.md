@@ -1332,9 +1332,9 @@ GET com joins: busca `document` + `document_fields` + `document_signers` em para
 
 ---
 
-### listarConferencias / criarConferencia
+### listarConferencias / criarConferencia / atualizarConferencia / excluirConferencia
 
-✅ OK (sem update nem delete)
+✅ OK
 
 **Payload `Conferencia`:**
 ```json

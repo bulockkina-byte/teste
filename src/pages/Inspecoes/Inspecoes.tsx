@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ShieldCheck, Plus, ArrowLeft, Clock, CalendarDays, Users, FileText, ChevronDown, ChevronUp } from 'lucide-react';
+import { ShieldCheck, Plus, ArrowLeft, Clock, CalendarDays, Users, FileText, ChevronDown, ChevronUp, Pencil, Trash2 } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { useContextoOperacional } from '../../hooks/useContextoOperacional';
-import { criarConferencia, listarConferencias } from '../../services/conferenciaService';
+import { atualizarConferencia, criarConferencia, excluirConferencia, listarConferencias } from '../../services/conferenciaService';
+import type { Conferencia } from '../../types/conferencia';
 import type { Equipe } from '../../types/bombeiro';
 import { EQUIPE_OPTIONS } from '../../types/bombeiro';
 
@@ -27,6 +28,9 @@ export function Inspecoes() {
   const [tipoInspecao, setTipoInspecao] = useState('');
   const [descricao, setDescricao] = useState('');
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [editando, setEditando] = useState<Conferencia | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const [registros, setRegistros] = useState<any[]>([]);
   const [filtroEquipe, setFiltroEquipe] = useState<Equipe | ''>('');
@@ -81,28 +85,43 @@ export function Inspecoes() {
       alert('Você só pode registrar inspeções para sua equipe efetiva.');
       return;
     }
+    if (editando?.id && !canManageEquipe(editando.equipe)) {
+      alert('Você só pode editar inspeções da sua equipe efetiva.');
+      return;
+    }
     setSaving(true);
     try {
       const dataHora = `${data}T${hora}:00`;
-      await criarConferencia({
-        tipo: 'Inspeção Operacional',
-        itemId: '',
-        itemNome: tipoInspecao.trim(),
-        itemNumero: '',
-        itemLocalizacao: '',
-        dataConferencia: dataHora,
-        inspetorUsername: user.username || '',
-        inspetorNomeGuerra: user.username || '',
-        inspetorCargo: '',
-        equipe: equipeAlvo as Equipe,
-        itens: [],
-        resultadoFinal: 'Aprovado',
-        observacoes: descricao.trim(),
-        dataProximaInspecao: dataTurno,
-        createdBy: user.username || '',
-      });
+      if (editando?.id) {
+        await atualizarConferencia(editando.id, {
+          itemNome: tipoInspecao.trim(),
+          dataConferencia: dataHora,
+          equipe: equipeAlvo as Equipe,
+          observacoes: descricao.trim(),
+          dataProximaInspecao: dataTurno,
+        });
+      } else {
+        await criarConferencia({
+          tipo: 'Inspeção Operacional',
+          itemId: '',
+          itemNome: tipoInspecao.trim(),
+          itemNumero: '',
+          itemLocalizacao: '',
+          dataConferencia: dataHora,
+          inspetorUsername: user.username || '',
+          inspetorNomeGuerra: user.username || '',
+          inspetorCargo: '',
+          equipe: equipeAlvo as Equipe,
+          itens: [],
+          resultadoFinal: 'Aprovado',
+          observacoes: descricao.trim(),
+          dataProximaInspecao: dataTurno,
+          createdBy: user.username || '',
+        });
+      }
       setTipoInspecao('');
       setDescricao('');
+      setEditando(null);
       setModo('lista');
       carregar();
     } catch (err) {
@@ -112,12 +131,47 @@ export function Inspecoes() {
     }
   }
 
+  function iniciarEdicao(r: any) {
+    setEditando(r);
+    setTipoInspecao(r.itemNome || '');
+    setDescricao(r.observacoes || '');
+    const d = r.dataConferencia ? new Date(r.dataConferencia) : new Date();
+    setData(d.toISOString().split('T')[0]);
+    setHora(d.toTimeString().slice(0, 5));
+    setDataTurno(r.dataProximaInspecao || d.toISOString().split('T')[0]);
+    setEquipe(r.equipe || equipeEfetiva || '');
+    setModo('form');
+  }
+
+  async function handleDelete(id: string) {
+    const alvo = registros.find(r => r.id === id);
+    if (!alvo || !canManageEquipe(alvo.equipe)) {
+      alert('Você só pode excluir inspeções da sua equipe efetiva.');
+      setConfirmDelete(null);
+      return;
+    }
+    setDeleting(true);
+    try {
+      await excluirConferencia(id);
+      setConfirmDelete(null);
+      carregar();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao excluir');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  function podeGerenciar(r: any): boolean {
+    return canManageEquipe(r.equipe);
+  }
+
   return (
     <PageContainer>
       <div className="mb-6 flex items-center justify-between">
         <PageTitle icon={ShieldCheck} title="Inspeções" />
         {modo === 'lista' && (canManageGlobal || equipeEfetiva) && (
-          <button onClick={() => setModo('form')}
+          <button onClick={() => { setEditando(null); setTipoInspecao(''); setDescricao(''); setModo('form'); }}
             className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl active:scale-[0.98]">
             <Plus className="h-4 w-4" /> Nova Inspeção
           </button>
@@ -127,11 +181,11 @@ export function Inspecoes() {
       {modo === 'form' ? (
         <form onSubmit={handleSalvar} className="max-w-4xl mx-auto space-y-5">
           <div className="mb-4 flex items-center gap-3">
-            <button type="button" onClick={() => setModo('lista')}
+            <button type="button" onClick={() => { setEditando(null); setModo('lista'); }}
               className="flex items-center gap-1 rounded-xl border border-graphite-300/60 bg-white/80 px-3 py-2 text-sm font-medium text-graphite-700 shadow-sm transition-all duration-200 hover:bg-graphite-50 dark:border-border-dark dark:bg-surface-card/80 dark:text-graphite-200">
               <ArrowLeft className="h-4 w-4" /> Voltar
             </button>
-            <span className="text-lg font-bold text-graphite-900 dark:text-graphite-100">Nova Inspeção Operacional</span>
+            <span className="text-lg font-bold text-graphite-900 dark:text-graphite-100">{editando ? 'Editar Inspeção Operacional' : 'Nova Inspeção Operacional'}</span>
           </div>
 
           <div className="rounded-2xl border border-graphite-200/60 bg-white/80 p-8 shadow-sm dark:border-border-dark dark:bg-surface-card">
@@ -188,13 +242,13 @@ export function Inspecoes() {
           </div>
 
           <div className="flex items-center gap-3 justify-end">
-            <button type="button" onClick={() => setModo('lista')}
+            <button type="button" onClick={() => { setEditando(null); setModo('lista'); }}
               className="rounded-xl border border-graphite-300/60 bg-white/80 px-5 py-2.5 text-sm font-medium text-graphite-700 transition-colors hover:bg-graphite-50 dark:border-border-dark dark:bg-surface-card/80 dark:text-graphite-200">
               Cancelar
             </button>
             <button type="submit" disabled={saving || !data || !dataTurno || !hora || !equipe || !tipoInspecao.trim() || !descricao.trim()}
               className="rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-6 py-2.5 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all hover:shadow-xl hover:from-aviation-500 hover:to-aviation-600 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none">
-              {saving ? 'Salvando...' : 'Registrar Inspeção'}
+              {saving ? 'Salvando...' : (editando ? 'Salvar Alterações' : 'Registrar Inspeção')}
             </button>
           </div>
         </form>
@@ -270,6 +324,16 @@ export function Inspecoes() {
                         <span className="rounded-full bg-graphite-100 px-2 py-0.5 dark:bg-surface-hover dark:text-graphite-400">Registrado por: {r.createdBy}</span>
                         {r.dataConferencia && <span className="rounded-full bg-graphite-100 px-2 py-0.5 dark:bg-surface-hover dark:text-graphite-400">{new Date(r.dataConferencia).toLocaleString('pt-BR')}</span>}
                       </div>
+                      {podeGerenciar(r) && (
+                        <div className="mt-4 flex items-center gap-2">
+                          <button onClick={() => iniciarEdicao(r)} className="flex items-center gap-1 rounded-lg bg-graphite-100 px-3 py-1.5 text-xs font-medium text-graphite-700 transition-colors hover:bg-graphite-200 dark:bg-surface-hover dark:text-graphite-300 dark:hover:bg-surface-hover">
+                            <Pencil className="h-3.5 w-3.5" /> Editar
+                          </button>
+                          <button onClick={() => setConfirmDelete(r.id)} className="flex items-center gap-1 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-alert-red transition-colors hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/30">
+                            <Trash2 className="h-3.5 w-3.5" /> Excluir
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -277,6 +341,23 @@ export function Inspecoes() {
             </div>
           )}
         </>
+      )}
+
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white/95 p-6 shadow-xl shadow-black/5 backdrop-blur-sm dark:bg-surface-elevated/95 dark:shadow-black/20">
+            <h3 className="mb-2 text-lg font-bold text-graphite-900 dark:text-graphite-100">Confirmar exclusão</h3>
+            <p className="mb-6 text-sm text-graphite-500 dark:text-graphite-400">Tem certeza que deseja excluir esta inspeção? Esta ação não pode ser desfeita.</p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setConfirmDelete(null)} disabled={deleting}
+                className="rounded-xl border border-graphite-300/60 bg-white/80 px-4 py-2.5 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card/80 dark:text-graphite-200">Cancelar</button>
+              <button onClick={() => handleDelete(confirmDelete)} disabled={deleting}
+                className="rounded-xl bg-gradient-to-r from-alert-red to-red-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-red-500/20 transition-all hover:shadow-xl hover:shadow-red-500/30 active:scale-[0.98] disabled:opacity-50">
+                {deleting ? 'Excluindo...' : 'Excluir'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </PageContainer>
   );

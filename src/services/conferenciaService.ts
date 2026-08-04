@@ -78,3 +78,19 @@ export async function criarConferencia(data: Omit<Conferencia, 'id' | 'createdAt
   if (error) handleSupabaseError(error);
   return rowToConferencia(created);
 }
+
+export async function atualizarConferencia(id: string, data: Partial<Conferencia>): Promise<Conferencia | null> {
+  const db = getDb();
+  const now = new Date().toISOString();
+  const row = { ...conferenciaToRow(data), updated_at: now };
+  const { data: updated, error } = await db.from(TABLE).update(row).eq('id', id).select().single();
+  if (error) handleSupabaseError(error);
+  return updated ? rowToConferencia(updated) : null;
+}
+
+export async function excluirConferencia(id: string): Promise<boolean> {
+  const db = getDb();
+  const { error } = await db.from(TABLE).delete().eq('id', id);
+  if (error) handleSupabaseError(error);
+  return true;
+}
