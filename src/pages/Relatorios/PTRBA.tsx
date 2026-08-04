@@ -1,5 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
-import { FileText, ChevronDown, ChevronUp, Eye, Printer, ArrowLeft, Users, Lock } from 'lucide-react';
+import { useState, useEffect, useMemo, Fragment } from 'react';
+import {
+  FileText, ChevronDown, ChevronUp, Eye, Printer, ArrowLeft, Users, Lock,
+  BarChart3, BookOpen, ClipboardList, List, User,
+} from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { listarPTRBs } from '../../services/ptrbService';
@@ -63,8 +66,39 @@ function apocParticipaDoAssunto(assunto: string): boolean {
   return ASSUNTOS_APOC.some(num => t === num || t.startsWith(num + '.'));
 }
 
+function SectionHeader({ icon: Icon, title, subtitle }: { icon: React.ElementType; title: string; subtitle?: string }) {
+  return (
+    <div className="mb-4 flex items-center gap-3 border-b border-graphite-200/80 pb-3 dark:border-border-dark">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-aviation-600 to-aviation-700 text-white shadow-sm">
+        <Icon className="h-5 w-5" />
+      </span>
+      <div className="min-w-0">
+        <h2 className="text-base font-bold text-graphite-900 dark:text-graphite-100">{title}</h2>
+        {subtitle && <p className="text-xs text-graphite-500 dark:text-graphite-400">{subtitle}</p>}
+      </div>
+    </div>
+  );
+}
+
+function EquipeBand({ equipe, extras }: { equipe: string; extras?: React.ReactNode }) {
+  return (
+    <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-white shadow-sm">
+      <p className="flex items-center gap-2 text-sm font-bold">
+        <Users className="h-4 w-4" /> Equipe {equipe}
+      </p>
+      <p className="text-xs font-medium text-white/85">{extras}</p>
+    </div>
+  );
+}
+
+function PrintButton({ onClick, children, primary }: { onClick: () => void; children: React.ReactNode; primary?: boolean }) {
+  const cls = primary
+    ? 'flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-3 py-2 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 active:scale-[0.98]'
+    : 'flex items-center gap-1.5 rounded-xl border border-graphite-300/60 bg-white/80 px-3 py-2 text-sm font-medium text-graphite-700 transition-all duration-200 hover:bg-graphite-50 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200';
+  return <button onClick={onClick} className={cls}><Printer className="h-4 w-4" /> {children}</button>;
+}
+
 type ViewLevel = 'summary' | 'person' | 'detail' | 'view-ptrb';
-type ViewMode = 'equipe' | 'membros';
 
 interface ExpandedPTRB {
   ptrb: PTRB;
@@ -271,7 +305,6 @@ export function PTRBA() {
   const [expandedPTRB, setExpandedPTRB] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>('label');
   const [sortAsc, setSortAsc] = useState(true);
-  const [viewMode, setViewMode] = useState<ViewMode>('equipe');
 
   const ANOS = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
 
@@ -366,10 +399,6 @@ export function PTRBA() {
     return [...set].sort();
   }, [ptrbs]);
 
-  const equipesPresentes = useMemo(() => {
-    return [...EQUIPES];
-  }, []);
-
   function getNomeGuerra(nomeCompleto: string): string {
     return bombeiros.get(nomeCompleto)?.nomeGuerra || nomeCompleto;
   }
@@ -378,26 +407,16 @@ export function PTRBA() {
     return bombeiros.get(nomeCompleto)?.equipe || '';
   }
 
-  function getFuncaoPadrao(nomeCompleto: string, expandedList: ExpandedPTRB[]): string {
-    const fromBombeiro = bombeiros.get(nomeCompleto)?.cargo;
-    if (fromBombeiro) return fromBombeiro;
-    const funcoes = expandedList.filter(e => e.nome === nomeCompleto).map(e => e.funcao).filter(Boolean);
-    if (funcoes.length === 0) return '';
-    return funcoes.sort((a, b) => funcoes.filter(f => f === a).length - funcoes.filter(f => f === b).length).pop() || '';
-  }
-
   function goToSummary() {
     setView('summary');
     setSelectedEquipe('');
     setSelectedPessoa('');
     setSelectedPTRB(null);
-    setViewMode('equipe');
   }
 
   function goToPerson(equipe: string) {
     setSelectedEquipe(equipe);
     setFiltroEquipe(equipe);
-    setViewMode('membros');
     setView('person');
     setSelectedPessoa('');
     setFiltroPessoa('');
@@ -424,99 +443,95 @@ export function PTRBA() {
     }
   }
 
-  const equipeRows = useMemo(() => {
-    const map = new Map<string, Map<string, { horas: number; qtd: number }>>();
-    for (const p of filtered) {
-      const eq = p.equipe || '(sem equipe)';
-      const as = p.assuntoMinistrado || '(sem assunto)';
-      const h = p.horas || calcHoras(p.horaInicio, p.horaTermino) || parseDuracao(p.duracao);
-      if (!map.has(eq)) map.set(eq, new Map());
-      const sub = map.get(eq)!;
-      if (!sub.has(as)) sub.set(as, { horas: 0, qtd: 0 });
-      const item = sub.get(as)!;
-      item.horas += h;
-      item.qtd++;
-    }
-    const rows: { equipe: string; assunto: string; horas: number; qtd: number }[] = [];
-    for (const [equipe, assuntos] of map) {
-      for (const [assunto, data] of assuntos) {
-        rows.push({ equipe, assunto, horas: data.horas, qtd: data.qtd });
-      }
-    }
-    return rows;
-  }, [filtered]);
+  const totalHoras = useMemo(() => expanded.reduce((s, e) => s + e.horas, 0), [expanded]);
 
   const statsFiltered = useMemo(() => {
-    if (viewMode === 'equipe') {
-      let totalHoras = 0;
-      const equipesSet = new Set<string>();
-      for (const r of equipeRows) {
-        totalHoras += r.horas;
-        equipesSet.add(r.equipe);
-      }
-      return {
-        registros: filtered.length,
-        horas: totalHoras,
-        pessoas: equipesSet.size,
-        totalBombeiros: equipesPresentes.length,
-      };
-    }
     let totalHoras = 0;
-    let totalPessoas = new Set<string>();
+    const nomes = new Set<string>();
+    const equipes = new Set<string>();
     for (const e of expanded) {
       totalHoras += e.horas;
-      totalPessoas.add(e.nome);
+      nomes.add(e.nome);
+      equipes.add(e.ptrb.equipe || '(sem equipe)');
     }
     const totalBombeiros = filtroEquipe
       ? [...bombeiros.values()].filter(b => b.equipe === filtroEquipe).length
       : bombeiros.size;
-    return {
-      registros: filtered.length,
-      horas: totalHoras,
-      pessoas: totalPessoas.size,
-      totalBombeiros,
-    };
-  }, [viewMode, equipeRows, expanded, filtered, bombeiros, filtroEquipe, equipesPresentes.length]);
+    return { registros: filtered.length, horas: totalHoras, pessoas: nomes.size, totalBombeiros, equipes: equipes.size };
+  }, [expanded, filtered, bombeiros, filtroEquipe]);
 
-  const equipeAssuntoData = useMemo(() => {
-    const map = new Map<string, Map<string, { horas: number; qtd: number }>>();
+  const assuntoRanking = useMemo(() => {
+    const map = new Map<string, { horas: number; qtd: number }>();
+    for (const e of expanded) {
+      const as = e.ptrb.assuntoMinistrado || '(sem assunto)';
+      const cur = map.get(as) || { horas: 0, qtd: 0 };
+      cur.horas += e.horas;
+      cur.qtd += 1;
+      map.set(as, cur);
+    }
+    const rows = [...map.entries()].map(([assunto, v]) => ({
+      assunto,
+      horas: v.horas,
+      qtd: v.qtd,
+      pct: totalHoras > 0 ? (v.horas / totalHoras) * 100 : 0,
+    }));
+    rows.sort((a, b) => b.horas - a.horas || b.qtd - a.qtd || a.assunto.localeCompare(b.assunto));
+    return rows;
+  }, [expanded, totalHoras]);
+
+  const assuntosMatriz = useMemo(() => {
+    const assuntos = filtroAssunto ? [filtroAssunto] : assuntosDisponiveis;
+    const valores: Record<string, Record<string, number>> = {};
+    const totalPorEquipe: Record<string, number> = {};
+    const totalPorAssunto: Record<string, number> = {};
+    let totalGeral = 0;
     for (const e of expanded) {
       const eq = e.ptrb.equipe || '(sem equipe)';
-      const as = e.ptrb.assuntoMinistrado || '(sem assunto)';
-      if (!map.has(eq)) map.set(eq, new Map());
-      const sub = map.get(eq)!;
-      if (!sub.has(as)) sub.set(as, { horas: 0, qtd: 0 });
-      const item = sub.get(as)!;
-      item.horas += e.horas;
-      item.qtd++;
+      const as = (e.ptrb.assuntoMinistrado || '(sem assunto)').trim();
+      valores[eq] ??= {};
+      valores[eq][as] = (valores[eq][as] || 0) + e.horas;
+      totalPorEquipe[eq] = (totalPorEquipe[eq] || 0) + e.horas;
+      totalGeral += e.horas;
     }
-
-    const rows: { equipe: string; assunto: string; horas: number; qtd: number }[] = [];
-    for (const [equipe, assuntos] of map) {
-      for (const [assunto, data] of assuntos) {
-        rows.push({ equipe, assunto, horas: data.horas, qtd: data.qtd });
-      }
+    const equipes = [
+      ...EQUIPE_ORDER.filter(eq => valores[eq]),
+      ...Object.keys(valores).filter(eq => ![...EQUIPE_ORDER].includes(eq)),
+    ];
+    for (const as of assuntos) {
+      totalPorAssunto[as] = equipes.reduce((s, eq) => s + (valores[eq][as] || 0), 0);
     }
-    return rows;
-  }, [expanded]);
+    return { assuntos, equipes, valores, totalPorEquipe, totalPorAssunto, totalGeral };
+  }, [expanded, assuntosDisponiveis, filtroAssunto]);
 
-  const sortedEqRows = useMemo(() => {
-    const source = viewMode === 'equipe' ? equipeRows : equipeAssuntoData;
-    const sorted = [...source];
-    sorted.sort((a, b) => {
-      let cmp = 0;
-      if (sortKey === 'label') {
-        const eqCmp = EQUIPE_ORDER.indexOf(a.equipe) - EQUIPE_ORDER.indexOf(b.equipe);
-        if (eqCmp !== 0) return eqCmp;
-        return a.assunto.localeCompare(b.assunto);
-      }
-      else if (sortKey === 'assunto') cmp = a.assunto.localeCompare(b.assunto);
-      else if (sortKey === 'horas') cmp = a.horas - b.horas;
-      else if (sortKey === 'qtd') cmp = a.qtd - b.qtd;
-      return sortAsc ? cmp : -cmp;
+  const equipePessoasMatriz = useMemo(() => {
+    const assuntos = filtroAssunto ? [filtroAssunto] : assuntosDisponiveis;
+    const eqMap = new Map<string, Map<string, Map<string, { horas: number; qtd: number; funcao: string }>>>();
+    for (const e of expanded) {
+      const eq = e.ptrb.equipe || '(sem equipe)';
+      const as = (e.ptrb.assuntoMinistrado || '(sem assunto)').trim();
+      if (!eqMap.has(eq)) eqMap.set(eq, new Map());
+      const pesMap = eqMap.get(eq)!;
+      if (!pesMap.has(e.nome)) pesMap.set(e.nome, new Map());
+      const asMap = pesMap.get(e.nome)!;
+      const cur = asMap.get(as) || { horas: 0, qtd: 0, funcao: e.funcao };
+      cur.horas += e.horas;
+      cur.qtd += 1;
+      asMap.set(as, cur);
+    }
+    const grupos = [...eqMap.entries()].map(([equipe, pesMap]) => {
+      const pessoas = [...pesMap.entries()].map(([nome, asMap]) => {
+        let totalHoras = 0;
+        let totalQtd = 0;
+        for (const v of asMap.values()) { totalHoras += v.horas; totalQtd += v.qtd; }
+        const funcao = [...asMap.values()].sort((a, b) => b.qtd - a.qtd)[0]?.funcao || '';
+        return { nome: bombeiros.get(nome)?.nomeGuerra || nome, funcao, valores: asMap, totalHoras, totalQtd };
+      });
+      pessoas.sort((a, b) => HIERARQUIA.indexOf(a.funcao) - HIERARQUIA.indexOf(b.funcao) || a.nome.localeCompare(b.nome));
+      return { equipe, pessoas };
     });
-    return sorted;
-  }, [viewMode, equipeRows, equipeAssuntoData, sortKey, sortAsc]);
+    grupos.sort((a, b) => EQUIPE_ORDER.indexOf(a.equipe) - EQUIPE_ORDER.indexOf(b.equipe));
+    return { assuntos, grupos };
+  }, [expanded, assuntosDisponiveis, filtroAssunto, bombeiros]);
 
   const pessoaAssuntoData = useMemo(() => {
     const map = new Map<string, Map<string, { horas: number; qtd: number; funcao: string; equipe: string }>>();
@@ -547,6 +562,69 @@ export function PTRBA() {
     }
     return rows;
   }, [expanded]);
+
+  const pessoasPorEquipe = useMemo(() => {
+    const grupos = new Map<string, Map<string, { pessoa: string; funcao: string; equipe: string; assuntos: { assunto: string; horas: number; qtd: number }[]; totalHoras: number; totalQtd: number }>>();
+    for (const r of pessoaAssuntoData) {
+      if (!grupos.has(r.equipe)) grupos.set(r.equipe, new Map());
+      const pesMap = grupos.get(r.equipe)!;
+      const it = pesMap.get(r.pessoa) || { pessoa: r.pessoa, funcao: r.funcao, equipe: r.equipe, assuntos: [], totalHoras: 0, totalQtd: 0 };
+      it.assuntos.push({ assunto: r.assunto, horas: r.horas, qtd: r.qtd });
+      it.totalHoras += r.horas;
+      it.totalQtd += r.qtd;
+      pesMap.set(r.pessoa, it);
+    }
+    const out = [...grupos.entries()].map(([equipe, pesMap]) => {
+      const pessoas = [...pesMap.values()];
+      pessoas.sort((a, b) => HIERARQUIA.indexOf(a.funcao) - HIERARQUIA.indexOf(b.funcao) || a.pessoa.localeCompare(b.pessoa));
+      return [equipe, pessoas] as const;
+    });
+    out.sort((a, b) => EQUIPE_ORDER.indexOf(a[0]) - EQUIPE_ORDER.indexOf(b[0]));
+    return out;
+  }, [pessoaAssuntoData]);
+
+  const efetivoGeral = useMemo(() => {
+    const dados: Record<string, number> = {};
+    const regs: Record<string, number> = {};
+    for (const e of expanded) {
+      dados[e.nome] = (dados[e.nome] || 0) + e.horas;
+      regs[e.nome] = (regs[e.nome] || 0) + 1;
+    }
+    const grupos = new Map<string, { funcao: string; nome: string; totalHoras: string; registros: number; emAtividade: boolean }[]>();
+    const add = (eq: string, p: { funcao: string; nome: string; totalHoras: string; registros: number; emAtividade: boolean }) => {
+      if (!grupos.has(eq)) grupos.set(eq, []);
+      grupos.get(eq)!.push(p);
+    };
+    const vistos = new Set<string>();
+    for (const [nome, info] of bombeiros) {
+      if (filtroEquipe && info.equipe !== filtroEquipe) continue;
+      add(info.equipe || '(sem equipe)', {
+        funcao: info.cargo,
+        nome: info.nomeGuerra || nome,
+        totalHoras: horasStr(dados[nome] || 0),
+        registros: regs[nome] || 0,
+        emAtividade: (dados[nome] || 0) > 0,
+      });
+      vistos.add(nome);
+    }
+    for (const nome of Object.keys(dados)) {
+      if (vistos.has(nome)) continue;
+      const eq = bombeiros.get(nome)?.equipe || '';
+      if (filtroEquipe && eq !== filtroEquipe) continue;
+      add(eq || '(sem equipe)', {
+        funcao: bombeiros.get(nome)?.cargo || '',
+        nome: bombeiros.get(nome)?.nomeGuerra || nome,
+        totalHoras: horasStr(dados[nome]),
+        registros: regs[nome] || 0,
+        emAtividade: true,
+      });
+    }
+    const out = [...grupos.entries()].sort((a, b) => EQUIPE_ORDER.indexOf(a[0]) - EQUIPE_ORDER.indexOf(b[0]));
+    for (const [, list] of out) {
+      list.sort((a, b) => HIERARQUIA.indexOf(a.funcao) - HIERARQUIA.indexOf(b.funcao) || a.nome.localeCompare(b.nome));
+    }
+    return out;
+  }, [bombeiros, expanded, filtroEquipe]);
 
   const sortedPessoaRows = useMemo(() => {
     const sorted = [...pessoaAssuntoData];
@@ -591,11 +669,10 @@ export function PTRBA() {
     const allAssuntos = filtroAssunto ? [filtroAssunto] : assuntosDisponiveis;
     const colunas = ['Equipe', ...allAssuntos, 'Total Horas'];
     const eqMap = new Map<string, Map<string, number>>();
-    const source = viewMode === 'equipe' ? filtered : expanded;
-    for (const item of source) {
-      const eq = viewMode === 'equipe' ? (item as PTRB).equipe || '(sem equipe)' : (item as ExpandedPTRB).ptrb.equipe || '(sem equipe)';
-      const as = viewMode === 'equipe' ? ((item as PTRB).assuntoMinistrado || '(sem assunto)').trim() : ((item as ExpandedPTRB).ptrb.assuntoMinistrado || '(sem assunto)').trim();
-      const horas = viewMode === 'equipe' ? ((item as PTRB).horas || calcHoras((item as PTRB).horaInicio, (item as PTRB).horaTermino) || parseDuracao((item as PTRB).duracao)) : (item as ExpandedPTRB).horas;
+    for (const item of filtered) {
+      const eq = item.equipe || '(sem equipe)';
+      const as = (item.assuntoMinistrado || '(sem assunto)').trim();
+      const horas = item.horas || calcHoras(item.horaInicio, item.horaTermino) || parseDuracao(item.duracao);
       if (!eqMap.has(eq)) eqMap.set(eq, new Map());
       const sub = eqMap.get(eq)!;
       sub.set(as, (sub.get(as) || 0) + horas);
@@ -775,6 +852,140 @@ export function PTRBA() {
     );
   }
 
+  function cellHorasPrint(v: number): string {
+    return v > 0 ? horasStr(v) : '—';
+  }
+
+  function gerarHTMLRelatorioCompleto(): string {
+    const titulo = 'Relatório PTR-BA — Instrução e Tempo em Segurança do Trabalho';
+    const filtros = `Período: ${filtroPeriodoLabel}${filtroEquipe ? ' · Equipe: ' + filtroEquipe : ''}${filtroAssunto ? ' · Assunto: ' + filtroAssunto : ''} · Gerado em ${new Date().toLocaleString('pt-BR')}`;
+
+    const kpis = [
+      ['Registros', String(statsFiltered.registros)],
+      ['Horas totais', horasStr(statsFiltered.horas)],
+      ['Pessoas', `${statsFiltered.pessoas}/${statsFiltered.totalBombeiros}`],
+      ['Equipes', String(statsFiltered.equipes)],
+    ].map(k => '<td><b>' + k[1] + '</b>' + k[0] + '</td>').join('');
+
+    const thAssunto = (a: string) => '<th title="' + a + '">' + abreviarLabel(a) + '</th>';
+
+    const matrizEquipe = assuntosMatriz.equipes.map(eq =>
+      '<tr>' + '<td class="l" style="font-weight:bold;">' + eq + '</td>' +
+      assuntosMatriz.assuntos.map(a => '<td>' + cellHorasPrint(assuntosMatriz.valores[eq]?.[a] || 0) + '</td>').join('') +
+      '<td style="font-weight:bold;">' + horasStr(assuntosMatriz.totalPorEquipe[eq] || 0) + '</td>' + '</tr>'
+    ).join('\n');
+    const totalMatriz = '<tr class="total">' + '<td class="l">TOTAL</td>' +
+      assuntosMatriz.assuntos.map(a => '<td>' + cellHorasPrint(assuntosMatriz.totalPorAssunto[a] || 0) + '</td>').join('') +
+      '<td>' + horasStr(assuntosMatriz.totalGeral) + '</td>' + '</tr>';
+
+    const rankingRows = assuntoRanking.map(r =>
+      '<tr>' +
+      '<td>' + (r.assunto.match(/^(\d+)\./)?.[1] || '—') + '</td>' +
+      '<td class="l">' + r.assunto + '</td>' +
+      '<td>' + r.qtd + '</td>' +
+      '<td style="font-weight:bold;">' + horasStr(r.horas) + '</td>' +
+      '<td>' + r.pct.toFixed(1) + '%</td>' +
+      '</tr>'
+    ).join('\n');
+
+    const equipePaginas = equipePessoasMatriz.grupos.map(g => {
+      const rows = g.pessoas.map((p, i) =>
+        '<tr' + (p.funcao === 'BA-CE' ? ' class="bace"' : '') + '>' +
+        '<td>' + (i + 1) + '</td>' +
+        '<td style="font-weight:' + (p.funcao === 'BA-CE' ? 'bold' : 'normal') + ';">' + (p.funcao || '—') + '</td>' +
+        '<td class="l">' + p.nome + '</td>' +
+        equipePessoasMatriz.assuntos.map(a => '<td>' + cellHorasPrint(p.valores.get(a)?.horas || 0) + '</td>').join('') +
+        '<td style="font-weight:bold;">' + horasStr(p.totalHoras) + '</td>' +
+        '<td>' + p.totalQtd + '</td>' +
+        '</tr>'
+      ).join('\n');
+      const totalEquipe = g.pessoas.reduce((s, p) => s + p.totalHoras, 0);
+      return '<div class="pagina">' +
+        '<table><tr class="eq-header"><td colspan="' + (equipePessoasMatriz.assuntos.length + 5) + '">EQUIPE ' + g.equipe.toUpperCase() + ' — Participação por assunto · ' + g.pessoas.length + ' militares · Total ' + horasStr(totalEquipe) + '</td></tr></table>' +
+        '<table><thead><tr>' + '<th style="width:3%">Nº</th><th style="width:7%">Função</th><th class="l" style="width:14%;">Nome</th>' +
+        equipePessoasMatriz.assuntos.map(thAssunto).join('') +
+        '<th style="width:6%">Total</th><th style="width:3%">Reg.</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+        '</div>';
+    }).join('\n');
+
+    const efetivoPaginas = efetivoGeral.map(([eq, pessoas]) => {
+      const rows = pessoas.map((p, i) =>
+        '<tr' + (p.funcao === 'BA-CE' ? ' class="bace"' : '') + '>' +
+        '<td>' + (i + 1) + '</td>' +
+        '<td style="font-weight:' + (p.funcao === 'BA-CE' ? 'bold' : 'normal') + ';">' + (p.funcao || '—') + '</td>' +
+        '<td class="l">' + p.nome + '</td>' +
+        '<td style="font-weight:bold;">' + p.totalHoras + '</td>' +
+        '<td>' + (p.registros > 0 ? p.registros + 'x' : '—') + '</td>' +
+        '</tr>'
+      ).join('\n');
+      return '<table><thead><tr><th style="width:3%">Nº</th><th style="width:7%">Função</th><th class="l" style="width:14%;">Nome</th><th style="width:6%">Total</th><th style="width:3%">Reg.</th></tr></thead><tbody>' +
+        '<tr class="eq-header"><td colspan="5">EQUIPE ' + eq.toUpperCase() + ' — Efetivo (' + pessoas.length + ' pessoas)</td></tr>' + rows + '</tbody></table>';
+    }).join('\n');
+
+    const legenda = ASSUNTOS.map((a, i) => '<tr><td>' + String(i + 1).padStart(2, '0') + '.</td><td>' + a.replace(/^\d+\.\s*/, '') + '</td></tr>').join('\n');
+
+    return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>${titulo}</title>
+<style>
+@page { margin: 8mm; size: landscape; }
+body { font-family: Arial, sans-serif; margin: 0; padding: 8px; font-size: 11px; color: #000; }
+h1 { font-size: 16px; margin: 0 0 2px; }
+h2 { font-size: 13px; margin: 14px 0 4px; }
+p.filtros { font-size: 10px; color: #555; margin: 0 0 10px; }
+table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 6px; }
+th, td { border: 1px solid #000; padding: 2px 4px; font-size: 10px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+th { background: #4472C4; color: #fff; font-weight: bold; }
+thead { display: table-header-group; }
+tr { page-break-inside: avoid; }
+.kpis td { border: 1px solid #000; padding: 4px; font-size: 10px; }
+.kpis b { display: block; font-size: 13px; }
+.pagina { page-break-after: always; }
+.eq-header td { background: #2b5797; color: #fff; font-weight: bold; text-align: left; padding: 3px 6px; font-size: 11px; }
+.bace td { background: #e8f0fe; }
+.total td { background: #f2f2f2; font-weight: bold; }
+td.l, th.l { text-align: left; }
+.legenda { margin-top: 10px; }
+.legenda td { border: none; padding: 1px 3px; text-align: left; font-size: 9px; }
+.footer { margin-top: 10px; font-size: 9px; color: #888; }
+</style></head><body>
+<h1>${titulo}</h1>
+<p class="filtros">${filtros}</p>
+<table class="kpis" style="table-layout:auto;"><tr>${kpis}</tr></table>
+
+<div class="pagina">
+<h2>1. Resumo por Equipe — Horas acumuladas por assunto</h2>
+<table><thead><tr><th class="l" style="width:12%;">Equipe</th>${assuntosMatriz.assuntos.map(thAssunto).join('')}<th style="width:7%;">Total</th></tr></thead><tbody>${matrizEquipe}\n${totalMatriz}</tbody></table>
+</div>
+
+<div class="pagina">
+<h2>2. Visão por Assunto — Tempo acumulado por matéria</h2>
+<table><thead><tr><th style="width:5%;">Nº</th><th class="l">Assunto</th><th style="width:8%;">Registros</th><th style="width:8%;">Horas</th><th style="width:8%;">% Total</th></tr></thead><tbody>${rankingRows}</tbody></table>
+</div>
+
+${equipePaginas}
+
+<div class="pagina">
+<h2>Efetivo — Visão Geral por Equipe</h2>
+${efetivoPaginas}
+</div>
+
+<div class="legenda">
+<p><strong>Legenda — Assuntos Ministrados:</strong></p>
+<table style="table-layout:auto;">${legenda}</table>
+</div>
+<p class="footer">Relatório PTR-BA - Seção de Instrução · ${new Date().toLocaleString('pt-BR')}</p>
+</body></html>`;
+  }
+
+  function imprimirRelatorioCompleto() {
+    const win = window.open('', '_blank');
+    if (win) {
+      win.document.write(gerarHTMLRelatorioCompleto());
+      win.document.close();
+      setTimeout(() => win.print(), 700);
+    }
+  }
+
   const filtroPeriodoLabel = filterMode === 'mes-ano'
     ? `${filtroMes ? MESES[Number(filtroMes)] : ''} ${filtroAno || ''}`.trim() || 'Todo período'
     : `${dataInicio || '...'} a ${dataFinal || '...'}`;
@@ -819,31 +1030,18 @@ export function PTRBA() {
           </>
         )}
 
-        <div className="flex overflow-hidden rounded-xl border border-graphite-300/60 bg-white/70 text-xs font-medium dark:border-border-dark dark:bg-surface-card">
-          <button onClick={() => { setViewMode('equipe'); setView('summary'); setFiltroPessoa(''); }}
-            className={`px-3 py-2 transition-colors ${viewMode === 'equipe' ? 'bg-aviation-600 text-white' : 'text-graphite-600 hover:bg-graphite-100 dark:text-graphite-300 dark:hover:bg-surface-hover'}`}>
-            Equipe
-          </button>
-          <button onClick={() => { setViewMode('membros'); setView('summary'); }}
-            className={`px-3 py-2 transition-colors ${viewMode === 'membros' ? 'bg-aviation-600 text-white' : 'text-graphite-600 hover:bg-graphite-100 dark:text-graphite-300 dark:hover:bg-surface-hover'}`}>
-            Membros
-          </button>
-        </div>
-
         <select value={filtroEquipe} onChange={e => setFiltroEquipe(e.target.value)} className={inputClass}>
           <option value="">Todas as equipes</option>
-          {equipesPresentes.map(eq => <option key={eq} value={eq}>{eq}</option>)}
+          {EQUIPES.map(eq => <option key={eq} value={eq}>{eq}</option>)}
         </select>
         <select value={filtroAssunto} onChange={e => setFiltroAssunto(e.target.value)} className={inputClass}>
           <option value="">Todos os assuntos</option>
           {assuntosDisponiveis.map(a => <option key={a} value={a}>{a}</option>)}
         </select>
-        {viewMode === 'membros' && (
-          <select value={filtroPessoa} onChange={e => setFiltroPessoa(e.target.value)} className={inputClass}>
-            <option value="">Todas as pessoas</option>
-            {pessoasFiltro.map(n => <option key={n} value={n}>{getNomeGuerra(n)}</option>)}
-          </select>
-        )}
+        <select value={filtroPessoa} onChange={e => setFiltroPessoa(e.target.value)} className={inputClass}>
+          <option value="">Todas as pessoas</option>
+          {pessoasFiltro.map(n => <option key={n} value={n}>{getNomeGuerra(n)}</option>)}
+        </select>
         <span className="text-xs text-graphite-400">{filtered.length} registro(s)</span>
       </div>
     );
@@ -938,107 +1136,307 @@ export function PTRBA() {
   }
 
   if (view === 'summary') {
-    const isEquipe = viewMode === 'equipe';
+    const secoes = [
+      ['resumo', 'Resumo'],
+      ['por-assunto', 'Por Assunto'],
+      ['por-equipe', 'Por Equipe'],
+      ['por-pessoa', 'Por Pessoa'],
+      ['efetivo', 'Efetivo'],
+      ['legenda', 'Legenda'],
+    ] as const;
+    const rolarPara = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     return (
       <PageContainer>
-        <PageTitle icon={FileText} title={`PTR-BA${filtrosAtivos}${filtroEquipeLabel}`}
-          subtitle={isEquipe ? 'Horas por equipe e assunto' : 'Horas por pessoa e assunto'} />
+        <PageTitle icon={FileText} title={`Relatório PTR-BA${filtrosAtivos}${filtroEquipeLabel}${filtroAssuntoLabel}`}
+          subtitle="Instruções e tempo em segurança do trabalho" />
         <FilterBar />
-        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div className="rounded-xl border border-graphite-200 bg-white p-3 text-center dark:border-border-dark dark:bg-surface-card">
-            <p className="text-xl font-black text-graphite-900 dark:text-graphite-100">{statsFiltered.registros}</p>
-            <p className="text-[10px] font-medium text-graphite-500">Registros</p>
-          </div>
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-center dark:border-emerald-800 dark:bg-emerald-900/20">
-            <p className="text-xl font-black text-emerald-700 dark:text-emerald-300">{horasStr(statsFiltered.horas)}</p>
-            <p className="text-[10px] font-medium text-emerald-500">Horas totais</p>
-          </div>
-          <div className="rounded-xl border border-aviation-200 bg-aviation-50 p-3 text-center dark:border-aviation-800 dark:bg-aviation-900/20">
-            <p className="text-xl font-black text-aviation-700 dark:text-aviation-300">
-              {isEquipe ? statsFiltered.pessoas : statsFiltered.pessoas}
-              <span className="text-xl font-black text-aviation-500">/{statsFiltered.totalBombeiros}</span>
-            </p>
-            <p className="text-[10px] font-medium text-aviation-500">{isEquipe ? 'Equipes' : 'Pessoas com/total'}</p>
-          </div>
-          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-center dark:border-amber-800 dark:bg-amber-900/20">
-            <p className="text-xl font-black text-amber-700 dark:text-amber-300">{equipesPresentes.length}</p>
-            <p className="text-[10px] font-medium text-amber-500">Equipes</p>
-          </div>
-        </div>
 
-        <div className="mb-4 flex items-center justify-between">
-          <p className="text-sm font-medium text-graphite-700 dark:text-graphite-300">
-            {isEquipe ? 'Clique em uma equipe para ver detalhamento por pessoa' : 'Clique em uma pessoa para ver os registros'}
-          </p>
-          <div className="flex gap-2">
-            {(isEquipe ? sortedEqRows.length > 0 : sortedPessoaRows.length > 0) && (
-              <button onClick={isEquipe ? handlePrintSummary : handlePrintPerson}
-                className="flex items-center gap-1 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-3 py-2 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 active:scale-[0.98]">
-                <Printer className="h-4 w-4" /> Imprimir
-              </button>
-            )}
-          </div>
-        </div>
+        <nav className="mb-8 flex flex-wrap gap-2">
+          {secoes.map(([id, label]) => (
+            <button key={id} onClick={() => rolarPara(id)}
+              className="rounded-xl border border-graphite-300/60 bg-white/80 px-3 py-1.5 text-xs font-semibold text-graphite-600 transition-colors hover:border-aviation-400 hover:text-aviation-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-300 dark:hover:text-aviation-300">
+              {label}
+            </button>
+          ))}
+        </nav>
 
-        <div className="overflow-x-auto rounded-2xl border border-graphite-200/60 bg-white/80 shadow-sm dark:border-border-dark dark:bg-surface-card">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-graphite-200 dark:border-border-dark">
-                {isEquipe ? (
-                  <><SortHeader column="label">Equipe</SortHeader><SortHeader column="assunto">Assunto</SortHeader><SortHeader column="horas">Horas</SortHeader><SortHeader column="qtd">Registros</SortHeader></>
-                ) : (
-                  <><SortHeader column="label">Militar</SortHeader><SortHeader column="assunto">Assunto</SortHeader><SortHeader column="horas">Horas</SortHeader><SortHeader column="qtd">Registros</SortHeader><th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-graphite-500">Ações</th></>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {isEquipe ? (
-                sortedEqRows.length === 0 ? (
-                  <tr><td colSpan={4} className="px-4 py-12 text-center text-graphite-400">Nenhum PTR-BA encontrado com os filtros atuais.</td></tr>
-                ) : (
-                  sortedEqRows.map((r, i) => (
-                    <tr key={`${r.equipe}-${r.assunto}-${i}`}
-                      className="border-b border-graphite-100 transition-colors hover:bg-aviation-50/50 dark:border-border-dark dark:hover:bg-aviation-900/10 cursor-pointer"
-                      onClick={() => goToPerson(r.equipe)}>
-                      <td className="px-4 py-3">
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-aviation-100 px-2.5 py-0.5 text-xs font-semibold text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-300">
-                          <Users className="h-3 w-3" /> {r.equipe}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 font-medium text-graphite-900 dark:text-graphite-100">{r.assunto}</td>
-                      <td className="px-4 py-3 font-semibold text-emerald-700 dark:text-emerald-400">{horasStr(r.horas)}</td>
-                      <td className="px-4 py-3 text-graphite-600 dark:text-graphite-400">{r.qtd}x</td>
+        {filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white/50 p-12 text-center dark:border-border-dark dark:bg-surface-card">
+            <FileText className="mb-4 h-12 w-12 text-graphite-300 dark:text-graphite-600" />
+            <h3 className="mb-2 text-lg font-semibold text-graphite-700 dark:text-graphite-300">Nenhum PTR-BA encontrado</h3>
+            <p className="text-sm text-graphite-400 dark:text-graphite-500">Nenhum registro com os filtros atuais.</p>
+          </div>
+        ) : (
+          <>
+            {/* 1 — Resumo Executivo */}
+            <section id="resumo" className="mb-12 scroll-mt-24">
+              <SectionHeader icon={BarChart3} title="Resumo Executivo" subtitle="Indicadores gerais do período filtrado" />
+              <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="rounded-xl border border-graphite-200 bg-white p-3 text-center dark:border-border-dark dark:bg-surface-card">
+                  <p className="text-xl font-black text-graphite-900 dark:text-graphite-100">{statsFiltered.registros}</p>
+                  <p className="text-[10px] font-medium text-graphite-500">Registros</p>
+                </div>
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-center dark:border-emerald-800 dark:bg-emerald-900/20">
+                  <p className="text-xl font-black text-emerald-700 dark:text-emerald-300">{horasStr(statsFiltered.horas)}</p>
+                  <p className="text-[10px] font-medium text-emerald-500">Horas totais</p>
+                </div>
+                <div className="rounded-xl border border-aviation-200 bg-aviation-50 p-3 text-center dark:border-aviation-800 dark:bg-aviation-900/20">
+                  <p className="text-xl font-black text-aviation-700 dark:text-aviation-300">
+                    {statsFiltered.pessoas}<span className="text-aviation-500">/{statsFiltered.totalBombeiros}</span>
+                  </p>
+                  <p className="text-[10px] font-medium text-aviation-500">Pessoas com/total</p>
+                </div>
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-center dark:border-amber-800 dark:bg-amber-900/20">
+                  <p className="text-xl font-black text-amber-700 dark:text-amber-300">{statsFiltered.equipes}</p>
+                  <p className="text-[10px] font-medium text-amber-500">Equipes</p>
+                </div>
+              </div>
+
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <p className="text-xs text-graphite-500 dark:text-graphite-400">
+                  Tempo consolidado por equipe e assunto — clique numa equipe para ver o detalhamento por pessoa.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <PrintButton onClick={imprimirRelatorioCompleto} primary>Relatório Completo</PrintButton>
+                  <PrintButton onClick={handlePrintSummary}>Horas por Equipe</PrintButton>
+                  <PrintButton onClick={handlePrintEfetivo}>Efetivo</PrintButton>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto rounded-2xl border border-graphite-200/60 bg-white/80 shadow-sm dark:border-border-dark dark:bg-surface-card">
+                <table className="w-full text-sm" style={{ minWidth: 980 }}>
+                  <thead>
+                    <tr className="border-b border-graphite-200 dark:border-border-dark">
+                      <th className="sticky left-0 z-10 bg-white px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:bg-surface-card dark:text-graphite-400">Equipe</th>
+                      {assuntosMatriz.assuntos.map(a => (
+                        <th key={a} title={a} className="px-2 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">{abreviarLabel(a)}</th>
+                      ))}
+                      <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Total</th>
                     </tr>
-                  ))
-                )
-              ) : (
-                sortedPessoaRows.length === 0 ? (
-                  <tr><td colSpan={5} className="px-4 py-12 text-center text-graphite-400">Nenhum PTR-BA encontrado com os filtros atuais.</td></tr>
-                ) : (
-                  sortedPessoaRows.map((r, i) => (
-                    <tr key={`${r.pessoa}-${r.assunto}-${i}`}
-                      className="border-b border-graphite-100 transition-colors hover:bg-aviation-50/50 dark:border-border-dark dark:hover:bg-aviation-900/10">
-                      <td className="px-4 py-3 font-medium text-graphite-900 dark:text-graphite-100">
-                        {r.funcao && <span className="rounded bg-aviation-100 px-1.5 py-0.5 text-xs font-semibold text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-300 mr-1.5">{r.funcao}</span>}
-                        {getNomeGuerra(r.pessoa)}
-                        <span className="ml-2 rounded bg-graphite-100 px-1.5 py-0.5 text-[10px] font-medium text-graphite-500 dark:bg-surface-hover dark:text-graphite-400">{r.equipe}</span>
-                      </td>
-                      <td className="px-4 py-3 text-graphite-700 dark:text-graphite-300">{r.assunto}</td>
-                      <td className="px-4 py-3 font-semibold text-emerald-700 dark:text-emerald-400">{horasStr(r.horas)}</td>
-                      <td className="px-4 py-3 text-graphite-600 dark:text-graphite-400">{r.qtd}x</td>
-                      <td className="px-4 py-3">
-                        <button onClick={() => goToDetail(r.pessoa)}
-                          className="inline-flex items-center gap-1 rounded-lg bg-aviation-100 px-2 py-1 text-xs font-medium text-aviation-700 transition-colors hover:bg-aviation-200 dark:bg-aviation-900/30 dark:text-aviation-300 dark:hover:bg-aviation-900/50">
-                          <Eye className="h-3 w-3" /> Ver PTR-BAs
-                        </button>
-                      </td>
+                  </thead>
+                  <tbody>
+                    {assuntosMatriz.equipes.map(eq => (
+                      <tr key={eq} className="cursor-pointer border-b border-graphite-100 transition-colors hover:bg-aviation-50/50 dark:border-border-dark dark:hover:bg-aviation-900/10"
+                        onClick={() => goToPerson(eq)}>
+                        <td className="sticky left-0 z-10 bg-white px-4 py-2.5 dark:bg-surface-card">
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-aviation-100 px-2.5 py-0.5 text-xs font-semibold text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-300">
+                            <Users className="h-3 w-3" /> {eq}
+                          </span>
+                        </td>
+                        {assuntosMatriz.assuntos.map(a => {
+                          const v = assuntosMatriz.valores[eq]?.[a];
+                          return <td key={a} className="px-2 py-2.5 text-center text-xs">
+                            {v != null && v > 0 ? <span className="font-semibold text-emerald-700 dark:text-emerald-400">{horasStr(v)}</span> : <span className="text-graphite-300 dark:text-graphite-600">—</span>}
+                          </td>;
+                        })}
+                        <td className="px-3 py-2.5 text-center text-xs font-bold text-graphite-900 dark:text-graphite-100">{horasStr(assuntosMatriz.totalPorEquipe[eq] || 0)}</td>
+                      </tr>
+                    ))}
+                    <tr className="border-t-2 border-graphite-300 bg-graphite-50/80 dark:border-graphite-600 dark:bg-surface-hover">
+                      <td className="sticky left-0 z-10 bg-graphite-50 px-4 py-2.5 text-xs font-bold uppercase text-graphite-700 dark:bg-surface-hover dark:text-graphite-200">TOTAL</td>
+                      {assuntosMatriz.assuntos.map(a => {
+                        const v = assuntosMatriz.totalPorAssunto[a] || 0;
+                        return <td key={a} className="px-2 py-2.5 text-center text-xs font-semibold text-graphite-800 dark:text-graphite-200">{v > 0 ? horasStr(v) : '—'}</td>;
+                      })}
+                      <td className="px-3 py-2.5 text-center text-xs font-black text-aviation-700 dark:text-aviation-300">{horasStr(assuntosMatriz.totalGeral)}</td>
                     </tr>
-                  ))
-                )
-              )}
-            </tbody>
-          </table>
-        </div>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            {/* 2 — Visão por Assunto */}
+            <section id="por-assunto" className="mb-12 scroll-mt-24">
+              <SectionHeader icon={List} title="Visão por Assunto" subtitle="Tempo acumulado por matéria ministrada" />
+              <div className="overflow-x-auto rounded-2xl border border-graphite-200/60 bg-white/80 shadow-sm dark:border-border-dark dark:bg-surface-card">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-graphite-200 dark:border-border-dark">
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Nº</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Assunto</th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Registros</th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Horas</th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">% do total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {assuntoRanking.map(r => (
+                      <tr key={r.assunto} className="border-b border-graphite-100 transition-colors hover:bg-aviation-50/50 dark:border-border-dark dark:hover:bg-aviation-900/10">
+                        <td className="px-4 py-2.5 font-mono text-xs font-bold text-graphite-400">{r.assunto.match(/^(\d+)\./)?.[1] || '—'}</td>
+                        <td className="px-4 py-2.5 font-medium text-graphite-900 dark:text-graphite-100">{r.assunto}</td>
+                        <td className="px-4 py-2.5 text-center text-graphite-600 dark:text-graphite-400">{r.qtd}x</td>
+                        <td className="px-4 py-2.5 text-center font-semibold text-emerald-700 dark:text-emerald-400">{horasStr(r.horas)}</td>
+                        <td className="px-4 py-2.5 text-center">
+                          <span className="inline-flex min-w-[64px] justify-center rounded-full bg-aviation-100 px-2 py-0.5 text-xs font-semibold text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-300">{r.pct.toFixed(1)}%</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            {/* 3 — Visão por Equipe */}
+            <section id="por-equipe" className="mb-12 scroll-mt-24">
+              <SectionHeader icon={Users} title="Visão por Equipe" subtitle="Participação de cada militar por assunto, na hierarquia da equipe" />
+              <div className="space-y-8">
+                {equipePessoasMatriz.grupos.map(g => (
+                  <div key={g.equipe}>
+                    <EquipeBand equipe={g.equipe}
+                      extras={<>{g.pessoas.length} militares · {horasStr(g.pessoas.reduce((s, p) => s + p.totalHoras, 0))}</>} />
+                    <div className="overflow-x-auto rounded-2xl border border-graphite-200/60 bg-white/80 shadow-sm dark:border-border-dark dark:bg-surface-card">
+                      <table className="w-full text-xs" style={{ minWidth: 1000 }}>
+                        <thead>
+                          <tr className="border-b border-graphite-200 dark:border-border-dark">
+                            <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Nº</th>
+                            <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Função</th>
+                            <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Nome</th>
+                            {equipePessoasMatriz.assuntos.map(a => (
+                              <th key={a} title={a} className="px-1.5 py-2.5 text-center text-[10px] font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">{abreviarLabel(a)}</th>
+                            ))}
+                            <th className="px-3 py-2.5 text-center text-[10px] font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Total</th>
+                            <th className="px-3 py-2.5 text-center text-[10px] font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Reg.</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {g.pessoas.map((p, i) => (
+                            <tr key={p.nome} className={`border-b border-graphite-100 dark:border-border-dark ${p.funcao === 'BA-CE' ? 'bg-aviation-50/60 dark:bg-aviation-900/10' : ''}`}>
+                              <td className="px-3 py-2 text-graphite-400">{i + 1}</td>
+                              <td className={`px-3 py-2 ${p.funcao === 'BA-CE' ? 'font-bold text-aviation-800 dark:text-aviation-300' : 'text-graphite-600 dark:text-graphite-400'}`}>{p.funcao || '—'}</td>
+                              <td className="px-3 py-2 font-medium text-graphite-900 dark:text-graphite-100">{p.nome}</td>
+                              {equipePessoasMatriz.assuntos.map(a => {
+                                const v = p.valores.get(a);
+                                return <td key={a} className="px-1.5 py-2 text-center">
+                                  {v && v.horas > 0 ? <span className="font-semibold text-emerald-700 dark:text-emerald-400">{horasStr(v.horas)}</span> : <span className="text-graphite-300 dark:text-graphite-600">—</span>}
+                                </td>;
+                              })}
+                              <td className="px-3 py-2 text-center font-bold text-graphite-900 dark:text-graphite-100">{horasStr(p.totalHoras)}</td>
+                              <td className="px-3 py-2 text-center text-graphite-600 dark:text-graphite-400">{p.totalQtd}x</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* 4 — Visão por Pessoa */}
+            <section id="por-pessoa" className="mb-12 scroll-mt-24">
+              <SectionHeader icon={User} title="Visão por Pessoa" subtitle="Tempo dedicado por cada militar a cada assunto" />
+              <div className="mb-4 flex justify-end">
+                <PrintButton onClick={handlePrintPerson}>Horas por Pessoa</PrintButton>
+              </div>
+              <div className="space-y-8">
+                {pessoasPorEquipe.map(([equipe, pessoas]) => (
+                  <div key={equipe}>
+                    <EquipeBand equipe={equipe}
+                      extras={<>{pessoas.length} militares · {horasStr(pessoas.reduce((s, p) => s + p.totalHoras, 0))}</>} />
+                    <div className="overflow-hidden rounded-2xl border border-graphite-200/60 bg-white/80 shadow-sm dark:border-border-dark dark:bg-surface-card">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-graphite-200 dark:border-border-dark">
+                            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Militar</th>
+                            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Assunto</th>
+                            <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Horas</th>
+                            <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Registros</th>
+                            <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Ações</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pessoas.map(p => (
+                            <Fragment key={p.pessoa}>
+                              <tr className="border-b border-graphite-200 bg-graphite-50/70 dark:border-border-dark dark:bg-surface-hover">
+                                <td className="px-4 py-2.5 font-semibold text-graphite-900 dark:text-graphite-100">
+                                  {p.funcao && <span className="mr-2 rounded bg-aviation-100 px-1.5 py-0.5 text-xs font-semibold text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-300">{p.funcao}</span>}
+                                  {getNomeGuerra(p.pessoa)}
+                                </td>
+                                <td className="px-4 py-2.5 text-xs text-graphite-400">—</td>
+                                <td className="px-4 py-2.5 text-center text-xs font-bold text-graphite-900 dark:text-graphite-100">{horasStr(p.totalHoras)}</td>
+                                <td className="px-4 py-2.5 text-center text-xs text-graphite-600 dark:text-graphite-400">{p.totalQtd}x</td>
+                                <td className="px-4 py-2.5 text-center">
+                                  <button onClick={() => goToDetail(p.pessoa)}
+                                    className="inline-flex items-center gap-1 rounded-lg bg-aviation-100 px-2 py-1 text-xs font-medium text-aviation-700 transition-colors hover:bg-aviation-200 dark:bg-aviation-900/30 dark:text-aviation-300 dark:hover:bg-aviation-900/50">
+                                    <Eye className="h-3 w-3" /> Ver PTR-BAs
+                                  </button>
+                                </td>
+                              </tr>
+                              {p.assuntos.map(a => (
+                                <tr key={a.assunto} className="border-b border-graphite-100 dark:border-border-dark">
+                                  <td className="px-4 py-2 text-xs text-graphite-400">↳</td>
+                                  <td className="px-4 py-2 pl-10 text-graphite-700 dark:text-graphite-300">{a.assunto}</td>
+                                  <td className="px-4 py-2 text-center font-semibold text-emerald-700 dark:text-emerald-400">{horasStr(a.horas)}</td>
+                                  <td className="px-4 py-2 text-center text-graphite-600 dark:text-graphite-400">{a.qtd}x</td>
+                                  <td />
+                                </tr>
+                              ))}
+                            </Fragment>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* 5 — Visão Geral do Efetivo */}
+            <section id="efetivo" className="mb-12 scroll-mt-24">
+              <SectionHeader icon={ClipboardList} title="Visão Geral do Efetivo" subtitle="Todas as pessoas por equipe, na ordem hierárquica da função" />
+              <div className="space-y-8">
+                {efetivoGeral.map(([equipe, pessoas]) => (
+                  <div key={equipe}>
+                    <EquipeBand equipe={equipe} extras={<>{pessoas.length} pessoas</>} />
+                    <div className="overflow-x-auto rounded-2xl border border-graphite-200/60 bg-white/80 shadow-sm dark:border-border-dark dark:bg-surface-card">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-graphite-200 dark:border-border-dark">
+                            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Nº</th>
+                            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Função</th>
+                            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Nome</th>
+                            <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Horas no período</th>
+                            <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Registros</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pessoas.map((p, i) => (
+                            <tr key={`${equipe}-${p.nome}`} className={`border-b border-graphite-100 dark:border-border-dark ${p.funcao === 'BA-CE' ? 'bg-aviation-50/60 dark:bg-aviation-900/10' : ''}`}>
+                              <td className="px-4 py-2.5 text-graphite-400">{i + 1}</td>
+                              <td className={`px-4 py-2.5 ${p.funcao === 'BA-CE' ? 'font-bold text-aviation-800 dark:text-aviation-300' : 'text-graphite-600 dark:text-graphite-400'}`}>{p.funcao || '—'}</td>
+                              <td className="px-4 py-2.5 font-medium text-graphite-900 dark:text-graphite-100">{p.nome}</td>
+                              <td className={`px-4 py-2.5 text-center ${p.emAtividade ? 'font-semibold text-emerald-700 dark:text-emerald-400' : 'text-graphite-300 dark:text-graphite-600'}`}>{p.totalHoras}</td>
+                              <td className="px-4 py-2.5 text-center text-graphite-600 dark:text-graphite-400">{p.registros > 0 ? `${p.registros}x` : '—'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* 6 — Legenda */}
+            <section id="legenda" className="scroll-mt-24">
+              <SectionHeader icon={BookOpen} title="Legenda — Assuntos Ministrados" subtitle="Numeração oficial dos assuntos do PTR-BA" />
+              <details className="group rounded-2xl border border-graphite-200/60 bg-white/80 shadow-sm dark:border-border-dark dark:bg-surface-card">
+                <summary className="flex cursor-pointer items-center justify-between px-4 py-3 text-sm font-semibold text-graphite-700 dark:text-graphite-200">
+                  <span>Mostrar / ocultar legenda</span>
+                  <ChevronDown className="h-4 w-4 text-graphite-400 transition-transform group-open:rotate-180" />
+                </summary>
+                <div className="grid grid-cols-1 gap-x-8 border-t border-graphite-200 p-4 sm:grid-cols-2 dark:border-border-dark">
+                  {ASSUNTOS.map((a, i) => (
+                    <p key={a} className="flex gap-2 py-0.5 text-xs text-graphite-600 dark:text-graphite-400">
+                      <span className="font-mono font-bold text-graphite-400">{String(i + 1).padStart(2, '0')}</span>
+                      {a.replace(/^\d+\.\s*/, '')}
+                    </p>
+                  ))}
+                </div>
+              </details>
+            </section>
+          </>
+        )}
       </PageContainer>
     );
   }
