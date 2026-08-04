@@ -8,6 +8,7 @@ import { listarAPOCs, buscarAPOC, criarAPOC, atualizarAPOC, excluirAPOC } from '
 import type { APOC } from '../../types/apoc';
 import { useDebounce } from '../../hooks/useDebounce';
 import { AlertModal } from '../../components/ui/AlertModal';
+import { capitalizarNome } from '../../utils/capitalize';
 import { podeVerCadastroCompletoBase, resolverContextoOperacional } from '../../utils/permissoes';
 
 export function APOCs() {
@@ -85,7 +86,7 @@ export function APOCs() {
   }
 
   function capitalize(str: string) {
-    return str.replace(/\b\w/g, char => char.toUpperCase());
+    return capitalizarNome(str);
   }
 
   if (!canManageCadastro) {

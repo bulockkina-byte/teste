@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
+import { capitalizarNome } from '../../utils/capitalize';
 import type { Viatura, TipoViatura, StatusViatura } from '../../types/viatura';
 import { TIPO_VIATURA_OPTIONS, STATUS_VIATURA_OPTIONS } from '../../types/viatura';
 
@@ -57,8 +58,8 @@ export function ViaturaForm({ viatura, onSave, onClose }: Props) {
       prefixo: prefixo.toUpperCase(),
       placa: placa.toUpperCase(),
       tipo,
-      marca: marca.replace(/\b\w/g, c => c.toUpperCase()),
-      modelo: modelo.replace(/\b\w/g, c => c.toUpperCase()),
+      marca: capitalizarNome(marca),
+      modelo: capitalizarNome(modelo),
       ano,
       status: situacao,
       observacoes,

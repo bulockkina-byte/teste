@@ -73,6 +73,7 @@ export interface ViaturaPane {
   status: StatusPane;
   resolvidaEm?: string;
   resolvidaPor?: string;
+  relatoConserto?: string;
   createdAt: string;
   updatedAt: string;
 }

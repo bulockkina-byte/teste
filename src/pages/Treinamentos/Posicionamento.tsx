@@ -9,6 +9,7 @@ import { SearchSelect } from '../../components/ui/SearchSelect';
 import { useContextoOperacional } from '../../hooks/useContextoOperacional';
 import { listarAtivos } from '../../services/bombeiroService';
 import { listarAPOCs } from '../../services/apocService';
+import { resolverEfetivo } from '../../services/vigenciaSubstituicaoService';
 import {
   listarExercicios, criarExercicio, atualizarExercicio,
   excluirExercicio, obterProximoNumero,
@@ -47,6 +48,7 @@ export default function Posicionamento() {
   const [formData, setFormData] = useState('');
   const [formHora, setFormHora] = useState('');
   const [formLocal, setFormLocal] = useState('');
+  const [formChefeEquipe, setFormChefeEquipe] = useState('');
   const [formFaisca2BaMc, setFormFaisca2BaMc] = useState('');
   const [formFaisca2BaCe, setFormFaisca2BaCe] = useState('');
   const [formFaisca2Ba2, setFormFaisca2Ba2] = useState('');
@@ -156,6 +158,7 @@ export default function Posicionamento() {
     setFormSistemaAlarmes('');
     setFormVisibilidade('');
     setFormFeedbackCoe('');
+    setFormChefeEquipe('');
   }
 
   async function handleNovo() {
@@ -173,6 +176,21 @@ export default function Posicionamento() {
     setFormNumero(prox);
     setFormOpen(true);
   }
+
+  useEffect(() => {
+    if (!formOpen || editando || !formEquipe || !formData) return;
+    let active = true;
+    (async () => {
+      try {
+        const efetivo = await resolverEfetivo(formEquipe, formData);
+        if (!active) return;
+        const chefe = [...efetivo.efetivos, ...efetivo.substitutosExternos]
+          .find(item => !item.emFerias && item.cargoExercido === 'BA-CE');
+        if (chefe) setFormChefeEquipe(chefe.bombeiro.nomeGuerra || chefe.bombeiro.nomeCompleto || '');
+      } catch { /* mantem vazio, fallback no salvar */ }
+    })();
+    return () => { active = false; };
+  }, [formOpen, editando, formEquipe, formData]);
 
   function handleEditar(e: ExercicioPosicionamento) {
     if (!canManageEquipe(e.equipe)) {
@@ -214,6 +232,7 @@ export default function Posicionamento() {
     setFormSistemaAlarmes(e.sistemaAlarmes);
     setFormVisibilidade(e.visibilidadeSuperficie);
     setFormFeedbackCoe(e.feedbackCoe);
+    setFormChefeEquipe(e.chefeEquipe || '');
     setFormOpen(true);
   }
 
@@ -247,7 +266,7 @@ export default function Posicionamento() {
         tempoResposta: formTempoResposta, feedbackSci: formFeedbackSci,
         consideracoesFinais: formConsideracoes, sistemaAlarmes: formSistemaAlarmes,
         visibilidadeSuperficie: formVisibilidade, feedbackCoe: formFeedbackCoe,
-        chefeEquipe: user?.name || '',
+        chefeEquipe: formChefeEquipe || user?.name || '',
       };
       if (editando) {
         await atualizarExercicio(editando.id, data);
@@ -507,7 +526,7 @@ export default function Posicionamento() {
               {/* Chefe de Equipe (readonly) */}
               <div className="rounded-xl border border-graphite-200/60 bg-graphite-50/80 p-4 dark:border-border-dark dark:bg-surface-card/80">
                 <label className={labelCls}>Chefe de Equipe</label>
-                <p className="text-sm font-semibold text-graphite-900 dark:text-graphite-100">{user?.name || '-'}</p>
+                <p className="text-sm font-semibold text-graphite-900 dark:text-graphite-100">{formChefeEquipe || user?.name || '-'}</p>
               </div>
 
               {/* Botões */}

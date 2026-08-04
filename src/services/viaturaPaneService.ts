@@ -27,6 +27,7 @@ function rowToPane(row: Record<string, unknown>): ViaturaPane {
     status: (row.status as StatusPane) || 'Aberta',
     resolvidaEm: (row.resolvida_em as string) || undefined,
     resolvidaPor: (row.resolvida_por as string) || undefined,
+    relatoConserto: (row.relato_conserto as string) || undefined,
     createdAt: (row.created_at as string) || '',
     updatedAt: (row.updated_at as string) || '',
   };
@@ -41,6 +42,7 @@ function paneToRow(data: Partial<ViaturaPane>): Record<string, unknown> {
   if (data.status !== undefined) row.status = data.status;
   if (data.resolvidaEm !== undefined) row.resolvida_em = data.resolvidaEm;
   if (data.resolvidaPor !== undefined) row.resolvida_por = data.resolvidaPor;
+  if (data.relatoConserto !== undefined) row.relato_conserto = data.relatoConserto;
   return row;
 }
 

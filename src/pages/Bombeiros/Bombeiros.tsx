@@ -9,6 +9,7 @@ import { CARGO_OPTIONS, EQUIPE_OPTIONS, ABBR_CARGO, getHorarioTrabalho } from '.
 import { BombeiroForm } from './BombeiroForm';
 import { useDebounce } from '../../hooks/useDebounce';
 import { AlertModal } from '../../components/ui/AlertModal';
+import { capitalizarNome } from '../../utils/capitalize';
 import { podeVerCadastroCompletoBase, resolverContextoOperacional } from '../../utils/permissoes';
 
 export function Bombeiros() {
@@ -99,7 +100,7 @@ export function Bombeiros() {
   }
 
   function capitalize(str: string) {
-    return str.replace(/\b\w/g, char => char.toUpperCase());
+    return capitalizarNome(str);
   }
 
   function labelCargo(valor: string) {

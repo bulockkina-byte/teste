@@ -8,6 +8,7 @@ import { PageTitle } from '../../components/layout/PageTitle';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { useContextoOperacional } from '../../hooks/useContextoOperacional';
 import { listarAtivos } from '../../services/bombeiroService';
+import { resolverEfetivo } from '../../services/vigenciaSubstituicaoService';
 import {
   listarTreinos, criarTreino, atualizarTreino,
   excluirTreino, obterProximoNumero,
@@ -47,6 +48,7 @@ export default function TempoResposta() {
   const [formData, setFormData] = useState('');
   const [formHora, setFormHora] = useState('');
   const [formLocal, setFormLocal] = useState('');
+  const [formChefeEquipe, setFormChefeEquipe] = useState('');
 
   // F2
   const [f2Cci, setF2Cci] = useState('');
@@ -130,6 +132,7 @@ export default function TempoResposta() {
     setFormAcionamento(''); setFormSistemaAlarmes(''); setFormComunicacao(''); setFormDeslocamento('');
     setFormVisibilidade(''); setFormProcedimentos(''); setFormTempoResposta(''); setFormFeedbackSpe(''); setFormFeedbackTwr(''); setFormFeedbackSci('');
     setFormGerente('');
+    setFormChefeEquipe('');
   }
 
   async function handleNovo() {
@@ -148,6 +151,21 @@ export default function TempoResposta() {
     setFormOpen(true);
   }
 
+  useEffect(() => {
+    if (!formOpen || editando || !formEquipe || !formData) return;
+    let active = true;
+    (async () => {
+      try {
+        const efetivo = await resolverEfetivo(formEquipe, formData);
+        if (!active) return;
+        const chefe = [...efetivo.efetivos, ...efetivo.substitutosExternos]
+          .find(item => !item.emFerias && item.cargoExercido === 'BA-CE');
+        if (chefe) setFormChefeEquipe(chefe.bombeiro.nomeGuerra || chefe.bombeiro.nomeCompleto || '');
+      } catch { /* mantem vazio, fallback no salvar */ }
+    })();
+    return () => { active = false; };
+  }, [formOpen, editando, formEquipe, formData]);
+
   function handleEditar(t: TreinamentoTempoResposta) {
     if (!canManageEquipe(t.equipe)) {
       alert('Você só pode editar treinamentos da sua equipe efetiva.');
@@ -165,6 +183,7 @@ export default function TempoResposta() {
     setFormComunicacao(t.comunicacaoFraseologia); setFormDeslocamento(t.deslocamentoVtrs); setFormVisibilidade(t.visibilidadeSuperficie);
     setFormProcedimentos(t.procedimentoPcinc); setFormTempoResposta(t.tempoResposta); setFormFeedbackSpe(t.feedbackSpe);
     setFormFeedbackTwr(t.feedbackTwr); setFormFeedbackSci(t.feedbackSci); setFormGerente(t.gerente);
+    setFormChefeEquipe(t.chefeEquipe || '');
     setFormOpen(true);
   }
 
@@ -192,7 +211,7 @@ export default function TempoResposta() {
         visibilidadeSuperficie: formVisibilidade, procedimentoPcinc: formProcedimentos,
         tempoResposta: formTempoResposta, feedbackSpe: formFeedbackSpe,
         feedbackTwr: formFeedbackTwr, feedbackSci: formFeedbackSci,
-        chefeEquipe: user?.name || '', gerente: formGerente,
+        chefeEquipe: formChefeEquipe || user?.name || '', gerente: formGerente,
       };
       if (editando) {
         await atualizarTreino(editando.id, data);
@@ -462,7 +481,7 @@ export default function TempoResposta() {
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="rounded-xl border border-graphite-200/60 bg-graphite-50/80 p-4 dark:border-border-dark dark:bg-surface-card/80">
                   <label className={labelCls}>Chefe de Equipe</label>
-                  <p className="text-sm font-semibold text-graphite-900 dark:text-graphite-100">{user?.name || '-'}</p>
+                  <p className="text-sm font-semibold text-graphite-900 dark:text-graphite-100">{formChefeEquipe || user?.name || '-'}</p>
                 </div>
                 <div>
                   <label className={labelCls}>GS / Embaixador (Gerente)</label>

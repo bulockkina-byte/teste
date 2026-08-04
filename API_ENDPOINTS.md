@@ -1228,6 +1228,37 @@ GET com joins: busca `document` + `document_fields` + `document_signers` em para
 
 ---
 
+# 14.1. Panes de Viaturas — `viaturaPaneService.ts`
+
+**Tabela:** `viatura_panes`  
+**Ficheiro:** `src/services/viaturaPaneService.ts`  
+**Tipo:** `src/types/viatura.ts` — `ViaturaPane`
+
+---
+
+### listarPanes / criarPane / atualizarPane / excluirPane / listarTodasPanes
+
+✅ OK
+
+**Payload `ViaturaPane`:**
+```json
+{
+  "id": "uuid",
+  "viaturaId": "uuid",
+  "descricao": "string",
+  "status": "Aberta | Resolvida",
+  "criadoPor": "string",
+  "criadoPorNome": "string",
+  "resolvidaPor": "string",
+  "resolvidaPorNome": "string",
+  "dataResolucao": "string",
+  "relatoConserto": "string",
+  "createdAt": "string"
+}
+```
+
+---
+
 # 15. Extintores — `extintorService.ts`
 
 **Tabela:** `extintores`  

@@ -9,8 +9,7 @@ import { PageTitle } from '../../components/layout/PageTitle';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { useContextoOperacional } from '../../hooks/useContextoOperacional';
 import { listarAtivos } from '../../services/bombeiroService';
-import { listarFeriasGozo } from '../../services/feriasService';
-import { listarVigencias } from '../../services/vigenciaSubstituicaoService';
+import { resolverEfetivo } from '../../services/vigenciaSubstituicaoService';
 import { listarTAFs, criarTAF, atualizarTAF, excluirTAF, obterProximoNumero } from '../../services/tafService';
 import type { TreinamentoTAF } from '../../types/taf';
 
@@ -55,6 +54,7 @@ export function TAF() {
     Array.from({ length: 10 }, () => ({ nome: '', funcao: '', idade: 0, tempo: '' }))
   );
   const [fObs, setFObs] = useState('');
+  const [fChefeEquipe, setFChefeEquipe] = useState('');
 
   const equipesFormulario = useMemo(() => {
     if (canManageGlobal) return [...EQUIPES];
@@ -96,6 +96,7 @@ export function TAF() {
     setFEquipe(equipePadrao); setFNumero(0); setFAno(''); setFData(''); setFHora(''); setFTurno(turnoAuto(equipePadrao)); setFTipo('');
     setFPessoas(Array.from({ length: 10 }, () => ({ nome: '', funcao: '', idade: 0, tempo: '' })));
     setFObs('');
+    setFChefeEquipe('');
   }
 
   function turnoAuto(equipe: string) { return equipe === 'Alfa' || equipe === 'Charlie' ? 'Diurno' : equipe === 'Bravo' || equipe === 'Delta' ? 'Noturno' : ''; }
@@ -103,36 +104,13 @@ export function TAF() {
   async function autoPreencherParticipantes() {
     if (!fEquipe || !fData) return;
     try {
-      const dataObj = new Date(fData + 'T00:00:00');
-      const [gozos, vigs] = await Promise.all([
-        listarFeriasGozo(),
-        listarVigencias({ ativa: true }),
-      ]);
+      const { efetivos, substitutosExternos } = await resolverEfetivo(fEquipe, fData);
+      const pool: any[] = [...efetivos, ...substitutosExternos]
+        .filter(item => !item.emFerias)
+        .map(item => ({ id: item.bombeiro.id, nomeGuerra: item.bombeiro.nomeGuerra, idade: item.bombeiro.idade, cargo: item.cargoExercido }));
 
-      function isEmGozo(bId: string) {
-        return gozos.find((g: any) => {
-          if (g.funcionarioId !== bId || g.status === 'Gozadas') return false;
-          const gInicio = new Date(g.dataInicio + 'T00:00:00');
-          const gFim = new Date(g.dataFim + 'T00:00:00');
-          return gInicio <= dataObj && gFim >= dataObj;
-        });
-      }
-
-      const membros = bombeiros.filter((b: any) => b.equipe === fEquipe && !b.dataDesligamento);
-      const pool: any[] = [];
-      const ocupados = new Set<string>();
-
-      for (const m of membros) {
-        if (!isEmGozo(m.id)) {
-          if (!ocupados.has(m.id)) { pool.push(m); ocupados.add(m.id); }
-          continue;
-        }
-        const subVig = vigs.find((v: any) => v.funcionarioOriginalId === m.id && v.ativa);
-        if (subVig && subVig.substitutoId) {
-          const sub = bombeiros.find((bb: any) => bb.id === subVig.substitutoId);
-          if (sub && !ocupados.has(sub.id)) { pool.push(sub); ocupados.add(sub.id); }
-        }
-      }
+      const baCe = pool.find((b: any) => b.cargo === 'BA-CE');
+      if (baCe) setFChefeEquipe(baCe.nomeGuerra || '');
 
       const usado = new Set<string>();
       const buscar = (cargo: string) => {
@@ -185,8 +163,8 @@ export function TAF() {
     setEditando(null);
     const a = new Date().getFullYear().toString();
     setFAno(a); setFData(new Date().toISOString().split('T')[0]); setFHora(new Date().toTimeString().slice(0, 5));
-    setFNumero(await obterProximoNumero(a));
     setFormOpen(true);
+    setFNumero(await obterProximoNumero(a));
   }
 
   function handleEditar(r: TreinamentoTAF) {
@@ -198,6 +176,7 @@ export function TAF() {
     setFEquipe(r.equipe); setFNumero(r.numero); setFAno(r.ano); setFData(r.data); setFHora(r.hora); setFTurno(r.turno); setFTipo(r.tipoTaf);
     setFPessoas(Array.from({ length: 10 }, (_, i) => ({ nome: (r as any)[`p${i+1}Nome`] || '', funcao: (r as any)[`p${i+1}Funcao`] || '', idade: (r as any)[`p${i+1}Idade`] || 0, tempo: (r as any)[`p${i+1}Tempo`] || '' })));
     setFObs(r.observacoes);
+    setFChefeEquipe(r.chefeEquipe || '');
     setFormOpen(true);
   }
 
@@ -214,7 +193,7 @@ export function TAF() {
     }
     setSaving(true);
     try {
-      const data: any = { equipe: equipeAlvo, numero: fNumero, ano: fAno, data: fData, hora: fHora, turno: turnoAuto(equipeAlvo), tipoTaf: fTipo, observacoes: fObs, chefeEquipe: user?.name || '' };
+      const data: any = { equipe: equipeAlvo, numero: fNumero, ano: fAno, data: fData, hora: fHora, turno: turnoAuto(equipeAlvo), tipoTaf: fTipo, observacoes: fObs, chefeEquipe: fChefeEquipe || user?.name || '' };
       for (let i = 0; i < 10; i++) {
         data[`p${i+1}Nome`] = fPessoas[i].nome; data[`p${i+1}Funcao`] = fPessoas[i].funcao; data[`p${i+1}Idade`] = fPessoas[i].idade; data[`p${i+1}Tempo`] = fPessoas[i].tempo;
       }
@@ -398,7 +377,7 @@ export function TAF() {
 
               <div className="rounded-xl border border-graphite-200/60 bg-graphite-50/80 p-4 dark:border-border-dark dark:bg-surface-card/80">
                 <label className={labelCls}>Chefe de Equipe</label>
-                <p className="text-sm font-semibold text-graphite-900 dark:text-graphite-100">{user?.name || '-'}</p>
+                <p className="text-sm font-semibold text-graphite-900 dark:text-graphite-100">{fChefeEquipe || user?.name || '-'}</p>
               </div>
 
               <div className="flex justify-end gap-3 border-t border-graphite-200 pt-4 dark:border-border-dark">

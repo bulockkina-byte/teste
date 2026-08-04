@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
+import { capitalizarNome } from '../../utils/capitalize';
 import type { APOC, FuncaoAPOC } from '../../types/apoc';
 import { FUNCAO_APOC_OPTIONS, EQUIPE_APOC } from '../../types/apoc';
 
@@ -38,8 +39,8 @@ export function APOCForm({ apoc, onSave, onClose, serverError }: Props) {
     setSubmitting(true);
     try {
       await onSave({
-      nomeCompleto: nomeCompleto.replace(/\b\w/g, char => char.toUpperCase()),
-      nomeGuerra: nomeGuerra.replace(/\b\w/g, char => char.toUpperCase()),
+      nomeCompleto: capitalizarNome(nomeCompleto),
+      nomeGuerra: capitalizarNome(nomeGuerra),
       email,
       funcao,
       equipe: EQUIPE_APOC,

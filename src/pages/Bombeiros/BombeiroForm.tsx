@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Upload } from 'lucide-react';
+import { capitalizarNome } from '../../utils/capitalize';
 import type { Bombeiro, Cargo, Equipe, Turno, CatCNH, Sexo } from '../../types/bombeiro';
 import {
   CARGO_OPTIONS,
@@ -243,8 +244,8 @@ export function BombeiroForm({ bombeiro, onSave, onClose, serverError }: Props) 
     try {
       await onSave({
       matricula,
-      nomeCompleto: nomeCompleto.replace(/\b\w/g, char => char.toUpperCase()),
-      nomeGuerra: nomeGuerra.replace(/\b\w/g, char => char.toUpperCase()),
+      nomeCompleto: capitalizarNome(nomeCompleto),
+      nomeGuerra: capitalizarNome(nomeGuerra),
       email,
       dataNascimento,
       idade,

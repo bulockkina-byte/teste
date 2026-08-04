@@ -285,7 +285,7 @@ Podes combinar múltiplas skills carregando-as em sequência. A ordem importa:
 │   ├── store/              # Redux store (vazio — apenas hosting RTK Query dead code)
 │   │   └── api/            # 10 ficheiros RTK Query com fakeBaseQuery (DEAD CODE)
 │   ├── types/              # Interfaces TypeScript (26 ficheiros)
-│   └── utils/              # Utilitários (equipes, permissoes, regrasOperacionais, validação de cursos, etc.)
+│   └── utils/              # Utilitários (equipes, permissoes, regrasOperacionais, validação de cursos, capitalize, etc.)
 ├── AGENTS.md               # Este ficheiro — guia do agente
 ├── API_ENDPOINTS.md         # Fonte da verdade para endpoints Supabase
 ├── CLAUDE.md               # Instruções RTK (token optimization)

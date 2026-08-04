@@ -26,12 +26,13 @@ import {
   podeVerDadosPessoaisBase,
   resolverContextoOperacional,
 } from '../../utils/permissoes';
+import { capitalizarNome } from '../../utils/capitalize';
 
 type Tab = 'todos' | 'bombeiros' | 'apoc' | 'substituicoes';
 type SituacaoBombeiro = 'Ativo' | 'Afastado' | 'Desligado';
 
 function capitalize(str: string) {
-  return str.replace(/\b\w/g, char => char.toUpperCase());
+  return capitalizarNome(str);
 }
 
 function labelCargo(valor: string) {

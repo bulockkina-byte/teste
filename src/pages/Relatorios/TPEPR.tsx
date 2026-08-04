@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   Calculator,
+  ChevronDown,
+  ChevronUp,
   Clock,
   ClipboardList,
   Download,
@@ -118,6 +120,7 @@ export function TPEPR() {
   const [fObs, setFObs] = useState('');
   const [fChefeEquipe, setFChefeEquipe] = useState('');
   const [fParticipantes, setFParticipantes] = useState<TPEPRParticipante[]>(criarParticipantesTPEPRVazios());
+  const [expandidoId, setExpandidoId] = useState<string | null>(null);
 
   const equipesFormulario = useMemo(() => {
     if (canManageGlobal) return [...TPEPR_EQUIPES];
@@ -220,7 +223,11 @@ export function TPEPR() {
         const pool = await montarPoolParticipantes(fEquipe, fData);
         if (!active) return;
         setOpcoesParticipantes(pool);
-        if (!editando) setFParticipantes(gerarParticipantesPorPool(pool));
+        if (!editando) {
+          const baCe = pool.find(b => b.cargo === 'BA-CE');
+          if (baCe) setFChefeEquipe(baCe.nomeGuerra || baCe.nomeCompleto);
+          setFParticipantes(gerarParticipantesPorPool(pool));
+        }
       } catch (err) {
         if (active) setErro(mensagemErro(err));
       }
@@ -562,10 +569,15 @@ export function TPEPR() {
           <div className="space-y-3">
             {filtered.map(registro => {
               const participantes = ordenarParticipantesTPEPR(registro.participantes.filter(participantePreenchido));
+              const expandido = expandidoId === registro.id;
               return (
                 <div key={registro.id} className="rounded-2xl border border-graphite-200/60 bg-white/80 p-4 transition-all hover:shadow-md dark:border-border-dark dark:bg-surface-card">
                   <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setExpandidoId(expandido ? null : registro.id)}
+                      className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                    >
                       <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-aviation-500 to-aviation-700 text-sm font-bold text-white">
                         {registro.equipe.charAt(0)}
                       </div>
@@ -577,7 +589,7 @@ export function TPEPR() {
                           {fmtData(registro.data)} {registro.hora && `as ${registro.hora}`} - {registro.turno || '-'} - Chefe: {registro.chefeEquipe || '-'}
                         </p>
                       </div>
-                    </div>
+                    </button>
 
                     <div className="flex shrink-0 items-center gap-2">
                       <button
@@ -598,27 +610,37 @@ export function TPEPR() {
                         </button>
                         </>
                       )}
+                      <button
+                        type="button"
+                        onClick={() => setExpandidoId(expandido ? null : registro.id)}
+                        className="rounded-xl p-1.5 text-graphite-400 transition-all hover:bg-graphite-100 hover:text-graphite-700 dark:hover:bg-surface-hover dark:hover:text-graphite-200"
+                        title={expandido ? 'Fechar detalhes' : 'Abrir detalhes'}
+                      >
+                        {expandido ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      </button>
                     </div>
                   </div>
 
-                  <div className="mt-4 space-y-2">
-                    {participantes.length === 0 ? (
-                      <p className="rounded-xl border border-dashed border-graphite-200 bg-graphite-50 px-3 py-2 text-xs text-graphite-500 dark:border-border-dark dark:bg-surface-hover dark:text-graphite-400">
-                        Sem participantes preenchidos.
-                      </p>
-                    ) : (
-                      participantes.map((participante, index) => (
-                        <div key={`${participante.pessoaId}-${index}`} className="grid grid-cols-1 gap-2 rounded-xl border border-graphite-200/60 bg-graphite-50/70 px-3 py-2 text-xs dark:border-border-dark dark:bg-surface-hover/60 md:grid-cols-[70px_minmax(0,1fr)_repeat(4,76px)]">
-                          <span className="font-black text-aviation-700 dark:text-aviation-300">{participante.funcao}</span>
-                          <span className="truncate font-semibold text-graphite-800 dark:text-graphite-100">{participante.nomeCompleto || participante.nomeGuerra}</span>
-                          <span><b>1a:</b> {participante.primeiraTomada || '-'}</span>
-                          <span><b>2a:</b> {participante.segundaTomada || '-'}</span>
-                          <span><b>3a:</b> {participante.terceiraTomada || '-'}</span>
-                          <span><b>4a:</b> {participante.quartaTomada || '-'}</span>
-                        </div>
-                      ))
-                    )}
-                  </div>
+                  {expandido && (
+                    <div className="mt-4 space-y-2">
+                      {participantes.length === 0 ? (
+                        <p className="rounded-xl border border-dashed border-graphite-200 bg-graphite-50 px-3 py-2 text-xs text-graphite-500 dark:border-border-dark dark:bg-surface-hover dark:text-graphite-400">
+                          Sem participantes preenchidos.
+                        </p>
+                      ) : (
+                        participantes.map((participante, index) => (
+                          <div key={`${participante.pessoaId}-${index}`} className="grid grid-cols-1 gap-2 rounded-xl border border-graphite-200/60 bg-graphite-50/70 px-3 py-2 text-xs dark:border-border-dark dark:bg-surface-hover/60 md:grid-cols-[70px_minmax(0,1fr)_repeat(4,76px)]">
+                            <span className="font-black text-aviation-700 dark:text-aviation-300">{participante.funcao}</span>
+                            <span className="truncate font-semibold text-graphite-800 dark:text-graphite-100">{participante.nomeCompleto || participante.nomeGuerra}</span>
+                            <span><b>1a:</b> {participante.primeiraTomada || '-'}</span>
+                            <span><b>2a:</b> {participante.segundaTomada || '-'}</span>
+                            <span><b>3a:</b> {participante.terceiraTomada || '-'}</span>
+                            <span><b>4a:</b> {participante.quartaTomada || '-'}</span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
