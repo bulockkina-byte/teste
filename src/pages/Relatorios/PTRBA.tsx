@@ -1,7 +1,6 @@
-import { useState, useEffect, useMemo, Fragment } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
-  FileText, ChevronDown, ChevronUp, Eye, Printer, ArrowLeft, Users, Lock,
-  BarChart3, BookOpen, ClipboardList, List, User,
+  FileText, ChevronDown, ChevronUp, Eye, Printer, ArrowLeft, Users, Lock, User,
 } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
@@ -41,6 +40,10 @@ function parseDuracao(d: string): number {
   const h = Number(nums[0]), m = Number(nums[1] ?? 0);
   if (isNaN(h) || isNaN(m)) return 0;
   return h + m / 60;
+}
+
+function horasDe(p: PTRB): number {
+  return p.horas || calcHoras(p.horaInicio, p.horaTermino) || parseDuracao(p.duracao);
 }
 
 function horasStr(h: number): string {
@@ -443,65 +446,47 @@ export function PTRBA() {
     }
   }
 
-  const totalHoras = useMemo(() => expanded.reduce((s, e) => s + e.horas, 0), [expanded]);
+  // Horas das ATIVIDADES (nível PTR-BA): cada atividade conta uma vez por equipe/assunto,
+  // independentemente do número de participantes — evita somar horas × pessoas.
+  const horasAtividades = useMemo(() => {
+    const porEquipeAssunto = new Map<string, Map<string, number>>();
+    const totalPorEquipe: Record<string, number> = {};
+    const totalPorAssunto: Record<string, number> = {};
+    const registrosPorEquipe: Record<string, number> = {};
+    let totalGeral = 0;
+    for (const p of filtered) {
+      const eq = p.equipe || '(sem equipe)';
+      const as = (p.assuntoMinistrado || '(sem assunto)').trim();
+      const h = horasDe(p);
+      if (!porEquipeAssunto.has(eq)) porEquipeAssunto.set(eq, new Map());
+      const sub = porEquipeAssunto.get(eq)!;
+      sub.set(as, (sub.get(as) || 0) + h);
+      totalPorEquipe[eq] = (totalPorEquipe[eq] || 0) + h;
+      totalPorAssunto[as] = (totalPorAssunto[as] || 0) + h;
+      registrosPorEquipe[eq] = (registrosPorEquipe[eq] || 0) + 1;
+      totalGeral += h;
+    }
+    return { porEquipeAssunto, totalPorEquipe, totalPorAssunto, registrosPorEquipe, totalGeral };
+  }, [filtered]);
 
   const statsFiltered = useMemo(() => {
-    let totalHoras = 0;
     const nomes = new Set<string>();
     const equipes = new Set<string>();
     for (const e of expanded) {
-      totalHoras += e.horas;
       nomes.add(e.nome);
       equipes.add(e.ptrb.equipe || '(sem equipe)');
     }
     const totalBombeiros = filtroEquipe
       ? [...bombeiros.values()].filter(b => b.equipe === filtroEquipe).length
       : bombeiros.size;
-    return { registros: filtered.length, horas: totalHoras, pessoas: nomes.size, totalBombeiros, equipes: equipes.size };
-  }, [expanded, filtered, bombeiros, filtroEquipe]);
-
-  const assuntoRanking = useMemo(() => {
-    const map = new Map<string, { horas: number; qtd: number }>();
-    for (const e of expanded) {
-      const as = e.ptrb.assuntoMinistrado || '(sem assunto)';
-      const cur = map.get(as) || { horas: 0, qtd: 0 };
-      cur.horas += e.horas;
-      cur.qtd += 1;
-      map.set(as, cur);
-    }
-    const rows = [...map.entries()].map(([assunto, v]) => ({
-      assunto,
-      horas: v.horas,
-      qtd: v.qtd,
-      pct: totalHoras > 0 ? (v.horas / totalHoras) * 100 : 0,
-    }));
-    rows.sort((a, b) => b.horas - a.horas || b.qtd - a.qtd || a.assunto.localeCompare(b.assunto));
-    return rows;
-  }, [expanded, totalHoras]);
-
-  const assuntosMatriz = useMemo(() => {
-    const assuntos = filtroAssunto ? [filtroAssunto] : assuntosDisponiveis;
-    const valores: Record<string, Record<string, number>> = {};
-    const totalPorEquipe: Record<string, number> = {};
-    const totalPorAssunto: Record<string, number> = {};
-    let totalGeral = 0;
-    for (const e of expanded) {
-      const eq = e.ptrb.equipe || '(sem equipe)';
-      const as = (e.ptrb.assuntoMinistrado || '(sem assunto)').trim();
-      valores[eq] ??= {};
-      valores[eq][as] = (valores[eq][as] || 0) + e.horas;
-      totalPorEquipe[eq] = (totalPorEquipe[eq] || 0) + e.horas;
-      totalGeral += e.horas;
-    }
-    const equipes = [
-      ...EQUIPE_ORDER.filter(eq => valores[eq]),
-      ...Object.keys(valores).filter(eq => ![...EQUIPE_ORDER].includes(eq)),
-    ];
-    for (const as of assuntos) {
-      totalPorAssunto[as] = equipes.reduce((s, eq) => s + (valores[eq][as] || 0), 0);
-    }
-    return { assuntos, equipes, valores, totalPorEquipe, totalPorAssunto, totalGeral };
-  }, [expanded, assuntosDisponiveis, filtroAssunto]);
+    return {
+      registros: filtered.length,
+      horas: horasAtividades.totalGeral,
+      pessoas: nomes.size,
+      totalBombeiros,
+      equipes: equipes.size,
+    };
+  }, [expanded, filtered, horasAtividades.totalGeral, bombeiros, filtroEquipe]);
 
   const equipePessoasMatriz = useMemo(() => {
     const assuntos = filtroAssunto ? [filtroAssunto] : assuntosDisponiveis;
@@ -563,68 +548,46 @@ export function PTRBA() {
     return rows;
   }, [expanded]);
 
-  const pessoasPorEquipe = useMemo(() => {
-    const grupos = new Map<string, Map<string, { pessoa: string; funcao: string; equipe: string; assuntos: { assunto: string; horas: number; qtd: number }[]; totalHoras: number; totalQtd: number }>>();
-    for (const r of pessoaAssuntoData) {
-      if (!grupos.has(r.equipe)) grupos.set(r.equipe, new Map());
-      const pesMap = grupos.get(r.equipe)!;
-      const it = pesMap.get(r.pessoa) || { pessoa: r.pessoa, funcao: r.funcao, equipe: r.equipe, assuntos: [], totalHoras: 0, totalQtd: 0 };
-      it.assuntos.push({ assunto: r.assunto, horas: r.horas, qtd: r.qtd });
-      it.totalHoras += r.horas;
-      it.totalQtd += r.qtd;
-      pesMap.set(r.pessoa, it);
-    }
-    const out = [...grupos.entries()].map(([equipe, pesMap]) => {
-      const pessoas = [...pesMap.values()];
-      pessoas.sort((a, b) => HIERARQUIA.indexOf(a.funcao) - HIERARQUIA.indexOf(b.funcao) || a.pessoa.localeCompare(b.pessoa));
-      return [equipe, pessoas] as const;
-    });
-    out.sort((a, b) => EQUIPE_ORDER.indexOf(a[0]) - EQUIPE_ORDER.indexOf(b[0]));
-    return out;
-  }, [pessoaAssuntoData]);
-
-  const efetivoGeral = useMemo(() => {
-    const dados: Record<string, number> = {};
-    const regs: Record<string, number> = {};
+  // Visão Individual: cada pessoa com a lista detalhada das atividades que frequentou
+  const individuos = useMemo(() => {
+    type Reg = { data: string; assunto: string; horaInicio: string; horaTermino: string; duracao: string; horas: number; instrutor: string };
+    const map = new Map<string, { pessoa: string; funcao: string; equipe: string; registros: Reg[] }>();
     for (const e of expanded) {
-      dados[e.nome] = (dados[e.nome] || 0) + e.horas;
-      regs[e.nome] = (regs[e.nome] || 0) + 1;
-    }
-    const grupos = new Map<string, { funcao: string; nome: string; totalHoras: string; registros: number; emAtividade: boolean }[]>();
-    const add = (eq: string, p: { funcao: string; nome: string; totalHoras: string; registros: number; emAtividade: boolean }) => {
-      if (!grupos.has(eq)) grupos.set(eq, []);
-      grupos.get(eq)!.push(p);
-    };
-    const vistos = new Set<string>();
-    for (const [nome, info] of bombeiros) {
-      if (filtroEquipe && info.equipe !== filtroEquipe) continue;
-      add(info.equipe || '(sem equipe)', {
-        funcao: info.cargo,
-        nome: info.nomeGuerra || nome,
-        totalHoras: horasStr(dados[nome] || 0),
-        registros: regs[nome] || 0,
-        emAtividade: (dados[nome] || 0) > 0,
+      const it = map.get(e.nome) || {
+        pessoa: e.nome,
+        funcao: e.funcao,
+        equipe: bombeiros.get(e.nome)?.equipe || e.ptrb.equipe || '(sem equipe)',
+        registros: [],
+      };
+      it.registros.push({
+        data: e.ptrb.data,
+        assunto: e.ptrb.assuntoMinistrado || '(sem assunto)',
+        horaInicio: e.ptrb.horaInicio || '',
+        horaTermino: e.ptrb.horaTermino || '',
+        duracao: e.ptrb.duracao || '',
+        horas: e.horas,
+        instrutor: e.ptrb.instrutor || '',
       });
-      vistos.add(nome);
+      map.set(e.nome, it);
     }
-    for (const nome of Object.keys(dados)) {
-      if (vistos.has(nome)) continue;
-      const eq = bombeiros.get(nome)?.equipe || '';
-      if (filtroEquipe && eq !== filtroEquipe) continue;
-      add(eq || '(sem equipe)', {
-        funcao: bombeiros.get(nome)?.cargo || '',
-        nome: bombeiros.get(nome)?.nomeGuerra || nome,
-        totalHoras: horasStr(dados[nome]),
-        registros: regs[nome] || 0,
-        emAtividade: true,
-      });
+    const list = [...map.values()];
+    for (const it of list) {
+      it.registros.sort((a, b) => (b.data || '').localeCompare(a.data || '') || (b.horaInicio || '').localeCompare(a.horaInicio || ''));
     }
-    const out = [...grupos.entries()].sort((a, b) => EQUIPE_ORDER.indexOf(a[0]) - EQUIPE_ORDER.indexOf(b[0]));
-    for (const [, list] of out) {
-      list.sort((a, b) => HIERARQUIA.indexOf(a.funcao) - HIERARQUIA.indexOf(b.funcao) || a.nome.localeCompare(b.nome));
+    list.sort((a, b) => {
+      const eqCmp = EQUIPE_ORDER.indexOf(a.equipe) - EQUIPE_ORDER.indexOf(b.equipe);
+      if (eqCmp !== 0) return eqCmp;
+      const hCmp = HIERARQUIA.indexOf(a.funcao) - HIERARQUIA.indexOf(b.funcao);
+      if (hCmp !== 0) return hCmp;
+      return a.pessoa.localeCompare(b.pessoa);
+    });
+    const grupos = new Map<string, typeof list>();
+    for (const it of list) {
+      if (!grupos.has(it.equipe)) grupos.set(it.equipe, []);
+      grupos.get(it.equipe)!.push(it);
     }
-    return out;
-  }, [bombeiros, expanded, filtroEquipe]);
+    return [...grupos.entries()];
+  }, [expanded, bombeiros]);
 
   const sortedPessoaRows = useMemo(() => {
     const sorted = [...pessoaAssuntoData];
@@ -663,35 +626,6 @@ export function PTRBA() {
         {children} <SortIcon column={column} />
       </th>
     );
-  }
-
-  function handlePrintSummary() {
-    const allAssuntos = filtroAssunto ? [filtroAssunto] : assuntosDisponiveis;
-    const colunas = ['Equipe', ...allAssuntos, 'Total Horas'];
-    const eqMap = new Map<string, Map<string, number>>();
-    for (const item of filtered) {
-      const eq = item.equipe || '(sem equipe)';
-      const as = (item.assuntoMinistrado || '(sem assunto)').trim();
-      const horas = item.horas || calcHoras(item.horaInicio, item.horaTermino) || parseDuracao(item.duracao);
-      if (!eqMap.has(eq)) eqMap.set(eq, new Map());
-      const sub = eqMap.get(eq)!;
-      sub.set(as, (sub.get(as) || 0) + horas);
-    }
-    const linhas = [...eqMap.entries()]
-      .sort((a, b) => {
-        const ia = EQUIPE_ORDER.indexOf(a[0]);
-        const ib = EQUIPE_ORDER.indexOf(b[0]);
-        return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
-      })
-      .map(([equipe, valores]) =>
-      [equipe, ...allAssuntos.map(a => { const v = valores.get(a.trim()); return v != null ? horasStr(v) : '-'; }), horasStr([...valores.values()].reduce((s, v) => s + v, 0))]
-    );
-    const totalRow = ['TOTAL', ...allAssuntos.map(a => {
-      const t = [...eqMap.values()].reduce((s, sub) => s + (sub.get(a) || 0), 0);
-      return t > 0 ? horasStr(t) : '-';
-    }), horasStr([...eqMap.values()].reduce((s, sub) => s + [...sub.values()].reduce((s2, v) => s2 + v, 0), 0))];
-    linhas.push(totalRow);
-    imprimirHTML('Relatório PTR-BA - Horas por Equipe e Assunto', colunas, linhas);
   }
 
   function handlePrintPerson() {
@@ -750,108 +684,6 @@ export function PTRBA() {
     imprimirHTML(`Relatório PTR-BA - Registros de ${selectedPessoa}`, colunas, linhas);
   }
 
-  function handlePrintEfetivo() {
-    const assuntoLabel = filtroAssunto || 'Todos';
-
-    const dados: Record<string, Record<string, number>> = {};
-    const registros: Record<string, number> = {};
-    for (const e of expanded) {
-      const assunto = (e.ptrb.assuntoMinistrado || '').trim();
-      if (!assunto || (filtroAssunto && assunto !== filtroAssunto)) continue;
-      (dados[e.nome] ??= {})[assunto] = (dados[e.nome][assunto] || 0) + e.horas;
-      registros[e.nome] = (registros[e.nome] || 0) + 1;
-    }
-
-    const allAssuntos = filtroAssunto ? [filtroAssunto] : assuntosDisponiveis;
-
-    function lookupAssunto(assuntos: Record<string, number>, chave: string): number | undefined {
-      const v = assuntos[chave];
-      if (v !== undefined) return v;
-      const t = chave.trim();
-      if (t !== chave) return assuntos[t];
-      const num = chave.match(/^(\d+)\.\s*/)?.[1];
-      if (num) {
-        for (const k of Object.keys(assuntos)) {
-          if (k.startsWith(num + '.') || k.startsWith(num.padStart(2, '0') + '.')) return assuntos[k];
-        }
-      }
-      return undefined;
-    }
-
-    const pessoasMap = new Map<string, { funcao: string; equipe: string }>();
-    const eqFilter = filtroEquipe || '';
-    for (const [nome, info] of bombeiros) {
-      if (eqFilter && info.equipe !== eqFilter) continue;
-      if (filtroPessoa && nome !== filtroPessoa) continue;
-      pessoasMap.set(nome, { funcao: info.cargo, equipe: info.equipe });
-    }
-    for (const nome of Object.keys(dados)) {
-      if (!pessoasMap.has(nome)) {
-        pessoasMap.set(nome, { funcao: '', equipe: '' });
-      }
-    }
-
-    const pessoas = [...pessoasMap.entries()].map(([nome, info]) => {
-      let assuntos = dados[nome];
-      if (!assuntos) {
-        const lower = nome.toLowerCase().trim();
-        for (const key of Object.keys(dados)) {
-          if (key.toLowerCase().trim() === lower) { assuntos = dados[key]; break; }
-        }
-      }
-      assuntos = assuntos || {};
-      const valores = allAssuntos.map(a => {
-        const v = lookupAssunto(assuntos!, a);
-        return v != null ? horasStr(v) : '-';
-      });
-      const total = Object.values(assuntos).reduce((s, v) => s + (v > 0 ? v : 0), 0);
-      return {
-        nome,
-        funcao: info.funcao,
-        equipe: info.equipe,
-        valores,
-        totalHoras: horasStr(total),
-        registros: registros[nome] || 0,
-      };
-    });
-
-    pessoas.sort((a, b) => {
-      const eqA = EQUIPE_ORDER.indexOf(a.equipe);
-      const eqB = EQUIPE_ORDER.indexOf(b.equipe);
-      if (eqA !== eqB) return eqA - eqB;
-      const hA = HIERARQUIA.indexOf(a.funcao);
-      const hB = HIERARQUIA.indexOf(b.funcao);
-      if (hA !== hB) return hA - hB;
-      return a.nome.localeCompare(b.nome);
-    });
-
-    const grupos = new Map<string, typeof pessoas>();
-    for (const p of pessoas) {
-      if (!grupos.has(p.equipe)) grupos.set(p.equipe, []);
-      grupos.get(p.equipe)!.push(p);
-    }
-
-    const equipesArr = EQUIPE_ORDER
-      .filter(eq => grupos.has(eq))
-      .map(eq => ({
-        equipe: eq,
-        pessoas: grupos.get(eq)!.map((p, i) => ({
-          num: i + 1,
-          funcao: p.funcao,
-          nome: getNomeGuerra(p.nome),
-          valores: p.valores,
-          totalHoras: p.totalHoras,
-          registros: p.registros,
-        })),
-      }));
-
-    imprimirHTMLEfetivo(
-      `Relatório PTR-BA - Efetivo (${assuntoLabel})${filtrosAtivos}${filtroEquipeLabel}`,
-      allAssuntos,
-      equipesArr,
-    );
-  }
-
   function cellHorasPrint(v: number): string {
     return v > 0 ? horasStr(v) : '—';
   }
@@ -860,35 +692,10 @@ export function PTRBA() {
     const titulo = 'Relatório PTR-BA — Instrução e Tempo em Segurança do Trabalho';
     const filtros = `Período: ${filtroPeriodoLabel}${filtroEquipe ? ' · Equipe: ' + filtroEquipe : ''}${filtroAssunto ? ' · Assunto: ' + filtroAssunto : ''} · Gerado em ${new Date().toLocaleString('pt-BR')}`;
 
-    const kpis = [
-      ['Registros', String(statsFiltered.registros)],
-      ['Horas totais', horasStr(statsFiltered.horas)],
-      ['Pessoas', `${statsFiltered.pessoas}/${statsFiltered.totalBombeiros}`],
-      ['Equipes', String(statsFiltered.equipes)],
-    ].map(k => '<td><b>' + k[1] + '</b>' + k[0] + '</td>').join('');
-
     const thAssunto = (a: string) => '<th title="' + a + '">' + abreviarLabel(a) + '</th>';
 
-    const matrizEquipe = assuntosMatriz.equipes.map(eq =>
-      '<tr>' + '<td class="l" style="font-weight:bold;">' + eq + '</td>' +
-      assuntosMatriz.assuntos.map(a => '<td>' + cellHorasPrint(assuntosMatriz.valores[eq]?.[a] || 0) + '</td>').join('') +
-      '<td style="font-weight:bold;">' + horasStr(assuntosMatriz.totalPorEquipe[eq] || 0) + '</td>' + '</tr>'
-    ).join('\n');
-    const totalMatriz = '<tr class="total">' + '<td class="l">TOTAL</td>' +
-      assuntosMatriz.assuntos.map(a => '<td>' + cellHorasPrint(assuntosMatriz.totalPorAssunto[a] || 0) + '</td>').join('') +
-      '<td>' + horasStr(assuntosMatriz.totalGeral) + '</td>' + '</tr>';
-
-    const rankingRows = assuntoRanking.map(r =>
-      '<tr>' +
-      '<td>' + (r.assunto.match(/^(\d+)\./)?.[1] || '—') + '</td>' +
-      '<td class="l">' + r.assunto + '</td>' +
-      '<td>' + r.qtd + '</td>' +
-      '<td style="font-weight:bold;">' + horasStr(r.horas) + '</td>' +
-      '<td>' + r.pct.toFixed(1) + '%</td>' +
-      '</tr>'
-    ).join('\n');
-
-    const equipePaginas = equipePessoasMatriz.grupos.map(g => {
+    // 1 — Visão Geral: pessoa × assunto, uma página por equipe
+    const geralPaginas = equipePessoasMatriz.grupos.map((g, gi) => {
       const rows = g.pessoas.map((p, i) =>
         '<tr' + (p.funcao === 'BA-CE' ? ' class="bace"' : '') + '>' +
         '<td>' + (i + 1) + '</td>' +
@@ -899,27 +706,49 @@ export function PTRBA() {
         '<td>' + p.totalQtd + '</td>' +
         '</tr>'
       ).join('\n');
-      const totalEquipe = g.pessoas.reduce((s, p) => s + p.totalHoras, 0);
+      const equipeAssuntos = horasAtividades.porEquipeAssunto.get(g.equipe) || new Map<string, number>();
+      const totalEquipe = horasAtividades.totalPorEquipe[g.equipe] || 0;
+      const registrosEquipe = horasAtividades.registrosPorEquipe[g.equipe] || 0;
+      const totalRow = '<tr class="total">' +
+        '<td colspan="3" class="l">TOTAL EQUIPE</td>' +
+        equipePessoasMatriz.assuntos.map(a => '<td>' + cellHorasPrint(equipeAssuntos.get(a) || 0) + '</td>').join('') +
+        '<td>' + horasStr(totalEquipe) + '</td>' +
+        '<td>' + registrosEquipe + '</td>' +
+        '</tr>';
       return '<div class="pagina">' +
-        '<table><tr class="eq-header"><td colspan="' + (equipePessoasMatriz.assuntos.length + 5) + '">EQUIPE ' + g.equipe.toUpperCase() + ' — Participação por assunto · ' + g.pessoas.length + ' militares · Total ' + horasStr(totalEquipe) + '</td></tr></table>' +
+        (gi === 0 ? '<h2>1. Visão Geral — Pessoas e atividades por equipe</h2>' : '') +
+        '<table><tr class="eq-header"><td colspan="' + (equipePessoasMatriz.assuntos.length + 5) + '">EQUIPE ' + g.equipe.toUpperCase() + ' — ' + g.pessoas.length + ' militares · Atividade da equipe: ' + horasStr(totalEquipe) + '</td></tr></table>' +
         '<table><thead><tr>' + '<th style="width:3%">Nº</th><th style="width:7%">Função</th><th class="l" style="width:14%;">Nome</th>' +
         equipePessoasMatriz.assuntos.map(thAssunto).join('') +
-        '<th style="width:6%">Total</th><th style="width:3%">Reg.</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+        '<th style="width:6%">Total</th><th style="width:3%">Reg.</th></tr></thead><tbody>' + rows + '\n' + totalRow + '</tbody></table>' +
         '</div>';
     }).join('\n');
 
-    const efetivoPaginas = efetivoGeral.map(([eq, pessoas]) => {
-      const rows = pessoas.map((p, i) =>
-        '<tr' + (p.funcao === 'BA-CE' ? ' class="bace"' : '') + '>' +
-        '<td>' + (i + 1) + '</td>' +
-        '<td style="font-weight:' + (p.funcao === 'BA-CE' ? 'bold' : 'normal') + ';">' + (p.funcao || '—') + '</td>' +
-        '<td class="l">' + p.nome + '</td>' +
-        '<td style="font-weight:bold;">' + p.totalHoras + '</td>' +
-        '<td>' + (p.registros > 0 ? p.registros + 'x' : '—') + '</td>' +
-        '</tr>'
-      ).join('\n');
-      return '<table><thead><tr><th style="width:3%">Nº</th><th style="width:7%">Função</th><th class="l" style="width:14%;">Nome</th><th style="width:6%">Total</th><th style="width:3%">Reg.</th></tr></thead><tbody>' +
-        '<tr class="eq-header"><td colspan="5">EQUIPE ' + eq.toUpperCase() + ' — Efetivo (' + pessoas.length + ' pessoas)</td></tr>' + rows + '</tbody></table>';
+    // 2 — Visão Individual: um bloco por militar, uma página por equipe
+    const individualPaginas = individuos.map(([equipe, pessoas], gi) => {
+      const cards = pessoas.map(p => {
+        const total = p.registros.reduce((s, r) => s + r.horas, 0);
+        const rows = p.registros.map(r =>
+          '<tr>' +
+          '<td>' + formatDate(r.data) + '</td>' +
+          '<td class="l">' + r.assunto + '</td>' +
+          '<td>' + (r.horaInicio ? r.horaInicio + ' às ' + r.horaTermino : '—') + '</td>' +
+          '<td style="font-weight:bold;">' + horasStr(r.horas) + '</td>' +
+          '<td class="l">' + (r.instrutor || '—') + '</td>' +
+          '</tr>'
+        ).join('\n');
+        return '<div class="pessoa">' +
+          '<table><tr class="pes-header"><td colspan="5">' +
+          (p.funcao ? p.funcao + ' · ' : '') + getNomeGuerra(p.pessoa) +
+          ' — Total ' + horasStr(total) + ' · ' + p.registros.length + ' registro(s)</td></tr></table>' +
+          '<table><thead><tr><th style="width:10%">Data</th><th class="l">Assunto</th><th style="width:14%">Horário</th><th style="width:9%">Duração</th><th class="l" style="width:18%">Instrutor</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+          '</div>';
+      }).join('\n');
+      return '<div class="pagina">' +
+        (gi === 0 ? '<h2>2. Visão Individual — Atividades de cada militar</h2>' : '') +
+        '<table><tr class="eq-header"><td colspan="5">EQUIPE ' + equipe.toUpperCase() + ' — ' + pessoas.length + ' militar(es)</td></tr></table>' +
+        cards +
+        '</div>';
     }).join('\n');
 
     const legenda = ASSUNTOS.map((a, i) => '<tr><td>' + String(i + 1).padStart(2, '0') + '.</td><td>' + a.replace(/^\d+\.\s*/, '') + '</td></tr>').join('\n');
@@ -937,10 +766,9 @@ th, td { border: 1px solid #000; padding: 2px 4px; font-size: 10px; text-align: 
 th { background: #4472C4; color: #fff; font-weight: bold; }
 thead { display: table-header-group; }
 tr { page-break-inside: avoid; }
-.kpis td { border: 1px solid #000; padding: 4px; font-size: 10px; }
-.kpis b { display: block; font-size: 13px; }
 .pagina { page-break-after: always; }
 .eq-header td { background: #2b5797; color: #fff; font-weight: bold; text-align: left; padding: 3px 6px; font-size: 11px; }
+.pes-header td { background: #d9e2f3; font-weight: bold; text-align: left; padding: 2px 6px; font-size: 10px; }
 .bace td { background: #e8f0fe; }
 .total td { background: #f2f2f2; font-weight: bold; }
 td.l, th.l { text-align: left; }
@@ -950,24 +778,10 @@ td.l, th.l { text-align: left; }
 </style></head><body>
 <h1>${titulo}</h1>
 <p class="filtros">${filtros}</p>
-<table class="kpis" style="table-layout:auto;"><tr>${kpis}</tr></table>
 
-<div class="pagina">
-<h2>1. Resumo por Equipe — Horas acumuladas por assunto</h2>
-<table><thead><tr><th class="l" style="width:12%;">Equipe</th>${assuntosMatriz.assuntos.map(thAssunto).join('')}<th style="width:7%;">Total</th></tr></thead><tbody>${matrizEquipe}\n${totalMatriz}</tbody></table>
-</div>
+${geralPaginas}
 
-<div class="pagina">
-<h2>2. Visão por Assunto — Tempo acumulado por matéria</h2>
-<table><thead><tr><th style="width:5%;">Nº</th><th class="l">Assunto</th><th style="width:8%;">Registros</th><th style="width:8%;">Horas</th><th style="width:8%;">% Total</th></tr></thead><tbody>${rankingRows}</tbody></table>
-</div>
-
-${equipePaginas}
-
-<div class="pagina">
-<h2>Efetivo — Visão Geral por Equipe</h2>
-${efetivoPaginas}
-</div>
+${individualPaginas}
 
 <div class="legenda">
 <p><strong>Legenda — Assuntos Ministrados:</strong></p>
@@ -1136,29 +950,19 @@ ${efetivoPaginas}
   }
 
   if (view === 'summary') {
-    const secoes = [
-      ['resumo', 'Resumo'],
-      ['por-assunto', 'Por Assunto'],
-      ['por-equipe', 'Por Equipe'],
-      ['por-pessoa', 'Por Pessoa'],
-      ['efetivo', 'Efetivo'],
-      ['legenda', 'Legenda'],
-    ] as const;
-    const rolarPara = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     return (
       <PageContainer>
         <PageTitle icon={FileText} title={`Relatório PTR-BA${filtrosAtivos}${filtroEquipeLabel}${filtroAssuntoLabel}`}
           subtitle="Instruções e tempo em segurança do trabalho" />
         <FilterBar />
 
-        <nav className="mb-8 flex flex-wrap gap-2">
-          {secoes.map(([id, label]) => (
-            <button key={id} onClick={() => rolarPara(id)}
-              className="rounded-xl border border-graphite-300/60 bg-white/80 px-3 py-1.5 text-xs font-semibold text-graphite-600 transition-colors hover:border-aviation-400 hover:text-aviation-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-300 dark:hover:text-aviation-300">
-              {label}
-            </button>
-          ))}
-        </nav>
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm font-medium text-graphite-700 dark:text-graphite-200">
+            {horasStr(horasAtividades.totalGeral)}
+            <span className="ml-1 text-xs font-normal text-graphite-500">de atividade · {filtered.length} registro(s) · {statsFiltered.pessoas} militar(es)</span>
+          </p>
+          <PrintButton onClick={imprimirRelatorioCompleto} primary>Imprimir Relatório</PrintButton>
+        </div>
 
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-graphite-300 bg-white/50 p-12 text-center dark:border-border-dark dark:bg-surface-card">
@@ -1168,122 +972,14 @@ ${efetivoPaginas}
           </div>
         ) : (
           <>
-            {/* 1 — Resumo Executivo */}
-            <section id="resumo" className="mb-12 scroll-mt-24">
-              <SectionHeader icon={BarChart3} title="Resumo Executivo" subtitle="Indicadores gerais do período filtrado" />
-              <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <div className="rounded-xl border border-graphite-200 bg-white p-3 text-center dark:border-border-dark dark:bg-surface-card">
-                  <p className="text-xl font-black text-graphite-900 dark:text-graphite-100">{statsFiltered.registros}</p>
-                  <p className="text-[10px] font-medium text-graphite-500">Registros</p>
-                </div>
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-center dark:border-emerald-800 dark:bg-emerald-900/20">
-                  <p className="text-xl font-black text-emerald-700 dark:text-emerald-300">{horasStr(statsFiltered.horas)}</p>
-                  <p className="text-[10px] font-medium text-emerald-500">Horas totais</p>
-                </div>
-                <div className="rounded-xl border border-aviation-200 bg-aviation-50 p-3 text-center dark:border-aviation-800 dark:bg-aviation-900/20">
-                  <p className="text-xl font-black text-aviation-700 dark:text-aviation-300">
-                    {statsFiltered.pessoas}<span className="text-aviation-500">/{statsFiltered.totalBombeiros}</span>
-                  </p>
-                  <p className="text-[10px] font-medium text-aviation-500">Pessoas com/total</p>
-                </div>
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-center dark:border-amber-800 dark:bg-amber-900/20">
-                  <p className="text-xl font-black text-amber-700 dark:text-amber-300">{statsFiltered.equipes}</p>
-                  <p className="text-[10px] font-medium text-amber-500">Equipes</p>
-                </div>
-              </div>
-
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <p className="text-xs text-graphite-500 dark:text-graphite-400">
-                  Tempo consolidado por equipe e assunto — clique numa equipe para ver o detalhamento por pessoa.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <PrintButton onClick={imprimirRelatorioCompleto} primary>Relatório Completo</PrintButton>
-                  <PrintButton onClick={handlePrintSummary}>Horas por Equipe</PrintButton>
-                  <PrintButton onClick={handlePrintEfetivo}>Efetivo</PrintButton>
-                </div>
-              </div>
-
-              <div className="overflow-x-auto rounded-2xl border border-graphite-200/60 bg-white/80 shadow-sm dark:border-border-dark dark:bg-surface-card">
-                <table className="w-full text-sm" style={{ minWidth: 980 }}>
-                  <thead>
-                    <tr className="border-b border-graphite-200 dark:border-border-dark">
-                      <th className="sticky left-0 z-10 bg-white px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:bg-surface-card dark:text-graphite-400">Equipe</th>
-                      {assuntosMatriz.assuntos.map(a => (
-                        <th key={a} title={a} className="px-2 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">{abreviarLabel(a)}</th>
-                      ))}
-                      <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {assuntosMatriz.equipes.map(eq => (
-                      <tr key={eq} className="cursor-pointer border-b border-graphite-100 transition-colors hover:bg-aviation-50/50 dark:border-border-dark dark:hover:bg-aviation-900/10"
-                        onClick={() => goToPerson(eq)}>
-                        <td className="sticky left-0 z-10 bg-white px-4 py-2.5 dark:bg-surface-card">
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-aviation-100 px-2.5 py-0.5 text-xs font-semibold text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-300">
-                            <Users className="h-3 w-3" /> {eq}
-                          </span>
-                        </td>
-                        {assuntosMatriz.assuntos.map(a => {
-                          const v = assuntosMatriz.valores[eq]?.[a];
-                          return <td key={a} className="px-2 py-2.5 text-center text-xs">
-                            {v != null && v > 0 ? <span className="font-semibold text-emerald-700 dark:text-emerald-400">{horasStr(v)}</span> : <span className="text-graphite-300 dark:text-graphite-600">—</span>}
-                          </td>;
-                        })}
-                        <td className="px-3 py-2.5 text-center text-xs font-bold text-graphite-900 dark:text-graphite-100">{horasStr(assuntosMatriz.totalPorEquipe[eq] || 0)}</td>
-                      </tr>
-                    ))}
-                    <tr className="border-t-2 border-graphite-300 bg-graphite-50/80 dark:border-graphite-600 dark:bg-surface-hover">
-                      <td className="sticky left-0 z-10 bg-graphite-50 px-4 py-2.5 text-xs font-bold uppercase text-graphite-700 dark:bg-surface-hover dark:text-graphite-200">TOTAL</td>
-                      {assuntosMatriz.assuntos.map(a => {
-                        const v = assuntosMatriz.totalPorAssunto[a] || 0;
-                        return <td key={a} className="px-2 py-2.5 text-center text-xs font-semibold text-graphite-800 dark:text-graphite-200">{v > 0 ? horasStr(v) : '—'}</td>;
-                      })}
-                      <td className="px-3 py-2.5 text-center text-xs font-black text-aviation-700 dark:text-aviation-300">{horasStr(assuntosMatriz.totalGeral)}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </section>
-
-            {/* 2 — Visão por Assunto */}
-            <section id="por-assunto" className="mb-12 scroll-mt-24">
-              <SectionHeader icon={List} title="Visão por Assunto" subtitle="Tempo acumulado por matéria ministrada" />
-              <div className="overflow-x-auto rounded-2xl border border-graphite-200/60 bg-white/80 shadow-sm dark:border-border-dark dark:bg-surface-card">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-graphite-200 dark:border-border-dark">
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Nº</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Assunto</th>
-                      <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Registros</th>
-                      <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Horas</th>
-                      <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">% do total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {assuntoRanking.map(r => (
-                      <tr key={r.assunto} className="border-b border-graphite-100 transition-colors hover:bg-aviation-50/50 dark:border-border-dark dark:hover:bg-aviation-900/10">
-                        <td className="px-4 py-2.5 font-mono text-xs font-bold text-graphite-400">{r.assunto.match(/^(\d+)\./)?.[1] || '—'}</td>
-                        <td className="px-4 py-2.5 font-medium text-graphite-900 dark:text-graphite-100">{r.assunto}</td>
-                        <td className="px-4 py-2.5 text-center text-graphite-600 dark:text-graphite-400">{r.qtd}x</td>
-                        <td className="px-4 py-2.5 text-center font-semibold text-emerald-700 dark:text-emerald-400">{horasStr(r.horas)}</td>
-                        <td className="px-4 py-2.5 text-center">
-                          <span className="inline-flex min-w-[64px] justify-center rounded-full bg-aviation-100 px-2 py-0.5 text-xs font-semibold text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-300">{r.pct.toFixed(1)}%</span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-
-            {/* 3 — Visão por Equipe */}
-            <section id="por-equipe" className="mb-12 scroll-mt-24">
-              <SectionHeader icon={Users} title="Visão por Equipe" subtitle="Participação de cada militar por assunto, na hierarquia da equipe" />
+            {/* 1 — Visão Geral */}
+            <section className="mb-12">
+              <SectionHeader icon={Users} title="Visão Geral" subtitle="Pessoas com atividade no período e suas horas por assunto" />
               <div className="space-y-8">
                 {equipePessoasMatriz.grupos.map(g => (
                   <div key={g.equipe}>
                     <EquipeBand equipe={g.equipe}
-                      extras={<>{g.pessoas.length} militares · {horasStr(g.pessoas.reduce((s, p) => s + p.totalHoras, 0))}</>} />
+                      extras={<>{g.pessoas.length} militar(es) · atividade da equipe: {horasStr(horasAtividades.totalPorEquipe[g.equipe] || 0)}</>} />
                     <div className="overflow-x-auto rounded-2xl border border-graphite-200/60 bg-white/80 shadow-sm dark:border-border-dark dark:bg-surface-card">
                       <table className="w-full text-xs" style={{ minWidth: 1000 }}>
                         <thead>
@@ -1322,118 +1018,62 @@ ${efetivoPaginas}
               </div>
             </section>
 
-            {/* 4 — Visão por Pessoa */}
-            <section id="por-pessoa" className="mb-12 scroll-mt-24">
-              <SectionHeader icon={User} title="Visão por Pessoa" subtitle="Tempo dedicado por cada militar a cada assunto" />
-              <div className="mb-4 flex justify-end">
-                <PrintButton onClick={handlePrintPerson}>Horas por Pessoa</PrintButton>
-              </div>
+            {/* 2 — Visão Individual */}
+            <section>
+              <SectionHeader icon={User} title="Visão Individual" subtitle="Atividades de cada militar no período" />
               <div className="space-y-8">
-                {pessoasPorEquipe.map(([equipe, pessoas]) => (
+                {individuos.map(([equipe, pessoas]) => (
                   <div key={equipe}>
-                    <EquipeBand equipe={equipe}
-                      extras={<>{pessoas.length} militares · {horasStr(pessoas.reduce((s, p) => s + p.totalHoras, 0))}</>} />
-                    <div className="overflow-hidden rounded-2xl border border-graphite-200/60 bg-white/80 shadow-sm dark:border-border-dark dark:bg-surface-card">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-graphite-200 dark:border-border-dark">
-                            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Militar</th>
-                            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Assunto</th>
-                            <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Horas</th>
-                            <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Registros</th>
-                            <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Ações</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {pessoas.map(p => (
-                            <Fragment key={p.pessoa}>
-                              <tr className="border-b border-graphite-200 bg-graphite-50/70 dark:border-border-dark dark:bg-surface-hover">
-                                <td className="px-4 py-2.5 font-semibold text-graphite-900 dark:text-graphite-100">
-                                  {p.funcao && <span className="mr-2 rounded bg-aviation-100 px-1.5 py-0.5 text-xs font-semibold text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-300">{p.funcao}</span>}
-                                  {getNomeGuerra(p.pessoa)}
-                                </td>
-                                <td className="px-4 py-2.5 text-xs text-graphite-400">—</td>
-                                <td className="px-4 py-2.5 text-center text-xs font-bold text-graphite-900 dark:text-graphite-100">{horasStr(p.totalHoras)}</td>
-                                <td className="px-4 py-2.5 text-center text-xs text-graphite-600 dark:text-graphite-400">{p.totalQtd}x</td>
-                                <td className="px-4 py-2.5 text-center">
-                                  <button onClick={() => goToDetail(p.pessoa)}
-                                    className="inline-flex items-center gap-1 rounded-lg bg-aviation-100 px-2 py-1 text-xs font-medium text-aviation-700 transition-colors hover:bg-aviation-200 dark:bg-aviation-900/30 dark:text-aviation-300 dark:hover:bg-aviation-900/50">
-                                    <Eye className="h-3 w-3" /> Ver PTR-BAs
-                                  </button>
-                                </td>
-                              </tr>
-                              {p.assuntos.map(a => (
-                                <tr key={a.assunto} className="border-b border-graphite-100 dark:border-border-dark">
-                                  <td className="px-4 py-2 text-xs text-graphite-400">↳</td>
-                                  <td className="px-4 py-2 pl-10 text-graphite-700 dark:text-graphite-300">{a.assunto}</td>
-                                  <td className="px-4 py-2 text-center font-semibold text-emerald-700 dark:text-emerald-400">{horasStr(a.horas)}</td>
-                                  <td className="px-4 py-2 text-center text-graphite-600 dark:text-graphite-400">{a.qtd}x</td>
-                                  <td />
-                                </tr>
-                              ))}
-                            </Fragment>
-                          ))}
-                        </tbody>
-                      </table>
+                    <EquipeBand equipe={equipe} extras={<>{pessoas.length} militar(es)</>} />
+                    <div className="grid gap-4 lg:grid-cols-2">
+                      {pessoas.map(p => {
+                        const total = p.registros.reduce((s, r) => s + r.horas, 0);
+                        return (
+                          <div key={p.pessoa} className="overflow-hidden rounded-2xl border border-graphite-200/60 bg-white/80 shadow-sm dark:border-border-dark dark:bg-surface-card">
+                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-graphite-200 bg-graphite-50/70 px-4 py-3 dark:border-border-dark dark:bg-surface-hover">
+                              <p className="flex items-center gap-2 text-sm font-bold text-graphite-900 dark:text-graphite-100">
+                                {p.funcao && <span className="rounded bg-aviation-100 px-1.5 py-0.5 text-xs font-semibold text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-300">{p.funcao}</span>}
+                                {getNomeGuerra(p.pessoa)}
+                              </p>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-graphite-500 dark:text-graphite-400">{horasStr(total)} · {p.registros.length} registro(s)</span>
+                                <button onClick={() => goToDetail(p.pessoa)}
+                                  className="inline-flex items-center gap-1 rounded-lg bg-aviation-100 px-2 py-1 text-xs font-medium text-aviation-700 transition-colors hover:bg-aviation-200 dark:bg-aviation-900/30 dark:text-aviation-300 dark:hover:bg-aviation-900/50">
+                                  <Eye className="h-3 w-3" /> Detalhes
+                                </button>
+                              </div>
+                            </div>
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-xs">
+                                <thead>
+                                  <tr className="border-b border-graphite-200 dark:border-border-dark">
+                                    <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Data</th>
+                                    <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Assunto</th>
+                                    <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Horário</th>
+                                    <th className="px-3 py-2 text-center text-[10px] font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Duração</th>
+                                    <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Instrutor</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {p.registros.map((r, i) => (
+                                    <tr key={i} className="border-b border-graphite-100 dark:border-border-dark">
+                                      <td className="px-3 py-2 text-graphite-600 dark:text-graphite-400">{formatDate(r.data)}</td>
+                                      <td className="px-3 py-2 font-medium text-graphite-900 dark:text-graphite-100">{r.assunto}</td>
+                                      <td className="px-3 py-2 text-graphite-600 dark:text-graphite-400">{r.horaInicio ? `${r.horaInicio} às ${r.horaTermino}` : '—'}</td>
+                                      <td className="px-3 py-2 text-center font-semibold text-emerald-700 dark:text-emerald-400">{horasStr(r.horas)}</td>
+                                      <td className="px-3 py-2 text-graphite-600 dark:text-graphite-400">{r.instrutor || '—'}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 ))}
               </div>
-            </section>
-
-            {/* 5 — Visão Geral do Efetivo */}
-            <section id="efetivo" className="mb-12 scroll-mt-24">
-              <SectionHeader icon={ClipboardList} title="Visão Geral do Efetivo" subtitle="Todas as pessoas por equipe, na ordem hierárquica da função" />
-              <div className="space-y-8">
-                {efetivoGeral.map(([equipe, pessoas]) => (
-                  <div key={equipe}>
-                    <EquipeBand equipe={equipe} extras={<>{pessoas.length} pessoas</>} />
-                    <div className="overflow-x-auto rounded-2xl border border-graphite-200/60 bg-white/80 shadow-sm dark:border-border-dark dark:bg-surface-card">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-graphite-200 dark:border-border-dark">
-                            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Nº</th>
-                            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Função</th>
-                            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Nome</th>
-                            <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Horas no período</th>
-                            <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-graphite-500 dark:text-graphite-400">Registros</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {pessoas.map((p, i) => (
-                            <tr key={`${equipe}-${p.nome}`} className={`border-b border-graphite-100 dark:border-border-dark ${p.funcao === 'BA-CE' ? 'bg-aviation-50/60 dark:bg-aviation-900/10' : ''}`}>
-                              <td className="px-4 py-2.5 text-graphite-400">{i + 1}</td>
-                              <td className={`px-4 py-2.5 ${p.funcao === 'BA-CE' ? 'font-bold text-aviation-800 dark:text-aviation-300' : 'text-graphite-600 dark:text-graphite-400'}`}>{p.funcao || '—'}</td>
-                              <td className="px-4 py-2.5 font-medium text-graphite-900 dark:text-graphite-100">{p.nome}</td>
-                              <td className={`px-4 py-2.5 text-center ${p.emAtividade ? 'font-semibold text-emerald-700 dark:text-emerald-400' : 'text-graphite-300 dark:text-graphite-600'}`}>{p.totalHoras}</td>
-                              <td className="px-4 py-2.5 text-center text-graphite-600 dark:text-graphite-400">{p.registros > 0 ? `${p.registros}x` : '—'}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            {/* 6 — Legenda */}
-            <section id="legenda" className="scroll-mt-24">
-              <SectionHeader icon={BookOpen} title="Legenda — Assuntos Ministrados" subtitle="Numeração oficial dos assuntos do PTR-BA" />
-              <details className="group rounded-2xl border border-graphite-200/60 bg-white/80 shadow-sm dark:border-border-dark dark:bg-surface-card">
-                <summary className="flex cursor-pointer items-center justify-between px-4 py-3 text-sm font-semibold text-graphite-700 dark:text-graphite-200">
-                  <span>Mostrar / ocultar legenda</span>
-                  <ChevronDown className="h-4 w-4 text-graphite-400 transition-transform group-open:rotate-180" />
-                </summary>
-                <div className="grid grid-cols-1 gap-x-8 border-t border-graphite-200 p-4 sm:grid-cols-2 dark:border-border-dark">
-                  {ASSUNTOS.map((a, i) => (
-                    <p key={a} className="flex gap-2 py-0.5 text-xs text-graphite-600 dark:text-graphite-400">
-                      <span className="font-mono font-bold text-graphite-400">{String(i + 1).padStart(2, '0')}</span>
-                      {a.replace(/^\d+\.\s*/, '')}
-                    </p>
-                  ))}
-                </div>
-              </details>
             </section>
           </>
         )}
