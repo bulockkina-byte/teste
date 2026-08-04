@@ -483,7 +483,11 @@ export function GerarLRO() {
   }
 
   function textoInline(value?: string): string {
-    return String(value || '').replace(/\s+/g, ' ').trim();
+    return String(value || '')
+      .split('\n')
+      .map(l => l.replace(/[ \t]+/g, ' ').trim())
+      .filter(Boolean)
+      .join('\n');
   }
 
   function linhaLRO(data: string, hora: string, equipeLinha: string, tipo: string, descricao: string): string {

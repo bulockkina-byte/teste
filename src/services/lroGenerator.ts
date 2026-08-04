@@ -23,10 +23,23 @@ function motivoSubstituicaoLabel(motivo: string | undefined): string {
 
 export function dividirEmLancamentos(texto: string): string[] {
   const linhas = texto.split('\n');
-  const temLinhaVazia = linhas.some(l => l.trim() === '');
-  if (!temLinhaVazia) return linhas.filter(l => l.trim() !== '');
   const blocos: string[] = [];
   let atual: string[] = [];
+  const iniciaLancamento = (l: string) => /^\d{1,2}:\d{2}\s*-/.test(l.trim());
+  const temCabecalho = linhas.some(l => iniciaLancamento(l));
+  if (temCabecalho) {
+    for (const linha of linhas) {
+      const l = linha.trim();
+      if (!l) continue;
+      if (iniciaLancamento(l) && atual.length > 0) {
+        blocos.push(atual.join('\n'));
+        atual = [];
+      }
+      atual.push(linha);
+    }
+    if (atual.length > 0) blocos.push(atual.join('\n'));
+    return blocos;
+  }
   for (const linha of linhas) {
     if (!linha.trim()) {
       if (atual.length > 0) {
@@ -86,8 +99,12 @@ export function montarHTML(dados: Record<string, unknown>, showMarkers = false, 
   const instrucoes = (dados.instrucoes as string[]) || [];
   const instrucoesHorarios = (dados.instrucoesHorarios as string[]) || [];
   const frota = (dados.frota as Array<Record<string, string>>) || [];
-  const ocorrenciasXII = (dados.ocorrenciasXII as string[]) || [];
-  const solicitacoes = (dados.solicitacoes as string[]) || [];
+  const ocorrenciasXII = Array.isArray(dados.ocorrenciasXII)
+    ? dividirEmLancamentos((dados.ocorrenciasXII as string[]).join('\n\n'))
+    : dividirEmLancamentos(String(dados.ocorrenciasXII || ''));
+  const solicitacoes = Array.isArray(dados.solicitacoes)
+    ? dividirEmLancamentos((dados.solicitacoes as string[]).join('\n\n'))
+    : dividirEmLancamentos(String(dados.solicitacoes || ''));
   const substituicao = (dados.substituicao as Array<Record<string, string>>) || [];
   const substituicoesAtivas = (dados.substituicoesAtivas as Array<Record<string, string>>) || [];
   const cci2 = (dados.cci2 as Array<Record<string, string>>) || [];
