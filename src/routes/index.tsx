@@ -31,6 +31,10 @@ export const router = createBrowserRouter([
     element: <AguardandoFuncao />,
   },
   {
+    path: '/os/publica',
+    element: lazyPage(() => import('../pages/Relatorios/OrdemServicoPublica')),
+  },
+  {
     path: '/',
     element: (
       <AuthGuard>
