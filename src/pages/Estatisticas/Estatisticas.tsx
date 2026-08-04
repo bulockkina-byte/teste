@@ -2,22 +2,40 @@ import { useState, useEffect, useMemo } from 'react';
 import type { Bombeiro } from '../../types/bombeiro';
 import {
   BarChart3, TrendingUp, Shield, FileText, AlertTriangle, Users,
-  Calendar, Clock, Flame, Droplets, Truck, Activity, Award,
-  ChevronDown, ChevronUp, ArrowUpRight, ArrowDownRight, Eye,
+  Calendar, Clock, Flame, Truck, Activity, Award, ClipboardList,
+  Wrench, Timer, Target, Gauge, GraduationCap,
+  ArrowUpRight, ArrowDownRight,
 } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { listarAtivos } from '../../services/bombeiroService';
 import { listarOcorrencias } from '../../services/ocorrenciaService';
+import { listarReas } from '../../services/reaService';
 import { listarPTRBs } from '../../services/ptrbService';
+import { listarPTRBACompletos } from '../../services/ptrbaCompletoService';
+import { listarTPEPRs } from '../../services/tpeprService';
+import { listarTAFs } from '../../services/tafService';
+import { listarTreinos } from '../../services/tempoRespostaService';
+import { listarExercicios } from '../../services/exercicioPosicionamentoService';
+import { listarOrdensServico } from '../../services/ordemServicoService';
 import { listarCertificacoes } from '../../services/certificacaoService';
 import { listarFeriasGozo } from '../../services/feriasService';
 import { listarViaturas } from '../../services/viaturaService';
+import { listarTodasPanes } from '../../services/viaturaPaneService';
 import { listarSubstituicoesTemporarias } from '../../services/substituicaoTemporariaService';
+import { formatarSegundosTempo, parseTempoParaSegundos } from '../../types/tpepr';
+import { PTRBA_COMPLETO_EVIDENCIA_PARES } from '../../types/ptrbaCompleto';
+import type { PTRB } from '../../types/ptrb';
+import type { PTRBACompleto } from '../../types/ptrbaCompleto';
+import type { TreinamentoTPEPR } from '../../types/tpepr';
+import type { TreinamentoTAF } from '../../types/taf';
+import type { TreinamentoTempoResposta } from '../../types/tempoResposta';
+import type { ExercicioPosicionamento } from '../../types/exercicioPosicionamento';
+import type { OrdemServico } from '../../types/ordemServico';
+import type { Viatura, ViaturaPane } from '../../types/viatura';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend, LineChart, Line, AreaChart, Area,
-  RadialBarChart, RadialBar,
+  PieChart, Pie, Cell, Legend, AreaChart, Area,
 } from 'recharts';
 
 type PieLabelProps = any;
@@ -34,6 +52,69 @@ const CATEGORIA_CORES: Record<string, string> = {
   'Vazamento': '#06b6d4', 'Equipamento': '#8b5cf6', 'Infraestrutura': '#6b7280',
   'Treinamento': '#10b981', 'Outros': '#a3a3a3',
 };
+
+const TIPO_TREINO_CORES: Record<string, string> = {
+  'PTR-BA': '#10b981',
+  'PTR-BA Completo': '#059669',
+  'TP/EPR': '#3b82f6',
+  'TAF': '#f59e0b',
+  'Tempo Resposta': '#8b5cf6',
+  'Posicionamento': '#06b6d4',
+};
+
+const STATUS_OS_CORES: Record<string, string> = {
+  'Aberta': '#3b82f6', 'Manutenção': '#f59e0b', 'Concluída': '#10b981', 'Cancelada': '#ef4444',
+};
+
+const PRIORIDADE_OS_CORES: Record<string, string> = {
+  'Baixa': '#38bdf8', 'Média': '#f59e0b', 'Alta': '#f97316', 'Urgente': '#ef4444',
+};
+
+// ── Ocorrências operacionais (BONA + REA) ──────────────────
+// LRO/Ocorrências usa a mesma tabela mas sem numero → é excluído aqui.
+
+interface OcorrenciaDash {
+  id: string;
+  tipo: 'BONA' | 'REA';
+  numero: string;
+  data: string;
+  hora: string;
+  equipe: string;
+  categoria: string;
+  status: string;
+  createdAt: string;
+}
+
+async function carregarOcorrencias(): Promise<OcorrenciaDash[]> {
+  const [ocorrencias, reas] = await Promise.all([listarOcorrencias(), listarReas()]);
+  const bonas = ocorrencias
+    .filter(o => !!o.numero?.trim())
+    .map(o => ({
+      id: o.id,
+      tipo: 'BONA' as const,
+      numero: o.numero,
+      data: o.data,
+      hora: o.hora,
+      equipe: o.equipe,
+      categoria: o.categoria,
+      status: o.status,
+      createdAt: o.createdAt,
+    }));
+  const reasMapped = reas.map(r => ({
+    id: r.id,
+    tipo: 'REA' as const,
+    numero: r.numero,
+    data: r.dataAcidente || r.createdAt.slice(0, 10),
+    hora: r.horaAcidente || '',
+    equipe: r.equipe,
+    categoria: 'Emergência Aeronáutica',
+    status: r.status,
+    createdAt: r.createdAt,
+  }));
+  return [...bonas, ...reasMapped];
+}
+
+// ── Helpers ────────────────────────────────────────────────
 
 function getMeses(count = 12) {
   const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
@@ -52,6 +133,39 @@ function chaveMes(data: string) {
 
 function fmtNum(n: number) {
   return n.toLocaleString('pt-BR');
+}
+
+function calcHoras(inicio?: string, termino?: string): number {
+  if (!inicio || !termino) return 0;
+  const [h1, m1] = inicio.split(':').map(Number);
+  const [h2, m2] = termino.split(':').map(Number);
+  if (isNaN(h1) || isNaN(m1) || isNaN(h2) || isNaN(m2)) return 0;
+  const mins = (h2 * 60 + m2) - (h1 * 60 + m1);
+  return mins > 0 ? mins / 60 : 0;
+}
+
+function fmtTempo(seg: number): string {
+  if (!seg || seg <= 0) return '-';
+  return formatarSegundosTempo(Math.round(seg));
+}
+
+function diasEntre(inicio: string, fim: string): number {
+  const a = new Date(inicio.includes('T') ? inicio : inicio + 'T00:00:00').getTime();
+  const b = new Date(fim.includes('T') ? fim : fim + 'T00:00:00').getTime();
+  return Math.max(0, Math.round((b - a) / 86400000));
+}
+
+function horasPtrbaCompleto(c: PTRBACompleto): number {
+  let total = 0;
+  for (const [i, j] of PTRBA_COMPLETO_EVIDENCIA_PARES) {
+    const a = c.evidencias?.[i];
+    const b = c.evidencias?.[j];
+    const ev = a?.assunto ? a : b;
+    if (ev?.assunto && ev.horaInicio && ev.horaTermino) {
+      total += calcHoras(ev.horaInicio, ev.horaTermino);
+    }
+  }
+  return total;
 }
 
 // ── Stat Card ─────────────────────────────────────────────
@@ -100,38 +214,23 @@ function SectionCard({ title, icon: Icon, children, className = '' }: { title: s
   );
 }
 
-// ── Mini Progress ─────────────────────────────────────────
-
-function MiniBar({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
-  const pct = max > 0 ? (value / max) * 100 : 0;
-  return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between text-xs">
-        <span className="font-medium text-graphite-700 dark:text-graphite-300">{label}</span>
-        <span className="font-bold text-graphite-900 dark:text-graphite-100">{value}</span>
-      </div>
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-graphite-100 dark:bg-graphite-800">
-        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, backgroundColor: color }} />
-      </div>
-    </div>
-  );
-}
-
 // ═══════════════════════════════════════════════════════════
 //  TAB: VISÃO GERAL
 // ═══════════════════════════════════════════════════════════
 
 function TabVisaoGeral() {
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
-  const [ocorrencias, setOcorrencias] = useState<any[]>([]);
-  const [ptrbs, setPtrbs] = useState<any[]>([]);
+  const [ocorrencias, setOcorrencias] = useState<OcorrenciaDash[]>([]);
+  const [ptrbs, setPtrbs] = useState<PTRB[]>([]);
+  const [completos, setCompletos] = useState<PTRBACompleto[]>([]);
   const [certsCount, setCertsCount] = useState(0);
   const [subsCount, setSubsCount] = useState(0);
   const [feriasGozo, setFeriasGozo] = useState<any[]>([]);
   const [viaturasCount, setViaturasCount] = useState(0);
   useEffect(() => { listarAtivos().then(setBombeiros); }, []);
-  useEffect(() => { listarOcorrencias().then(setOcorrencias); }, []);
+  useEffect(() => { carregarOcorrencias().then(setOcorrencias); }, []);
   useEffect(() => { listarPTRBs().then(setPtrbs); }, []);
+  useEffect(() => { listarPTRBACompletos().then(setCompletos); }, []);
   useEffect(() => { listarCertificacoes().then(c => setCertsCount(c.length)); }, []);
   useEffect(() => { listarSubstituicoesTemporarias().then(s => { if (Array.isArray(s)) setSubsCount(s.filter((x: any) => x.status === 'Pendente').length); }); }, []);
   useEffect(() => { listarFeriasGozo().then(setFeriasGozo); }, []);
@@ -162,8 +261,9 @@ function TabVisaoGeral() {
     const mapT: Record<string, number> = {}; meses.forEach(m => mapT[m] = 0);
     ocorrencias.forEach(o => { const k = chaveMes(o.data); if (k in mapO) mapO[k]++; });
     ptrbs.forEach(p => { const k = chaveMes(p.data); if (k in mapT) mapT[k]++; });
+    completos.forEach(c => { const k = chaveMes(c.data); if (k in mapT) mapT[k]++; });
     return meses.map(m => ({ mes: m, Ocorrências: mapO[m], Treinamentos: mapT[m] }));
-  }, [ocorrencias]);
+  }, [ocorrencias, ptrbs, completos]);
 
   const porCategoria = useMemo(() => {
     const map: Record<string, number> = {};
@@ -176,7 +276,7 @@ function TabVisaoGeral() {
       {/* KPI Grid */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
         <StatCard icon={Users} label="Efetivo Total" value={bombeiros.length} sub={`${stats.porEquipe.length} equipes`} trend="up" color="bg-gradient-to-br from-blue-500 to-blue-700" />
-        <StatCard icon={AlertTriangle} label="Ocorrências (mês)" value={stats.ocorrenciasMes} sub={`${ocorrencias.length} total`} color="bg-gradient-to-br from-red-500 to-red-700" />
+        <StatCard icon={AlertTriangle} label="Ocorrências (mês)" value={stats.ocorrenciasMes} sub={`${ocorrencias.length} total (BONA/REA)`} color="bg-gradient-to-br from-red-500 to-red-700" />
         <StatCard icon={Calendar} label="Em Férias" value={stats.emFerias} color="bg-gradient-to-br from-amber-500 to-amber-700" />
         <StatCard icon={Activity} label="Certificações" value={certsCount} color="bg-gradient-to-br from-emerald-500 to-emerald-700" />
         <StatCard icon={Truck} label="Viaturas CCI" value={viaturasCount} color="bg-gradient-to-br from-cyan-500 to-cyan-700" />
@@ -256,59 +356,234 @@ function TabVisaoGeral() {
 }
 
 // ═══════════════════════════════════════════════════════════
-//  TAB: TREINAMENTOS
+//  TAB: TREINAMENTOS (todos os tipos)
 // ═══════════════════════════════════════════════════════════
 
+type TipoTreino = 'PTR-BA' | 'PTR-BA Completo' | 'TP/EPR' | 'TAF' | 'Tempo Resposta' | 'Posicionamento';
+
+interface TreinoItem {
+  id: string;
+  tipo: TipoTreino;
+  data: string;
+  equipe: string;
+  horas: number;
+  instrutor: string;
+  participantes: string[];
+  tempos: number[];
+  assuntos: string[];
+}
+
+function tempoParaSegundos(valor: string): number | null {
+  if (!valor || !valor.trim()) return null;
+  return parseTempoParaSegundos(valor.trim());
+}
+
+function montarTreinos(
+  ptrbs: PTRB[],
+  completos: PTRBACompleto[],
+  tpeprs: TreinamentoTPEPR[],
+  tafs: TreinamentoTAF[],
+  treinosTR: TreinamentoTempoResposta[],
+  exercicios: ExercicioPosicionamento[],
+): TreinoItem[] {
+  const itens: TreinoItem[] = [];
+
+  for (const p of ptrbs) {
+    itens.push({
+      id: `ptrb-${p.id}`,
+      tipo: 'PTR-BA',
+      data: p.data,
+      equipe: p.equipe,
+      horas: p.horas || calcHoras(p.horaInicio, p.horaTermino),
+      instrutor: p.instrutor,
+      participantes: (p.participantes || []).map(x => x.nomeCompleto).filter(Boolean),
+      tempos: [],
+      assuntos: p.assuntoMinistrado ? [p.assuntoMinistrado] : [],
+    });
+  }
+
+  for (const c of completos) {
+    const assuntos: string[] = [];
+    for (const [i, j] of PTRBA_COMPLETO_EVIDENCIA_PARES) {
+      const a = c.evidencias?.[i];
+      const b = c.evidencias?.[j];
+      const ev = a?.assunto ? a : b;
+      if (ev?.assunto) assuntos.push(ev.assunto);
+    }
+    itens.push({
+      id: `completo-${c.id}`,
+      tipo: 'PTR-BA Completo',
+      data: c.data,
+      equipe: c.equipe,
+      horas: horasPtrbaCompleto(c),
+      instrutor: c.chefeEquipe,
+      participantes: (c.participantes || []).map(x => x.nomeCompleto).filter(Boolean),
+      tempos: [],
+      assuntos,
+    });
+  }
+
+  for (const t of tpeprs) {
+    const tempos: number[] = [];
+    for (const part of t.participantes || []) {
+      const s = tempoParaSegundos(part.quartaTomada);
+      if (s !== null) tempos.push(s);
+    }
+    itens.push({
+      id: `tpepr-${t.id}`,
+      tipo: 'TP/EPR',
+      data: t.data,
+      equipe: t.equipe,
+      horas: 0,
+      instrutor: t.chefeEquipe,
+      participantes: (t.participantes || []).map(x => x.nomeCompleto).filter(Boolean),
+      tempos,
+      assuntos: [],
+    });
+  }
+
+  for (const t of tafs) {
+    const participantes: string[] = [];
+    const tempos: number[] = [];
+    for (let i = 1; i <= 10; i++) {
+      const nome = (t as any)[`p${i}Nome`];
+      const tempo = (t as any)[`p${i}Tempo`];
+      if (nome) participantes.push(nome);
+      const s = tempoParaSegundos(tempo);
+      if (s !== null) tempos.push(s);
+    }
+    itens.push({
+      id: `taf-${t.id}`,
+      tipo: 'TAF',
+      data: t.data,
+      equipe: t.equipe,
+      horas: 0,
+      instrutor: t.chefeEquipe,
+      participantes,
+      tempos,
+      assuntos: [],
+    });
+  }
+
+  for (const t of treinosTR) {
+    const tempos: number[] = [];
+    for (const v of [t.f2T1, t.f2T2, t.f2T3, t.f3T1, t.f3T2, t.f3T3, t.tempoResposta]) {
+      const s = tempoParaSegundos(v);
+      if (s !== null) tempos.push(s);
+    }
+    itens.push({
+      id: `tr-${t.id}`,
+      tipo: 'Tempo Resposta',
+      data: t.data,
+      equipe: t.equipe,
+      horas: 0,
+      instrutor: t.chefeEquipe,
+      participantes: [],
+      tempos,
+      assuntos: [],
+    });
+  }
+
+  for (const e of exercicios) {
+    const tempos: number[] = [];
+    for (const v of [e.faisca2Tempo, e.faisca3Tempo, e.crsTempo, e.tempoResposta]) {
+      const s = tempoParaSegundos(v);
+      if (s !== null) tempos.push(s);
+    }
+    itens.push({
+      id: `pos-${e.id}`,
+      tipo: 'Posicionamento',
+      data: e.data,
+      equipe: e.equipe,
+      horas: 0,
+      instrutor: e.chefeEquipe,
+      participantes: [],
+      tempos,
+      assuntos: [],
+    });
+  }
+
+  return itens;
+}
+
 function TabTreinamentos() {
-  const [ptrbs, setPtrbs] = useState<any[]>([]);
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
-  useEffect(() => { listarAtivos().then(setBombeiros); }, []);
-  useEffect(() => { listarPTRBs().then(setPtrbs); }, []);
+  const [itens, setItens] = useState<TreinoItem[]>([]);
   const [periodo, setPeriodo] = useState<1 | 3 | 6 | 12>(6);
+
+  useEffect(() => {
+    listarAtivos().then(setBombeiros).catch(() => {});
+    Promise.all([
+      listarPTRBs(), listarPTRBACompletos(), listarTPEPRs(), listarTAFs(), listarTreinos(), listarExercicios(),
+    ])
+      .then(([ptrbs, completos, tpeprs, tafs, treinosTR, exercicios]) => {
+        setItens(montarTreinos(ptrbs, completos, tpeprs, tafs, treinosTR, exercicios));
+      })
+      .catch(() => {});
+  }, []);
 
   const filtrados = useMemo(() => {
     const d = new Date(); d.setMonth(d.getMonth() - periodo);
-    return ptrbs.filter(p => new Date(p.data + 'T00:00:00') >= d);
-  }, [ptrbs, periodo]);
+    return itens.filter(t => new Date(t.data + 'T00:00:00') >= d);
+  }, [itens, periodo]);
+
+  const porTipo = useMemo(() => {
+    const map: Record<string, number> = {};
+    filtrados.forEach(t => { map[t.tipo] = (map[t.tipo] || 0) + 1; });
+    return Object.entries(map).map(([tipo, total]) => ({ tipo, total, cor: TIPO_TREINO_CORES[tipo] || '#a3a3a3' }));
+  }, [filtrados]);
 
   const porEquipe = useMemo(() => EQUIPES.map(e => ({
-    equipe: e, total: filtrados.filter(p => p.equipe === e).length, cor: CORES[e],
+    equipe: e, total: filtrados.filter(t => t.equipe === e).length, cor: CORES[e],
   })), [filtrados]);
 
   const horasPorEquipe = useMemo(() => EQUIPES.map(e => {
-    let horas = 0;
-    filtrados.filter(p => p.equipe === e).forEach(p => {
-      if (p.horaInicio && p.horaTermino) {
-        const [h1, m1] = p.horaInicio.split(':').map(Number);
-        const [h2, m2] = p.horaTermino.split(':').map(Number);
-        const mins = (h2 * 60 + m2) - (h1 * 60 + m1);
-        if (mins > 0) horas += mins / 60;
-      }
-    });
+    const horas = filtrados.filter(t => t.equipe === e).reduce((acc, t) => acc + t.horas, 0);
     return { equipe: e, horas: Math.round(horas * 10) / 10, cor: CORES[e] };
   }), [filtrados]);
 
+  const tpeprMediaPorEquipe = useMemo(() => EQUIPES.map(e => {
+    const todos: number[] = [];
+    filtrados.filter(t => t.tipo === 'TP/EPR' && t.equipe === e).forEach(t => { todos.push(...t.tempos); });
+    const media = todos.length ? todos.reduce((a, b) => a + b, 0) / todos.length : 0;
+    return { equipe: e, media: Math.round(media), cor: CORES[e] };
+  }), [filtrados]);
+
+  const tempoMedioPorTipo = useMemo(() => {
+    const map: Record<string, number[]> = {};
+    filtrados.forEach(t => {
+      if (t.tempos.length === 0) return;
+      map[t.tipo] = map[t.tipo] || [];
+      map[t.tipo].push(t.tempos.reduce((a, b) => a + b, 0) / t.tempos.length);
+    });
+    return Object.entries(map).map(([tipo, medias]) => ({
+      tipo,
+      media: Math.round(medias.reduce((a, b) => a + b, 0) / medias.length),
+      cor: TIPO_TREINO_CORES[tipo] || '#a3a3a3',
+    }));
+  }, [filtrados]);
+
   const topAssuntos = useMemo(() => {
     const map: Record<string, number> = {};
-    filtrados.forEach(p => { map[p.assuntoMinistrado] = (map[p.assuntoMinistrado] || 0) + 1; });
-    return Object.entries(map).map(([a, t]) => ({ assunto: a, total: t })).sort((a, b) => b.total - a.total).slice(0, 8);
+    filtrados.forEach(t => t.assuntos.forEach(a => { map[a] = (map[a] || 0) + 1; }));
+    return Object.entries(map).map(([assunto, total]) => ({ assunto, total })).sort((a, b) => b.total - a.total).slice(0, 8);
   }, [filtrados]);
 
   const topInstrutores = useMemo(() => {
     const map: Record<string, number> = {};
-    filtrados.forEach(p => { if (p.instrutor) map[p.instrutor] = (map[p.instrutor] || 0) + 1; });
-    return Object.entries(map).map(([n, t]) => ({ nome: n, total: t })).sort((a, b) => b.total - a.total).slice(0, 6);
+    filtrados.forEach(t => { if (t.instrutor) map[t.instrutor] = (map[t.instrutor] || 0) + 1; });
+    return Object.entries(map).map(([nome, total]) => ({ nome, total })).sort((a, b) => b.total - a.total).slice(0, 6);
   }, [filtrados]);
 
   const participacoes = useMemo(() => {
     const map: Record<string, { nome: string; equipe: string; total: number }> = {};
-    filtrados.forEach(p => {
-      p.participantes.forEach((part: { nomeCompleto: string }) => {
-        if (!map[part.nomeCompleto]) {
-          const b = bombeiros.find(x => x.nomeCompleto === part.nomeCompleto);
-          map[part.nomeCompleto] = { nome: part.nomeCompleto, equipe: b?.equipe || 'N/A', total: 0 };
+    filtrados.forEach(t => {
+      t.participantes.forEach(nome => {
+        if (!map[nome]) {
+          const b = bombeiros.find(x => x.nomeCompleto === nome);
+          map[nome] = { nome, equipe: b?.equipe || 'N/A', total: 0 };
         }
-        map[part.nomeCompleto].total++;
+        map[nome].total++;
       });
     });
     return Object.values(map).sort((a, b) => b.total - a.total).slice(0, 10);
@@ -329,8 +604,31 @@ function TabTreinamentos() {
         <span className="ml-auto text-xs text-graphite-400">{filtrados.length} treino(s)</span>
       </div>
 
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+        <StatCard icon={Activity} label="Treinos" value={filtrados.length} color="bg-gradient-to-br from-aviation-600 to-aviation-700" />
+        <StatCard icon={Clock} label="Horas" value={`${filtrados.reduce((a, t) => a + t.horas, 0).toFixed(1)}h`} color="bg-gradient-to-br from-emerald-500 to-emerald-700" />
+        <StatCard icon={GraduationCap} label="PTR-BA" value={filtrados.filter(t => t.tipo === 'PTR-BA').length} color="bg-gradient-to-br from-green-500 to-green-700" />
+        <StatCard icon={Timer} label="TP/EPR" value={filtrados.filter(t => t.tipo === 'TP/EPR').length} color="bg-gradient-to-br from-blue-500 to-blue-700" />
+        <StatCard icon={Target} label="TAF" value={filtrados.filter(t => t.tipo === 'TAF').length} color="bg-gradient-to-br from-amber-500 to-amber-700" />
+        <StatCard icon={Gauge} label="T. Resp./Pos." value={filtrados.filter(t => t.tipo === 'Tempo Resposta' || t.tipo === 'Posicionamento').length} color="bg-gradient-to-br from-purple-500 to-purple-700" />
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
-        <SectionCard title="Treinos por Equipe" icon={Activity}>
+        <SectionCard title="Treinos por Tipo" icon={Activity}>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={porTipo} layout="vertical" margin={{ left: 8, right: 16 }}>
+              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+              <XAxis type="number" hide allowDecimals={false} />
+              <YAxis type="category" dataKey="tipo" width={118} tick={{ fontSize: 11, fontWeight: 600 }} axisLine={false} tickLine={false} />
+              <Tooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} />
+              <Bar dataKey="total" radius={[0, 6, 6, 0]} barSize={20}>
+                {porTipo.map((e, i) => <Cell key={i} fill={e.cor} />)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </SectionCard>
+
+        <SectionCard title="Treinos por Equipe" icon={Users}>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={porEquipe} barSize={40}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -344,7 +642,7 @@ function TabTreinamentos() {
           </ResponsiveContainer>
         </SectionCard>
 
-        <SectionCard title="Horas de Treinamento" icon={Clock}>
+        <SectionCard title="Horas de Treinamento por Equipe" icon={Clock}>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={horasPorEquipe} barSize={40}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -353,6 +651,34 @@ function TabTreinamentos() {
               <Tooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} formatter={(v: unknown) => `${v}h`} />
               <Bar dataKey="horas" radius={[6, 6, 0, 0]}>
                 {horasPorEquipe.map((e, i) => <Cell key={i} fill={e.cor} />)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </SectionCard>
+
+        <SectionCard title="Tempo Médio por Modalidade" icon={Timer}>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={tempoMedioPorTipo} barSize={28}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="tipo" tick={{ fontSize: 9 }} axisLine={false} tickLine={false} interval={0} />
+              <YAxis tickFormatter={(v: unknown) => fmtTempo(Number(v))} fontSize={9} axisLine={false} tickLine={false} />
+              <Tooltip formatter={(v: unknown) => fmtTempo(Number(v))} />
+              <Bar dataKey="media" radius={[6, 6, 0, 0]}>
+                {tempoMedioPorTipo.map((e, i) => <Cell key={i} fill={e.cor} />)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </SectionCard>
+
+        <SectionCard title="Média TP/EPR (4ª tomada) por Equipe" icon={Target}>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={tpeprMediaPorEquipe} barSize={40}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="equipe" tick={{ fontSize: 12, fontWeight: 600 }} axisLine={false} tickLine={false} />
+              <YAxis tickFormatter={(v: unknown) => fmtTempo(Number(v))} fontSize={9} axisLine={false} tickLine={false} />
+              <Tooltip formatter={(v: unknown) => fmtTempo(Number(v))} />
+              <Bar dataKey="media" radius={[6, 6, 0, 0]}>
+                {tpeprMediaPorEquipe.map((e, i) => <Cell key={i} fill={e.cor} />)}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
@@ -541,16 +867,190 @@ function TabCertificacoes() {
 }
 
 // ═══════════════════════════════════════════════════════════
+//  TAB: ORDENS DE SERVIÇO
+// ═══════════════════════════════════════════════════════════
+
+function TabOrdens() {
+  const [ordens, setOrdens] = useState<OrdemServico[]>([]);
+  useEffect(() => { listarOrdensServico().then(setOrdens).catch(() => {}); }, []);
+
+  const stats = useMemo(() => {
+    const porStatus = Object.entries(STATUS_OS_CORES).map(([status, cor]) => ({
+      status, total: ordens.filter(o => o.status === status).length, cor,
+    }));
+    const porPrioridade = Object.entries(PRIORIDADE_OS_CORES).map(([prioridade, cor]) => ({
+      prioridade, total: ordens.filter(o => o.prioridade === prioridade).length, cor,
+    }));
+    const porEquipe = EQUIPES.map(e => ({ equipe: e, total: ordens.filter(o => o.equipe === e).length, cor: CORES[e] }));
+    const concluidas = ordens.filter(o => o.status === 'Concluída');
+    const tempos = concluidas
+      .map(o => diasEntre(o.dataEmissao || o.createdAt, o.dataFinalizacao || o.dataConclusao || o.updatedAt))
+      .filter(d => d >= 0);
+    const tempoMedio = tempos.length ? tempos.reduce((a, b) => a + b, 0) / tempos.length : 0;
+    return { porStatus, porPrioridade, porEquipe, tempoMedio, total: ordens.length, concluidas: concluidas.length };
+  }, [ordens]);
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+        <StatCard icon={ClipboardList} label="Total OS" value={stats.total} color="bg-gradient-to-br from-slate-600 to-slate-800" />
+        <StatCard icon={AlertTriangle} label="Abertas" value={ordens.filter(o => o.status === 'Aberta').length} color="bg-gradient-to-br from-blue-500 to-blue-700" />
+        <StatCard icon={Wrench} label="Em Manutenção" value={ordens.filter(o => o.status === 'Manutenção').length} color="bg-gradient-to-br from-amber-500 to-amber-700" />
+        <StatCard icon={Award} label="Concluídas" value={ordens.filter(o => o.status === 'Concluída').length} color="bg-gradient-to-br from-emerald-500 to-emerald-700" />
+        <StatCard icon={AlertTriangle} label="Canceladas" value={ordens.filter(o => o.status === 'Cancelada').length} color="bg-gradient-to-br from-red-500 to-red-700" />
+        <StatCard icon={Clock} label="Tempo Médio" value={stats.tempoMedio ? `${stats.tempoMedio.toFixed(1)}d` : '-'} sub="para concluir" color="bg-gradient-to-br from-purple-500 to-purple-700" />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <SectionCard title="Ordens por Status" icon={Activity}>
+          <ResponsiveContainer width="100%" height={220}>
+            <PieChart>
+              <Pie data={stats.porStatus} cx="50%" cy="50%" innerRadius={45} outerRadius={80} paddingAngle={3} dataKey="total"
+                label={({ status, percent }: PieLabelProps) => `${String(status)} ${((percent || 0) * 100).toFixed(0)}%`}>
+                {stats.porStatus.map((e, i) => <Cell key={i} fill={e.cor} />)}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </SectionCard>
+
+        <SectionCard title="Ordens por Prioridade" icon={Flame}>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={stats.porPrioridade} barSize={36}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="prioridade" tick={{ fontSize: 11, fontWeight: 600 }} axisLine={false} tickLine={false} />
+              <YAxis hide allowDecimals={false} />
+              <Tooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} />
+              <Bar dataKey="total" radius={[6, 6, 0, 0]}>
+                {stats.porPrioridade.map((e, i) => <Cell key={i} fill={e.cor} />)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </SectionCard>
+
+        <SectionCard title="Ordens por Equipe" icon={Users}>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={stats.porEquipe} barSize={40}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="equipe" tick={{ fontSize: 12, fontWeight: 600 }} axisLine={false} tickLine={false} />
+              <YAxis hide allowDecimals={false} />
+              <Tooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} />
+              <Bar dataKey="total" radius={[6, 6, 0, 0]}>
+                {stats.porEquipe.map((e, i) => <Cell key={i} fill={e.cor} />)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </SectionCard>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+//  TAB: VIATURAS (panes)
+// ═══════════════════════════════════════════════════════════
+
+function TabViaturas() {
+  const [viaturas, setViaturas] = useState<Viatura[]>([]);
+  const [panes, setPanes] = useState<ViaturaPane[]>([]);
+  useEffect(() => {
+    listarViaturas().then(setViaturas).catch(() => {});
+    listarTodasPanes().then(setPanes).catch(() => {});
+  }, []);
+
+  const stats = useMemo(() => {
+    const porStatusVtr = [
+      { status: 'Operacional', total: viaturas.filter(v => v.status === 'Operacional').length, cor: '#10b981' },
+      { status: 'Em manutenção', total: viaturas.filter(v => v.status === 'Em manutenção').length, cor: '#f59e0b' },
+      { status: 'Fora de serviço', total: viaturas.filter(v => v.status === 'Fora de serviço').length, cor: '#ef4444' },
+    ];
+    const porTipo = viaturas.reduce<Record<string, number>>((map, v) => {
+      const t = v.tipo || 'Outro';
+      map[t] = (map[t] || 0) + 1;
+      return map;
+    }, {});
+    const porTipoList = Object.entries(porTipo).map(([tipo, total]) => ({ tipo, total })).sort((a, b) => b.total - a.total);
+    const panesAbertas = panes.filter(p => p.status === 'Aberta').length;
+    const panesResolvidas = panes.length - panesAbertas;
+    const panesPorViatura = viaturas.map(v => ({
+      prefixo: v.prefixo,
+      total: panes.filter(p => p.viaturaId === v.id).length,
+      abertas: panes.filter(p => p.viaturaId === v.id && p.status === 'Aberta').length,
+    })).sort((a, b) => b.total - a.total).slice(0, 8);
+    return { porStatusVtr, porTipoList, panesAbertas, panesResolvidas, panesPorViatura };
+  }, [viaturas, panes]);
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+        <StatCard icon={Truck} label="Viaturas" value={viaturas.length} color="bg-gradient-to-br from-cyan-500 to-cyan-700" />
+        <StatCard icon={Activity} label="Operacionais" value={viaturas.filter(v => v.status === 'Operacional').length} color="bg-gradient-to-br from-emerald-500 to-emerald-700" />
+        <StatCard icon={Wrench} label="Em Manutenção" value={viaturas.filter(v => v.status === 'Em manutenção').length} color="bg-gradient-to-br from-amber-500 to-amber-700" />
+        <StatCard icon={AlertTriangle} label="Fora de Serviço" value={viaturas.filter(v => v.status === 'Fora de serviço').length} color="bg-gradient-to-br from-red-500 to-red-700" />
+        <StatCard icon={AlertTriangle} label="Panes Abertas" value={stats.panesAbertas} color="bg-gradient-to-br from-rose-500 to-rose-700" />
+        <StatCard icon={Award} label="Panes Resolvidas" value={stats.panesResolvidas} color="bg-gradient-to-br from-green-600 to-green-800" />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <SectionCard title="Viaturas por Status" icon={Activity}>
+          <ResponsiveContainer width="100%" height={240}>
+            <PieChart>
+              <Pie data={stats.porStatusVtr} cx="50%" cy="50%" outerRadius={90} paddingAngle={3} dataKey="total"
+                label={({ status, percent }: PieLabelProps) => `${String(status)} ${((percent || 0) * 100).toFixed(0)}%`}>
+                {stats.porStatusVtr.map((e, i) => <Cell key={i} fill={e.cor} />)}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </SectionCard>
+
+        <SectionCard title="Viaturas por Tipo" icon={Truck}>
+          <div className="space-y-2">
+            {stats.porTipoList.map((t, i) => (
+              <div key={i} className="flex items-center gap-3 rounded-xl bg-graphite-50 px-3 py-2 dark:bg-surface-hover">
+                <span className="flex-1 text-xs font-semibold text-graphite-900 dark:text-graphite-100 truncate">{t.tipo}</span>
+                <div className="h-2 w-24 rounded-full bg-graphite-200 dark:bg-graphite-700">
+                  <div className="h-full rounded-full bg-cyan-500" style={{ width: `${(t.total / Math.max(...stats.porTipoList.map(x => x.total))) * 100}%` }} />
+                </div>
+                <span className="text-xs font-bold text-graphite-900 dark:text-graphite-100 w-6 text-right">{t.total}</span>
+              </div>
+            ))}
+          </div>
+        </SectionCard>
+      </div>
+
+      <SectionCard title="Panes por Viatura" icon={Wrench}>
+        <div className="space-y-2">
+          {stats.panesPorViatura.map((p, i) => (
+            <div key={i} className="flex items-center gap-3 rounded-xl bg-graphite-50 px-3 py-2 dark:bg-surface-hover">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-cyan-100 text-[10px] font-bold text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300">{i + 1}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-graphite-900 dark:text-graphite-100 truncate">{p.prefixo}</p>
+                <div className="mt-1 h-1.5 w-full rounded-full bg-graphite-200 dark:bg-graphite-700">
+                  <div className="h-full rounded-full bg-gradient-to-r from-rose-500 to-cyan-500" style={{ width: `${p.total ? (p.total / Math.max(...stats.panesPorViatura.map(x => x.total))) * 100 : 0}%` }} />
+                </div>
+              </div>
+              <span className="text-xs font-bold text-graphite-900 dark:text-graphite-100">{p.total}</span>
+              {p.abertas > 0 && <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700 dark:bg-red-900/30 dark:text-red-400">{p.abertas} abertas</span>}
+            </div>
+          ))}
+        </div>
+      </SectionCard>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
 //  TAB: DESEMPENHO
 // ═══════════════════════════════════════════════════════════
 
 function TabDesempenho() {
-  const [ptrbs, setPtrbs] = useState<any[]>([]);
-  const [ocorrencias, setOcorrencias] = useState<any[]>([]);
+  const [ptrbs, setPtrbs] = useState<PTRB[]>([]);
+  const [ocorrencias, setOcorrencias] = useState<OcorrenciaDash[]>([]);
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
   useEffect(() => { listarAtivos().then(setBombeiros); }, []);
   useEffect(() => { listarPTRBs().then(setPtrbs); }, []);
-  useEffect(() => { listarOcorrencias().then(setOcorrencias); }, []);
+  useEffect(() => { carregarOcorrencias().then(setOcorrencias); }, []);
 
   const meses = getMeses();
 
@@ -585,7 +1085,7 @@ function TabDesempenho() {
 
   const topOcorrencias = useMemo(() => {
     const map: Record<string, number> = {};
-    ocorrencias.forEach(o => { const k = `${o.categoria}`; map[k] = (map[k] || 0) + 1; });
+    ocorrencias.forEach(o => { map[o.categoria] = (map[o.categoria] || 0) + 1; });
     return Object.entries(map).map(([c, t]) => ({ categoria: c, total: t })).sort((a, b) => b.total - a.total).slice(0, 5);
   }, [ocorrencias]);
 
@@ -676,6 +1176,8 @@ const TABS = [
   { key: 'geral', label: 'Visão Geral', icon: BarChart3 },
   { key: 'treinamentos', label: 'Treinamentos', icon: Activity },
   { key: 'certificacoes', label: 'Certificações', icon: Shield },
+  { key: 'ordens', label: 'Ordens de Serviço', icon: ClipboardList },
+  { key: 'viaturas', label: 'Viaturas', icon: Truck },
   { key: 'desempenho', label: 'Desempenho', icon: TrendingUp },
 ] as const;
 
@@ -690,7 +1192,7 @@ export function Estatisticas() {
         <PageTitle icon={BarChart3} title="Estatísticas" />
       </div>
 
-      <div className="mb-6 flex gap-1 rounded-2xl border border-graphite-200/60 bg-graphite-50/50 p-1 dark:border-border-dark dark:bg-surface-card/50">
+      <div className="mb-6 flex flex-wrap gap-1 rounded-2xl border border-graphite-200/60 bg-graphite-50/50 p-1 dark:border-border-dark dark:bg-surface-card/50">
         {TABS.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
             className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-300 ${
@@ -707,6 +1209,8 @@ export function Estatisticas() {
       {tab === 'geral' && <TabVisaoGeral />}
       {tab === 'treinamentos' && <TabTreinamentos />}
       {tab === 'certificacoes' && <TabCertificacoes />}
+      {tab === 'ordens' && <TabOrdens />}
+      {tab === 'viaturas' && <TabViaturas />}
       {tab === 'desempenho' && <TabDesempenho />}
     </PageContainer>
   );

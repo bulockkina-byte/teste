@@ -55,6 +55,13 @@ export async function listarPanes(viaturaId: string): Promise<ViaturaPane[]> {
   return (data || []).map(rowToPane);
 }
 
+export async function listarTodasPanes(): Promise<ViaturaPane[]> {
+  const db = getDb();
+  const { data, error } = await db.from(TABLE).select('*').order('created_at', { ascending: false });
+  if (error) handleSupabaseError(error);
+  return (data || []).map(rowToPane);
+}
+
 export async function criarPane(data: Omit<ViaturaPane, 'id' | 'createdAt' | 'updatedAt'>): Promise<ViaturaPane> {
   const db = getDb();
   const now = new Date().toISOString();
