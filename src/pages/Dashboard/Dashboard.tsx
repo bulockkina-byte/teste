@@ -11,6 +11,7 @@ import { PageTitle } from '../../components/layout/PageTitle';
 import { listarAtivos } from '../../services/bombeiroService';
 import { listarFeriasGozo } from '../../services/feriasService';
 import { listarOcorrencias } from '../../services/ocorrenciaService';
+import { listarReas } from '../../services/reaService';
 import { listarSubstituicoesTemporarias } from '../../services/substituicaoTemporariaService';
 import { listarCertificacoes } from '../../services/certificacaoService';
 import { listarCertificacoesCursos } from '../../services/certificacaoCursoService';
@@ -18,6 +19,7 @@ import { listarVagasPendentes } from '../../services/vagaPendenteService';
 import type { Bombeiro } from '../../types/bombeiro';
 import type { FeriasGozo } from '../../types/ferias';
 import type { Ocorrencia } from '../../types/ocorrencia';
+import type { ReaRegistro } from '../../types/rea';
 import type { SubstituicaoTemporaria } from '../../types/substituicaoTemporaria';
 import type { CertificacaoNR } from '../../types/certificacao';
 import type { CertificacaoCurso } from '../../types/certificacaoCurso';
@@ -70,6 +72,7 @@ export function Dashboard() {
   const [bombeiros, setBombeiros] = useState<Bombeiro[]>([]);
   const [feriasGozo, setFeriasGozo] = useState<FeriasGozo[]>([]);
   const [ocorrencias, setOcorrencias] = useState<Ocorrencia[]>([]);
+  const [reas, setReas] = useState<ReaRegistro[]>([]);
   const [substituicoes, setSubstituicoes] = useState<SubstituicaoTemporaria[]>([]);
   const [certificacoes, setCertificacoes] = useState<CertificacaoNR[]>([]);
   const [vagasPendentes, setVagasPendentes] = useState<any[]>([]);
@@ -79,27 +82,62 @@ export function Dashboard() {
   useEffect(() => {
     (async () => {
       try {
-        const [b, g, o, s, c, cr, vp] = await Promise.all([
+        const [b, g, o, r, s, c, cr, vp] = await Promise.all([
           listarAtivos(),
           listarFeriasGozo(),
           listarOcorrencias({ status: undefined }),
+          listarReas(),
           listarSubstituicoesTemporarias(),
           listarCertificacoes(),
           listarCertificacoesCursos(),
           listarVagasPendentes({ resolvido: false }),
         ]);
         setBombeiros(b); setFeriasGozo(g); setOcorrencias(o);
-        setSubstituicoes(s); setCertificacoes(c); setCursos(cr);
+        setReas(r); setSubstituicoes(s); setCertificacoes(c); setCursos(cr);
         setVagasPendentes(vp);
       } catch { /* ignore */ }
       setLoading(false);
     })();
   }, []);
 
+interface DocumentoResumo {
+  id: string;
+  tipo: 'BONA' | 'REA';
+  numero: string;
+  titulo: string;
+  data: string;
+  equipe: string;
+  status: string;
+}
+
+const documentos = useMemo<DocumentoResumo[]>(() => {
+  const bonas = ocorrencias
+    .filter(o => o.numero?.trim())
+    .map(o => ({
+      id: o.id,
+      tipo: 'BONA' as const,
+      numero: o.numero,
+      titulo: o.titulo || 'BONA',
+      data: o.data,
+      equipe: o.equipe,
+      status: o.status,
+    }));
+  const reasList = reas.map(r => ({
+    id: r.id,
+    tipo: 'REA' as const,
+    numero: r.numero,
+    titulo: 'REA',
+    data: r.dataAcidente || r.createdAt.slice(0, 10),
+    equipe: r.equipe,
+    status: r.status,
+  }));
+  return [...bonas, ...reasList];
+}, [ocorrencias, reas]);
+
   const stats = useMemo(() => {
     const emGozo = feriasGozo.filter(g => g.status === 'Em Gozo');
     const programadas = feriasGozo.filter(g => g.status === 'Programadas');
-    const ocorrenciasAbertas = ocorrencias.filter(o => o.status !== 'Fechada');
+    const ocorrenciasAbertas = documentos.filter(d => d.status !== 'Fechada').length;
     const substPendentes = substituicoes.filter(s => s.status === 'Pendente');
     const certVencendo = certificacoes.filter(c => {
       if (!c.dataValidade) return false;
@@ -116,7 +154,7 @@ export function Dashboard() {
       totalBombeiros: bombeiros.length,
       emGozo: emGozo.length,
       programadas: programadas.length,
-      ocorrenciasAbertas: ocorrenciasAbertas.length,
+      ocorrenciasAbertas,
       substPendentes: substPendentes.length,
       vagasPendentes: vagasPendentes.length,
       certVencendo: certVencendo.length + cursosVencendo.length,
@@ -124,7 +162,7 @@ export function Dashboard() {
         nome: eq, total: bombeiros.filter(b => b.equipe === eq).length,
       })),
     };
-  }, [bombeiros, feriasGozo, ocorrencias, substituicoes, certificacoes, cursos, vagasPendentes]);
+  }, [bombeiros, feriasGozo, documentos, substituicoes, certificacoes, cursos, vagasPendentes]);
 
   const feriasEmAndamento = useMemo(() =>
     feriasGozo.filter(g => g.status === 'Em Gozo').slice(0, 8),
@@ -132,8 +170,10 @@ export function Dashboard() {
   );
 
   const ocorrenciasRecentes = useMemo(() =>
-    [...ocorrencias].sort((a, b) => new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime()).slice(0, 6),
-    [ocorrencias],
+    [...documentos]
+      .sort((a, b) => new Date(b.data + 'T12:00:00').getTime() - new Date(a.data + 'T12:00:00').getTime())
+      .slice(0, 6),
+    [documentos],
   );
 
   const substituicoesPendentes = useMemo(() =>
@@ -228,8 +268,8 @@ export function Dashboard() {
           </h3>
           <div className="space-y-3">
             {['Aberta', 'Encaminhada', 'Em Andamento', 'Fechada'].map(status => {
-              const count = ocorrencias.filter(o => o.status === status).length;
-              const total = ocorrencias.length || 1;
+              const count = documentos.filter(d => d.status === status).length;
+              const total = documentos.length || 1;
               const pct = (count / total) * 100;
               const colors: Record<string, string> = {
                 'Aberta': 'bg-red-500', 'Encaminhada': 'bg-yellow-500',
@@ -296,18 +336,25 @@ export function Dashboard() {
               <p className="py-6 text-center text-xs text-graphite-400">Nenhuma ocorrência registrada</p>
             ) : (
               <div className="space-y-1">
-                {ocorrenciasRecentes.map(o => (
-                  <div key={o.id} className="flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-graphite-50 dark:hover:bg-surface-hover/50">
+                {ocorrenciasRecentes.map(d => (
+                  <div key={`${d.tipo}-${d.id}`} className="flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-graphite-50 dark:hover:bg-surface-hover/50">
                     <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold text-white ${
-                      o.status === 'Fechada' ? 'bg-gradient-to-br from-green-400 to-green-600' : 'bg-gradient-to-br from-red-400 to-red-600'
+                      d.tipo === 'REA'
+                        ? 'bg-gradient-to-br from-red-400 to-red-600'
+                        : d.status === 'Fechada' ? 'bg-gradient-to-br from-green-400 to-green-600' : 'bg-gradient-to-br from-red-400 to-red-600'
                     }`}>
-                      {o.numeroOcorrencia?.slice(-2) || '?'}
+                      {d.numero?.slice(-2) || '?'}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-semibold text-graphite-900 dark:text-graphite-100 truncate">{o.categoriaOcorrencia || 'Ocorrência'}</p>
-                      <p className="text-[10px] text-graphite-500">{o.equipe} · {fmt(o.dataOcorrencia)}</p>
+                      <p className="text-xs font-semibold text-graphite-900 dark:text-graphite-100 truncate">
+                        <span className={`mr-1.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold ${
+                          d.tipo === 'BONA' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400' : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+                        }`}>{d.tipo}</span>
+                        {d.numero || d.titulo}
+                      </p>
+                      <p className="text-[10px] text-graphite-500">{d.equipe} · {fmt(d.data)}</p>
                     </div>
-                    <StatusBadge status={o.status} map={STATUS_OCORRENCIA_COLORS} />
+                    <StatusBadge status={d.status} map={STATUS_OCORRENCIA_COLORS} />
                   </div>
                 ))}
               </div>
