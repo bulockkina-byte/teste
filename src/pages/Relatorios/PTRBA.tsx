@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  FileText, ChevronDown, ChevronUp, Eye, Printer, ArrowLeft, Users, Lock, User,
+  FileText, ChevronDown, ChevronUp, Eye, Printer, ArrowLeft, Users, Lock, User, SlidersHorizontal,
 } from 'lucide-react';
 import { PageContainer } from '../../components/layout/PageContainer';
 import { PageTitle } from '../../components/layout/PageTitle';
 import { listarPTRBs } from '../../services/ptrbService';
 import { listarBombeiros } from '../../services/bombeiroService';
+import { listarAPOCs } from '../../services/apocService';
 import { listarPTRBACompletos } from '../../services/ptrbaCompletoService';
 import type { PTRB } from '../../types/ptrb';
 import { EQUIPES, ASSUNTOS } from '../../types/ptrb';
@@ -69,6 +70,21 @@ function apocParticipaDoAssunto(assunto: string): boolean {
   return ASSUNTOS_APOC.some(num => t === num || t.startsWith(num + '.'));
 }
 
+function normalizarNome(nome: string): string {
+  return (nome || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export interface PessoaInfo {
+  nomeGuerra: string;
+  cargo: string;
+  equipe: string;
+}
+
 function SectionHeader({ icon: Icon, title, subtitle }: { icon: React.ElementType; title: string; subtitle?: string }) {
   return (
     <div className="mb-4 flex items-center gap-3 border-b border-graphite-200/80 pb-3 dark:border-border-dark">
@@ -83,22 +99,25 @@ function SectionHeader({ icon: Icon, title, subtitle }: { icon: React.ElementTyp
   );
 }
 
-function EquipeBand({ equipe, extras }: { equipe: string; extras?: React.ReactNode }) {
+function EquipeBand({ equipe, extras, onClick }: { equipe: string; extras?: React.ReactNode; onClick?: () => void }) {
+  const clickable = !!onClick;
   return (
-    <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-white shadow-sm">
+    <button type="button" onClick={onClick}
+      className={`mb-3 flex w-full flex-wrap items-center justify-between gap-2 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2.5 text-white shadow-sm ${clickable ? 'cursor-pointer transition-opacity hover:opacity-90' : 'cursor-default'}`}>
       <p className="flex items-center gap-2 text-sm font-bold">
         <Users className="h-4 w-4" /> Equipe {equipe}
+        {clickable && <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-semibold uppercase">ver horas de todos</span>}
       </p>
       <p className="text-xs font-medium text-white/85">{extras}</p>
-    </div>
+    </button>
   );
 }
 
-function PrintButton({ onClick, children, primary }: { onClick: () => void; children: React.ReactNode; primary?: boolean }) {
+function PrintButton({ onClick, children, primary, icon: Icon = Printer }: { onClick: () => void; children: React.ReactNode; primary?: boolean; icon?: React.ElementType }) {
   const cls = primary
     ? 'flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-3 py-2 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 active:scale-[0.98]'
     : 'flex items-center gap-1.5 rounded-xl border border-graphite-300/60 bg-white/80 px-3 py-2 text-sm font-medium text-graphite-700 transition-all duration-200 hover:bg-graphite-50 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200';
-  return <button onClick={onClick} className={cls}><Printer className="h-4 w-4" /> {children}</button>;
+  return <button onClick={onClick} className={cls}><Icon className="h-4 w-4" /> {children}</button>;
 }
 
 type ViewLevel = 'summary' | 'person' | 'detail' | 'view-ptrb';
@@ -308,6 +327,10 @@ export function PTRBA() {
   const [expandedPTRB, setExpandedPTRB] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>('label');
   const [sortAsc, setSortAsc] = useState(true);
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [printGeral, setPrintGeral] = useState(true);
+  const [printIndividual, setPrintIndividual] = useState(true);
+  const [printLegenda, setPrintLegenda] = useState(true);
 
   const ANOS = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
 
@@ -317,12 +340,23 @@ export function PTRBA() {
       return;
     }
     setLoading(true);
-    Promise.all([listarPTRBs(), listarPTRBACompletos(), listarBombeiros()]).then(([p, c, b]) => {
+    Promise.all([listarPTRBs(), listarPTRBACompletos(), listarBombeiros(), listarAPOCs()]).then(([p, c, b, a]) => {
       const completos = (c || []).flatMap(converterCompletoParaPTRBs);
       setPtrbs([...p, ...completos]);
-      const map = new Map<string, { nomeGuerra: string; cargo: string; equipe: string }>();
+      const map = new Map<string, PessoaInfo>();
+      const indexar = (nome: string, info: PessoaInfo) => {
+        const chave = normalizarNome(nome);
+        if (chave && !map.has(chave)) map.set(chave, info);
+      };
       for (const bom of b) {
-        map.set(bom.nomeCompleto, { nomeGuerra: bom.nomeGuerra, cargo: bom.cargo, equipe: bom.equipe });
+        const info = { nomeGuerra: bom.nomeGuerra, cargo: bom.cargo, equipe: bom.equipe };
+        indexar(bom.nomeCompleto, info);
+        indexar(bom.nomeGuerra, info);
+      }
+      for (const ap of a || []) {
+        const info = { nomeGuerra: ap.nomeGuerra, cargo: ap.funcao || '', equipe: ap.equipe || '' };
+        indexar(ap.nomeCompleto, info);
+        indexar(ap.nomeGuerra, info);
       }
       setBombeiros(map);
     }).catch(() => {}).finally(() => setLoading(false));
@@ -402,12 +436,18 @@ export function PTRBA() {
     return [...set].sort();
   }, [ptrbs]);
 
+  function lookupPessoa(nome: string): PessoaInfo | undefined {
+    const chave = normalizarNome(nome);
+    if (!chave) return undefined;
+    return bombeiros.get(chave);
+  }
+
   function getNomeGuerra(nomeCompleto: string): string {
-    return bombeiros.get(nomeCompleto)?.nomeGuerra || nomeCompleto;
+    return lookupPessoa(nomeCompleto)?.nomeGuerra || nomeCompleto;
   }
 
   function getEquipe(nomeCompleto: string): string {
-    return bombeiros.get(nomeCompleto)?.equipe || '';
+    return lookupPessoa(nomeCompleto)?.equipe || '';
   }
 
   function goToSummary() {
@@ -492,7 +532,8 @@ export function PTRBA() {
     const assuntos = filtroAssunto ? [filtroAssunto] : assuntosDisponiveis;
     const eqMap = new Map<string, Map<string, Map<string, { horas: number; qtd: number; funcao: string }>>>();
     for (const e of expanded) {
-      const eq = e.ptrb.equipe || '(sem equipe)';
+      // Equipe de CADASTRO da pessoa (troca/substituição não muda a equipe dela)
+      const eq = getEquipe(e.nome) || e.ptrb.equipe || '(sem equipe)';
       const as = (e.ptrb.assuntoMinistrado || '(sem assunto)').trim();
       if (!eqMap.has(eq)) eqMap.set(eq, new Map());
       const pesMap = eqMap.get(eq)!;
@@ -509,9 +550,9 @@ export function PTRBA() {
         let totalQtd = 0;
         for (const v of asMap.values()) { totalHoras += v.horas; totalQtd += v.qtd; }
         const funcao = [...asMap.values()].sort((a, b) => b.qtd - a.qtd)[0]?.funcao || '';
-        return { nome: bombeiros.get(nome)?.nomeGuerra || nome, funcao, valores: asMap, totalHoras, totalQtd };
+        return { nome, nomeGuerra: getNomeGuerra(nome), funcao, valores: asMap, totalHoras, totalQtd };
       });
-      pessoas.sort((a, b) => HIERARQUIA.indexOf(a.funcao) - HIERARQUIA.indexOf(b.funcao) || a.nome.localeCompare(b.nome));
+      pessoas.sort((a, b) => HIERARQUIA.indexOf(a.funcao) - HIERARQUIA.indexOf(b.funcao) || a.nomeGuerra.localeCompare(b.nomeGuerra));
       return { equipe, pessoas };
     });
     grupos.sort((a, b) => EQUIPE_ORDER.indexOf(a.equipe) - EQUIPE_ORDER.indexOf(b.equipe));
@@ -525,7 +566,7 @@ export function PTRBA() {
       const as = e.ptrb.assuntoMinistrado || '(sem assunto)';
       if (!map.has(e.nome)) map.set(e.nome, new Map());
       const sub = map.get(e.nome)!;
-      const homeEquipe = e.ptrb.equipe || getEquipe(e.nome);
+      const homeEquipe = getEquipe(e.nome) || e.ptrb.equipe;
       if (!sub.has(as)) sub.set(as, { horas: 0, qtd: 0, funcao: e.funcao, equipe: homeEquipe });
       const item = sub.get(as)!;
       item.horas += e.horas;
@@ -556,7 +597,7 @@ export function PTRBA() {
       const it = map.get(e.nome) || {
         pessoa: e.nome,
         funcao: e.funcao,
-        equipe: bombeiros.get(e.nome)?.equipe || e.ptrb.equipe || '(sem equipe)',
+        equipe: getEquipe(e.nome) || e.ptrb.equipe || '(sem equipe)',
         registros: [],
       };
       it.registros.push({
@@ -688,7 +729,7 @@ export function PTRBA() {
     return v > 0 ? horasStr(v) : '—';
   }
 
-  function gerarHTMLRelatorioCompleto(): string {
+  function gerarHTMLRelatorioCompleto(opts: { geral: boolean; individual: boolean; legenda: boolean }): string {
     const titulo = 'Relatório PTR-BA — Instrução e Tempo em Segurança do Trabalho';
     const filtros = `Período: ${filtroPeriodoLabel}${filtroEquipe ? ' · Equipe: ' + filtroEquipe : ''}${filtroAssunto ? ' · Assunto: ' + filtroAssunto : ''} · Gerado em ${new Date().toLocaleString('pt-BR')}`;
 
@@ -700,7 +741,7 @@ export function PTRBA() {
         '<tr' + (p.funcao === 'BA-CE' ? ' class="bace"' : '') + '>' +
         '<td>' + (i + 1) + '</td>' +
         '<td style="font-weight:' + (p.funcao === 'BA-CE' ? 'bold' : 'normal') + ';">' + (p.funcao || '—') + '</td>' +
-        '<td class="l">' + p.nome + '</td>' +
+        '<td class="l">' + p.nomeGuerra + '</td>' +
         equipePessoasMatriz.assuntos.map(a => '<td>' + cellHorasPrint(p.valores.get(a)?.horas || 0) + '</td>').join('') +
         '<td style="font-weight:bold;">' + horasStr(p.totalHoras) + '</td>' +
         '<td>' + p.totalQtd + '</td>' +
@@ -779,22 +820,22 @@ td.l, th.l { text-align: left; }
 <h1>${titulo}</h1>
 <p class="filtros">${filtros}</p>
 
-${geralPaginas}
+${opts.geral ? geralPaginas : ''}
 
-${individualPaginas}
+${opts.individual ? individualPaginas : ''}
 
-<div class="legenda">
+${opts.legenda ? `<div class="legenda">
 <p><strong>Legenda — Assuntos Ministrados:</strong></p>
 <table style="table-layout:auto;">${legenda}</table>
-</div>
+</div>` : ''}
 <p class="footer">Relatório PTR-BA - Seção de Instrução · ${new Date().toLocaleString('pt-BR')}</p>
 </body></html>`;
   }
 
-  function imprimirRelatorioCompleto() {
+  function imprimirRelatorioCompleto(opts?: { geral: boolean; individual: boolean; legenda: boolean }) {
     const win = window.open('', '_blank');
     if (win) {
-      win.document.write(gerarHTMLRelatorioCompleto());
+      win.document.write(gerarHTMLRelatorioCompleto(opts || { geral: true, individual: true, legenda: true }));
       win.document.close();
       setTimeout(() => win.print(), 700);
     }
@@ -961,7 +1002,12 @@ ${individualPaginas}
             {horasStr(horasAtividades.totalGeral)}
             <span className="ml-1 text-xs font-normal text-graphite-500">de atividade · {filtered.length} registro(s) · {statsFiltered.pessoas} militar(es)</span>
           </p>
-          <PrintButton onClick={imprimirRelatorioCompleto} primary>Imprimir Relatório</PrintButton>
+          <div className="flex flex-wrap gap-2">
+            <PrintButton onClick={imprimirRelatorioCompleto} primary>Imprimir Relatório</PrintButton>
+            <PrintButton onClick={() => setShowPrintModal(true)} icon={SlidersHorizontal}>
+              Opções de Impressão
+            </PrintButton>
+          </div>
         </div>
 
         {filtered.length === 0 ? (
@@ -978,7 +1024,7 @@ ${individualPaginas}
               <div className="space-y-8">
                 {equipePessoasMatriz.grupos.map(g => (
                   <div key={g.equipe}>
-                    <EquipeBand equipe={g.equipe}
+                    <EquipeBand equipe={g.equipe} onClick={() => goToPerson(g.equipe)}
                       extras={<>{g.pessoas.length} militar(es) · atividade da equipe: {horasStr(horasAtividades.totalPorEquipe[g.equipe] || 0)}</>} />
                     <div className="overflow-x-auto rounded-2xl border border-graphite-200/60 bg-white/80 shadow-sm dark:border-border-dark dark:bg-surface-card">
                       <table className="w-full text-xs" style={{ minWidth: 1000 }}>
@@ -996,10 +1042,11 @@ ${individualPaginas}
                         </thead>
                         <tbody>
                           {g.pessoas.map((p, i) => (
-                            <tr key={p.nome} className={`border-b border-graphite-100 dark:border-border-dark ${p.funcao === 'BA-CE' ? 'bg-aviation-50/60 dark:bg-aviation-900/10' : ''}`}>
+                            <tr key={p.nome} onClick={() => goToDetail(p.nome)}
+                              className={`cursor-pointer border-b border-graphite-100 transition-colors hover:bg-aviation-50/50 dark:border-border-dark dark:hover:bg-aviation-900/10 ${p.funcao === 'BA-CE' ? 'bg-aviation-50/60 dark:bg-aviation-900/10' : ''}`}>
                               <td className="px-3 py-2 text-graphite-400">{i + 1}</td>
                               <td className={`px-3 py-2 ${p.funcao === 'BA-CE' ? 'font-bold text-aviation-800 dark:text-aviation-300' : 'text-graphite-600 dark:text-graphite-400'}`}>{p.funcao || '—'}</td>
-                              <td className="px-3 py-2 font-medium text-graphite-900 dark:text-graphite-100">{p.nome}</td>
+                              <td className="px-3 py-2 font-medium text-graphite-900 dark:text-graphite-100">{p.nomeGuerra}</td>
                               {equipePessoasMatriz.assuntos.map(a => {
                                 const v = p.valores.get(a);
                                 return <td key={a} className="px-1.5 py-2 text-center">
@@ -1030,16 +1077,17 @@ ${individualPaginas}
                         const total = p.registros.reduce((s, r) => s + r.horas, 0);
                         return (
                           <div key={p.pessoa} className="overflow-hidden rounded-2xl border border-graphite-200/60 bg-white/80 shadow-sm dark:border-border-dark dark:bg-surface-card">
-                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-graphite-200 bg-graphite-50/70 px-4 py-3 dark:border-border-dark dark:bg-surface-hover">
-                              <p className="flex items-center gap-2 text-sm font-bold text-graphite-900 dark:text-graphite-100">
+                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-graphite-200 bg-graphite-50/70 px-4 py-3 transition-colors hover:bg-graphite-100/70 dark:border-border-dark dark:bg-surface-hover dark:hover:bg-surface-elevated">
+                              <button type="button" onClick={() => goToDetail(p.pessoa)}
+                                className="flex items-center gap-2 text-sm font-bold text-graphite-900 hover:text-aviation-700 dark:text-graphite-100 dark:hover:text-aviation-300">
                                 {p.funcao && <span className="rounded bg-aviation-100 px-1.5 py-0.5 text-xs font-semibold text-aviation-700 dark:bg-aviation-900/30 dark:text-aviation-300">{p.funcao}</span>}
                                 {getNomeGuerra(p.pessoa)}
-                              </p>
+                              </button>
                               <div className="flex items-center gap-2">
                                 <span className="text-xs text-graphite-500 dark:text-graphite-400">{horasStr(total)} · {p.registros.length} registro(s)</span>
                                 <button onClick={() => goToDetail(p.pessoa)}
                                   className="inline-flex items-center gap-1 rounded-lg bg-aviation-100 px-2 py-1 text-xs font-medium text-aviation-700 transition-colors hover:bg-aviation-200 dark:bg-aviation-900/30 dark:text-aviation-300 dark:hover:bg-aviation-900/50">
-                                  <Eye className="h-3 w-3" /> Detalhes
+                                  <Eye className="h-3 w-3" /> Ver horas
                                 </button>
                               </div>
                             </div>
@@ -1076,6 +1124,53 @@ ${individualPaginas}
               </div>
             </section>
           </>
+        )}
+
+        {showPrintModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowPrintModal(false)}>
+            <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-surface-elevated" onClick={e => e.stopPropagation()}>
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-lg font-bold text-graphite-900 dark:text-graphite-100">Opções de Impressão</h3>
+                <button onClick={() => setShowPrintModal(false)} className="rounded-lg p-1 text-graphite-400 hover:bg-graphite-100 dark:hover:bg-surface-hover">✕</button>
+              </div>
+              <p className="mb-4 text-xs text-graphite-500 dark:text-graphite-400">
+                Escolha o que entrará no relatório impresso:
+              </p>
+              <div className="space-y-3">
+                <label className="flex cursor-pointer items-center justify-between rounded-xl border border-graphite-200 bg-white px-4 py-3 dark:border-border-dark dark:bg-surface-card">
+                  <span>
+                    <span className="block text-sm font-semibold text-graphite-900 dark:text-graphite-100">Visão Geral</span>
+                    <span className="block text-xs text-graphite-500">Pessoa × assunto por equipe (matriz de horas)</span>
+                  </span>
+                  <input type="checkbox" checked={printGeral} onChange={e => setPrintGeral(e.target.checked)} className="h-4 w-4 accent-aviation-600" />
+                </label>
+                <label className="flex cursor-pointer items-center justify-between rounded-xl border border-graphite-200 bg-white px-4 py-3 dark:border-border-dark dark:bg-surface-card">
+                  <span>
+                    <span className="block text-sm font-semibold text-graphite-900 dark:text-graphite-100">Visão Individual</span>
+                    <span className="block text-xs text-graphite-500">Cards com as atividades de cada militar</span>
+                  </span>
+                  <input type="checkbox" checked={printIndividual} onChange={e => setPrintIndividual(e.target.checked)} className="h-4 w-4 accent-aviation-600" />
+                </label>
+                <label className="flex cursor-pointer items-center justify-between rounded-xl border border-graphite-200 bg-white px-4 py-3 dark:border-border-dark dark:bg-surface-card">
+                  <span>
+                    <span className="block text-sm font-semibold text-graphite-900 dark:text-graphite-100">Legenda</span>
+                    <span className="block text-xs text-graphite-500">Lista dos assuntos ministrados (PTR-BA)</span>
+                  </span>
+                  <input type="checkbox" checked={printLegenda} onChange={e => setPrintLegenda(e.target.checked)} className="h-4 w-4 accent-aviation-600" />
+                </label>
+              </div>
+              <div className="mt-6 flex justify-end gap-2">
+                <button onClick={() => setShowPrintModal(false)}
+                  className="rounded-xl border border-graphite-300/60 bg-white/80 px-4 py-2 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">
+                  Cancelar
+                </button>
+                <button onClick={() => { setShowPrintModal(false); imprimirRelatorioCompleto({ geral: printGeral, individual: printIndividual, legenda: printLegenda }); }}
+                  className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-aviation-500/20">
+                  <Printer className="h-4 w-4" /> Imprimir
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </PageContainer>
     );
