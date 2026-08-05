@@ -362,10 +362,10 @@ export const menuItems: MenuItem[] = [
         description: 'Lista de Ronda Operacional.',
       },
       {
-        label: 'BONA',
+        label: 'BONA/REA',
         icon: FileCheck,
         path: '/relatorios/bona',
-        description: 'Boletim de Ocorrência e Notificação de Acidente.',
+        description: 'Boletim de Ocorrência Não Aeronáutico e Relatório de Registro de Emergências Aeronáuticas.',
       },
       {
         label: 'PTR-BA',

@@ -902,6 +902,8 @@ GET com filtro `ativa=true`. ✅ OK
 **Nota de compatibilidade:** registros antigos com `tipo_documento = "RAE"` são normalizados para `REA` no service.
 **Uso no LRO:** BONA com `numero` iniciado por `BONA` alimenta IX. Ocorrências Não Aeronáuticas com `data - hora - descrição`. Registros criados em LRO/Ocorrências usam `numero` vazio, `titulo` como tipo, `local` como data do turno e alimentam XII. Outras Ocorrências com `data - hora - equipe - tipo - descrição`.
 
+**`listarOcorrencias` — Query Params adicionais:** `numeroPrefixo?: string` — filtra por `numero like 'prefixo%'` (ex: `'BONA'` traz só BONAs, excluindo registros do LRO/Ocorrências que usam `numero` vazio). **REST equivalência:** `GET /rest/v1/ocorrencias_operacionais?select=*&numero=like.BONA%25&order=data.desc`
+
 ---
 
 # 10.1 REA — `reaService.ts`

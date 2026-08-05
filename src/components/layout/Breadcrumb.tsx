@@ -14,7 +14,7 @@ export function Breadcrumb() {
     hidrantes: 'Hidrantes',
     relatorios: 'Relatórios',
     lro: 'LRO',
-    bona: 'BONA',
+    bona: 'BONA/REA',
     'ptr-ba': 'PTR-BA',
     'ptr-ba-completo': 'PTR-BA Completo',
     exercicios: 'Exercícios',

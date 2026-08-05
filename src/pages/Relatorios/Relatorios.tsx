@@ -31,7 +31,7 @@ export function Relatorios() {
 
   useEffect(() => {
     if (loadingContexto || !canVisualizarRelatorios) return;
-    listarOcorrencias().then(o => setOcorrenciasCount(o.length)).catch(() => {});
+    listarOcorrencias({ numeroPrefixo: 'BONA' }).then(o => setOcorrenciasCount(o.length)).catch(() => {});
     listarPTRBs().then(p => setPtrbCount(p.length)).catch(() => {});
     listarLROs().then(l => setLroCount(l.length)).catch(() => {});
     listarBombeiros().then(b => setEfetivoCount(b.length)).catch(() => {});
@@ -45,8 +45,8 @@ export function Relatorios() {
       stats: [{ label: 'Registros', value: lroCount }, { label: 'Efetivo', value: efetivoCount }],
     },
     {
-      title: 'BONA',
-      description: 'Boletim de Ocorrência e Notificação de Acidente',
+      title: 'BONA/REA',
+      description: 'Boletim de Ocorrência Não Aeronáutico e Relatório de Registro de Emergências Aeronáuticas',
       icon: FileCheck, path: '/relatorios/bona', color: 'from-red-500 to-red-700',
       stats: [{ label: 'Ocorrências', value: ocorrenciasCount }, { label: 'Total', value: '—' }],
     },

@@ -58,6 +58,7 @@ export async function listarOcorrencias(params?: {
   dataLte?: string;
   equipe?: string;
   categoria?: string;
+  numeroPrefixo?: string;
 }): Promise<Ocorrencia[]> {
   const db = getDb();
   let query = db.from(TABLE).select('*');
@@ -66,6 +67,7 @@ export async function listarOcorrencias(params?: {
   if (params?.dataLte) query = query.lte('data', params.dataLte);
   if (params?.equipe) query = query.eq('equipe', params.equipe);
   if (params?.categoria) query = query.eq('categoria', params.categoria);
+  if (params?.numeroPrefixo) query = query.like('numero', params.numeroPrefixo + '%');
   const { data, error } = await query;
   if (error) handleSupabaseError(error);
   return (data || []).map(rowToOcorrencia);

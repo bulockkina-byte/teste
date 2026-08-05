@@ -239,7 +239,7 @@ function getPageTitle(pathname: string): string {
     'cadastro/ferias': 'Férias',
     'cadastro/documentos': 'Gerenciar Documentos',
     'relatorios/lro': 'LRO',
-    'relatorios/bona': 'BONA',
+    'relatorios/bona': 'BONA/REA',
     'relatorios/ptr-ba': 'PTR-BA',
     'relatorios/exercicios': 'Exercícios',
     'relatorios/exercicios/taf': 'TAF',
