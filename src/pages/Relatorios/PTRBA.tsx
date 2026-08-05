@@ -328,9 +328,10 @@ export function PTRBA() {
   const [sortKey, setSortKey] = useState<SortKey>('label');
   const [sortAsc, setSortAsc] = useState(true);
   const [showPrintModal, setShowPrintModal] = useState(false);
-  const [printModo, setPrintModo] = useState<'geral' | 'individual' | 'por-equipe'>('geral');
+  const [printModo, setPrintModo] = useState<'geral' | 'individual' | 'por-equipe' | 'equipe'>('geral');
   const [printLegenda, setPrintLegenda] = useState(true);
   const [printPessoa, setPrintPessoa] = useState('');
+  const [printEquipe, setPrintEquipe] = useState('');
   const [secaoAtiva, setSecaoAtiva] = useState<'geral' | 'individual'>('geral');
 
   const ANOS = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
@@ -730,7 +731,7 @@ export function PTRBA() {
     return v > 0 ? horasStr(v) : '—';
   }
 
-  function gerarHTMLRelatorioCompleto(opts: { modo: 'geral' | 'individual' | 'por-equipe'; legenda: boolean; pessoa: string }): string {
+  function gerarHTMLRelatorioCompleto(opts: { modo: 'geral' | 'individual' | 'por-equipe' | 'equipe'; legenda: boolean; pessoa: string; equipe: string }): string {
     const titulo = 'Relatório PTR-BA — Instrução e Tempo em Segurança do Trabalho';
     const filtros = `Período: ${filtroPeriodoLabel}${filtroEquipe ? ' · Equipe: ' + filtroEquipe : ''}${filtroAssunto ? ' · Assunto: ' + filtroAssunto : ''} · Gerado em ${new Date().toLocaleString('pt-BR')}`;
 
@@ -765,6 +766,37 @@ export function PTRBA() {
         '<th style="width:6%">Total</th><th style="width:3%">Reg.</th></tr></thead><tbody>' + rows + '\n' + totalRow + '</tbody></table>' +
         '</div>';
     }).join('\n');
+
+    // MODO EQUIPE — todos os membros de 1 equipe com o tempo de cada um (1 folha)
+    const grupoAlvo = equipePessoasMatriz.grupos.find(g => g.equipe === opts.equipe);
+    const equipeHTML = grupoAlvo ? (() => {
+      const rows = grupoAlvo.pessoas.map((p, i) =>
+        '<tr' + (p.funcao === 'BA-CE' ? ' class="bace"' : '') + '>' +
+        '<td>' + (i + 1) + '</td>' +
+        '<td style="font-weight:' + (p.funcao === 'BA-CE' ? 'bold' : 'normal') + ';">' + (p.funcao || '—') + '</td>' +
+        '<td class="l">' + p.nomeGuerra + '</td>' +
+        equipePessoasMatriz.assuntos.map(a => '<td>' + cellHorasPrint(p.valores.get(a)?.horas || 0) + '</td>').join('') +
+        '<td style="font-weight:bold;">' + horasStr(p.totalHoras) + '</td>' +
+        '<td>' + p.totalQtd + '</td>' +
+        '</tr>'
+      ).join('\n');
+      const equipeAssuntos = horasAtividades.porEquipeAssunto.get(grupoAlvo.equipe) || new Map<string, number>();
+      const totalEquipe = horasAtividades.totalPorEquipe[grupoAlvo.equipe] || 0;
+      const registrosEquipe = horasAtividades.registrosPorEquipe[grupoAlvo.equipe] || 0;
+      const totalRow = '<tr class="total">' +
+        '<td colspan="3" class="l">TOTAL EQUIPE</td>' +
+        equipePessoasMatriz.assuntos.map(a => '<td>' + cellHorasPrint(equipeAssuntos.get(a) || 0) + '</td>').join('') +
+        '<td>' + horasStr(totalEquipe) + '</td>' +
+        '<td>' + registrosEquipe + '</td>' +
+        '</tr>';
+      return '<div>' +
+        '<h2>Equipe ' + grupoAlvo.equipe.toUpperCase() + ' — membros e horas</h2>' +
+        '<table><tr class="eq-header"><td colspan="' + (equipePessoasMatriz.assuntos.length + 5) + '">EQUIPE ' + grupoAlvo.equipe.toUpperCase() + ' — ' + grupoAlvo.pessoas.length + ' militares · Atividade da equipe: ' + horasStr(totalEquipe) + '</td></tr></table>' +
+        '<table><thead><tr>' + '<th style="width:3%">Nº</th><th style="width:7%">Função</th><th class="l" style="width:14%;">Nome</th>' +
+        equipePessoasMatriz.assuntos.map(thAssunto).join('') +
+        '<th style="width:6%">Total</th><th style="width:3%">Reg.</th></tr></thead><tbody>' + rows + '\n' + totalRow + '</tbody></table>' +
+        '</div>';
+    })() : '';
 
     // MODO POR EQUIPE — as instruções que cada equipe fez, quantidade POR EQUIPE (não por pessoa)
     const equipesComRegistros = [...EQUIPE_ORDER.filter(eq => horasAtividades.registrosPorEquipe[eq]), ...Object.keys(horasAtividades.registrosPorEquipe).filter(eq => !EQUIPE_ORDER.includes(eq))];
@@ -819,6 +851,7 @@ export function PTRBA() {
 
     const corpo =
       opts.modo === 'geral' ? geralHTML :
+      opts.modo === 'equipe' ? (equipeHTML || geralHTML) :
       opts.modo === 'por-equipe' ? porEquipeHTML :
       opts.modo === 'individual' && opts.pessoa ? individualHTML :
       geralHTML;
@@ -858,10 +891,10 @@ ${opts.legenda ? `<div class="legenda">
 </body></html>`;
   }
 
-  function imprimirRelatorioCompleto(opts?: { modo: 'geral' | 'individual' | 'por-equipe'; legenda: boolean; pessoa: string }) {
+  function imprimirRelatorioCompleto(opts?: { modo: 'geral' | 'individual' | 'por-equipe' | 'equipe'; legenda: boolean; pessoa: string; equipe: string }) {
     const win = window.open('', '_blank');
     if (win) {
-      win.document.write(gerarHTMLRelatorioCompleto(opts || { modo: 'geral', legenda: true, pessoa: '' }));
+      win.document.write(gerarHTMLRelatorioCompleto(opts || { modo: 'geral', legenda: true, pessoa: '', equipe: '' }));
       win.document.close();
       setTimeout(() => win.print(), 700);
     }
@@ -1211,6 +1244,24 @@ ${opts.legenda ? `<div class="legenda">
                     </select>
                   </div>
                 )}
+                <label className={`flex cursor-pointer items-center justify-between rounded-xl border px-4 py-3 ${printModo === 'equipe' ? 'border-aviation-400 bg-aviation-50/60 dark:border-aviation-600 dark:bg-aviation-900/20' : 'border-graphite-200 bg-white dark:border-border-dark dark:bg-surface-card'}`}>
+                  <span>
+                    <span className="block text-sm font-semibold text-graphite-900 dark:text-graphite-100">Equipe — todos os membros de 1 equipe</span>
+                    <span className="block text-xs text-graphite-500">Todos os membros de uma equipe com o tempo que cada um fez</span>
+                  </span>
+                  <input type="radio" name="printModo" checked={printModo === 'equipe'} onChange={() => setPrintModo('equipe')} className="h-4 w-4 accent-aviation-600" />
+                </label>
+                {printModo === 'equipe' && (
+                  <div className="rounded-xl border border-graphite-200 bg-white px-4 py-3 dark:border-border-dark dark:bg-surface-card">
+                    <span className="block text-xs font-semibold text-graphite-500 dark:text-graphite-400">Selecione a equipe</span>
+                    <select value={printEquipe} onChange={e => setPrintEquipe(e.target.value)} className="mt-2 w-full rounded-xl border border-graphite-300 bg-white px-3 py-2 text-sm text-graphite-900 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100">
+                      <option value="">Selecione...</option>
+                      {equipePessoasMatriz.grupos.map(g => (
+                        <option key={g.equipe} value={g.equipe}>{g.equipe.toUpperCase()} — {g.pessoas.length} militares</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <label className="flex cursor-pointer items-center justify-between rounded-xl border border-graphite-200 bg-white px-4 py-3 dark:border-border-dark dark:bg-surface-card">
                   <span>
                     <span className="block text-sm font-semibold text-graphite-900 dark:text-graphite-100">Legenda</span>
@@ -1226,8 +1277,9 @@ ${opts.legenda ? `<div class="legenda">
                 </button>
                 <button onClick={() => {
                   if (printModo === 'individual' && !printPessoa) return;
+                  if (printModo === 'equipe' && !printEquipe) return;
                   setShowPrintModal(false);
-                  imprimirRelatorioCompleto({ modo: printModo, legenda: printLegenda, pessoa: printModo === 'individual' ? printPessoa : '' });
+                  imprimirRelatorioCompleto({ modo: printModo, legenda: printLegenda, pessoa: printModo === 'individual' ? printPessoa : '', equipe: printModo === 'equipe' ? printEquipe : '' });
                 }}
                   className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-aviation-500/20">
                   <Printer className="h-4 w-4" /> Imprimir
