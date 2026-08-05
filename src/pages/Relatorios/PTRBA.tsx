@@ -1010,7 +1010,7 @@ ${opts.legenda ? `<div class="legenda">
             </button>
           </div>
           <div className="flex flex-wrap gap-2">
-            <PrintButton onClick={imprimirRelatorioCompleto} primary>Imprimir Relatório</PrintButton>
+            <PrintButton onClick={() => imprimirRelatorioCompleto({ geral: true, individual: true, legenda: true })} primary>Imprimir Relatório</PrintButton>
             <PrintButton onClick={() => setShowPrintModal(true)} icon={SlidersHorizontal}>
               Opções de Impressão
             </PrintButton>
