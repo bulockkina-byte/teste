@@ -328,11 +328,8 @@ export function PTRBA() {
   const [sortKey, setSortKey] = useState<SortKey>('label');
   const [sortAsc, setSortAsc] = useState(true);
   const [showPrintModal, setShowPrintModal] = useState(false);
-  const [printGeral, setPrintGeral] = useState(true);
-  const [printIndividual, setPrintIndividual] = useState(true);
+  const [printModo, setPrintModo] = useState<'geral' | 'individual' | 'por-equipe'>('geral');
   const [printLegenda, setPrintLegenda] = useState(true);
-  const [printCompacto, setPrintCompacto] = useState(false);
-  const [printQtdPTRs, setPrintQtdPTRs] = useState(true);
   const [printPessoa, setPrintPessoa] = useState('');
   const [secaoAtiva, setSecaoAtiva] = useState<'geral' | 'individual'>('geral');
 
@@ -733,15 +730,14 @@ export function PTRBA() {
     return v > 0 ? horasStr(v) : '—';
   }
 
-  function gerarHTMLRelatorioCompleto(opts: { geral: boolean; individual: boolean; legenda: boolean; compacto: boolean; qtdPTRs: boolean; pessoa: string }): string {
+  function gerarHTMLRelatorioCompleto(opts: { modo: 'geral' | 'individual' | 'por-equipe'; legenda: boolean; pessoa: string }): string {
     const titulo = 'Relatório PTR-BA — Instrução e Tempo em Segurança do Trabalho';
     const filtros = `Período: ${filtroPeriodoLabel}${filtroEquipe ? ' · Equipe: ' + filtroEquipe : ''}${filtroAssunto ? ' · Assunto: ' + filtroAssunto : ''} · Gerado em ${new Date().toLocaleString('pt-BR')}`;
 
     const thAssunto = (a: string) => '<th title="' + a + '">' + abreviarLabel(a) + '</th>';
 
-    // 1 — Visão Geral: pessoa × assunto; compacta = todas as equipes fluem sem quebra de página
-    const paginaCls = opts.compacto ? '' : 'pagina';
-    const geralPaginas = equipePessoasMatriz.grupos.map((g, gi) => {
+    // MODO GERAL — todas as equipes, todos os membros e o tempo de cada um (1 folha, sem quebra entre equipes)
+    const geralHTML = equipePessoasMatriz.grupos.map((g, gi) => {
       const rows = g.pessoas.map((p, i) =>
         '<tr' + (p.funcao === 'BA-CE' ? ' class="bace"' : '') + '>' +
         '<td>' + (i + 1) + '</td>' +
@@ -761,8 +757,8 @@ export function PTRBA() {
         '<td>' + horasStr(totalEquipe) + '</td>' +
         '<td>' + registrosEquipe + '</td>' +
         '</tr>';
-      return '<div class="' + paginaCls + '">' +
-        (gi === 0 ? '<h2>1. Visão Geral — Pessoas e atividades por equipe</h2>' : '') +
+      return '<div>' +
+        (gi === 0 ? '<h2>Geral — Todas as equipes, membros e horas</h2>' : '') +
         '<table><tr class="eq-header"><td colspan="' + (equipePessoasMatriz.assuntos.length + 5) + '">EQUIPE ' + g.equipe.toUpperCase() + ' — ' + g.pessoas.length + ' militares · Atividade da equipe: ' + horasStr(totalEquipe) + '</td></tr></table>' +
         '<table><thead><tr>' + '<th style="width:3%">Nº</th><th style="width:7%">Função</th><th class="l" style="width:14%;">Nome</th>' +
         equipePessoasMatriz.assuntos.map(thAssunto).join('') +
@@ -770,27 +766,34 @@ export function PTRBA() {
         '</div>';
     }).join('\n');
 
-    // 1.1 — Quantidade de PTR-BAs por equipe
+    // MODO POR EQUIPE — as instruções que cada equipe fez, quantidade POR EQUIPE (não por pessoa)
     const equipesComRegistros = [...EQUIPE_ORDER.filter(eq => horasAtividades.registrosPorEquipe[eq]), ...Object.keys(horasAtividades.registrosPorEquipe).filter(eq => !EQUIPE_ORDER.includes(eq))];
-    const qtdRows = equipesComRegistros.map(eq =>
-      '<tr>' +
-      '<td class="l" style="font-weight:bold;">' + eq + '</td>' +
-      '<td>' + horasAtividades.registrosPorEquipe[eq] + '</td>' +
-      '<td style="font-weight:bold;">' + horasStr(horasAtividades.totalPorEquipe[eq] || 0) + '</td>' +
-      '</tr>'
-    ).join('\n');
+    const porEquipeRows = equipesComRegistros.map(eq => {
+      const equipeAssuntos = horasAtividades.porEquipeAssunto.get(eq) || new Map<string, number>();
+      return '<tr>' +
+        '<td class="l" style="font-weight:bold;">' + eq + '</td>' +
+        equipePessoasMatriz.assuntos.map(a => '<td>' + cellHorasPrint(equipeAssuntos.get(a) || 0) + '</td>').join('') +
+        '<td style="font-weight:bold;">' + horasStr(horasAtividades.totalPorEquipe[eq] || 0) + '</td>' +
+        '<td>' + (horasAtividades.registrosPorEquipe[eq] || 0) + '</td>' +
+        '</tr>';
+    }).join('\n');
     const qtdTotal = equipesComRegistros.reduce((s, eq) => s + (horasAtividades.registrosPorEquipe[eq] || 0), 0);
-    const qtdPagina = opts.qtdPTRs ? '<div class="pagina">' +
-      '<h2>Quantidade de PTR-BAs por Equipe</h2>' +
-      '<table><thead><tr><th class="l" style="width:40%;">Equipe</th><th style="width:20%;">PTR-BAs</th><th style="width:20%;">Horas de atividade</th></tr></thead><tbody>' + qtdRows +
-      '<tr class="total"><td class="l">TOTAL</td><td>' + qtdTotal + '</td><td>' + horasStr(horasAtividades.totalGeral) + '</td></tr>' +
-      '</tbody></table></div>' : '';
+    const porEquipeHTML = '<div>' +
+      '<h2>Por Equipe — Instruções e quantidade por equipe</h2>' +
+      '<table><thead><tr><th class="l" style="width:12%;">Equipe</th>' +
+      equipePessoasMatriz.assuntos.map(thAssunto).join('') +
+      '<th style="width:7%;">Total Horas</th><th style="width:7%;">PTR-BAs</th></tr></thead><tbody>' + porEquipeRows +
+      '<tr class="total"><td class="l">TOTAL</td>' +
+      equipePessoasMatriz.assuntos.map(a => '<td>' + cellHorasPrint(horasAtividades.totalPorAssunto[a] || 0) + '</td>').join('') +
+      '<td>' + horasStr(horasAtividades.totalGeral) + '</td>' +
+      '<td>' + qtdTotal + '</td></tr>' +
+      '</tbody></table></div>';
 
-    // 2 — Visão Individual: um bloco por militar, uma página por equipe (ou só a pessoa escolhida)
+    // MODO INDIVIDUAL — 1 pessoa com todas as instruções que ela fez
     const individuosAlvo = opts.pessoa
       ? individuos.map(([equipe, pessoas]) => [equipe, pessoas.filter(p => p.pessoa === opts.pessoa)] as const).filter(([, pessoas]) => pessoas.length > 0)
       : individuos;
-    const individualPaginas = individuosAlvo.map(([equipe, pessoas], gi) => {
+    const individualHTML = individuosAlvo.map(([, pessoas]) => {
       const cards = pessoas.map(p => {
         const total = p.registros.reduce((s, r) => s + r.horas, 0);
         const rows = p.registros.map(r =>
@@ -809,14 +812,16 @@ export function PTRBA() {
           '<table><thead><tr><th style="width:10%">Data</th><th class="l">Assunto</th><th style="width:14%">Horário</th><th style="width:9%">Duração</th><th class="l" style="width:18%">Instrutor</th></tr></thead><tbody>' + rows + '</tbody></table>' +
           '</div>';
       }).join('\n');
-      return '<div class="pagina">' +
-        (gi === 0 ? '<h2>2. Visão Individual — Atividades de cada militar</h2>' : '') +
-        (opts.pessoa ? '' : '<table><tr class="eq-header"><td colspan="5">EQUIPE ' + equipe.toUpperCase() + ' — ' + pessoas.length + ' militar(es)</td></tr></table>') +
-        cards +
-        '</div>';
+      return '<div>' + cards + '</div>';
     }).join('\n');
 
     const legenda = ASSUNTOS.map((a, i) => '<tr><td>' + String(i + 1).padStart(2, '0') + '.</td><td>' + a.replace(/^\d+\.\s*/, '') + '</td></tr>').join('\n');
+
+    const corpo =
+      opts.modo === 'geral' ? geralHTML :
+      opts.modo === 'por-equipe' ? porEquipeHTML :
+      opts.modo === 'individual' && opts.pessoa ? individualHTML :
+      geralHTML;
 
     return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>${titulo}</title>
@@ -831,7 +836,6 @@ th, td { border: 1px solid #000; padding: 2px 4px; font-size: 10px; text-align: 
 th { background: #4472C4; color: #fff; font-weight: bold; }
 thead { display: table-header-group; }
 tr { page-break-inside: avoid; }
-.pagina { page-break-after: always; }
 .eq-header td { background: #2b5797; color: #fff; font-weight: bold; text-align: left; padding: 3px 6px; font-size: 11px; }
 .pes-header td { background: #d9e2f3; font-weight: bold; text-align: left; padding: 2px 6px; font-size: 10px; }
 .bace td { background: #e8f0fe; }
@@ -844,11 +848,7 @@ td.l, th.l { text-align: left; }
 <h1>${titulo}</h1>
 <p class="filtros">${filtros}</p>
 
-${opts.geral ? geralPaginas : ''}
-
-${qtdPagina}
-
-${opts.individual || opts.pessoa ? individualPaginas : ''}
+${corpo}
 
 ${opts.legenda ? `<div class="legenda">
 <p><strong>Legenda — Assuntos Ministrados:</strong></p>
@@ -858,10 +858,10 @@ ${opts.legenda ? `<div class="legenda">
 </body></html>`;
   }
 
-  function imprimirRelatorioCompleto(opts?: { geral: boolean; individual: boolean; legenda: boolean; compacto: boolean; qtdPTRs: boolean; pessoa: string }) {
+  function imprimirRelatorioCompleto(opts?: { modo: 'geral' | 'individual' | 'por-equipe'; legenda: boolean; pessoa: string }) {
     const win = window.open('', '_blank');
     if (win) {
-      win.document.write(gerarHTMLRelatorioCompleto(opts || { geral: true, individual: true, legenda: true, compacto: false, qtdPTRs: true, pessoa: '' }));
+      win.document.write(gerarHTMLRelatorioCompleto(opts || { modo: 'geral', legenda: true, pessoa: '' }));
       win.document.close();
       setTimeout(() => win.print(), 700);
     }
@@ -1035,7 +1035,7 @@ ${opts.legenda ? `<div class="legenda">
             </button>
           </div>
           <div className="flex flex-wrap gap-2">
-            <PrintButton onClick={() => imprimirRelatorioCompleto({ geral: true, individual: true, legenda: true, compacto: false, qtdPTRs: true, pessoa: '' })} primary>Imprimir Relatório</PrintButton>
+            <PrintButton onClick={() => imprimirRelatorioCompleto({ modo: 'geral', legenda: true, pessoa: '' })} primary>Imprimir Relatório</PrintButton>
             <PrintButton onClick={() => setShowPrintModal(true)} icon={SlidersHorizontal}>
               Opções de Impressão
             </PrintButton>
@@ -1176,23 +1176,41 @@ ${opts.legenda ? `<div class="legenda">
                 <button onClick={() => setShowPrintModal(false)} className="rounded-lg p-1 text-graphite-400 hover:bg-graphite-100 dark:hover:bg-surface-hover">✕</button>
               </div>
               <p className="mb-4 text-xs text-graphite-500 dark:text-graphite-400">
-                Escolha o que entrará no relatório impresso:
+                Escolha o tipo de relatório para imprimir (cada um sai em 1 folha):
               </p>
               <div className="space-y-3">
-                <label className="flex cursor-pointer items-center justify-between rounded-xl border border-graphite-200 bg-white px-4 py-3 dark:border-border-dark dark:bg-surface-card">
+                <label className={`flex cursor-pointer items-center justify-between rounded-xl border px-4 py-3 ${printModo === 'geral' ? 'border-aviation-400 bg-aviation-50/60 dark:border-aviation-600 dark:bg-aviation-900/20' : 'border-graphite-200 bg-white dark:border-border-dark dark:bg-surface-card'}`}>
                   <span>
-                    <span className="block text-sm font-semibold text-graphite-900 dark:text-graphite-100">Visão Geral</span>
-                    <span className="block text-xs text-graphite-500">Pessoa × assunto por equipe (matriz de horas)</span>
+                    <span className="block text-sm font-semibold text-graphite-900 dark:text-graphite-100">Geral — todas as equipes e membros</span>
+                    <span className="block text-xs text-graphite-500">Todos os membros de cada equipe com o tempo que cada um fez</span>
                   </span>
-                  <input type="checkbox" checked={printGeral} onChange={e => setPrintGeral(e.target.checked)} className="h-4 w-4 accent-aviation-600" />
+                  <input type="radio" name="printModo" checked={printModo === 'geral'} onChange={() => setPrintModo('geral')} className="h-4 w-4 accent-aviation-600" />
                 </label>
-                <label className="flex cursor-pointer items-center justify-between rounded-xl border border-graphite-200 bg-white px-4 py-3 dark:border-border-dark dark:bg-surface-card">
+                <label className={`flex cursor-pointer items-center justify-between rounded-xl border px-4 py-3 ${printModo === 'por-equipe' ? 'border-aviation-400 bg-aviation-50/60 dark:border-aviation-600 dark:bg-aviation-900/20' : 'border-graphite-200 bg-white dark:border-border-dark dark:bg-surface-card'}`}>
                   <span>
-                    <span className="block text-sm font-semibold text-graphite-900 dark:text-graphite-100">Visão Individual</span>
-                    <span className="block text-xs text-graphite-500">Cards com as atividades de cada militar</span>
+                    <span className="block text-sm font-semibold text-graphite-900 dark:text-graphite-100">Por Equipe — instruções de cada equipe</span>
+                    <span className="block text-xs text-graphite-500">As instruções que cada equipe fez, com a quantidade por equipe (não por pessoa)</span>
                   </span>
-                  <input type="checkbox" checked={printIndividual} onChange={e => setPrintIndividual(e.target.checked)} className="h-4 w-4 accent-aviation-600" />
+                  <input type="radio" name="printModo" checked={printModo === 'por-equipe'} onChange={() => setPrintModo('por-equipe')} className="h-4 w-4 accent-aviation-600" />
                 </label>
+                <label className={`flex cursor-pointer items-center justify-between rounded-xl border px-4 py-3 ${printModo === 'individual' ? 'border-aviation-400 bg-aviation-50/60 dark:border-aviation-600 dark:bg-aviation-900/20' : 'border-graphite-200 bg-white dark:border-border-dark dark:bg-surface-card'}`}>
+                  <span>
+                    <span className="block text-sm font-semibold text-graphite-900 dark:text-graphite-100">Individual — 1 pessoa</span>
+                    <span className="block text-xs text-graphite-500">Uma pessoa com todas as instruções que ela fez</span>
+                  </span>
+                  <input type="radio" name="printModo" checked={printModo === 'individual'} onChange={() => setPrintModo('individual')} className="h-4 w-4 accent-aviation-600" />
+                </label>
+                {printModo === 'individual' && (
+                  <div className="rounded-xl border border-graphite-200 bg-white px-4 py-3 dark:border-border-dark dark:bg-surface-card">
+                    <span className="block text-xs font-semibold text-graphite-500 dark:text-graphite-400">Selecione a pessoa</span>
+                    <select value={printPessoa} onChange={e => setPrintPessoa(e.target.value)} className="mt-2 w-full rounded-xl border border-graphite-300 bg-white px-3 py-2 text-sm text-graphite-900 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100">
+                      <option value="">Selecione...</option>
+                      {individuos.flatMap(([, pessoas]) => pessoas).map(p => (
+                        <option key={p.pessoa} value={p.pessoa}>{getNomeGuerra(p.pessoa)}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <label className="flex cursor-pointer items-center justify-between rounded-xl border border-graphite-200 bg-white px-4 py-3 dark:border-border-dark dark:bg-surface-card">
                   <span>
                     <span className="block text-sm font-semibold text-graphite-900 dark:text-graphite-100">Legenda</span>
@@ -1200,37 +1218,17 @@ ${opts.legenda ? `<div class="legenda">
                   </span>
                   <input type="checkbox" checked={printLegenda} onChange={e => setPrintLegenda(e.target.checked)} className="h-4 w-4 accent-aviation-600" />
                 </label>
-                <label className="flex cursor-pointer items-center justify-between rounded-xl border border-graphite-200 bg-white px-4 py-3 dark:border-border-dark dark:bg-surface-card">
-                  <span>
-                    <span className="block text-sm font-semibold text-graphite-900 dark:text-graphite-100">Quantidade de PTR-BAs por equipe</span>
-                    <span className="block text-xs text-graphite-500">Quantos PTR-BAs cada equipe fez no período</span>
-                  </span>
-                  <input type="checkbox" checked={printQtdPTRs} onChange={e => setPrintQtdPTRs(e.target.checked)} className="h-4 w-4 accent-aviation-600" />
-                </label>
-                <label className="flex cursor-pointer items-center justify-between rounded-xl border border-graphite-200 bg-white px-4 py-3 dark:border-border-dark dark:bg-surface-card">
-                  <span>
-                    <span className="block text-sm font-semibold text-graphite-900 dark:text-graphite-100">Todas as equipes em 1 folha</span>
-                    <span className="block text-xs text-graphite-500">Visão Geral sem quebra de página entre equipes (mais compacta)</span>
-                  </span>
-                  <input type="checkbox" checked={printCompacto} onChange={e => setPrintCompacto(e.target.checked)} className="h-4 w-4 accent-aviation-600" />
-                </label>
-                <div className="rounded-xl border border-graphite-200 bg-white px-4 py-3 dark:border-border-dark dark:bg-surface-card">
-                  <label className="block text-sm font-semibold text-graphite-900 dark:text-graphite-100">Imprimir somente 1 pessoa</label>
-                  <span className="block text-xs text-graphite-500">Relatório individual com todos os assuntos que a pessoa fez</span>
-                  <select value={printPessoa} onChange={e => setPrintPessoa(e.target.value)} className="mt-2 w-full rounded-xl border border-graphite-300 bg-white px-3 py-2 text-sm text-graphite-900 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100">
-                    <option value="">Todas as pessoas</option>
-                    {individuos.flatMap(([, pessoas]) => pessoas).map(p => (
-                      <option key={p.pessoa} value={p.pessoa}>{getNomeGuerra(p.pessoa)}</option>
-                    ))}
-                  </select>
-                </div>
               </div>
               <div className="mt-6 flex justify-end gap-2">
                 <button onClick={() => setShowPrintModal(false)}
                   className="rounded-xl border border-graphite-300/60 bg-white/80 px-4 py-2 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">
                   Cancelar
                 </button>
-                <button onClick={() => { setShowPrintModal(false); imprimirRelatorioCompleto({ geral: printGeral, individual: printIndividual, legenda: printLegenda, compacto: printCompacto, qtdPTRs: printQtdPTRs, pessoa: printPessoa }); }}
+                <button onClick={() => {
+                  if (printModo === 'individual' && !printPessoa) return;
+                  setShowPrintModal(false);
+                  imprimirRelatorioCompleto({ modo: printModo, legenda: printLegenda, pessoa: printModo === 'individual' ? printPessoa : '' });
+                }}
                   className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-aviation-500/20">
                   <Printer className="h-4 w-4" /> Imprimir
                 </button>
