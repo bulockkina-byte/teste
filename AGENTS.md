@@ -198,7 +198,8 @@ Podes combinar múltiplas skills carregando-as em sequência. A ordem importa:
 |------|------|-----------|
 | `/relatorios/lro` | LRO | Relatório de LRO |
 | `/relatorios/bona` | BONA/REA | Boletim de Ocorrência Não Aeronáutico e Relatório de Registro de Emergências Aeronáuticas (puxa BONAs com `numero` BONA-... e REAs de `rea_registros`; não inclui ocorrências do LRO) |
-| `/relatorios/ptr-ba` | PTR-BA | Relatório de PTR-BA |
+| `/relatorios/ptr-ba` | PTR-BA | Relatório de PTR-BA | 
+| `/relatorios/ptr-ba-registros` | PTR-BA Registros | Lista de todos os PTR-BAs (por instrução + completo) por ordem de data, com filtros de mês/ano/equipe e impressão |
 | `/relatorios/exercicios` | Exercícios | Relatório de exercícios gerais |
 | `/relatorios/exercicios/taf` | TAF | Relatório de TAF |
 | `/relatorios/exercicios/tp-epr` | TP/EPR | Relatório de TP/EPR |

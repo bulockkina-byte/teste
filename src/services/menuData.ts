@@ -374,6 +374,12 @@ export const menuItems: MenuItem[] = [
         description: 'Plano de Trabalho de Ronda - Bombeiro de Aeródromo.',
       },
       {
+        label: 'PTR-BA Registros',
+        icon: FileText,
+        path: '/relatorios/ptr-ba-registros',
+        description: 'Lista de todos os PTR-BAs por ordem de data, com impressão.',
+      },
+      {
         label: 'Exercícios',
         icon: Activity,
         children: [

@@ -16,6 +16,7 @@ export function Breadcrumb() {
     lro: 'LRO',
     bona: 'BONA/REA',
     'ptr-ba': 'PTR-BA',
+    'ptr-ba-registros': 'PTR-BA Registros',
     'ptr-ba-completo': 'PTR-BA Completo',
     exercicios: 'Exercícios',
     taf: 'TAF',

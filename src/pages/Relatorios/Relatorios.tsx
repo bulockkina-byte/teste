@@ -57,6 +57,12 @@ export function Relatorios() {
       stats: [{ label: 'Registros', value: ptrbCount }, { label: 'Horas', value: '—' }],
     },
     {
+      title: 'PTR-BA Registros',
+      description: 'Lista de todos os PTR-BAs por ordem de data, com impressão',
+      icon: FileText, path: '/relatorios/ptr-ba-registros', color: 'from-teal-500 to-teal-700',
+      stats: [{ label: 'Registros', value: ptrbCount }, { label: 'Ordem', value: 'Data' }],
+    },
+    {
       title: 'TAF',
       description: 'Teste de Aptidão Física — resultados e evolução',
       icon: Target, path: '/relatorios/exercicios/taf', color: 'from-orange-500 to-orange-700',

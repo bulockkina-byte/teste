@@ -241,6 +241,7 @@ function getPageTitle(pathname: string): string {
     'relatorios/lro': 'LRO',
     'relatorios/bona': 'BONA/REA',
     'relatorios/ptr-ba': 'PTR-BA',
+    'relatorios/ptr-ba-registros': 'PTR-BA Registros',
     'relatorios/exercicios': 'Exercícios',
     'relatorios/exercicios/taf': 'TAF',
     'relatorios/exercicios/tp-epr': 'TP/EPR',
