@@ -1317,13 +1317,25 @@ ${opts.legenda ? `<div class="legenda">
             <p className="text-[10px] font-medium text-aviation-500">Registros</p>
           </div>
         </div>
-        <div className="mb-4 flex justify-end">
-          {sortedPessoaRows.length > 0 && (
-            <button onClick={handlePrintPerson}
-              className="flex items-center gap-1 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-3 py-2 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 active:scale-[0.98]">
-              <Printer className="h-4 w-4" /> Imprimir
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex overflow-hidden rounded-xl border border-graphite-300/60 bg-white/70 text-xs font-medium dark:border-border-dark dark:bg-surface-card">
+            <button onClick={() => { goToSummary(); setSecaoAtiva('geral'); }}
+              className={`flex items-center gap-1.5 px-3 py-2 transition-colors ${secaoAtiva === 'geral' ? 'bg-aviation-600 text-white' : 'text-graphite-600 hover:bg-graphite-100 dark:text-graphite-300 dark:hover:bg-surface-hover'}`}>
+              <Users className="h-3.5 w-3.5" /> Visão Geral
             </button>
-          )}
+            <button onClick={() => { goToSummary(); setSecaoAtiva('individual'); }}
+              className={`flex items-center gap-1.5 px-3 py-2 transition-colors ${secaoAtiva === 'individual' ? 'bg-aviation-600 text-white' : 'text-graphite-600 hover:bg-graphite-100 dark:text-graphite-300 dark:hover:bg-surface-hover'}`}>
+              <User className="h-3.5 w-3.5" /> Visão Individual
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {sortedPessoaRows.length > 0 && (
+              <PrintButton onClick={handlePrintPerson} primary>Imprimir Equipe</PrintButton>
+            )}
+            <PrintButton onClick={() => setShowPrintModal(true)} icon={SlidersHorizontal}>
+              Opções de Impressão
+            </PrintButton>
+          </div>
         </div>
         <div className="overflow-x-auto rounded-2xl border border-graphite-200/60 bg-white/80 shadow-sm dark:border-border-dark dark:bg-surface-card">
           <table className="w-full text-sm">
@@ -1400,13 +1412,25 @@ ${opts.legenda ? `<div class="legenda">
         </div>
       </div>
 
-      <div className="mb-4 flex justify-end">
-        {detailPTRBs.length > 0 && (
-          <button onClick={handlePrintDetail}
-            className="flex items-center gap-1 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-3 py-2 text-sm font-medium text-white shadow-lg shadow-aviation-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-aviation-500/30 active:scale-[0.98]">
-            <Printer className="h-4 w-4" /> Imprimir
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex overflow-hidden rounded-xl border border-graphite-300/60 bg-white/70 text-xs font-medium dark:border-border-dark dark:bg-surface-card">
+          <button onClick={() => { goToSummary(); setSecaoAtiva('geral'); }}
+            className={`flex items-center gap-1.5 px-3 py-2 transition-colors ${secaoAtiva === 'geral' ? 'bg-aviation-600 text-white' : 'text-graphite-600 hover:bg-graphite-100 dark:text-graphite-300 dark:hover:bg-surface-hover'}`}>
+            <Users className="h-3.5 w-3.5" /> Visão Geral
           </button>
-        )}
+          <button onClick={() => { goToSummary(); setSecaoAtiva('individual'); }}
+            className={`flex items-center gap-1.5 px-3 py-2 transition-colors ${secaoAtiva === 'individual' ? 'bg-aviation-600 text-white' : 'text-graphite-600 hover:bg-graphite-100 dark:text-graphite-300 dark:hover:bg-surface-hover'}`}>
+            <User className="h-3.5 w-3.5" /> Visão Individual
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {detailPTRBs.length > 0 && (
+            <PrintButton onClick={handlePrintDetail} primary>Imprimir Pessoa</PrintButton>
+          )}
+          <PrintButton onClick={() => setShowPrintModal(true)} icon={SlidersHorizontal}>
+            Opções de Impressão
+          </PrintButton>
+        </div>
       </div>
 
       {detailPTRBs.length === 0 ? (
