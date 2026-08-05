@@ -52,8 +52,9 @@ function duracaoDe(p: PTRB): string {
 }
 
 function horasStr(h: number): string {
-  const horas = Math.floor(h);
-  const min = Math.round((h - horas) * 60);
+  const minTotal = Math.round(h * 60);
+  const horas = Math.floor(minTotal / 60);
+  const min = minTotal % 60;
   if (min === 0) return `${horas}h`;
   return `${horas}h${min.toString().padStart(2, '0')}min`;
 }
