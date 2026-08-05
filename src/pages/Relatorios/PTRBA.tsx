@@ -1221,29 +1221,11 @@ ${opts.legenda ? `<div class="legenda">
                 </label>
                 <label className={`flex cursor-pointer items-center justify-between rounded-xl border px-4 py-3 ${printModo === 'por-equipe' ? 'border-aviation-400 bg-aviation-50/60 dark:border-aviation-600 dark:bg-aviation-900/20' : 'border-graphite-200 bg-white dark:border-border-dark dark:bg-surface-card'}`}>
                   <span>
-                    <span className="block text-sm font-semibold text-graphite-900 dark:text-graphite-100">Por Equipe — instruções de cada equipe</span>
-                    <span className="block text-xs text-graphite-500">As instruções que cada equipe fez, com a quantidade por equipe (não por pessoa)</span>
+                    <span className="block text-sm font-semibold text-graphite-900 dark:text-graphite-100">Equipes — quantidade de PTR-BAs</span>
+                    <span className="block text-xs text-graphite-500">As equipes e a quantidade de PTR-BAs que cada uma fez</span>
                   </span>
                   <input type="radio" name="printModo" checked={printModo === 'por-equipe'} onChange={() => setPrintModo('por-equipe')} className="h-4 w-4 accent-aviation-600" />
                 </label>
-                <label className={`flex cursor-pointer items-center justify-between rounded-xl border px-4 py-3 ${printModo === 'individual' ? 'border-aviation-400 bg-aviation-50/60 dark:border-aviation-600 dark:bg-aviation-900/20' : 'border-graphite-200 bg-white dark:border-border-dark dark:bg-surface-card'}`}>
-                  <span>
-                    <span className="block text-sm font-semibold text-graphite-900 dark:text-graphite-100">Individual — 1 pessoa</span>
-                    <span className="block text-xs text-graphite-500">Uma pessoa com todas as instruções que ela fez</span>
-                  </span>
-                  <input type="radio" name="printModo" checked={printModo === 'individual'} onChange={() => setPrintModo('individual')} className="h-4 w-4 accent-aviation-600" />
-                </label>
-                {printModo === 'individual' && (
-                  <div className="rounded-xl border border-graphite-200 bg-white px-4 py-3 dark:border-border-dark dark:bg-surface-card">
-                    <span className="block text-xs font-semibold text-graphite-500 dark:text-graphite-400">Selecione a pessoa</span>
-                    <select value={printPessoa} onChange={e => setPrintPessoa(e.target.value)} className="mt-2 w-full rounded-xl border border-graphite-300 bg-white px-3 py-2 text-sm text-graphite-900 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100">
-                      <option value="">Selecione...</option>
-                      {individuos.flatMap(([, pessoas]) => pessoas).map(p => (
-                        <option key={p.pessoa} value={p.pessoa}>{getNomeGuerra(p.pessoa)}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
                 <label className={`flex cursor-pointer items-center justify-between rounded-xl border px-4 py-3 ${printModo === 'equipe' ? 'border-aviation-400 bg-aviation-50/60 dark:border-aviation-600 dark:bg-aviation-900/20' : 'border-graphite-200 bg-white dark:border-border-dark dark:bg-surface-card'}`}>
                   <span>
                     <span className="block text-sm font-semibold text-graphite-900 dark:text-graphite-100">Equipe — todos os membros de 1 equipe</span>
@@ -1258,6 +1240,24 @@ ${opts.legenda ? `<div class="legenda">
                       <option value="">Selecione...</option>
                       {equipePessoasMatriz.grupos.map(g => (
                         <option key={g.equipe} value={g.equipe}>{g.equipe.toUpperCase()} — {g.pessoas.length} militares</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                <label className={`flex cursor-pointer items-center justify-between rounded-xl border px-4 py-3 ${printModo === 'individual' ? 'border-aviation-400 bg-aviation-50/60 dark:border-aviation-600 dark:bg-aviation-900/20' : 'border-graphite-200 bg-white dark:border-border-dark dark:bg-surface-card'}`}>
+                  <span>
+                    <span className="block text-sm font-semibold text-graphite-900 dark:text-graphite-100">Individual — 1 pessoa</span>
+                    <span className="block text-xs text-graphite-500">Uma pessoa com todas as instruções que ela fez</span>
+                  </span>
+                  <input type="radio" name="printModo" checked={printModo === 'individual'} onChange={() => setPrintModo('individual')} className="h-4 w-4 accent-aviation-600" />
+                </label>
+                {printModo === 'individual' && (
+                  <div className="rounded-xl border border-graphite-200 bg-white px-4 py-3 dark:border-border-dark dark:bg-surface-card">
+                    <span className="block text-xs font-semibold text-graphite-500 dark:text-graphite-400">Selecione a pessoa</span>
+                    <select value={printPessoa} onChange={e => setPrintPessoa(e.target.value)} className="mt-2 w-full rounded-xl border border-graphite-300 bg-white px-3 py-2 text-sm text-graphite-900 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100">
+                      <option value="">Selecione...</option>
+                      {individuos.flatMap(([, pessoas]) => pessoas).map(p => (
+                        <option key={p.pessoa} value={p.pessoa}>{getNomeGuerra(p.pessoa)}</option>
                       ))}
                     </select>
                   </div>
