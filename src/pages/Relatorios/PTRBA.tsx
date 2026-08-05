@@ -331,6 +331,9 @@ export function PTRBA() {
   const [printGeral, setPrintGeral] = useState(true);
   const [printIndividual, setPrintIndividual] = useState(true);
   const [printLegenda, setPrintLegenda] = useState(true);
+  const [printCompacto, setPrintCompacto] = useState(false);
+  const [printQtdPTRs, setPrintQtdPTRs] = useState(true);
+  const [printPessoa, setPrintPessoa] = useState('');
   const [secaoAtiva, setSecaoAtiva] = useState<'geral' | 'individual'>('geral');
 
   const ANOS = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
@@ -730,13 +733,14 @@ export function PTRBA() {
     return v > 0 ? horasStr(v) : '—';
   }
 
-  function gerarHTMLRelatorioCompleto(opts: { geral: boolean; individual: boolean; legenda: boolean }): string {
+  function gerarHTMLRelatorioCompleto(opts: { geral: boolean; individual: boolean; legenda: boolean; compacto: boolean; qtdPTRs: boolean; pessoa: string }): string {
     const titulo = 'Relatório PTR-BA — Instrução e Tempo em Segurança do Trabalho';
     const filtros = `Período: ${filtroPeriodoLabel}${filtroEquipe ? ' · Equipe: ' + filtroEquipe : ''}${filtroAssunto ? ' · Assunto: ' + filtroAssunto : ''} · Gerado em ${new Date().toLocaleString('pt-BR')}`;
 
     const thAssunto = (a: string) => '<th title="' + a + '">' + abreviarLabel(a) + '</th>';
 
-    // 1 — Visão Geral: pessoa × assunto, uma página por equipe
+    // 1 — Visão Geral: pessoa × assunto; compacta = todas as equipes fluem sem quebra de página
+    const paginaCls = opts.compacto ? '' : 'pagina';
     const geralPaginas = equipePessoasMatriz.grupos.map((g, gi) => {
       const rows = g.pessoas.map((p, i) =>
         '<tr' + (p.funcao === 'BA-CE' ? ' class="bace"' : '') + '>' +
@@ -757,7 +761,7 @@ export function PTRBA() {
         '<td>' + horasStr(totalEquipe) + '</td>' +
         '<td>' + registrosEquipe + '</td>' +
         '</tr>';
-      return '<div class="pagina">' +
+      return '<div class="' + paginaCls + '">' +
         (gi === 0 ? '<h2>1. Visão Geral — Pessoas e atividades por equipe</h2>' : '') +
         '<table><tr class="eq-header"><td colspan="' + (equipePessoasMatriz.assuntos.length + 5) + '">EQUIPE ' + g.equipe.toUpperCase() + ' — ' + g.pessoas.length + ' militares · Atividade da equipe: ' + horasStr(totalEquipe) + '</td></tr></table>' +
         '<table><thead><tr>' + '<th style="width:3%">Nº</th><th style="width:7%">Função</th><th class="l" style="width:14%;">Nome</th>' +
@@ -766,8 +770,27 @@ export function PTRBA() {
         '</div>';
     }).join('\n');
 
-    // 2 — Visão Individual: um bloco por militar, uma página por equipe
-    const individualPaginas = individuos.map(([equipe, pessoas], gi) => {
+    // 1.1 — Quantidade de PTR-BAs por equipe
+    const equipesComRegistros = [...EQUIPE_ORDER.filter(eq => horasAtividades.registrosPorEquipe[eq]), ...Object.keys(horasAtividades.registrosPorEquipe).filter(eq => !EQUIPE_ORDER.includes(eq))];
+    const qtdRows = equipesComRegistros.map(eq =>
+      '<tr>' +
+      '<td class="l" style="font-weight:bold;">' + eq + '</td>' +
+      '<td>' + horasAtividades.registrosPorEquipe[eq] + '</td>' +
+      '<td style="font-weight:bold;">' + horasStr(horasAtividades.totalPorEquipe[eq] || 0) + '</td>' +
+      '</tr>'
+    ).join('\n');
+    const qtdTotal = equipesComRegistros.reduce((s, eq) => s + (horasAtividades.registrosPorEquipe[eq] || 0), 0);
+    const qtdPagina = opts.qtdPTRs ? '<div class="pagina">' +
+      '<h2>Quantidade de PTR-BAs por Equipe</h2>' +
+      '<table><thead><tr><th class="l" style="width:40%;">Equipe</th><th style="width:20%;">PTR-BAs</th><th style="width:20%;">Horas de atividade</th></tr></thead><tbody>' + qtdRows +
+      '<tr class="total"><td class="l">TOTAL</td><td>' + qtdTotal + '</td><td>' + horasStr(horasAtividades.totalGeral) + '</td></tr>' +
+      '</tbody></table></div>' : '';
+
+    // 2 — Visão Individual: um bloco por militar, uma página por equipe (ou só a pessoa escolhida)
+    const individuosAlvo = opts.pessoa
+      ? individuos.map(([equipe, pessoas]) => [equipe, pessoas.filter(p => p.pessoa === opts.pessoa)] as const).filter(([, pessoas]) => pessoas.length > 0)
+      : individuos;
+    const individualPaginas = individuosAlvo.map(([equipe, pessoas], gi) => {
       const cards = pessoas.map(p => {
         const total = p.registros.reduce((s, r) => s + r.horas, 0);
         const rows = p.registros.map(r =>
@@ -788,7 +811,7 @@ export function PTRBA() {
       }).join('\n');
       return '<div class="pagina">' +
         (gi === 0 ? '<h2>2. Visão Individual — Atividades de cada militar</h2>' : '') +
-        '<table><tr class="eq-header"><td colspan="5">EQUIPE ' + equipe.toUpperCase() + ' — ' + pessoas.length + ' militar(es)</td></tr></table>' +
+        (opts.pessoa ? '' : '<table><tr class="eq-header"><td colspan="5">EQUIPE ' + equipe.toUpperCase() + ' — ' + pessoas.length + ' militar(es)</td></tr></table>') +
         cards +
         '</div>';
     }).join('\n');
@@ -823,7 +846,9 @@ td.l, th.l { text-align: left; }
 
 ${opts.geral ? geralPaginas : ''}
 
-${opts.individual ? individualPaginas : ''}
+${qtdPagina}
+
+${opts.individual || opts.pessoa ? individualPaginas : ''}
 
 ${opts.legenda ? `<div class="legenda">
 <p><strong>Legenda — Assuntos Ministrados:</strong></p>
@@ -833,10 +858,10 @@ ${opts.legenda ? `<div class="legenda">
 </body></html>`;
   }
 
-  function imprimirRelatorioCompleto(opts?: { geral: boolean; individual: boolean; legenda: boolean }) {
+  function imprimirRelatorioCompleto(opts?: { geral: boolean; individual: boolean; legenda: boolean; compacto: boolean; qtdPTRs: boolean; pessoa: string }) {
     const win = window.open('', '_blank');
     if (win) {
-      win.document.write(gerarHTMLRelatorioCompleto(opts || { geral: true, individual: true, legenda: true }));
+      win.document.write(gerarHTMLRelatorioCompleto(opts || { geral: true, individual: true, legenda: true, compacto: false, qtdPTRs: true, pessoa: '' }));
       win.document.close();
       setTimeout(() => win.print(), 700);
     }
@@ -1010,7 +1035,7 @@ ${opts.legenda ? `<div class="legenda">
             </button>
           </div>
           <div className="flex flex-wrap gap-2">
-            <PrintButton onClick={() => imprimirRelatorioCompleto({ geral: true, individual: true, legenda: true })} primary>Imprimir Relatório</PrintButton>
+            <PrintButton onClick={() => imprimirRelatorioCompleto({ geral: true, individual: true, legenda: true, compacto: false, qtdPTRs: true, pessoa: '' })} primary>Imprimir Relatório</PrintButton>
             <PrintButton onClick={() => setShowPrintModal(true)} icon={SlidersHorizontal}>
               Opções de Impressão
             </PrintButton>
@@ -1175,13 +1200,37 @@ ${opts.legenda ? `<div class="legenda">
                   </span>
                   <input type="checkbox" checked={printLegenda} onChange={e => setPrintLegenda(e.target.checked)} className="h-4 w-4 accent-aviation-600" />
                 </label>
+                <label className="flex cursor-pointer items-center justify-between rounded-xl border border-graphite-200 bg-white px-4 py-3 dark:border-border-dark dark:bg-surface-card">
+                  <span>
+                    <span className="block text-sm font-semibold text-graphite-900 dark:text-graphite-100">Quantidade de PTR-BAs por equipe</span>
+                    <span className="block text-xs text-graphite-500">Quantos PTR-BAs cada equipe fez no período</span>
+                  </span>
+                  <input type="checkbox" checked={printQtdPTRs} onChange={e => setPrintQtdPTRs(e.target.checked)} className="h-4 w-4 accent-aviation-600" />
+                </label>
+                <label className="flex cursor-pointer items-center justify-between rounded-xl border border-graphite-200 bg-white px-4 py-3 dark:border-border-dark dark:bg-surface-card">
+                  <span>
+                    <span className="block text-sm font-semibold text-graphite-900 dark:text-graphite-100">Todas as equipes em 1 folha</span>
+                    <span className="block text-xs text-graphite-500">Visão Geral sem quebra de página entre equipes (mais compacta)</span>
+                  </span>
+                  <input type="checkbox" checked={printCompacto} onChange={e => setPrintCompacto(e.target.checked)} className="h-4 w-4 accent-aviation-600" />
+                </label>
+                <div className="rounded-xl border border-graphite-200 bg-white px-4 py-3 dark:border-border-dark dark:bg-surface-card">
+                  <label className="block text-sm font-semibold text-graphite-900 dark:text-graphite-100">Imprimir somente 1 pessoa</label>
+                  <span className="block text-xs text-graphite-500">Relatório individual com todos os assuntos que a pessoa fez</span>
+                  <select value={printPessoa} onChange={e => setPrintPessoa(e.target.value)} className="mt-2 w-full rounded-xl border border-graphite-300 bg-white px-3 py-2 text-sm text-graphite-900 dark:border-border-dark dark:bg-surface-card dark:text-graphite-100">
+                    <option value="">Todas as pessoas</option>
+                    {individuos.flatMap(([, pessoas]) => pessoas).map(p => (
+                      <option key={p.pessoa} value={p.pessoa}>{getNomeGuerra(p.pessoa)}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div className="mt-6 flex justify-end gap-2">
                 <button onClick={() => setShowPrintModal(false)}
                   className="rounded-xl border border-graphite-300/60 bg-white/80 px-4 py-2 text-sm font-medium text-graphite-700 dark:border-border-dark dark:bg-surface-card dark:text-graphite-200">
                   Cancelar
                 </button>
-                <button onClick={() => { setShowPrintModal(false); imprimirRelatorioCompleto({ geral: printGeral, individual: printIndividual, legenda: printLegenda }); }}
+                <button onClick={() => { setShowPrintModal(false); imprimirRelatorioCompleto({ geral: printGeral, individual: printIndividual, legenda: printLegenda, compacto: printCompacto, qtdPTRs: printQtdPTRs, pessoa: printPessoa }); }}
                   className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-aviation-600 to-aviation-700 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-aviation-500/20">
                   <Printer className="h-4 w-4" /> Imprimir
                 </button>
