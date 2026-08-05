@@ -153,7 +153,7 @@ function expandParticipants(ptrbs: PTRB[]): ExpandedPTRB[] {
 }
 
 // Converte um registro PTR-BA Completo em registros de instrução (uma por assunto/par de evidências)
-export function converterCompletoParaPTRBs(c: PTRBACompleto): PTRB[] {
+function converterCompletoParaPTRBs(c: PTRBACompleto): PTRB[] {
   const participantes = (c.participantes || []).filter(p => p.nomeCompleto && p.nomeCompleto.trim());
   if (participantes.length === 0) return [];
   const base = {
