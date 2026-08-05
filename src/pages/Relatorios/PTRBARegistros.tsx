@@ -7,6 +7,7 @@ import { listarPTRBs } from '../../services/ptrbService';
 import { listarPTRBACompletos } from '../../services/ptrbaCompletoService';
 import type { PTRB } from '../../types/ptrb';
 import type { PTRBACompleto, PTRBACompletoEvidencia } from '../../types/ptrbaCompleto';
+import { PTRBA_COMPLETO_EVIDENCIA_PARES } from '../../types/ptrbaCompleto';
 import { EQUIPES } from '../../types/ptrb';
 
 const EQUIPES_FILTRO = EQUIPES.filter(eq => eq !== 'Ferista');
@@ -84,7 +85,14 @@ function linhaDePTRB(p: PTRB): Linha {
 }
 
 function linhaDeCompleto(c: PTRBACompleto): Linha {
-  const evidencias = (c.evidencias || []).filter(e => e.assunto && e.assunto.trim());
+  // Evidências vêm em pares com o mesmo assunto — pega só 1 de cada par
+  const evidencias: PTRBACompletoEvidencia[] = [];
+  for (const [i, j] of PTRBA_COMPLETO_EVIDENCIA_PARES) {
+    const a = c.evidencias?.[i];
+    const b = c.evidencias?.[j];
+    const ev = a?.assunto?.trim() ? a : (b?.assunto?.trim() ? b : undefined);
+    if (ev) evidencias.push(ev);
+  }
   return {
     id: c.id,
     data: c.data,
