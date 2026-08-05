@@ -47,6 +47,10 @@ function horasDe(p: PTRB): number {
   return p.horas || calcHoras(p.horaInicio, p.horaTermino) || parseDuracao(p.duracao);
 }
 
+function duracaoDe(p: PTRB): string {
+  return horasStr(horasDe(p));
+}
+
 function horasStr(h: number): string {
   const horas = Math.floor(h);
   const min = Math.round((h - horas) * 60);
@@ -721,7 +725,7 @@ export function PTRBA() {
       p.equipe,
       p.assuntoMinistrado || '-',
       `${p.horaInicio || '-'} às ${p.horaTermino || '-'}`,
-      p.duracao || '-',
+      duracaoDe(p),
       p.instrutor || '-',
     ]);
     imprimirHTML(`Relatório PTR-BA - Registros de ${selectedPessoa}`, colunas, linhas);
@@ -1003,7 +1007,7 @@ ${opts.legenda ? `<div class="legenda">
           <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
             <div><p className="text-xs text-graphite-400">Data</p><p className="text-sm font-medium dark:text-graphite-100">{formatDate(selectedPTRB.data)}</p></div>
             <div><p className="text-xs text-graphite-400">Equipe</p><p className="text-sm font-medium dark:text-graphite-100">{selectedPTRB.equipe}</p></div>
-            <div><p className="text-xs text-graphite-400">Horário</p><p className="text-sm font-medium dark:text-graphite-100">{selectedPTRB.horaInicio} às {selectedPTRB.horaTermino} ({selectedPTRB.duracao}h)</p></div>
+            <div><p className="text-xs text-graphite-400">Horário</p><p className="text-sm font-medium dark:text-graphite-100">{selectedPTRB.horaInicio} às {selectedPTRB.horaTermino} ({duracaoDe(selectedPTRB)})</p></div>
             <div><p className="text-xs text-graphite-400">Turno</p><p className="text-sm font-medium dark:text-graphite-100">{selectedPTRB.turno}</p></div>
           </div>
           {selectedPTRB.participantes.length > 0 && (
@@ -1509,7 +1513,7 @@ ${opts.legenda ? `<div class="legenda">
                 </div>
                 <div>
                   <p className="text-[10px] font-semibold uppercase text-graphite-500">Horário</p>
-                  <p className="text-sm font-medium text-graphite-900 dark:text-graphite-100">{visualizandoPtrb.horaInicio} às {visualizandoPtrb.horaTermino} ({visualizandoPtrb.duracao}h)</p>
+                  <p className="text-sm font-medium text-graphite-900 dark:text-graphite-100">{visualizandoPtrb.horaInicio} às {visualizandoPtrb.horaTermino} ({duracaoDe(visualizandoPtrb)})</p>
                 </div>
                 <div>
                   <p className="text-[10px] font-semibold uppercase text-graphite-500">Equipe</p>
